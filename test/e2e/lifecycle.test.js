@@ -93,9 +93,9 @@ describe('E2E: full ticket lifecycle', () => {
     expect(retros.length).toBe(1);
     expect(retros[0]).toContain('missing-validation');
 
-    run('learn work-tickets "missing-validation" "Always validate inputs"');
+    run('learn bobby-build "missing-validation" "Always validate inputs"');
     const learnings = fs.readFileSync(
-      path.join(tmpDir, '.claude', 'skills', 'work-tickets', 'learnings.md'), 'utf8'
+      path.join(tmpDir, '.claude', 'skills', 'bobby-build', 'learnings.md'), 'utf8'
     );
     expect(learnings).toContain('missing-validation');
   });

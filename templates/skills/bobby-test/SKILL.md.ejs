@@ -1,10 +1,10 @@
-# QE Skill
+# Bobby Test Skill
 
-> This skill is loaded when Claude is told to "test tickets" or "QE". It handles quality assurance testing.
+> This skill is loaded when Claude is told to "test tickets" or "bobby test". It handles quality assurance testing.
 
 ## Before Starting
 
-1. **Check learnings** — Read `.claude/skills/qe/learnings.md`
+1. **Check learnings** — Read `.claude/skills/bobby-test/learnings.md`
 2. **Health check** — Verify dev environment:
 <% if (health_checks && health_checks.length > 0) { %>
 <% health_checks.forEach(function(check) { %>
@@ -52,7 +52,7 @@
 2. Add QE note: `bobby comment {ID} qe "FAIL: {test case} — {description of failure}"`
 3. Take screenshots if applicable
 4. Reject: `bobby reject {ID} "Reason for rejection"`
-5. If this is a systemic issue: `bobby retro {ID} "pattern"` and `bobby learn qe "pattern" "description"`
+5. If this is a systemic issue: `bobby retro {ID} "pattern"` and `bobby learn bobby-test "pattern" "description"`
 
 ## Key Principles
 

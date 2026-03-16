@@ -38,14 +38,14 @@ describe('template', () => {
       tickets_dir: 'tickets',
     };
     renderSkillTemplates(tmpDir, config);
-    expect(fs.existsSync(path.join(tmpDir, 'work-tickets', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'qe', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'peer-review', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'refine-tickets', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'release-tickets', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'ideate', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'bobby-build', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'bobby-test', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'bobby-review', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'bobby-refine', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'bobby-release', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'bobby-ideate', 'SKILL.md'))).toBe(true);
     // Check content has templated values
-    const workTickets = fs.readFileSync(path.join(tmpDir, 'work-tickets', 'SKILL.md'), 'utf8');
+    const workTickets = fs.readFileSync(path.join(tmpDir, 'bobby-build', 'SKILL.md'), 'utf8');
     expect(workTickets).toContain('http://localhost:3000');
     expect(workTickets).toContain('npm test');
   });

@@ -1,10 +1,10 @@
-# Work Tickets Skill
+# Bobby Build Skill
 
-> This skill is loaded when Claude is told to "work tickets". It processes the ticket queue using TDD methodology.
+> This skill is loaded when Claude is told to "work tickets" or "bobby build". It processes the ticket queue using TDD methodology.
 
 ## Before Starting
 
-1. **Check learnings** — Read `.claude/skills/work-tickets/learnings.md` for anti-patterns to avoid
+1. **Check learnings** — Read `.claude/skills/bobby-build/learnings.md` for anti-patterns to avoid
 2. **Health check** — Verify dev environment:
 <% if (health_checks && health_checks.length > 0) { %>
 <% health_checks.forEach(function(check) { %>
@@ -68,4 +68,4 @@
 - If tests fail after your changes: fix them before moving on
 - If you break a health check: revert and investigate
 - If the ticket is unclear: add a dev note asking for clarification and `bobby block {ID} "Need clarification"`
-- If you discover a systemic issue: `bobby retro {ID} "pattern"` and `bobby learn work-tickets "pattern" "description"`
+- If you discover a systemic issue: `bobby retro {ID} "pattern"` and `bobby learn bobby-build "pattern" "description"`

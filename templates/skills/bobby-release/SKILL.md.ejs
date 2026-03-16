@@ -1,10 +1,10 @@
-# Release Tickets Skill
+# Bobby Release Skill
 
-> This skill is loaded when Claude is told to "release tickets". It handles the release process.
+> This skill is loaded when Claude is told to "release tickets" or "bobby release". It handles the release process.
 
 ## Before Starting
 
-1. **Check learnings** — Read `.claude/skills/release-tickets/learnings.md`
+1. **Check learnings** — Read `.claude/skills/bobby-release/learnings.md`
 2. **Check the queue** — Run `bobby list 7-ready-for-release`
 
 ## Release Process
@@ -42,4 +42,4 @@
 
 - If CI fails: fix and re-push, don't force-merge
 - If deployment fails: investigate, don't just retry
-- Document any issues: `bobby retro {ID} "pattern"` and `bobby learn release-tickets "pattern" "description"`
+- Document any issues: `bobby retro {ID} "pattern"` and `bobby learn bobby-release "pattern" "description"`

@@ -47,30 +47,30 @@ Side tracks: `8-needs-rework`, `9-blocked`
 
 ## Roles
 
-### Engineer (work-tickets skill)
-When told to "work tickets", load the `work-tickets` skill from `.claude/skills/work-tickets/SKILL.md`. This skill handles:
+### Engineer (bobby-build skill)
+When told to "work tickets" or "bobby build", load the `bobby-build` skill from `.claude/skills/bobby-build/SKILL.md`. This skill handles:
 - Picking up tickets from `3-ready-for-development`
 - TDD red-green-refactor cycle
 - Running health checks before/after changes
 - Moving tickets through the pipeline
 
-### QE (qe skill)
-When told to "test tickets" or "QE", load the `qe` skill from `.claude/skills/qe/SKILL.md`. This handles:
+### QE (bobby-test skill)
+When told to "test tickets" or "bobby test", load the `bobby-test` skill from `.claude/skills/bobby-test/SKILL.md`. This handles:
 - Testing tickets in `6-ready-for-testing`
 - Browser-based verification
 - Writing QE notes with evidence
 
-### Peer Reviewer (peer-review skill)
-When told to "review tickets" or "peer review", load the `peer-review` skill from `.claude/skills/peer-review/SKILL.md`.
+### Peer Reviewer (bobby-review skill)
+When told to "review tickets" or "bobby review", load the `bobby-review` skill from `.claude/skills/bobby-review/SKILL.md`.
 
-### Refiner (refine-tickets skill)
-When told to "refine tickets", load the `refine-tickets` skill from `.claude/skills/refine-tickets/SKILL.md`.
+### Refiner (bobby-refine skill)
+When told to "refine tickets" or "bobby refine", load the `bobby-refine` skill from `.claude/skills/bobby-refine/SKILL.md`.
 
-### Release Engineer (release-tickets skill)
-When told to "release tickets", load the `release-tickets` skill from `.claude/skills/release-tickets/SKILL.md`.
+### Release Engineer (bobby-release skill)
+When told to "release tickets" or "bobby release", load the `bobby-release` skill from `.claude/skills/bobby-release/SKILL.md`.
 
-### Ideator (ideate skill)
-When told to "ideate" or "brainstorm", load the `ideate` skill from `.claude/skills/ideate/SKILL.md`.
+### Ideator (bobby-ideate skill)
+When told to "ideate", "brainstorm", or "bobby ideate", load the `bobby-ideate` skill from `.claude/skills/bobby-ideate/SKILL.md`.
 
 ## Learnings
 
@@ -86,5 +86,5 @@ bobby review TKT-001                         # Submit for review
 bobby approve TKT-001                        # QE approve
 bobby release TKT-001                        # Ship it
 bobby retro TKT-001 "pattern name"           # Create retrospective
-bobby learn work-tickets "pattern" "desc"    # Add learning
+bobby learn bobby-build "pattern" "desc"     # Add learning
 ```

@@ -25,7 +25,7 @@ bobby create -t "Build login page" -p high  # Create a ticket
 bobby list                                  # See your board
 ```
 
-Tell Claude: **"work tickets"** and it picks up from the queue.
+Tell Claude: **"bobby build"** and it picks up from the queue.
 
 ## How It Works with Claude Code
 

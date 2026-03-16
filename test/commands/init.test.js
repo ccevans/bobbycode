@@ -30,8 +30,8 @@ describe('bobby init (scaffolding)', () => {
     expect(fs.existsSync(path.join(tmpDir, 'tickets', '0-ideas'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'tickets', '10-released'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'tickets', 'retrospectives'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, '.claude', 'skills', 'work-tickets', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, '.claude', 'skills', 'qe', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'skills', 'bobby-build', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'skills', 'bobby-test', 'SKILL.md'))).toBe(true);
 
     // Check files
     expect(fs.existsSync(path.join(tmpDir, '.bobbyrc.yml'))).toBe(true);
