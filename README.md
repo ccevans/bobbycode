@@ -41,7 +41,7 @@ Bobby gives Claude structured roles and workflows:
 
 ```
 0-ideas → 1-backlog → 2-ready-for-refinement → 3-ready-for-development
-→ 4-in-progress → 5-peer-review → 6-ready-for-testing
+→ 4-in-progress → 5-ready-for-review → 6-ready-for-testing
 → 7-ready-for-release → 10-released
 ```
 
@@ -59,7 +59,7 @@ Bobby gives Claude structured roles and workflows:
 | `bobby files <id>` | List ticket folder contents |
 | `bobby move <id> <stage>` | Move ticket to any stage |
 | `bobby assign <id> <name>` | Assign ticket to someone |
-| `bobby comment <id> <dev\|qe> <note>` | Add a note |
+| `bobby comment <id> <dev\|test> <note>` | Add a note |
 
 ### Workflow Shortcuts
 
@@ -68,9 +68,9 @@ Bobby gives Claude structured roles and workflows:
 | `bobby refine <id>` | backlog → refinement |
 | `bobby ready <id>` | refinement → development |
 | `bobby start <id>` | development → in-progress |
-| `bobby review <id>` | in-progress → peer-review |
-| `bobby peer-approve <id>` | peer-review → testing |
-| `bobby peer-reject <id> [reason]` | peer-review → needs-rework |
+| `bobby review <id>` | in-progress → ready-for-review |
+| `bobby peer-approve <id>` | ready-for-review → testing |
+| `bobby peer-reject <id> [reason]` | ready-for-review → needs-rework |
 | `bobby approve <id>` | testing → release |
 | `bobby reject <id> [reason]` | testing → needs-rework |
 | `bobby release <id>` | release → released |

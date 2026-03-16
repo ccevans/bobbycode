@@ -11,8 +11,8 @@ export function registerComment(program) {
     .description('Add a dev or QE note to a ticket')
     .action((id, section, noteParts) => {
       try {
-        if (!['dev', 'qe'].includes(section)) {
-          error("Section must be 'dev' or 'qe'");
+        if (!['dev', 'test'].includes(section)) {
+          error("Section must be 'dev' or 'test'");
           process.exit(1);
         }
 
@@ -27,7 +27,7 @@ export function registerComment(program) {
         const note = noteParts.join(' ');
         const entry = `**[${dt}]** ${note}`;
 
-        const marker = section === 'dev' ? '_Engineer updates' : '_QE/testing';
+        const marker = section === 'dev' ? '_Engineer updates' : '_Test feedback';
         content = content.replace(
           new RegExp(`(${marker}[^\\n]*\\n)`),
           `$1\n${entry}\n`

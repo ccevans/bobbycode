@@ -43,13 +43,13 @@
 
 ### If All Tests Pass
 
-1. Add QE note: `bobby comment {ID} qe "All test cases pass. Evidence: {details}"`
+1. Add QE note: `bobby comment {ID} test "All test cases pass. Evidence: {details}"`
 2. Approve: `bobby approve {ID}`
 
 ### If Tests Fail
 
 1. Document exactly what failed and how to reproduce
-2. Add QE note: `bobby comment {ID} qe "FAIL: {test case} — {description of failure}"`
+2. Add QE note: `bobby comment {ID} test "FAIL: {test case} — {description of failure}"`
 3. Take screenshots if applicable
 4. Reject: `bobby reject {ID} "Reason for rejection"`
 5. If this is a systemic issue: `bobby retro {ID} "pattern"` and `bobby learn bobby-test "pattern" "description"`
