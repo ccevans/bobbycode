@@ -1,0 +1,68 @@
+# <%= project %> — Ticket Workflow
+
+## Stages
+
+| Stage | Description |
+|-------|-------------|
+| `0-ideas` | Lightweight ideas — not yet tickets |
+| `1-backlog` | Tickets waiting to be prioritized |
+| `2-ready-for-refinement` | Prioritized, needs plan + test cases |
+| `3-ready-for-development` | Refined with plan, ready to build |
+| `4-in-progress` | Engineer is actively working |
+| `5-peer-review` | Code complete, awaiting peer review |
+| `6-ready-for-testing` | Peer approved, awaiting QE |
+| `7-ready-for-release` | QE approved, ready to ship |
+| `8-needs-rework` | Rejected — see QE/review notes |
+| `9-blocked` | Cannot proceed — blocker documented |
+| `10-released` | Shipped and verified |
+
+## Ticket Structure
+
+Each ticket lives in a folder: `<%= tickets_dir %>/{stage}/{ID}--{slug}/`
+
+Contents:
+- `ticket.md` — Metadata, description, acceptance criteria, history
+- `test-cases.md` — QE test cases (added during refinement)
+- `plan.md` — Implementation plan (added during refinement)
+- `screenshots/` — Evidence from QE testing
+
+## Commands
+
+| Action | Command |
+|--------|---------|
+| Create ticket | `bobby create -t "Title" --type feature -p medium` |
+| Create idea | `bobby idea "Quick thought"` |
+| Promote idea | `bobby promote IDEA-001` |
+| View board | `bobby list` |
+| View ticket | `bobby view TKT-001` |
+| Move to refinement | `bobby refine TKT-001` |
+| Mark ready | `bobby ready TKT-001` |
+| Start work | `bobby start TKT-001` |
+| Submit for review | `bobby review TKT-001` |
+| Approve review | `bobby peer-approve TKT-001` |
+| Reject review | `bobby peer-reject TKT-001 "reason"` |
+| QE approve | `bobby approve TKT-001` |
+| QE reject | `bobby reject TKT-001 "reason"` |
+| Release | `bobby release TKT-001` |
+| Reopen | `bobby reopen TKT-001` |
+| Block | `bobby block TKT-001 "reason"` |
+| Unblock | `bobby unblock TKT-001` |
+
+## Health Checks
+
+<% if (health_checks && health_checks.length > 0) { %>
+<% health_checks.forEach(function(check) { %>
+- **<%= check.name %>**: <%= check.url %> — <%= check.description || '' %>
+<% }); %>
+<% } else { %>
+_No health checks configured._
+<% } %>
+
+## Retrospectives
+
+When a systemic issue is found:
+1. `bobby retro TKT-001 "pattern name"` — creates a retro in `<%= tickets_dir %>/retrospectives/`
+2. Fill in the problem, root cause, and fix
+3. `bobby learn work-tickets "pattern" "description"` — adds to the skill's learnings
+
+This feedback loop is what makes Bobby get smarter over time.

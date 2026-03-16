@@ -1,0 +1,56 @@
+# Refine Tickets Skill
+
+> This skill is loaded when Claude is told to "refine tickets". It handles ticket refinement — turning backlog items into development-ready tickets.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/refine-tickets/learnings.md`
+2. **Check the queue** — Run `bobby list 2-ready-for-refinement`
+
+## Refinement Process
+
+1. Pick up a ticket from `2-ready-for-refinement`
+2. Read `ticket.md` for the description and acceptance criteria
+
+### Step 1: Clarify Requirements
+
+- Ensure the description is clear and complete
+- Acceptance criteria are specific, measurable, and testable
+- Update the ticket if anything is ambiguous
+
+### Step 2: Create Implementation Plan
+
+Create `plan.md` in the ticket folder with:
+
+1. **Approach** — High-level strategy
+2. **Files to modify** — List every file that needs changes
+3. **Step-by-step plan** — Ordered steps with checkboxes
+4. **Risk areas** — What could go wrong
+5. **Dependencies** — What needs to exist first
+
+### Step 3: Write Test Cases
+
+Update `test-cases.md` with:
+
+- One test case per acceptance criterion (minimum)
+- Edge cases and error scenarios
+- Each test case has: preconditions, steps, expected result
+- Consider: what would QE need to verify this works?
+
+### Step 4: Estimate Complexity
+
+Add a note to the ticket:
+- **Simple:** Single file change, clear path
+- **Medium:** Multiple files, some decisions to make
+- **Complex:** Cross-cutting, architectural decisions needed
+
+## Completing Refinement
+
+1. Verify `plan.md` exists and is complete
+2. Verify `test-cases.md` has at least one test per acceptance criterion
+3. Add dev note: `bobby comment {ID} dev "Refined: plan.md and test-cases.md ready"`
+4. Mark ready: `bobby ready {ID}`
+
+## Feature Areas
+
+<%= areas && areas.length > 0 ? areas.join(' | ') : '_No areas configured_' %>

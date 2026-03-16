@@ -1,0 +1,62 @@
+# QE Skill
+
+> This skill is loaded when Claude is told to "test tickets" or "QE". It handles quality assurance testing.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/qe/learnings.md`
+2. **Health check** — Verify dev environment:
+<% if (health_checks && health_checks.length > 0) { %>
+<% health_checks.forEach(function(check) { %>
+   - `curl -s <%= check.url %>` (<%= check.description || check.name %>)
+<% }); %>
+<% } %>
+3. **Check the queue** — Run `bobby list 6-ready-for-testing`
+
+## Testing Process
+
+1. Pick up a ticket from `6-ready-for-testing`
+2. Read `ticket.md` for acceptance criteria and context
+3. Read `test-cases.md` for test scenarios
+4. Read `plan.md` to understand what was implemented
+
+### For Each Test Case
+
+1. **Setup** — Ensure preconditions are met
+2. **Execute** — Follow the test steps exactly
+3. **Verify** — Compare actual results against expected
+4. **Evidence** — Take screenshots or capture output as proof
+5. **Document** — Add QE notes with findings
+
+### Browser Testing (if applicable)
+
+- Test in the browser at the configured URLs
+<% if (health_checks && health_checks.length > 0) { %>
+<% health_checks.forEach(function(check) { %>
+- <%= check.name %>: `<%= check.url %>`
+<% }); %>
+<% } %>
+- Check responsive behavior
+- Verify error states and edge cases
+
+## Completing QE
+
+### If All Tests Pass
+
+1. Add QE note: `bobby comment {ID} qe "All test cases pass. Evidence: {details}"`
+2. Approve: `bobby approve {ID}`
+
+### If Tests Fail
+
+1. Document exactly what failed and how to reproduce
+2. Add QE note: `bobby comment {ID} qe "FAIL: {test case} — {description of failure}"`
+3. Take screenshots if applicable
+4. Reject: `bobby reject {ID} "Reason for rejection"`
+5. If this is a systemic issue: `bobby retro {ID} "pattern"` and `bobby learn qe "pattern" "description"`
+
+## Key Principles
+
+- **Test what the ticket says** — Don't scope-creep QE to unrelated features
+- **Evidence over assertion** — Always provide proof (screenshots, test output, curl responses)
+- **Reproducible** — Another person should be able to follow your QE notes and get the same result
+- **Be specific** — "Login doesn't work" is not useful. "Clicking 'Login' with valid credentials shows a 500 error on /api/auth" is useful.

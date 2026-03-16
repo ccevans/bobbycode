@@ -1,0 +1,71 @@
+# Work Tickets Skill
+
+> This skill is loaded when Claude is told to "work tickets". It processes the ticket queue using TDD methodology.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/work-tickets/learnings.md` for anti-patterns to avoid
+2. **Health check** — Verify dev environment:
+<% if (health_checks && health_checks.length > 0) { %>
+<% health_checks.forEach(function(check) { %>
+   - `curl -s <%= check.url %>` (<%= check.description || check.name %>)
+<% }); %>
+<% } %>
+3. **Check the queue** — Run `bobby list 3-ready-for-development` to see available tickets
+
+## Picking Up Work
+
+1. Look at `<%= tickets_dir %>/3-ready-for-development/` for tickets ordered by priority
+2. Prefer tickets in areas you've been working on (area continuity reduces context switching)
+3. Run `bobby start {ID}` to move the ticket to `4-in-progress`
+4. Read the ticket's `ticket.md`, `plan.md`, and `test-cases.md`
+
+## Development Process (TDD)
+
+### For Feature Tickets
+
+1. **RED** — Write a failing test first
+   - Run: `<%= commands && commands.test ? commands.test : 'npm test' %>`
+   - Confirm the test fails for the right reason
+2. **GREEN** — Write the minimum code to make the test pass
+   - Run tests again — should pass
+3. **REFACTOR** — Clean up while tests stay green
+   - Run: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+4. Repeat for each acceptance criterion
+
+### For Bug Tickets
+
+1. **Reproduce** — Confirm the bug exists using the steps in the ticket
+2. **Write a failing test** that captures the bug
+3. **Fix** — Write the minimum fix
+4. **Verify** — Test passes, bug no longer reproduces
+5. **Regression check** — Run full test suite
+
+## Completing Work
+
+1. Run the full test suite: `<%= commands && commands.test ? commands.test : 'npm test' %>`
+2. Run the linter: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+3. Health check all services:
+<% if (health_checks && health_checks.length > 0) { %>
+<% health_checks.forEach(function(check) { %>
+   - `curl -s <%= check.url %>`
+<% }); %>
+<% } %>
+4. Add a dev note: `bobby comment {ID} dev "Completed: {summary}"`
+5. Submit for review: `bobby review {ID}`
+
+## Verification Before Completion
+
+**CRITICAL:** Never mark work as complete without evidence.
+
+- Tests pass (show output)
+- Lint passes (show output)
+- Health checks pass (show output)
+- Each acceptance criterion is met (reference specific test or behavior)
+
+## If Something Goes Wrong
+
+- If tests fail after your changes: fix them before moving on
+- If you break a health check: revert and investigate
+- If the ticket is unclear: add a dev note asking for clarification and `bobby block {ID} "Need clarification"`
+- If you discover a systemic issue: `bobby retro {ID} "pattern"` and `bobby learn work-tickets "pattern" "description"`

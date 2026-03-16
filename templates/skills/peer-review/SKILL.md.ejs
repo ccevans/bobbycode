@@ -1,0 +1,54 @@
+# Peer Review Skill
+
+> This skill is loaded when Claude is told to "review tickets" or "peer review".
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/peer-review/learnings.md`
+2. **Check the queue** — Run `bobby list 5-peer-review`
+
+## Review Process
+
+1. Pick up a ticket from `5-peer-review`
+2. Read `ticket.md` for context and acceptance criteria
+3. Read `plan.md` to understand the intended approach
+4. Review the code changes (use `git diff` or examine modified files)
+
+## Review Checklist
+
+### Code Quality
+- [ ] Code is readable and well-structured
+- [ ] No unnecessary complexity
+- [ ] Functions/methods have clear single responsibilities
+- [ ] Error handling is appropriate
+- [ ] No hardcoded values that should be configurable
+
+### Testing
+- [ ] Tests exist for new functionality
+- [ ] Tests cover edge cases
+- [ ] Tests are meaningful (not just testing implementation details)
+- [ ] All tests pass: `<%= commands && commands.test ? commands.test : 'npm test' %>`
+
+### Standards
+- [ ] Linter passes: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+- [ ] Follows project conventions
+- [ ] No security vulnerabilities introduced
+- [ ] No performance regressions
+
+### Acceptance Criteria
+- [ ] Each acceptance criterion from the ticket is met
+- [ ] Implementation matches the plan (or deviations are justified)
+
+## Completing Review
+
+### If Review Passes
+
+1. Add a dev note: `bobby comment {ID} dev "Peer review: APPROVED. {summary of review}"`
+2. Approve: `bobby peer-approve {ID}`
+
+### If Review Fails
+
+1. Document specific issues with line references
+2. Add a dev note: `bobby comment {ID} dev "Peer review: CHANGES REQUESTED. {specific issues}"`
+3. Reject: `bobby peer-reject {ID} "Reason"`
+4. If systemic: `bobby retro {ID} "pattern"` and `bobby learn peer-review "pattern" "description"`

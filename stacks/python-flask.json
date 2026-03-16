@@ -1,0 +1,25 @@
+{
+  "name": "python-flask",
+  "display": "Python / Flask",
+  "health_checks": [
+    { "name": "app", "url": "http://localhost:5000", "description": "Flask dev server" }
+  ],
+  "areas": ["auth", "api", "dashboard", "admin"],
+  "skill_routing": {
+    "auth": ["dev/fullstack"],
+    "api": ["dev/backend"],
+    "dashboard": ["dev/frontend"],
+    "admin": ["dev/fullstack"]
+  },
+  "commands": {
+    "dev": "flask run",
+    "test": "pytest",
+    "lint": "flake8",
+    "build": "python setup.py build"
+  },
+  "template_vars": {
+    "test_command": "pytest",
+    "lint_command": "flake8",
+    "spec_dir": "tests/"
+  }
+}

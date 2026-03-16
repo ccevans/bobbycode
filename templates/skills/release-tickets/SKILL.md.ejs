@@ -1,0 +1,45 @@
+# Release Tickets Skill
+
+> This skill is loaded when Claude is told to "release tickets". It handles the release process.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/release-tickets/learnings.md`
+2. **Check the queue** — Run `bobby list 7-ready-for-release`
+
+## Release Process
+
+1. Pick up a ticket from `7-ready-for-release`
+2. Read `ticket.md` to understand what's being released
+
+### Pre-Release Checks
+
+1. **All tests pass**: `<%= commands && commands.test ? commands.test : 'npm test' %>`
+2. **Lint clean**: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+3. **Health checks pass**:
+<% if (health_checks && health_checks.length > 0) { %>
+<% health_checks.forEach(function(check) { %>
+   - `curl -s <%= check.url %>`
+<% }); %>
+<% } %>
+4. **No uncommitted changes**: `git status` is clean
+5. **On correct branch**: Verify you're on the feature branch
+
+### Release Steps
+
+1. Create or update the pull request
+2. Ensure CI passes
+3. Get final approval if required
+4. Merge the PR
+5. Verify deployment (if applicable)
+
+## Completing Release
+
+1. Add dev note: `bobby comment {ID} dev "Released: PR #{number} merged"`
+2. Release: `bobby release {ID}`
+
+## If Something Goes Wrong
+
+- If CI fails: fix and re-push, don't force-merge
+- If deployment fails: investigate, don't just retry
+- Document any issues: `bobby retro {ID} "pattern"` and `bobby learn release-tickets "pattern" "description"`

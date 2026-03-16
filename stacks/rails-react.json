@@ -1,0 +1,28 @@
+{
+  "name": "rails-react",
+  "display": "Rails + React",
+  "health_checks": [
+    { "name": "api", "url": "http://localhost:3000", "description": "Rails API server" },
+    { "name": "ui", "url": "http://localhost:3001", "description": "React dev server" }
+  ],
+  "areas": ["auth", "dashboard", "api", "public-pages", "billing", "admin"],
+  "skill_routing": {
+    "auth": ["dev/fullstack"],
+    "dashboard": ["dev/frontend"],
+    "api": ["dev/backend"],
+    "public-pages": ["dev/frontend"],
+    "billing": ["dev/fullstack"],
+    "admin": ["dev/fullstack"]
+  },
+  "commands": {
+    "dev": "docker compose up -d && cd frontend && npm run dev",
+    "test": "docker compose exec web bundle exec rspec && cd frontend && npm test",
+    "lint": "docker compose exec web bundle exec rubocop && cd frontend && npm run lint",
+    "build": "cd frontend && npm run build"
+  },
+  "template_vars": {
+    "test_command": "bundle exec rspec / npm test",
+    "lint_command": "rubocop / npm run lint",
+    "spec_dir": "spec/"
+  }
+}

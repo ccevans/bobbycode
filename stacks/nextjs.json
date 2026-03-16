@@ -1,0 +1,26 @@
+{
+  "name": "nextjs",
+  "display": "Next.js",
+  "health_checks": [
+    { "name": "app", "url": "http://localhost:3000", "description": "Next.js dev server" }
+  ],
+  "areas": ["auth", "dashboard", "api", "public-pages", "billing"],
+  "skill_routing": {
+    "auth": ["dev/fullstack"],
+    "dashboard": ["dev/frontend"],
+    "api": ["dev/backend"],
+    "public-pages": ["dev/frontend"],
+    "billing": ["dev/fullstack"]
+  },
+  "commands": {
+    "dev": "npm run dev",
+    "test": "npm test",
+    "lint": "npm run lint",
+    "build": "npm run build"
+  },
+  "template_vars": {
+    "test_command": "npm test",
+    "lint_command": "npm run lint",
+    "spec_dir": "__tests__/"
+  }
+}

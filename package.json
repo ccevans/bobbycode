@@ -1,0 +1,33 @@
+{
+  "name": "bobbycode",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Bobby — your pair programmer. AI-native SDLC framework for Claude Code.",
+  "bin": {
+    "bobby": "./bin/bobby.js"
+  },
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "lint": "eslint ."
+  },
+  "keywords": ["cli", "claude", "ai", "sdlc", "tickets", "workflow", "pair-programming"],
+  "author": "ccevans",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "ejs": "^3.1.10",
+    "inquirer": "^9.2.0",
+    "node-fetch": "^3.3.2",
+    "yaml": "^2.4.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "eslint": "^9.0.0"
+  },
+  "files": ["bin/", "commands/", "lib/", "templates/", "stacks/", "LICENSE", "README.md"],
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

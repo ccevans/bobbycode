@@ -1,0 +1,73 @@
+# {ID} — {TITLE}
+
+**Type:** {TYPE}
+**Priority:** {PRIORITY}
+**Area:** <%= areas && areas.length > 0 ? areas.join(' | ') : '_unspecified_' %>
+**Stack:** <%= stack %>
+**Skills:** _none_
+**Created by:** {AUTHOR}
+**Assigned to:** —
+**Created:** {DATE}
+**Updated:** {DATE}
+
+---
+
+## Description
+
+[What is this ticket about? Provide enough context for an engineer to understand the problem or feature.]
+
+---
+
+## Acceptance Criteria
+
+- [ ] [First criterion]
+- [ ] [Second criterion]
+- [ ] [Third criterion]
+
+---
+
+## Environment
+
+<% if (health_checks && health_checks.length > 0) { %>
+<% health_checks.forEach(function(check) { %>
+- **<%= check.name %>:** <%= check.url %>
+<% }); %>
+<% } else { %>
+- **URL:** _set in .bobbyrc.yml health_checks_
+<% } %>
+- **Related test suite:** _none_
+- **Related test ID:** _none_
+
+---
+
+## Implementation Plan
+
+_Plan is stored as `plan.md` in this ticket's folder._
+
+---
+
+## Steps to Reproduce (bugs only)
+
+1. [Step 1]
+2. [Step 2]
+3. [Expected vs actual result]
+
+---
+
+## Dev Notes
+
+_Engineer updates go here. Add notes as work progresses._
+
+---
+
+## QE Notes
+
+_QE/testing feedback goes here. If sending back to dev, explain what failed and how to reproduce._
+
+---
+
+## History
+
+| Date | From | To | By | Comment |
+|------|------|----|-----|---------|
+| {DATE} | — | backlog | {AUTHOR} | Ticket created |

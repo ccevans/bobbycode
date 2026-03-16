@@ -1,0 +1,51 @@
+# Ideate Skill
+
+> This skill is loaded when Claude is told to "ideate" or "brainstorm". It handles structured ideation.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/ideate/learnings.md`
+2. **Understand the context** — What problem are we solving? Who is it for?
+
+## Ideation Process
+
+### Step 1: Brainstorm
+
+- Generate multiple approaches (aim for 3-5)
+- Don't filter yet — quantity over quality at this stage
+- Consider different angles: user experience, technical, business
+
+### Step 2: Evaluate Approaches
+
+For each approach, consider:
+- **Effort** — How much work? (days/weeks)
+- **Impact** — How much value for users?
+- **Risk** — What could go wrong?
+- **Dependencies** — What needs to exist first?
+
+### Step 3: Write Spec
+
+Create a detailed spec for the chosen approach:
+- **Problem statement** — What are we solving and why
+- **Proposed solution** — How we'll solve it
+- **User stories** — Who benefits and how
+- **Technical approach** — Architecture, data model, APIs
+- **Out of scope** — What we're explicitly NOT doing
+
+### Step 4: Create Tickets
+
+Break the spec into tickets:
+- Each ticket should be independently deliverable
+- Order by dependency (what needs to be built first)
+- Use: `bobby create -t "Title" --type feature -p medium --area {area}`
+
+## Feature Areas
+
+<%= areas && areas.length > 0 ? areas.join(' | ') : '_No areas configured_' %>
+
+## Completing Ideation
+
+- Spec document is saved (in `<%= tickets_dir %>/docs/` or the ticket folder)
+- Tickets are created in backlog
+- Each ticket references the spec
+- Ideas that didn't make the cut are documented as `bobby idea "..."` for future consideration
