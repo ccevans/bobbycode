@@ -20,6 +20,10 @@
     "lint": "docker compose exec web bundle exec rubocop && cd frontend && npm run lint",
     "build": "cd frontend && npm run build"
   },
+  "repos": [
+    { "name": "api", "path_hint": "_api" },
+    { "name": "ui", "path_hint": "-ui" }
+  ],
   "template_vars": {
     "test_command": "bundle exec rspec / npm test",
     "lint_command": "rubocop / npm run lint",

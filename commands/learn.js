@@ -4,7 +4,7 @@ import path from 'path';
 import { findProjectRoot } from '../lib/config.js';
 import { success, error } from '../lib/colors.js';
 
-const VALID_SKILLS = ['bobby-build', 'bobby-review', 'bobby-refine', 'bobby-test', 'bobby-release', 'bobby-ideate'];
+const VALID_SKILLS = ['bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship'];
 
 export function registerLearn(program) {
   program

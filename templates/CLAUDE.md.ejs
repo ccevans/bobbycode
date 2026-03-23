@@ -7,6 +7,12 @@
 - **Name:** <%= project %>
 - **Stack:** <%= stack %>
 - **Tickets:** `<%= tickets_dir %>/`
+<% if (typeof repos !== 'undefined' && repos && repos.length > 0) { %>
+- **Repos:**
+<% repos.forEach(function(repo) { %>
+  - `<%= repo.path %>` (<%= repo.name %>)
+<% }); %>
+<% } %>
 
 ## Health Checks
 
@@ -35,56 +41,78 @@ Before starting work, verify the dev environment is running:
 
 ## Workflow
 
-Bobby uses a ticket-based workflow with these stages:
+Bobby uses a ticket-based workflow with frontmatter-based stages:
 
 ```
-0-ideas → 1-backlog → 2-ready-for-refinement → 3-ready-for-development
-→ 4-in-progress → 5-ready-for-review → 6-ready-for-testing
-→ 7-ready-for-release → 10-released
+backlog → planning → building → reviewing → testing → shipping → done
 ```
 
-Side tracks: `8-needs-rework`, `9-blocked`
+Tickets live in `.bobby/tickets/` — stage is tracked in ticket.md frontmatter.
+Blocked tickets have `blocked: true` in frontmatter with a reason.
 
-## Roles
+## Pipeline
 
-### Engineer (bobby-build skill)
-When told to "work tickets" or "bobby build", load the `bobby-build` skill from `.claude/skills/bobby-build/SKILL.md`. This skill handles:
-- Picking up tickets from `3-ready-for-development`
+- **Fast mode:** `bobby run pipeline TKT-001` — auto-chains all agents
+- **Slow mode:** `bobby run next TKT-001` — runs next agent for current stage
+- **Batch mode:** `bobby run plan` (no ticket ID) — runs agent on all tickets in stage
+- **Ship:** `bobby run ship` — creates PR, merges, moves to done
+
+## Agents
+
+### Planner (bobby-plan)
+When told to "plan", "refine", or "brainstorm", load `.claude/skills/bobby-plan/SKILL.md`.
+- **Epic mode**: breaks big ideas into child tickets
+- **Refine mode**: creates plan.md + test-cases.md for a ticket
+
+### Builder (bobby-build)
+When told to "build" or "work tickets", load `.claude/skills/bobby-build/SKILL.md`.
 - TDD red-green-refactor cycle
-- Running health checks before/after changes
-- Moving tickets through the pipeline
+- Commits code to current branch
 
-### QE (bobby-test skill)
-When told to "test tickets" or "bobby test", load the `bobby-test` skill from `.claude/skills/bobby-test/SKILL.md`. This handles:
-- Testing tickets in `6-ready-for-testing`
-- Browser-based verification
-- Writing QE notes with evidence
+### Reviewer (bobby-review)
+When told to "review", load `.claude/skills/bobby-review/SKILL.md`.
+- Reviews git diff + acceptance criteria
+- Separate agent from build for fresh perspective
 
-### Peer Reviewer (bobby-review skill)
-When told to "review tickets" or "bobby review", load the `bobby-review` skill from `.claude/skills/bobby-review/SKILL.md`.
+### Tester (bobby-test)
+When told to "test", load `.claude/skills/bobby-test/SKILL.md`.
+- Runs test suite, verifies acceptance criteria
 
-### Refiner (bobby-refine skill)
-When told to "refine tickets" or "bobby refine", load the `bobby-refine` skill from `.claude/skills/bobby-refine/SKILL.md`.
+### Shipper (bobby-ship)
+When told to "ship", load `.claude/skills/bobby-ship/SKILL.md`.
+- Creates PR, waits for CI, merges
 
-### Release Engineer (bobby-release skill)
-When told to "release tickets" or "bobby release", load the `bobby-release` skill from `.claude/skills/bobby-release/SKILL.md`.
+### UX Designer (bobby-ux)
+When told to "review design" or "UX audit", load `.claude/skills/bobby-ux/SKILL.md`.
+- Reviews live app through Chrome browser — never reads source code
 
-### Ideator (bobby-ideate skill)
-When told to "ideate", "brainstorm", or "bobby ideate", load the `bobby-ideate` skill from `.claude/skills/bobby-ideate/SKILL.md`.
+### Product Manager (bobby-pm)
+When told to "PM review" or "product review", load `.claude/skills/bobby-pm/SKILL.md`.
+- Reviews live app, identifies UX gaps and feature opportunities
 
 ## Learnings
 
-Each skill has a `learnings.md` file that accumulates anti-patterns and best practices discovered during development. Always check the learnings file before starting work — it contains hard-won wisdom from past mistakes.
+Each skill has a `learnings.md` file that accumulates anti-patterns. Always check learnings before starting work.
 
 ## Bobby CLI Commands
 
 ```
 bobby create -t "Title" --type bug -p high   # Create ticket
-bobby list                                    # Show board
-bobby start TKT-001                          # Pick up ticket
-bobby review TKT-001                         # Submit for review
-bobby approve TKT-001                        # QE approve
-bobby release TKT-001                        # Ship it
-bobby retro TKT-001 "pattern name"           # Create retrospective
-bobby learn bobby-build "pattern" "desc"     # Add learning
+bobby create -t "Epic" --epic                # Create epic (breaks down)
+bobby list                                   # Show board
+bobby list --blocked                         # Show blocked tickets
+bobby view TKT-001                           # View ticket
+bobby view TKT-001 --plan                    # View plan
+bobby move TKT-001 review                   # Move to reviewing
+bobby move TKT-001 reject "reason"          # Reject back to building
+bobby move TKT-001 block "reason"           # Block ticket
+bobby move TKT-001 unblock                  # Unblock ticket
+bobby run next TKT-001                      # Slow mode: next agent for stage
+bobby run pipeline TKT-001                  # Fast mode: auto-chain all agents
+bobby run plan                              # Batch: plan all tickets in planning
+bobby run ship                              # Ship all ready tickets
+bobby run ux                                # Freeform UX design review
+bobby run pm                                # Freeform PM product review
+bobby retro TKT-001 "pattern"              # Create retrospective
+bobby learn bobby-build "pattern" "desc"    # Add learning
 ```

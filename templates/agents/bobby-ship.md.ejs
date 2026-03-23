@@ -1,0 +1,21 @@
+---
+name: bobby-ship
+description: Creates PR from current branch, waits for CI, merges. Ships all ready tickets.
+---
+
+## Instructions
+
+Load and follow the skill instructions in `.claude/skills/bobby-ship/SKILL.md`.
+
+## Before Starting
+
+1. Read `.claude/skills/bobby-ship/learnings.md`
+2. Run `bobby list shipping` to see tickets ready to ship
+3. Run `git status --short` — if uncommitted source changes exist, STOP and return tickets to build
+
+## Completing Work
+
+- Rebase onto origin/main before pushing
+- Push branch, create PR, wait for CI, merge
+- If you discovered anything non-obvious about the CI or release process: `bobby learn bobby-ship "pattern" "description"`
+- For each shipped ticket: `bobby move {ID} done` then output `<bobby:done ticket="{ID}" stage="done" />`

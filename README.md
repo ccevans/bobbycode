@@ -1,6 +1,6 @@
 # Bobby — Your Pair Programmer
 
-Bobby is an open-source npm CLI that gives structure to AI-assisted development. It turns Claude Code into a disciplined engineering partner with tickets, stages, TDD, peer review, QA, and a feedback loop that gets smarter over time.
+Bobby is an open-source npm CLI that gives structure to AI-assisted development. It turns Claude Code into a disciplined engineering partner with tickets, TDD, peer review, automated testing, and agent chaining that runs a full pipeline end-to-end.
 
 **Target audience:** People who use Claude Code and want a structured process instead of "one big prompt and hope for the best."
 
@@ -11,96 +11,94 @@ npx bobbycode init
 ```
 
 This scaffolds your project with:
-- `tickets/` directory with 10 lifecycle stages
+- `.bobby/tickets/` — single directory, frontmatter-based stages
 - `.bobbyrc.yml` config file
-- `.claude/skills/` with 6 workflow skills
+- `.claude/skills/` with 5 workflow skills
+- `.claude/agents/` with 5 agent definitions
 - `CLAUDE.md` with instructions for Claude
-- `tickets/WORKFLOW.md` documentation
 
 Then start working:
 
 ```bash
-bobby idea "Add user authentication"    # Capture an idea
-bobby create -t "Build login page" -p high  # Create a ticket
-bobby list                                  # See your board
+bobby create -t "Build login page" -p high    # Create a ticket
+bobby create -t "User auth" --epic             # Create an epic (breaks down)
+bobby list                                     # See your board
+bobby run pipeline TKT-001                    # Run the full pipeline
 ```
 
-Tell Claude: **"bobby build"** and it picks up from the queue.
+## How It Works
 
-## How It Works with Claude Code
+Bobby chains Claude Code agents through a pipeline:
 
-Bobby gives Claude structured roles and workflows:
+```
+bobby run pipeline TKT-001
 
-1. **You create tickets** — `bobby create`, `bobby idea`
-2. **Claude works them** — using skills loaded from `.claude/skills/`
-3. **Claude follows TDD** — red-green-refactor for every ticket
-4. **Peer review + QE** — structured quality gates before release
-5. **Feedback loop** — retros and learnings make the skills smarter
+[bobby-plan]   ✓ planned
+[bobby-build]  ✓ built + committed
+[bobby-review] ✓ approved
+[bobby-test]   ✓ passed → shipping
+
+bobby run ship  → creates PR, merges
+```
+
+Each agent is a separate Claude Code subagent with a fresh perspective. Rejections loop back to building automatically (max 3 retries).
 
 ## Ticket Lifecycle
 
 ```
-0-ideas → 1-backlog → 2-ready-for-refinement → 3-ready-for-development
-→ 4-in-progress → 5-ready-for-review → 6-ready-for-testing
-→ 7-ready-for-release → 10-released
+backlog → planning → building → reviewing → testing → shipping → done
 ```
 
-## Command Reference
+Tickets live in `.bobby/tickets/`. Stage is tracked in frontmatter — no physical file moves, clean git diffs.
 
-### Ticket Management
+## Command Reference (11 commands)
 
 | Command | Description |
 |---------|-------------|
 | `bobby init` | Initialize a new Bobby project |
-| `bobby create -t "Title"` | Create a ticket in backlog |
-| `bobby list [stage]` | Show the ticket board |
-| `bobby view <id>` | View ticket details |
-| `bobby plan <id>` | View implementation plan |
-| `bobby files <id>` | List ticket folder contents |
-| `bobby move <id> <stage>` | Move ticket to any stage |
+| `bobby create -t "Title"` | Create a ticket (`--epic` for big features) |
+| `bobby list [stage]` | Show the ticket board (`--blocked`, `--epic <id>`) |
+| `bobby view <id>` | View ticket details (`--plan`, `--files`) |
+| `bobby move <id> <alias>` | Move ticket (aliases below) |
 | `bobby assign <id> <name>` | Assign ticket to someone |
-| `bobby comment <id> <dev\|test> <note>` | Add a note |
-
-### Workflow Shortcuts
-
-| Command | Transition |
-|---------|-----------|
-| `bobby refine <id>` | backlog → refinement |
-| `bobby ready <id>` | refinement → development |
-| `bobby start <id>` | development → in-progress |
-| `bobby review <id>` | in-progress → ready-for-review |
-| `bobby peer-approve <id>` | ready-for-review → testing |
-| `bobby peer-reject <id> [reason]` | ready-for-review → needs-rework |
-| `bobby approve <id>` | testing → release |
-| `bobby reject <id> [reason]` | testing → needs-rework |
-| `bobby release <id>` | release → released |
-| `bobby reopen <id>` | needs-rework → in-progress |
-| `bobby block <id> [reason]` | any → blocked |
-| `bobby unblock <id>` | blocked → backlog |
-
-### Ideas & Feedback
-
-| Command | Description |
-|---------|-------------|
-| `bobby idea "title"` | Create a lightweight idea |
-| `bobby promote <ideaId>` | Promote idea to ticket |
+| `bobby comment <id> <note>` | Add a note to a ticket |
 | `bobby retro <id> "pattern"` | Create a retrospective |
-| `bobby learn <skill> "pattern" "desc"` | Add learning to skill |
+| `bobby learn <skill> "pattern" "desc"` | Add learning to a skill |
+| `bobby run <agent> [ids...]` | Run agents or pipeline |
+| `bobby activate <key>` | Activate pro license |
 
-## Free vs Pro
+### Move Aliases
 
-### Free (open source)
-Everything you need: all ticket commands, 6 workflow skills, stack templates, full CLAUDE.md generation.
-
-### Pro ($19/mo)
-- `bobby dashboard` — terminal board UI
-- `bobby velocity` — throughput metrics
-- `bobby report` — weekly shipped summary
-- `bobby skills` — premium skill packs
-
-```bash
-bobby activate <key>  # Unlock pro features
 ```
+bobby move TKT-001 plan        # → planning
+bobby move TKT-001 build       # → building
+bobby move TKT-001 review      # → reviewing
+bobby move TKT-001 test        # → testing
+bobby move TKT-001 ship        # → shipping
+bobby move TKT-001 done        # → done
+bobby move TKT-001 reject "reason"   # → building + rejection comment
+bobby move TKT-001 block "reason"    # → blocked (remembers previous stage)
+bobby move TKT-001 unblock           # → back to previous stage
+```
+
+### Run Commands
+
+```
+bobby run plan TKT-001                  # Run a single agent
+bobby run pipeline TKT-001              # Full auto-chain
+bobby run pipeline TKT-001 TKT-002      # Multiple tickets sequentially
+bobby run ship                           # PR + merge all shipping tickets
+```
+
+## Agents
+
+| Agent | Role |
+|-------|------|
+| **bobby-plan** | Plans tickets — epic breakdown or refinement (plan.md + test-cases.md) |
+| **bobby-build** | TDD implementation, commits to current branch |
+| **bobby-review** | Peer code review — separate agent for fresh perspective |
+| **bobby-test** | Automated testing — runs test suite, verifies acceptance criteria |
+| **bobby-ship** | Creates PR, waits for CI, merges |
 
 ## Stacks
 

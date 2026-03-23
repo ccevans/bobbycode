@@ -1,24 +1,52 @@
+---
+name: bobby-build
+description: "Build Skill: Implements tickets using TDD methodology. Commits code to the current branch. MANDATORY TRIGGERS: build, implement, code, develop, work ticket, TDD, red green refactor, fix bug, write code."
+argument-hint: "<ticket ID to build>"
+---
+
 # Bobby Build Skill
 
-> This skill is loaded when Claude is told to "work tickets" or "bobby build". It processes the ticket queue using TDD methodology.
+> This skill handles implementation using TDD methodology. Commits code to the current branch.
 
 ## Before Starting
 
-1. **Check learnings** — Read `.claude/skills/bobby-build/learnings.md` for anti-patterns to avoid
+1. **Check learnings** — Read `.claude/skills/bobby-build/learnings.md`
 2. **Health check** — Verify dev environment:
 <% if (health_checks && health_checks.length > 0) { %>
 <% health_checks.forEach(function(check) { %>
    - `curl -s <%= check.url %>` (<%= check.description || check.name %>)
 <% }); %>
 <% } %>
-3. **Check the queue** — Run `bobby list 3-ready-for-development` to see available tickets
+
+<% if (typeof build_skills !== 'undefined' && build_skills && build_skills.length > 0) { %>
+## Project Skills
+
+Before writing code, load these project-specific skills for conventions and patterns:
+
+<% build_skills.forEach(function(skill) { %>
+- Read `.claude/skills/<%= skill %>/SKILL.md`
+<% }); %>
+
+Follow the conventions in these skills. They take precedence over general patterns.
+
+<% } %>
+## Branch Guard
+
+Before writing ANY code, check your branch:
+
+1. Run `git branch --show-current`
+2. If on `main` or `master`: create a feature branch first:
+   - `git checkout -b tkt-{ID}` (e.g., `tkt-042-add-login`)
+   - Use the ticket ID and a short slug from the ticket title
+3. If already on a feature branch: continue on the current branch
+
+**NEVER commit directly to main/master.**
 
 ## Picking Up Work
 
-1. Look at `<%= tickets_dir %>/3-ready-for-development/` for tickets ordered by priority
-2. Prefer tickets in areas you've been working on (area continuity reduces context switching)
-3. Run `bobby start {ID}` to move the ticket to `4-in-progress`
-4. Read the ticket's `ticket.md`, `plan.md`, and `test-cases.md`
+1. Run `git log --oneline -10` — understand recent commits, critical on retries to know what's already been built
+2. Read the ticket's `ticket.md`, `plan.md`, and `test-cases.md`
+3. Check for rejection comments — if this is a retry, read the rejection feedback first
 
 ## Development Process (TDD)
 
@@ -35,7 +63,7 @@
 
 ### For Bug Tickets
 
-1. **Reproduce** — Confirm the bug exists using the steps in the ticket
+1. **Reproduce** — Confirm the bug exists
 2. **Write a failing test** that captures the bug
 3. **Fix** — Write the minimum fix
 4. **Verify** — Test passes, bug no longer reproduces
@@ -45,14 +73,10 @@
 
 1. Run the full test suite: `<%= commands && commands.test ? commands.test : 'npm test' %>`
 2. Run the linter: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
-3. Health check all services:
-<% if (health_checks && health_checks.length > 0) { %>
-<% health_checks.forEach(function(check) { %>
-   - `curl -s <%= check.url %>`
-<% }); %>
-<% } %>
-4. Add a dev note: `bobby comment {ID} dev "Completed: {summary}"`
-5. Submit for review: `bobby review {ID}`
+3. **Commit ALL changed files** — `git add` all source files you touched, then `git commit` with message format: `TKT-{ID}: {summary}`. Do NOT leave uncommitted changes behind.
+4. Add comment: `bobby comment {ID} --by bobby-build "Built: {summary}"`
+5. If you discovered anything non-obvious or a pattern future builds should avoid: `bobby learn bobby-build "pattern" "description"`
+6. Move to review: `bobby move {ID} review`
 
 ## Verification Before Completion
 
@@ -60,12 +84,10 @@
 
 - Tests pass (show output)
 - Lint passes (show output)
-- Health checks pass (show output)
-- Each acceptance criterion is met (reference specific test or behavior)
+- Each acceptance criterion is met (reference specific test)
 
 ## If Something Goes Wrong
 
-- If tests fail after your changes: fix them before moving on
-- If you break a health check: revert and investigate
-- If the ticket is unclear: add a dev note asking for clarification and `bobby block {ID} "Need clarification"`
+- If tests fail: fix them before moving on
+- If the ticket is unclear: `bobby move {ID} block "Need clarification"`
 - If you discover a systemic issue: `bobby retro {ID} "pattern"` and `bobby learn bobby-build "pattern" "description"`

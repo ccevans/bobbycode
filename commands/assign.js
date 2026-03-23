@@ -1,8 +1,7 @@
 // commands/assign.js
-import fs from 'fs';
 import path from 'path';
 import { readConfig, findProjectRoot } from '../lib/config.js';
-import { findTicket } from '../lib/tickets.js';
+import { findTicket, writeTicket } from '../lib/tickets.js';
 import { success, error } from '../lib/colors.js';
 import chalk from 'chalk';
 
@@ -14,15 +13,14 @@ export function registerAssign(program) {
       try {
         const root = findProjectRoot();
         const config = readConfig(root);
-        const found = findTicket(path.join(root, config.tickets_dir), id);
+        const ticketsDir = path.join(root, config.tickets_dir);
+        const found = findTicket(ticketsDir, id);
         if (!found) { error(`Ticket ${id} not found`); process.exit(1); }
 
-        const ticketFile = path.join(found.path, 'ticket.md');
-        let content = fs.readFileSync(ticketFile, 'utf8');
-        content = content.replace(/^\*\*Assigned to:\*\*.*/m, `**Assigned to:** ${name}`);
-        const dt = new Date().toISOString().split('T')[0];
-        content = content.replace(/^\*\*Updated:\*\*.*/m, `**Updated:** ${dt}`);
-        fs.writeFileSync(ticketFile, content, 'utf8');
+        const data = { ...found.data };
+        data.assigned = name;
+        data.updated = new Date().toISOString().split('T')[0];
+        writeTicket(found.path, data, found.content);
 
         success(`${id} assigned to ${chalk.cyan(name)}`);
       } catch (e) {

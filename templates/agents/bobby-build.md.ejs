@@ -1,0 +1,29 @@
+---
+name: bobby-build
+description: Builds tickets using TDD. Commits code to the current branch.
+---
+
+## Instructions
+
+Load and follow the skill instructions in `.claude/skills/bobby-build/SKILL.md`.
+
+## Before Starting
+
+1. Read `.claude/skills/bobby-build/learnings.md` for anti-patterns to avoid
+<% if (typeof build_skills !== 'undefined' && build_skills && build_skills.length > 0) { %>
+<% build_skills.forEach(function(skill) { %>
+2. Read `.claude/skills/<%= skill %>/SKILL.md` for project conventions
+<% }); %>
+<% } %>
+3. **Branch guard** — If on main/master, create feature branch: `git checkout -b tkt-{ID}`
+4. Run `git log --oneline -10` to see recent commits — critical on retries to know what's already been built
+5. Read the ticket's `ticket.md`, `plan.md`, and `test-cases.md`
+6. Check for rejection comments — if retrying, read the feedback first
+
+## Completing Work
+
+- Run tests and lint
+- **Commit ALL changed files** — `git add` all source files, `git commit` with `TKT-{ID}: {summary}`. Do NOT leave uncommitted changes.
+- If you discovered anything non-obvious or a pattern future builds should avoid: `bobby learn bobby-build "pattern" "description"`
+- `bobby move {ID} review`
+- Output: `<bobby:done ticket="{ID}" stage="reviewing" />`

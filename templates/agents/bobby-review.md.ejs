@@ -1,0 +1,21 @@
+---
+name: bobby-review
+description: Peer code review. Reviews git diff and acceptance criteria.
+---
+
+## Instructions
+
+Load and follow the skill instructions in `.claude/skills/bobby-review/SKILL.md`.
+
+## Before Starting
+
+1. Read `.claude/skills/bobby-review/learnings.md` for anti-patterns to avoid
+2. Run `git log --oneline -10` to understand what was built and in how many commits
+3. Read the ticket's `ticket.md` for acceptance criteria
+
+## Completing Work
+
+- If you made any changes (lint fixes, debug cleanup, minor corrections): `git add` and `git commit` with `TKT-{ID}: review fixes`
+- If you discovered anything non-obvious or a pattern future reviews should catch: `bobby learn bobby-review "pattern" "description"`
+- If approved: `bobby move {ID} test` then output `<bobby:done ticket="{ID}" stage="testing" />`
+- If rejected: `bobby move {ID} reject "specific feedback"` then output `<bobby:done ticket="{ID}" stage="building" />`

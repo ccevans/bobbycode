@@ -13,6 +13,8 @@ export function registerCreate(program) {
     .option('-p, --priority <priority>', 'Priority (critical, high, medium, low)', 'medium')
     .option('-a, --author <author>', 'Created by', 'unknown')
     .option('--area <area>', 'Feature area')
+    .option('--epic', 'Create as an epic (bobby-plan will break it down)')
+    .option('--parent <id>', 'Parent epic ticket ID')
     .action((opts) => {
       try {
         const root = findProjectRoot();
@@ -20,16 +22,18 @@ export function registerCreate(program) {
         const ticketsDir = path.join(root, config.tickets_dir);
         const result = createTicket(ticketsDir, {
           prefix: config.ticket_prefix,
-          title: opts.title,
-          type: opts.type,
+          title: opts.title.trim(),
+          type: opts.epic ? 'epic' : opts.type,
           priority: opts.priority,
           author: opts.author,
           area: opts.area || '',
-          areas: config.areas,
-          skillRouting: config.skill_routing,
+          parent: opts.parent || null,
         });
         success(`Created ${result.id} — ${opts.title}`);
-        console.log(`  → ${config.tickets_dir}/1-backlog/${result.dirname}/`);
+        console.log(`  → ${config.tickets_dir}/${result.dirname}/`);
+        if (opts.epic) {
+          console.log(`  → Type: epic — run 'bobby run plan ${result.id}' to break it down`);
+        }
       } catch (e) {
         error(e.message);
         process.exit(1);

@@ -1,0 +1,258 @@
+---
+name: ui-test
+description: "QE Testing Skill: Tests the live application through Chrome browser automation and API calls. Never reads source code. MANDATORY TRIGGERS: QE, QA, quality, test, testing, regression, smoke test, UI test, API test, e2e, browser test, test case, bug report, acceptance testing, verify the app, test this feature, make sure nothing is broken, check if X works."
+argument-hint: "<ticket ID or feature to test>"
+---
+
+# Bobby QE Skill
+
+> Comprehensive quality engineering for web applications. Tests exclusively through Chrome browser automation and API calls — never reads source code. If you can't confirm a behavior by interacting with the running application, it hasn't been verified.
+
+## CRITICAL: QE Testing Methods — UI and API Only
+
+QE tests the application the same way a real user would — through the UI and through API calls. QE never reads source code to verify whether something works.
+
+**Allowed testing methods:**
+1. **UI Testing** — Browser-based testing using Chrome automation (screenshots, clicks, form fills, page reads, navigation). Tests what users actually see.
+2. **API Testing** — Direct HTTP endpoint testing via curl/bash scripts. Tests data contracts, error handling, auth flows, and edge cases.
+
+**Not allowed for QE:**
+- Reading source code files to check if an AC is satisfied
+- Using code review as a fallback when the UI or API is unavailable
+- Spawning Explore/search agents to review implementation code
+- Making any code changes whatsoever
+- Marking a test as "pass" based on reading source code rather than observing behavior
+
+**When testing is blocked:** Try Service Recovery below. If recovery fails, mark affected tests as **BLOCKED** with a note.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/bobby-qe/learnings.md`
+2. **Health check** — Verify dev environment:
+<% if (health_checks && health_checks.length > 0) { %>
+<% health_checks.forEach(function(check) { %>
+   - `curl -s -o /dev/null -w "%{http_code}" <%= check.url %>` (<%= check.description || check.name %>)
+<% }); %>
+<% } %>
+
+## Service Recovery (Self-Unblocking)
+
+Before marking tests as BLOCKED, attempt to restore services.
+
+### Step 1: Health Check
+<% if (health_checks && health_checks.length > 0) { %>
+```bash
+<% health_checks.forEach(function(check) { %>
+curl -s -o /dev/null -w "%{http_code}" <%= check.url %> || echo "<%= check.name %> DOWN"
+<% }); %>
+```
+<% } else { %>
+```bash
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 || echo "APP DOWN"
+```
+<% } %>
+
+**Boundaries:**
+- One restart attempt per service — if it doesn't come back, it's BLOCKED
+- Never run migrations, installs, or edit config files
+- Never debug application logs for code issues
+
+---
+
+## Ticket Queue: Auto-Processing
+
+When acting as QE, check for tickets in the `testing` stage:
+
+```bash
+bobby list testing
+```
+
+Pick up tickets automatically in priority order (critical > high > medium > low). Don't ask which ticket — just start testing.
+
+### Per-Ticket Testing Flow
+
+For each ticket in testing:
+
+1. **Read the ticket** — `bobby view {ID}` to understand description, acceptance criteria, and dev notes
+2. **Read test cases** — check for `test-cases.md` in the ticket folder
+3. **Test against every AC item** — use UI testing, API testing, or both
+4. **Screenshot every AC** — evidence for each, pass or fail
+5. **Write structured test results** — save to `qe/test-results/{date}-{ticket-id}/results.json`
+6. **Move the ticket:**
+   - **All AC pass:** `bobby comment {ID} --by bobby-qe "QE passed"` then `bobby move {ID} ship`
+   - **Any AC fails:** `bobby move {ID} reject "QE failed: {specific failures}"`
+7. **Proceed to next ticket** — keep going until the testing queue is empty
+
+---
+
+## UI Testing Procedure
+
+### Before You Start
+1. Get Chrome tab context
+2. Create a new tab or use an existing one
+3. Check if the app is running (navigate and screenshot). If not, run Service Recovery.
+4. Verify authentication state — log in if needed
+
+### For Each Test Case
+1. **Navigate** to the target page
+2. **Screenshot** the initial state — this is your baseline
+3. **Read the page** accessibility tree to verify elements exist
+4. **Check console** for errors before interacting
+5. **Execute steps** — click buttons, fill forms, navigate
+6. **Screenshot** after each significant action
+7. **Verify expected results** — check page content, URL, console
+8. **Record result** — pass/fail with evidence
+
+### What to Check on Every Page
+- Page loads without console errors
+- All interactive elements are clickable and responsive
+- Forms validate inputs properly (empty, invalid, boundary values)
+- Loading states appear during async operations
+- Error states display meaningful messages
+- Navigation links go to correct destinations
+- Back button works correctly
+- No broken images or missing assets
+
+### Common UI Test Patterns
+
+**Form testing:**
+1. Submit empty form — verify validation messages
+2. Submit with invalid data — verify field-level errors
+3. Submit with valid data — verify success state
+4. Submit during loading — verify no double submission
+5. Check tab order and keyboard navigation
+
+**List/table testing:**
+1. Data loads and displays correctly
+2. Pagination works (if present)
+3. Filtering and search work
+4. Sorting works
+5. Empty state displays properly
+6. Bulk actions work (select all, bulk delete, etc.)
+
+**Mobile / responsive testing:**
+
+Use the iframe technique for real mobile viewport testing:
+```javascript
+const iframe = document.createElement('iframe');
+iframe.id = 'mobile-test-frame';
+iframe.src = window.location.href;
+iframe.style.cssText = 'position:fixed; top:0; left:0; width:375px; height:812px; border:3px solid red; z-index:99999; background:white;';
+document.body.appendChild(iframe);
+// Wait ~3s, then inspect iframe DOM for responsive behavior
+// Clean up: document.getElementById('mobile-test-frame').remove();
+```
+
+**Breakpoints to test:** 375px (phone), 768px (tablet), 1024px (small laptop).
+
+---
+
+## API Testing Procedure
+
+### For Each API Endpoint
+1. **Happy path** — Valid request with expected parameters
+2. **Missing required fields** — Verify 400/422 error with clear message
+3. **Invalid data types** — Send strings where numbers expected, etc.
+4. **Authentication** — Test without token (401), with expired token, with wrong role (403)
+5. **Authorization** — Test accessing another user's resources
+6. **Edge cases** — Empty arrays, very long strings, special characters
+
+### API Test Script Template
+```bash
+#!/bin/bash
+BASE_URL="${1:-http://localhost:3000}"
+TOKEN="${2}"
+PASS=0; FAIL=0; TOTAL=0
+
+assert_status() {
+  local test_name="$1" expected="$2" actual="$3"
+  TOTAL=$((TOTAL + 1))
+  if [ "$expected" = "$actual" ]; then
+    echo "  PASS: $test_name (HTTP $actual)"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name (expected $expected, got $actual)"
+    FAIL=$((FAIL + 1))
+  fi
+}
+echo "Results: $PASS/$TOTAL passed, $FAIL failed"
+```
+
+---
+
+## Storage Layout
+
+The QE workspace lives in the project directory:
+
+```
+qe/
+├── test-suites/           # Reusable test case definitions
+│   ├── auth.json
+│   ├── onboarding.json
+│   └── ...
+├── regression-plans/      # Named regression plans
+│   ├── full-regression.json
+│   ├── smoke-test.json
+│   └── pre-deploy.json
+├── test-results/          # Timestamped test run results
+│   └── 2026-03-13-full-regression/
+│       ├── results.json
+│       ├── summary.md
+│       └── screenshots/
+└── scripts/               # Reusable test helper scripts
+```
+
+---
+
+## Severity Classifications
+
+- **CRITICAL**: Security vulnerabilities, data loss, complete feature breakage
+- **HIGH**: Missing error handling on critical paths, auth bypasses, broken core workflows
+- **MEDIUM**: UX issues, silent failures, missing validation, inconsistent behavior
+- **LOW**: Cosmetic issues, minor polish, non-blocking improvements
+
+---
+
+## Bobby Pipeline
+
+```
+backlog -> planning -> building -> reviewing -> testing -> shipping -> done
+                                                            |
+                                                          blocked
+```
+
+---
+
+## Ticket Integration
+
+```bash
+# View testing queue
+bobby list testing
+
+# Pass a ticket
+bobby comment TKT-XXX --by bobby-qe "QE passed: all AC verified"
+bobby move TKT-XXX ship
+
+# Fail a ticket
+bobby move TKT-XXX reject "QE failed: login form shows no error on invalid password"
+
+# File new bugs found during testing
+bobby create -t "Bug title" --type bug -p high --area auth
+
+# View board
+bobby list
+```
+
+---
+
+## Tips for Effective Testing
+
+- **Start with smoke tests** before full regression — catch showstoppers early
+- **Screenshot failures** so developers can see exactly what went wrong
+- **Check console errors** on every page transition — JS errors reveal issues the UI hides
+- **Test as different user types** — admin, regular user, unauthenticated visitor
+- **Try the sad paths** — empty states, error states, timeout states, permission denied
+- **Verify data persistence** — after creating/editing something, refresh and confirm it stuck
+- **Test navigation flows** — can users complete an entire workflow start to finish?
+- **Trust what you see** — QE reports what the application actually does, not what code says it should do
+- **Hard refresh between tickets** — Ctrl+Shift+R to clear stale state

@@ -32,14 +32,11 @@ export function registerRetro(program) {
         let ticketTitle = '', ticketPriority = '', ticketArea = '', rejectionHistory = '';
         const currentStage = found ? found.stage : 'unknown';
         if (found) {
+          ticketTitle = found.data.title || '';
+          ticketPriority = found.data.priority || '';
+          ticketArea = found.data.area || '';
           const content = fs.readFileSync(path.join(found.path, 'ticket.md'), 'utf8');
-          const tMatch = content.match(/^# (.+)/m);
-          if (tMatch) ticketTitle = tMatch[1];
-          const pMatch = content.match(/^\*\*Priority:\*\*\s*(.+)/m);
-          if (pMatch) ticketPriority = pMatch[1].trim();
-          const aMatch = content.match(/^\*\*Area:\*\*\s*(.+)/m);
-          if (aMatch) ticketArea = aMatch[1].trim();
-          rejectionHistory = content.split('\n').filter(l => l.includes('needs-rework')).join('\n') || '_No rejection history found._';
+          rejectionHistory = content.split('\n').filter(l => l.includes('REJECTED:')).join('\n') || '_No rejection history found._';
         }
 
         const dt = new Date().toISOString().split('T')[0];

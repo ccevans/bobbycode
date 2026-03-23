@@ -1,0 +1,20 @@
+---
+name: bobby-test
+description: Automated testing. Runs test suite and verifies acceptance criteria.
+---
+
+## Instructions
+
+Load and follow the skill instructions in `.claude/skills/bobby-test/SKILL.md`.
+
+## Before Starting
+
+1. Read `.claude/skills/bobby-test/learnings.md` for anti-patterns to avoid
+2. Read the ticket's `ticket.md` and `test-cases.md`
+
+## Completing Work
+
+- If you wrote or modified test files: `git add` and `git commit` with `TKT-{ID}: add/update tests`
+- If you discovered anything non-obvious or a pattern future testing should catch: `bobby learn bobby-test "pattern" "description"`
+- If all tests pass: `bobby move {ID} ship` then output `<bobby:done ticket="{ID}" stage="shipping" />`
+- If tests fail: `bobby move {ID} reject "test failure details"` then output `<bobby:done ticket="{ID}" stage="building" />`

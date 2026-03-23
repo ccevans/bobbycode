@@ -1,0 +1,118 @@
+---
+name: bobby-ship
+description: "Ship Skill: Creates PRs from feature branches and waits for CI. Does NOT auto-merge — user merges manually. MANDATORY TRIGGERS: ship, deploy, release, merge, create PR, push, go live, launch."
+argument-hint: "<ticket IDs to ship>"
+---
+
+# Bobby Ship Skill
+
+> Creates PRs from feature branches and waits for CI. Does **not** auto-merge — the user merges PRs manually.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/bobby-ship/learnings.md`
+2. **Check the queue** — Run `bobby list shipping` to see what's ready
+
+## Pre-Flight Checks
+
+### 1. Shipping Count Sanity Check
+
+Run `bobby list shipping` and count the tickets.
+
+**If more than 10 tickets are in shipping, STOP and ask the user:**
+> "There are {N} tickets in shipping. Is this a batch release or were these bulk-migrated? Should I proceed with all of them?"
+
+Do NOT proceed until the user confirms. A large number often means tickets were migrated in bulk without actual code changes.
+
+### 2. Uncommitted Changes Gate
+
+Run `git status --short` in each repo. If there are uncommitted source code changes (modified/new `.js`, `.ts`, `.rb`, `.py`, `.css`, `.html`, `.json`, `.yml`, etc.):
+
+**STOP — do not ship.** Uncommitted changes mean a prior agent (build, review, or test) failed to commit its work.
+
+For each affected ticket:
+1. `bobby move {ID} build`
+2. `bobby comment {ID} --by bobby-ship "Returned to build: uncommitted changes detected. Files: {list}. Build agent must commit all work before shipping."`
+
+Then **abort the ship process**. The pipeline will re-run build → review → test → ship with proper commits.
+
+**Ignore non-source artifacts** (screenshots, CSVs, mockups, `.skill` files) — these are not blockers.
+
+### 3. Branch Check
+
+Verify you're on a feature branch (not main/master). If on main, STOP — there's nothing to PR.
+
+### 4. Rebase onto Main
+
+Before pushing, rebase each repo's feature branch onto the latest main:
+
+```
+git fetch origin
+git rebase origin/main
+```
+
+If there are conflicts, resolve them before continuing. Do NOT skip the rebase — PRs must be up-to-date with main to avoid merge conflicts and ensure CI runs against the latest code.
+
+<% if (typeof repos !== 'undefined' && repos && repos.length > 0) { %>
+## Repositories
+
+This is a multi-repo project. Ship each repo separately:
+
+<% repos.forEach(function(repo) { %>
+### <%= repo.name %> (`<%= repo.path %>`)
+
+1. `cd <%= repo.path %>`
+2. Check branch: `git branch --show-current` — must NOT be main/master
+3. Check commits ahead: `git log --oneline origin/main..HEAD | wc -l`
+4. If 0 commits ahead, skip this repo (nothing to ship)
+5. Rebase: `git fetch origin && git rebase origin/main` — resolve any conflicts
+6. Run tests: `<%= commands && commands.test ? commands.test : 'npm test' %>`
+7. Run lint: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+8. Push: `git push -u origin HEAD`
+9. Create PR: `gh pr create --title "..." --body "..."`
+10. Wait for CI to pass
+
+<% }); %>
+
+**Important:** Create PRs for ALL repos. Do NOT merge — the user will merge PRs manually after reviewing.
+
+<% } else { %>
+## Ship Process
+
+### Run Tests & Lint
+
+1. All tests pass: `<%= commands && commands.test ? commands.test : 'npm test' %>`
+2. Lint clean: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+
+### Rebase & Create Pull Request
+
+1. Rebase: `git fetch origin && git rebase origin/main` — resolve any conflicts
+2. Push the branch: `git push -u origin HEAD`
+3. Create PR: `gh pr create --title "..." --body "..."`
+   - Title: concise summary of what's shipping
+   - Body: list the tickets being shipped with brief descriptions
+4. Wait for CI to pass
+5. **Do NOT merge.** Report the PR URL to the user.
+
+<% } %>
+
+## After PR Creation
+
+For each ticket in `shipping` stage:
+1. `bobby comment {ID} --by bobby-ship "PR created: #{url}. Awaiting manual merge."`
+
+Report all PR URLs to the user so they can review and merge manually.
+
+**Do NOT run `gh pr merge` or any merge command.** The user decides when to merge.
+
+## Completing Ship
+
+- All PRs created and CI passing
+- Each ticket has a ship comment with PR reference
+- User merges PRs manually
+
+## If Something Goes Wrong
+
+- If CI fails: fix and re-push
+- If deployment fails: investigate, don't retry blindly
+- Document issues: `bobby learn bobby-ship "pattern" "description"`

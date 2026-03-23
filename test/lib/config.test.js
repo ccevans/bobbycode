@@ -16,7 +16,7 @@ describe('config', () => {
   });
 
   test('readConfig reads .bobbyrc.yml', () => {
-    const yml = `project: test-app\nstack: nextjs\ntickets_dir: tickets\nareas:\n  - auth\n  - dashboard\n`;
+    const yml = `project: test-app\nstack: nextjs\ntickets_dir: .bobby/tickets\nareas:\n  - auth\n  - dashboard\n`;
     fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), yml);
     const config = readConfig(tmpDir);
     expect(config.project).toBe('test-app');
@@ -29,7 +29,7 @@ describe('config', () => {
   });
 
   test('writeConfig creates .bobbyrc.yml', () => {
-    const config = { project: 'my-app', stack: 'nextjs', tickets_dir: 'tickets', areas: ['auth'] };
+    const config = { project: 'my-app', stack: 'nextjs', tickets_dir: '.bobby/tickets', areas: ['auth'] };
     writeConfig(tmpDir, config);
     const content = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
     expect(content).toContain('project: my-app');
@@ -39,8 +39,8 @@ describe('config', () => {
     const yml = `project: test-app\nstack: nextjs\n`;
     fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), yml);
     const config = readConfig(tmpDir);
-    expect(config.tickets_dir).toBe('tickets');
     expect(config.ticket_prefix).toBe('TKT');
-    expect(config.idea_prefix).toBe('IDEA');
+    expect(config.health_checks).toEqual([]);
+    expect(config.areas).toEqual([]);
   });
 });

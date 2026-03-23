@@ -1,54 +1,61 @@
+---
+name: bobby-review
+description: "Code Review Skill: Peer code review. Reviews git diff and checks acceptance criteria. MANDATORY TRIGGERS: review, code review, peer review, review PR, check code, approve, review changes."
+argument-hint: "<ticket ID to review>"
+---
+
 # Bobby Review Skill
 
-> This skill is loaded when Claude is told to "review tickets" or "bobby review".
+> Peer code review. Reviews the git diff and checks acceptance criteria. Separate agent from build for fresh perspective.
 
 ## Before Starting
 
 1. **Check learnings** — Read `.claude/skills/bobby-review/learnings.md`
-2. **Check the queue** — Run `bobby list 5-ready-for-review`
+2. Run `git log --oneline -10` to understand what was built and in how many commits
+3. Read the ticket's `ticket.md` for acceptance criteria
 
 ## Review Process
 
-1. Pick up a ticket from `5-ready-for-review`
-2. Read `ticket.md` for context and acceptance criteria
-3. Read `plan.md` to understand the intended approach
-4. Review the code changes (use `git diff` or examine modified files)
+1. Read `ticket.md` — understand what was supposed to be built
+2. Read `plan.md` — understand the intended approach
+3. Review the git diff — `git diff` or `git log --oneline` for recent commits
+4. Run tests: `<%= commands && commands.test ? commands.test : 'npm test' %>`
 
 ## Review Checklist
 
 ### Code Quality
-- [ ] Code is readable and well-structured
-- [ ] No unnecessary complexity
-- [ ] Functions/methods have clear single responsibilities
+- [ ] Code is readable and follows project conventions
+- [ ] No unnecessary complexity or dead code
 - [ ] Error handling is appropriate
-- [ ] No hardcoded values that should be configurable
+- [ ] No security vulnerabilities (injection, XSS, etc.)
 
 ### Testing
 - [ ] Tests exist for new functionality
-- [ ] Tests cover edge cases
-- [ ] Tests are meaningful (not just testing implementation details)
-- [ ] All tests pass: `<%= commands && commands.test ? commands.test : 'npm test' %>`
-
-### Standards
-- [ ] Linter passes: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
-- [ ] Follows project conventions
-- [ ] No security vulnerabilities introduced
-- [ ] No performance regressions
+- [ ] Tests pass
+- [ ] Edge cases are covered
 
 ### Acceptance Criteria
-- [ ] Each acceptance criterion from the ticket is met
-- [ ] Implementation matches the plan (or deviations are justified)
+- [ ] Each criterion in `ticket.md` is met
+- [ ] Implementation matches the plan in `plan.md`
 
-## Completing Review
+### Standards
+- [ ] Lint passes: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+- [ ] No console.log or debug artifacts left behind
 
-### If Review Passes
+## Decision
 
-1. Add a dev note: `bobby comment {ID} dev "Peer review: APPROVED. {summary of review}"`
-2. Approve: `bobby peer-approve {ID}`
+### Approve
+If all checks pass:
+1. **Commit any changes** — If you fixed lint issues, removed debug artifacts, or made minor corrections during review, `git add` and `git commit` with message: `TKT-{ID}: review fixes`. Do NOT leave uncommitted changes behind.
+2. Add comment: `bobby comment {ID} --by bobby-review "Approved: {summary}"`
+3. If you discovered anything non-obvious or a pattern future reviews should catch: `bobby learn bobby-review "pattern" "description"`
+4. Move to testing: `bobby move {ID} test`
 
-### If Review Fails
+### Reject
+If issues found:
+1. Move back with specific feedback: `bobby move {ID} reject "Specific issue description"`
+2. Be specific — the build agent needs to know exactly what to fix
 
-1. Document specific issues with line references
-2. Add a dev note: `bobby comment {ID} dev "Peer review: CHANGES REQUESTED. {specific issues}"`
-3. Reject: `bobby peer-reject {ID} "Reason"`
-4. If systemic: `bobby retro {ID} "pattern"` and `bobby learn bobby-review "pattern" "description"`
+## If Something Goes Wrong
+
+- If you discover a systemic pattern: `bobby learn bobby-review "pattern" "description"`

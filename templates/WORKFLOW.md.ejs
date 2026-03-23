@@ -4,49 +4,80 @@
 
 | Stage | Description |
 |-------|-------------|
-| `0-ideas` | Lightweight ideas — not yet tickets |
-| `1-backlog` | Tickets waiting to be prioritized |
-| `2-ready-for-refinement` | Prioritized, needs plan + test cases |
-| `3-ready-for-development` | Refined with plan, ready to build |
-| `4-in-progress` | Engineer is actively working |
-| `5-ready-for-review` | Code complete, awaiting peer review |
-| `6-ready-for-testing` | Peer approved, awaiting QE |
-| `7-ready-for-release` | QE approved, ready to ship |
-| `8-needs-rework` | Rejected — see QE/review notes |
-| `9-blocked` | Cannot proceed — blocker documented |
-| `10-released` | Shipped and verified |
+| `backlog` | Tickets waiting to be worked on |
+| `planning` | Being refined — plan.md + test-cases.md |
+| `building` | Engineer is actively building (TDD) |
+| `reviewing` | Code complete, peer review in progress |
+| `testing` | Review passed, automated testing |
+| `shipping` | Tests passed, ready to ship (launch pad) |
+| `done` | Shipped and verified |
+| `blocked` | Cannot proceed — blocker documented |
 
 ## Ticket Structure
 
-Each ticket lives in a folder: `<%= tickets_dir %>/{stage}/{ID}--{slug}/`
+All tickets live in a single directory: `<%= tickets_dir %>/`
+
+Each ticket is a folder: `{ID}--{slug}/`
 
 Contents:
-- `ticket.md` — Metadata, description, acceptance criteria, history
-- `test-cases.md` — QE test cases (added during refinement)
-- `plan.md` — Implementation plan (added during refinement)
-- `screenshots/` — Evidence from QE testing
+- `ticket.md` — Frontmatter (stage, priority, etc.) + description + comments
+- `test-cases.md` — Test cases (added during planning)
+- `plan.md` — Implementation plan (added during planning)
+
+Stage is tracked in `ticket.md` frontmatter — no physical file moves.
 
 ## Commands
 
 | Action | Command |
 |--------|---------|
 | Create ticket | `bobby create -t "Title" --type feature -p medium` |
-| Create idea | `bobby idea "Quick thought"` |
-| Promote idea | `bobby promote IDEA-001` |
+| Create epic | `bobby create -t "Big feature" --epic` |
 | View board | `bobby list` |
+| View stage | `bobby list building` |
+| View blocked | `bobby list --blocked` |
+| View epic children | `bobby list --epic TKT-001` |
 | View ticket | `bobby view TKT-001` |
-| Move to refinement | `bobby refine TKT-001` |
-| Mark ready | `bobby ready TKT-001` |
-| Start work | `bobby start TKT-001` |
-| Submit for review | `bobby review TKT-001` |
-| Approve review | `bobby peer-approve TKT-001` |
-| Reject review | `bobby peer-reject TKT-001 "reason"` |
-| QE approve | `bobby approve TKT-001` |
-| QE reject | `bobby reject TKT-001 "reason"` |
-| Release | `bobby release TKT-001` |
-| Reopen | `bobby reopen TKT-001` |
-| Block | `bobby block TKT-001 "reason"` |
-| Unblock | `bobby unblock TKT-001` |
+| View plan | `bobby view TKT-001 --plan` |
+| View files | `bobby view TKT-001 --files` |
+| Move to stage | `bobby move TKT-001 build` |
+| Reject (back to building) | `bobby move TKT-001 reject "reason"` |
+| Block | `bobby move TKT-001 block "reason"` |
+| Unblock | `bobby move TKT-001 unblock` |
+| Step through stages (slow) | `bobby run next TKT-001` |
+| Auto-chain all agents (fast) | `bobby run pipeline TKT-001` |
+| Run agent on all in stage | `bobby run plan` (no ticket ID) |
+| Ship | `bobby run ship` |
+| UX design review | `bobby run ux` |
+| PM product review | `bobby run pm` |
+| Add comment | `bobby comment TKT-001 "note"` |
+| Assign | `bobby assign TKT-001 name` |
+
+## Running Agents
+
+### Fast Mode — Auto-Chain
+`bobby run pipeline TKT-001` chains all agents automatically:
+
+```
+bobby-plan → bobby-build → bobby-review → bobby-test → shipping
+```
+
+- Fully automated — no pauses
+- Rejections loop back to building (max 3 retries)
+- Pipeline resumes from current stage
+- `bobby run ship` creates PR + merges when ready
+
+### Slow Mode — Step by Step
+`bobby run next TKT-001` reads the ticket's current stage and runs exactly one agent. Re-run after each step to advance.
+
+Best for complex or sensitive work where you want to review between stages.
+
+### Batch Mode — All Tickets in a Stage
+`bobby run plan` (no ticket ID) finds all tickets in the matching stage and generates a prompt to run each in a parallel subagent.
+
+Works with: `plan`, `build`, `review`, `test`
+
+### Cowork Agents
+`bobby run ux` and `bobby run pm` launch freeform design or product reviews via Chrome browser. Optionally pass a ticket ID to focus the review.
 
 ## Health Checks
 
@@ -61,8 +92,7 @@ _No health checks configured._
 ## Retrospectives
 
 When a systemic issue is found:
-1. `bobby retro TKT-001 "pattern name"` — creates a retro in `<%= tickets_dir %>/retrospectives/`
-2. Fill in the problem, root cause, and fix
-3. `bobby learn bobby-build "pattern" "description"` — adds to the skill's learnings
+1. `bobby retro TKT-001 "pattern name"` — creates a retro
+2. `bobby learn bobby-build "pattern" "description"` — adds to skill learnings
 
 This feedback loop is what makes Bobby get smarter over time.
