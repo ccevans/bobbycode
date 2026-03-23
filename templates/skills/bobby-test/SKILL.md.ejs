@@ -1,62 +1,140 @@
+---
+name: bobby-test
+description: "Test Skill: Verifies ticket changes through the live running application using browser automation and API calls. Tests what users actually see — not source code. MANDATORY TRIGGERS: test, verify, smoke test, acceptance testing, verify the app, check if it works."
+argument-hint: "<ticket ID to test>"
+---
+
 # Bobby Test Skill
 
-> This skill is loaded when Claude is told to "test tickets" or "bobby test". It handles quality assurance testing.
+> Live application testing. Verifies ticket acceptance criteria through the running app — browser automation and API calls. Never re-runs the test suite (review already did that).
 
 ## Before Starting
 
 1. **Check learnings** — Read `.claude/skills/bobby-test/learnings.md`
-2. **Health check** — Verify dev environment:
+2. Read the ticket's `ticket.md` and `test-cases.md`
+3. Read `plan.md` to understand what was implemented
+
+## Health Check
+
+Verify the dev environment is running before testing:
 <% if (health_checks && health_checks.length > 0) { %>
 <% health_checks.forEach(function(check) { %>
-   - `curl -s <%= check.url %>` (<%= check.description || check.name %>)
+- `curl -s -o /dev/null -w "%{http_code}" <%= check.url %>` (<%= check.description || check.name %>)
 <% }); %>
+<% } else { %>
+- `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000` (app)
 <% } %>
-3. **Check the queue** — Run `bobby list 6-ready-for-testing`
+
+### Service Recovery
+
+If a health check fails, attempt **one** restart:
+<% if (commands && commands.dev) { %>
+- Run `<%= commands.dev %>` in the background
+<% } else { %>
+- Run `npm run dev` in the background
+<% } %>
+- Wait up to 15 seconds, then re-check
+- If it doesn't come back, mark affected tests as **BLOCKED**
+
+**Boundaries:**
+- One restart attempt per service — if it doesn't come back, it's BLOCKED
+- Never run migrations, installs, or edit config files
+- Never debug application logs for code issues
+
+## Evidence Storage
+
+All test evidence is saved in the ticket folder:
+
+```
+<%= tickets_dir %>/{ID}--{slug}/
+└── test-evidence/
+    ├── screenshots/        # UI screenshots (baseline + after actions)
+    └── results.md          # Summary: pass/fail per AC with evidence references
+```
+
+Create `test-evidence/` and `test-evidence/screenshots/` at the start of testing. Save all screenshots there. Write `results.md` at the end with the final verdict.
+
+### results.md Format
+
+```markdown
+# Test Evidence — {ID}
+
+**Date:** {YYYY-MM-DD}
+**Verdict:** PASS | FAIL
+
+## Acceptance Criteria
+
+| # | Criterion | Result | Evidence |
+|---|-----------|--------|----------|
+| 1 | {AC text} | PASS/FAIL | screenshot: screenshots/{filename}.png |
+| 2 | {AC text} | PASS/FAIL | API: GET /endpoint → 200 |
+
+## Notes
+{Any observations, blocked items, or issues discovered}
+```
 
 ## Testing Process
 
-1. Pick up a ticket from `6-ready-for-testing`
-2. Read `ticket.md` for acceptance criteria and context
-3. Read `test-cases.md` for test scenarios
-4. Read `plan.md` to understand what was implemented
+1. Read `ticket.md` for acceptance criteria
+2. Read `test-cases.md` for test scenarios
+3. Create `test-evidence/screenshots/` directory in the ticket folder
+4. For each AC and test case, verify through the **live app** using UI testing, API testing, or both
+5. Save screenshots to `test-evidence/screenshots/`
+6. Write `test-evidence/results.md` with the final summary
 
-### For Each Test Case
+### UI Testing
 
-1. **Setup** — Ensure preconditions are met
-2. **Execute** — Follow the test steps exactly
-3. **Verify** — Compare actual results against expected
-4. **Evidence** — Take screenshots or capture output as proof
-5. **Document** — Add QE notes with findings
+1. **Navigate** to the affected page(s)
+2. **Screenshot** the initial state — this is your baseline
+3. **Read the page** accessibility tree to verify elements exist
+4. **Check console** for errors before interacting
+5. **Execute steps** — click buttons, fill forms, navigate
+6. **Screenshot** after each significant action
+7. **Verify expected results** — check page content, URL, console
+8. **Record result** — pass/fail with evidence
 
-### Browser Testing (if applicable)
+### API Testing
 
-- Test in the browser at the configured URLs
-<% if (health_checks && health_checks.length > 0) { %>
-<% health_checks.forEach(function(check) { %>
-- <%= check.name %>: `<%= check.url %>`
-<% }); %>
-<% } %>
-- Check responsive behavior
-- Verify error states and edge cases
+For endpoints affected by the ticket:
+1. **Happy path** — Valid request with expected parameters
+2. **Error cases** — Missing fields, invalid data, auth failures
+3. **Verify response** — Status code, payload structure, data correctness
 
-## Completing QE
+```bash
+# Example: verify an endpoint
+curl -s -w "\n%{http_code}" http://localhost:3000/api/endpoint
+```
 
-### If All Tests Pass
+### What to Check
 
-1. Add QE note: `bobby comment {ID} test "All test cases pass. Evidence: {details}"`
-2. Approve: `bobby approve {ID}`
+- Page loads without console errors
+- Interactive elements are clickable and responsive
+- Forms validate inputs properly
+- Data persists after refresh
+- Navigation flows work end to end
+- No broken images or missing assets
+- **Write path works** — If the feature involves saving/updating data, actually change a value, save it, refresh, and confirm it persisted
+- **Auth on write endpoints** — If testing an authenticated feature, verify that save/update/delete operations succeed (not just reads)
 
-### If Tests Fail
+## Decision
 
-1. Document exactly what failed and how to reproduce
-2. Add QE note: `bobby comment {ID} test "FAIL: {test case} — {description of failure}"`
-3. Take screenshots if applicable
-4. Reject: `bobby reject {ID} "Reason for rejection"`
-5. If this is a systemic issue: `bobby retro {ID} "pattern"` and `bobby learn bobby-test "pattern" "description"`
+### Approve
+If all acceptance criteria are verified through the live app:
+1. Write `test-evidence/results.md` with all AC results and evidence references
+2. Add comment: `bobby comment {ID} --by bobby-test "Passed: all AC verified through live app — evidence in test-evidence/"`
+3. If you discovered anything non-obvious or a pattern future testing should catch: `bobby learn bobby-test "pattern" "description"`
+4. Move to shipping: `bobby move {ID} ship`
+
+### Reject
+If any acceptance criteria fail in the live app:
+1. Write `test-evidence/results.md` with all AC results including failures
+2. Move back with specific feedback: `bobby move {ID} reject "Live test failure: {specific description} — evidence in test-evidence/"`
+3. Be specific — describe what you saw vs. what was expected, reference screenshots by filename
 
 ## Key Principles
 
-- **Test what the ticket says** — Don't scope-creep QE to unrelated features
-- **Evidence over assertion** — Always provide proof (screenshots, test output, curl responses)
-- **Reproducible** — Another person should be able to follow your QE notes and get the same result
-- **Be specific** — "Login doesn't work" is not useful. "Clicking 'Login' with valid credentials shows a 500 error on /api/auth" is useful.
+- **Test what the ticket says** — Don't scope-creep to unrelated features
+- **Live app only** — Verify through the browser and API calls, not by reading source code
+- **Evidence over assertion** — Always provide screenshots and response output as proof
+- **Be specific** — "Page looks wrong" is not useful. "Hero section missing CTA button, screenshot attached" is useful
+- If systemic: `bobby learn bobby-test "pattern" "description"`

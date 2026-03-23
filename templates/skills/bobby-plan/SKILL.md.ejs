@@ -1,0 +1,131 @@
+---
+name: bobby-plan
+description: "Planning Skill: Handles epic breakdown and ticket refinement. Creates plan.md and test-cases.md. MANDATORY TRIGGERS: plan, refine, brainstorm, break down, epic, spec, requirements, scope, estimate, plan ticket."
+argument-hint: "<ticket ID to plan>"
+---
+
+# Bobby Plan Skill
+
+> This skill handles planning — both epic breakdown and ticket refinement.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/bobby-plan/learnings.md`
+2. **Read the ticket** — Understand what's being asked
+
+## Mode Detection
+
+- If the ticket has `type: epic` → **Epic Mode** (break down into child tickets)
+- If the ticket is in `planning` stage → **Refine Mode** (create plan + test cases)
+
+---
+
+## Epic Mode
+
+### Step 1: Generate & Score Approaches
+
+Generate 3 approaches, then score each on these dimensions (1-5 scale):
+
+| Dimension | Weight | Description |
+|-----------|--------|-------------|
+| Minimal effort | 3x | Least code, fewest files, smallest blast radius |
+| Risk | 2x | Less risk = higher score |
+| Maintainability | 2x | Long-term code health, readability |
+| Impact | 1x | User-facing value delivered |
+
+**Weighted score** = (Effort x 3) + (Risk x 2) + (Maintainability x 2) + (Impact x 1)
+
+### Step 2: Auto-Select or Escalate
+
+- **Auto-select**: Pick the highest-scoring approach. Bias toward minimal fix.
+- **Escalate** (`bobby move {ID} block "Approach decision needed"`) ONLY if:
+  - Top two scores are within 5 points of each other, OR
+  - A lower-effort option scores 10+ points below a long-term option on Maintainability alone
+
+Record all approaches and scores in `plan.md` with a `## Decision` section explaining why the selected approach won. When escalating, flag which dimension caused the tie so the reviewer can decide quickly.
+
+### Step 3: Write Spec
+
+Save a spec in the epic ticket's `plan.md`:
+- **Problem statement** — What and why
+- **Proposed solution** — How
+- **User stories** — Who benefits
+- **Technical approach** — Architecture, data model, APIs
+- **Out of scope** — Explicitly NOT doing
+
+### Step 4: Create Child Tickets
+
+Break the spec into tickets:
+- Each ticket is independently deliverable
+- Order by dependency
+- Use: `bobby create -t "Title" --type feature -p medium --parent {EPIC_ID}`
+
+### Completing Epic Mode
+
+- `plan.md` saved in epic ticket folder
+- Child tickets created in backlog with `parent` field set
+- Add comment: `bobby comment {EPIC_ID} --by bobby-plan "Broke down into {N} tickets"`
+
+---
+
+## Refine Mode
+
+### Step 1: Clarify Requirements
+
+- Ensure description is clear and complete
+- Acceptance criteria are specific, measurable, testable
+- Update the ticket if anything is ambiguous
+
+### Step 2: Create Implementation Plan
+
+Generate 2-3 possible approaches. Score each on these dimensions (1-5 scale):
+
+| Dimension | Weight | Description |
+|-----------|--------|-------------|
+| Minimal effort | 3x | Least code, fewest files, smallest blast radius |
+| Risk | 2x | Less risk = higher score |
+| Maintainability | 2x | Long-term code health, readability |
+| Impact | 1x | User-facing value delivered |
+
+**Auto-select** the highest-scoring approach. Only escalate (`bobby move {ID} block "Approach decision needed"`) if the top two are within 5 points or a long-term option dominates Maintainability by 10+.
+
+Create `plan.md` in the ticket folder:
+
+1. **Approaches considered** — Brief description + scores for each
+2. **Selected approach** — Which one and why it won
+3. **Files to modify** — List every file that needs changes
+4. **Step-by-step plan** — Ordered steps with checkboxes
+5. **Risk areas** — What could go wrong
+6. **Dependencies** — What needs to exist first
+
+### Step 3: Write Test Cases
+
+Update `test-cases.md`:
+- One test case per acceptance criterion (minimum)
+- Edge cases and error scenarios
+- Each test case: preconditions, steps, expected result
+
+**Mandatory coverage categories:**
+- **Read path** — Does the correct data/UI appear? (navigate, observe)
+- **Write path** — Does changing a value persist and reflect? (change, save, verify)
+- **Error path** — What happens on invalid input, auth failure, missing data?
+
+**Anti-pattern to avoid:** Do NOT write test cases that only verify structure (e.g., "CSS variable exists", "element is on page"). Every test case must include a user action and an observable outcome. If an AC says "X updates when Y changes," the test case MUST change Y and verify X — not just verify X exists in its default state.
+
+### Step 4: Estimate Complexity
+
+Add to ticket frontmatter or comment:
+- **Simple:** Single file change, clear path
+- **Medium:** Multiple files, some decisions
+- **Complex:** Cross-cutting, architectural
+
+### Completing Refine Mode
+
+1. Verify `plan.md` exists and is complete
+2. Verify `test-cases.md` has coverage
+3. If you discovered anything non-obvious or a pattern future planning should avoid: `bobby learn bobby-plan "pattern" "description"`
+4. Move ticket: `bobby move {ID} build`
+
+## Feature Areas
+
+<%= areas && areas.length > 0 ? areas.join(' | ') : '_No areas configured_' %>
