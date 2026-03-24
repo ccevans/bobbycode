@@ -21,7 +21,7 @@ export function registerRun(program) {
       '  Direct:     bobby run plan|build|review|test|ship|ux|pm <id>'
     )
     .option('--max-retries <n>', 'Max retry loops on rejection per ticket', '3')
-    .option('--max-iterations <n>', 'Max total agent invocations across all tickets', '20')
+    .option('--max-iterations <n>', 'Max total agent invocations across all tickets')
     .action(async (agent, ticketIds, opts) => {
       try {
         if (!VALID_AGENTS.includes(agent)) {
@@ -33,7 +33,7 @@ export function registerRun(program) {
         const config = readConfig(root);
         const ticketsDir = path.join(root, config.tickets_dir);
         const maxRetries = parseInt(opts.maxRetries, 10) || 3;
-        const maxIterations = parseInt(opts.maxIterations, 10) || 20;
+        const maxIterations = opts.maxIterations ? parseInt(opts.maxIterations, 10) : undefined;
 
         // Load pipeline config (use default if not configured)
         const pipeline = (config.pipelines && config.pipelines.default) || DEFAULT_PIPELINE;
