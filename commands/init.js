@@ -19,6 +19,11 @@ function loadStack(stackName) {
 }
 
 export function scaffoldProject(rootDir, config) {
+  // Derive bobby_dir, runs_dir if not explicitly provided
+  const bobbyDir = config.bobby_dir || '.bobby';
+  if (!config.tickets_dir) config.tickets_dir = `${bobbyDir}/tickets`;
+  if (!config.runs_dir) config.runs_dir = `${bobbyDir}/runs`;
+
   const ticketsDir = path.join(rootDir, config.tickets_dir);
 
   // Create single tickets directory (no stage folders)
@@ -26,7 +31,7 @@ export function scaffoldProject(rootDir, config) {
   fs.mkdirSync(path.join(ticketsDir, 'retrospectives'), { recursive: true });
 
   // Create runs directory for pipeline run logs
-  const runsDir = path.join(rootDir, '.bobby', 'runs');
+  const runsDir = path.join(rootDir, config.runs_dir);
   fs.mkdirSync(runsDir, { recursive: true });
 
   // Write config
@@ -131,6 +136,14 @@ export function registerInit(program) {
           stack.health_checks[0].url = devUrl;
         }
 
+        // Ask for Bobby directory
+        const { bobbyDir } = await inquirer.prompt([{
+          type: 'input',
+          name: 'bobbyDir',
+          message: 'Bobby directory (tickets, runs, etc.):',
+          default: existingConfig?.bobby_dir || '.bobby',
+        }]);
+
         // Auto-detect repos for multi-repo stacks
         let repos = [];
         if (stack.repos && stack.repos.length > 0) {
@@ -186,7 +199,9 @@ export function registerInit(program) {
         const config = {
           project: answers.project,
           stack: answers.stack,
-          tickets_dir: '.bobby/tickets',
+          bobby_dir: bobbyDir,
+          tickets_dir: `${bobbyDir}/tickets`,
+          runs_dir: `${bobbyDir}/runs`,
           health_checks: stack.health_checks,
           areas: stack.areas,
           ticket_prefix: 'TKT',
@@ -199,8 +214,8 @@ export function registerInit(program) {
         scaffoldProject(rootDir, config);
 
         console.log('');
-        success('Created .bobby/tickets/ (single directory, frontmatter-based stages)');
-        success('Created .bobby/runs/ (pipeline run logs)');
+        success(`Created ${config.tickets_dir}/ (single directory, frontmatter-based stages)`);
+        success(`Created ${config.runs_dir}/ (pipeline run logs)`);
         success('Created .bobbyrc.yml');
         success('Created .claude/skills/ with 9 workflow skills');
         success('Created .claude/agents/ with 8 agent definitions');

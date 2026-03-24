@@ -97,7 +97,7 @@ export function registerRun(program) {
             if (!found) { error(`Ticket ${id} not found`); process.exit(1); }
           }
 
-          const prompt = buildOrchestrationPrompt(ids, pipeline, maxRetries, config.tickets_dir, maxIterations);
+          const prompt = buildOrchestrationPrompt(ids, pipeline, maxRetries, config.tickets_dir, maxIterations, config.runs_dir);
           console.log('');
           console.log(`  ${bold('Bobby Pipeline')} — ${ids.length} ticket(s)`);
           console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
@@ -136,7 +136,7 @@ export function registerRun(program) {
             process.exit(1);
           }
 
-          const prompt = buildFeaturePrompt(epicId, epic.data.title, children, pipeline, maxRetries, config.tickets_dir, maxIterations);
+          const prompt = buildFeaturePrompt(epicId, epic.data.title, children, pipeline, maxRetries, config.tickets_dir, maxIterations, config.runs_dir);
           const childIds = children.map(t => t.id);
           const needsPlanning = children.filter(t => ['backlog', 'planning'].includes(t.stage));
           const pastPlanning = children.filter(t => !['backlog', 'planning'].includes(t.stage));

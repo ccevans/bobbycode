@@ -21,6 +21,7 @@ describe('template', () => {
       health_checks: [{ name: 'app', url: 'http://localhost:3000', description: 'Next.js' }],
       commands: { test: 'npm test', lint: 'npm run lint', dev: 'npm run dev', build: 'npm run build' },
       tickets_dir: '.bobby/tickets',
+      runs_dir: '.bobby/runs',
     };
     const result = renderTemplate('CLAUDE.md.ejs', config);
     expect(result).toContain('test-app');
@@ -36,6 +37,7 @@ describe('template', () => {
       health_checks: [{ name: 'app', url: 'http://localhost:3000' }],
       commands: { test: 'npm test', lint: 'npm run lint' },
       tickets_dir: '.bobby/tickets',
+      runs_dir: '.bobby/runs',
     };
     renderSkillTemplates(tmpDir, config);
     // 9 skills: bobby-plan, bobby-build, bobby-review, bobby-test, bobby-ship, bobby-ux, bobby-pm, bobby-qe, bobby-pipeline
@@ -58,6 +60,7 @@ describe('template', () => {
       health_checks: [{ name: 'app', url: 'http://localhost:3000' }],
       commands: { test: 'npm test', lint: 'npm run lint' },
       tickets_dir: '.bobby/tickets',
+      runs_dir: '.bobby/runs',
     };
     renderSkillTemplates(tmpDir, config);
     // bobby-ux should have references subdirectory with files
