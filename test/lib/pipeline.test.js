@@ -161,5 +161,73 @@ describe('pipeline', () => {
       expect(prompt).toContain('Feature Run');
       expect(prompt).toContain('feature-tkt-001');
     });
+
+    test('includes two-phase structure', () => {
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      expect(prompt).toContain('Phase 1');
+      expect(prompt).toContain('Phase 2');
+      expect(prompt).toContain('Holistic Planning');
+      expect(prompt).toContain('Sequential Execution');
+    });
+
+    test('Phase 1 lists tickets needing planning', () => {
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      expect(prompt).toContain('Tickets to plan:');
+      expect(prompt).toContain('TKT-002');
+      expect(prompt).toContain('TKT-003');
+    });
+
+    test('Phase 1 includes feature-plan.md instructions', () => {
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      expect(prompt).toContain('feature-plan.md');
+      expect(prompt).toContain('cross-cutting');
+    });
+
+    test('Phase 1 includes sibling plan.md reading', () => {
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      expect(prompt).toContain('TKT-002*/plan.md');
+      expect(prompt).toContain('TKT-003*/plan.md');
+    });
+
+    test('Phase 2 includes feature-plan.md context for execution agents', () => {
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      expect(prompt).toContain('Read `');
+      expect(prompt).toContain('feature-plan.md` for cross-cutting feature context');
+    });
+
+    test('Phase 2 flags backlog/planning as error', () => {
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      expect(prompt).toContain('backlog');
+      expect(prompt).toContain('planning');
+      expect(prompt).toContain('error');
+    });
+
+    test('skips Phase 1 when all tickets past planning', () => {
+      const builtChildren = [
+        { id: 'TKT-002', title: 'Auth login', priority: 'high', stage: 'building' },
+        { id: 'TKT-003', title: 'Auth signup', priority: 'medium', stage: 'reviewing' },
+      ];
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', builtChildren, DEFAULT_PIPELINE);
+      expect(prompt).toContain('already past planning');
+      expect(prompt).not.toContain('Tickets to plan:');
+    });
+
+    test('handles mixed stages — some planned, some not', () => {
+      const mixedChildren = [
+        { id: 'TKT-002', title: 'Auth login', priority: 'high', stage: 'building' },
+        { id: 'TKT-003', title: 'Auth signup', priority: 'medium', stage: 'backlog' },
+      ];
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', mixedChildren, DEFAULT_PIPELINE);
+      expect(prompt).toContain('Tickets to plan:');
+      expect(prompt).toContain('TKT-003');
+      expect(prompt).toContain('Already past planning');
+      expect(prompt).toContain('TKT-002');
+    });
+
+    test('describes two-phase workflow in intro', () => {
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      expect(prompt).toContain('two phases');
+      expect(prompt).toContain('plan all tickets holistically');
+    });
   });
 });

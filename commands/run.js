@@ -138,9 +138,15 @@ export function registerRun(program) {
 
           const prompt = buildFeaturePrompt(epicId, epic.data.title, children, pipeline, maxRetries, config.tickets_dir, maxIterations);
           const childIds = children.map(t => t.id);
+          const needsPlanning = children.filter(t => ['backlog', 'planning'].includes(t.stage));
+          const pastPlanning = children.filter(t => !['backlog', 'planning'].includes(t.stage));
           console.log('');
           console.log(`  ${bold('Bobby Feature')} — ${epicId}: ${epic.data.title}`);
-          console.log(`  ${dim('Order: ' + childIds.join(' → '))}`);
+          if (needsPlanning.length > 0) {
+            console.log(`  ${dim(`Phase 1: Plan ${needsPlanning.length} ticket(s) → Phase 2: Execute ${childIds.join(' → ')}`)}`);
+          } else {
+            console.log(`  ${dim(`All planned → Execute ${childIds.join(' → ')}`)}`);
+          }
           console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
           console.log('');
           console.log(prompt);

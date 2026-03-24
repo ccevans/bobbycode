@@ -1,12 +1,12 @@
 ---
 name: bobby-feature
-description: "Feature Skill: Works an entire epic — gathers child tickets, creates a single feature branch, processes them in priority order through the full pipeline, runs integration tests between tickets, and verifies everything works together. MANDATORY TRIGGERS: feature, work feature, run feature, epic, work epic, implement feature, feature workflow."
+description: "Feature Skill: Works an entire epic — gathers child tickets, plans them holistically as a group, then processes each through build → review → test on a single feature branch. Catches integration issues between tickets and verifies everything works together. MANDATORY TRIGGERS: feature, work feature, run feature, epic, work epic, implement feature, feature workflow."
 argument-hint: "<epic ticket ID>"
 ---
 
 # Bobby Feature Skill
 
-> Orchestrates a full feature (epic) across all its child tickets on a single branch. Gathers related tickets, orders them intelligently, runs each through planning → building → reviewing → testing, catches integration issues between tickets, and verifies the whole feature works before shipping.
+> Orchestrates a full feature (epic) across all its child tickets on a single branch. First plans ALL tickets holistically so each plan benefits from knowing its siblings, then builds/reviews/tests each sequentially. Catches integration issues between tickets and verifies the whole feature works before shipping.
 
 ## Before Starting
 
@@ -32,10 +32,12 @@ argument-hint: "<epic ticket ID>"
    - **Then by priority**: critical > high > medium > low
    - **Then by ID**: TKT-001 before TKT-002 as tiebreaker
 
-5. **Present the plan** — Show the user the processing order and ask for confirmation before starting:
+5. **Present the plan** — Show the user the processing order and the two-phase approach. Ask for confirmation before starting:
 
    **Feature: {epic title}**
    **Branch:** `feature/{epicId}-{slug}`
+   **Phase 1:** Plan {N} ticket(s) holistically
+   **Phase 2:** Build → Review → Test each sequentially
    | Order | Ticket | Title | Priority | Current Stage |
    |-------|--------|-------|----------|---------------|
    | 1 | ... | ... | ... | ... |
@@ -51,16 +53,62 @@ argument-hint: "<epic ticket ID>"
 
 | Stage | Agent | What it does |
 |-------|-------|-------------|
-| planning | bobby-plan | Creates plan.md + test-cases.md |
+| planning | bobby-plan | Creates plan.md + test-cases.md (Feature-Aware mode for epic children) |
 | building | bobby-build | Implements the plan, commits code |
 | reviewing | bobby-review | Code review — runs tests, lint, checks ACs |
 | testing | bobby-test | Live app verification — browser + API testing |
 
 > **Note:** Shipping is handled separately via `bobby run ship`. The feature workflow stops once all tickets reach shipping.
 
-## Orchestration Process
+---
 
-For each ticket in the sorted order, sequentially:
+## Phase 1: Holistic Planning
+
+Plan ALL tickets before building any. This ensures consistent patterns, shared utilities, and coherent architecture across the entire feature.
+
+For each ticket in the sorted order that is in `backlog` or `planning` stage:
+
+### 1. Read Ticket State
+Read `<%= tickets_dir %>/{ID}*/ticket.md` frontmatter to determine the current stage.
+
+### 2. Move to Planning
+If stage is `backlog`, move to planning: `bobby move {ID} plan`
+
+### 3. Run Bobby-Plan (Feature-Aware)
+1. Claim the ticket: `bobby assign {ID} bobby-plan`
+2. Read `<%= tickets_dir %>/{ID}*/ticket.md` for context
+3. Follow the instructions in `.claude/agents/bobby-plan.md` — the bobby-plan skill will automatically detect **Feature-Aware Refine Mode** when it sees the ticket has a `parent` field. This mode reads sibling plans and the feature-plan.md for cross-ticket context.
+4. When complete, the agent moves the ticket to building via `bobby move`
+
+### 4. Verify Planning Complete
+1. Re-read `ticket.md` frontmatter to confirm the ticket moved to `building`
+2. Verify `plan.md` and `test-cases.md` exist in the ticket folder
+3. Run `git status --short` — if there are uncommitted source files, STOP and report.
+
+### 5. Feature Plan Check
+- After the **first** ticket is planned, verify `<%= tickets_dir %>/{epicId}*/feature-plan.md` was created. If not, the plan agent missed it — create it now with the cross-cutting decisions from the first ticket's plan.
+- After **each subsequent** ticket is planned, verify `feature-plan.md` was updated.
+
+### 6. Next Ticket (Planning)
+Continue to the next ticket that needs planning. Skip tickets already in `building` or later — but still read their `plan.md` as sibling context.
+
+### 7. Holistic Review
+After ALL tickets are planned, review `feature-plan.md` for consistency across all ticket plans:
+- Are there contradictory approaches between tickets?
+- Are shared utilities referenced consistently?
+- Are dependencies between tickets clear and satisfiable?
+
+Update `feature-plan.md` if the later plans revealed better approaches or inconsistencies.
+
+> **Skip Phase 1** if all tickets are already past planning (building or later). Read existing `feature-plan.md` for context and proceed to Phase 2.
+
+---
+
+## Phase 2: Sequential Execution
+
+Now build, review, and test each ticket in order. Every agent should read `<%= tickets_dir %>/{epicId}*/feature-plan.md` for cross-cutting context.
+
+For each ticket in the sorted order:
 
 ### 1. Read Ticket State
 Read `<%= tickets_dir %>/{ID}*/ticket.md` frontmatter to determine the current stage.
@@ -68,18 +116,18 @@ Read `<%= tickets_dir %>/{ID}*/ticket.md` frontmatter to determine the current s
 ### 2. Run the Right Agent
 Based on the current stage, launch the corresponding agent:
 
-- If stage is `backlog`: move to planning first (`bobby move {ID} plan`), then run bobby-plan
-- If stage is `planning`: run bobby-plan agent
 - If stage is `building`: run bobby-build agent
 - If stage is `reviewing`: run bobby-review agent
 - If stage is `testing`: run bobby-test agent
 - If stage is `shipping` or `done`: this ticket is complete — skip to the next ticket
+- If stage is `backlog` or `planning`: ERROR — this should have been handled in Phase 1. Stop and report.
 
 For each agent:
 1. Claim the ticket: `bobby assign {ID} {agent-name}`
 2. Read `<%= tickets_dir %>/{ID}*/ticket.md` for context
-3. Follow the instructions in `.claude/agents/{agent-name}.md`
-4. When complete, the agent updates the ticket stage via `bobby move`
+3. Read `<%= tickets_dir %>/{epicId}*/feature-plan.md` for cross-cutting feature context
+4. Follow the instructions in `.claude/agents/{agent-name}.md`
+5. When complete, the agent updates the ticket stage via `bobby move`
 
 ### 3. Check Result
 After each agent completes:
@@ -101,6 +149,8 @@ After each ticket reaches shipping:
 
 ### 6. Next Ticket
 Repeat for each ticket in the queue.
+
+---
 
 ## After All Tickets
 
@@ -125,6 +175,11 @@ Repeat for each ticket in the queue.
 |--------|-------------|---------|---------|
 | {ID} | {stage} | {n} | {passed / failed / skipped: reason} |
 
+## Feature Plan
+
+Cross-cutting decisions captured in feature-plan.md:
+{summary of shared patterns, utilities, conventions}
+
 ## Notes
 
 {Any blockers, integration issues, or patterns observed. Omit section if none.}
@@ -132,6 +187,8 @@ Repeat for each ticket in the queue.
 
 ## Key Principles
 
+- **Plan holistically first** — plan all tickets before building any, so each plan benefits from knowing its siblings
+- **feature-plan.md is the source of truth** — cross-cutting decisions live in the epic's feature-plan.md, not scattered across individual plans
 - **Single branch** — all tickets are built on the same feature branch, not separate branches
 - **One ticket at a time** — process sequentially to catch integration issues early
 - **Finish in-progress work first** — don't start new tickets while others are mid-pipeline
