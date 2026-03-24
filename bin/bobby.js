@@ -13,9 +13,10 @@ program
   .description('Bobby — your pair programmer. AI-native SDLC framework.')
   .version(pkg.version);
 
-// Commands (11 total)
+// Commands (12 total)
 import { registerInit } from '../commands/init.js';
 import { registerCreate } from '../commands/create.js';
+import { registerUpdate } from '../commands/update.js';
 import { registerList } from '../commands/list.js';
 import { registerView } from '../commands/view.js';
 import { registerMove } from '../commands/move.js';
@@ -29,6 +30,7 @@ import { registerExport } from '../commands/export.js';
 
 registerInit(program);
 registerCreate(program);
+registerUpdate(program);
 registerList(program);
 registerView(program);
 registerMove(program);
