@@ -107,9 +107,14 @@ Report all PR URLs to the user so they can review and merge manually.
 
 ## Completing Ship
 
-- All PRs created and CI passing
-- Each ticket has a ship comment with PR reference
-- User merges PRs manually
+Once all PRs are created and CI is passing:
+
+1. For each ticket in `shipping` stage:
+   - `bobby move {ID} done`
+   - Output `<bobby:done ticket="{ID}" stage="done" />`
+2. Report all PR URLs to the user so they can review and merge at their discretion
+
+**Important:** Moving to `done` means the code is PR'd and CI-green. The user merges PRs on their own schedule.
 
 ## If Something Goes Wrong
 
