@@ -228,9 +228,9 @@ describe('tickets', () => {
     expect(() => addComment(tmpDir, 'TKT-999', 'dev', 'nope')).toThrow('not found');
   });
 
-  test('moveTicket clears assigned field', () => {
+  test('moveTicket preserves assigned field', () => {
     createTicket(tmpDir, {
-      prefix: 'TKT', title: 'Assign clear', type: 'feature',
+      prefix: 'TKT', title: 'Assign preserve', type: 'feature',
       priority: 'medium', author: 'dev', area: '',
     });
     // Simulate agent assignment
@@ -241,10 +241,10 @@ describe('tickets', () => {
     const before = findTicket(tmpDir, 'TKT-001');
     expect(before.data.assigned).toBe('bobby-plan');
 
-    // Move should clear assignment
+    // Move should preserve assignment
     moveTicket(tmpDir, 'TKT-001', 'planning', 'dev');
     const after = findTicket(tmpDir, 'TKT-001');
-    expect(after.data.assigned).toBeNull();
+    expect(after.data.assigned).toBe('bobby-plan');
   });
 
   test('listTickets returns assigned field for filtering', () => {

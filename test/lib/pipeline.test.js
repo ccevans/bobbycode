@@ -21,7 +21,7 @@ describe('pipeline', () => {
   test('buildSingleAgentPrompt includes claim step', () => {
     const prompt = buildSingleAgentPrompt('bobby-plan', 'TKT-001');
     expect(prompt).toContain('bobby assign TKT-001 bobby-plan');
-    expect(prompt).toContain('auto-clears assignment');
+    expect(prompt).toContain('bobby move');
   });
 
   test('buildNextStepPrompt returns plan prompt for planning stage', () => {
