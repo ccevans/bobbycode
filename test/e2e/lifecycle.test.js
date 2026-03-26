@@ -229,4 +229,20 @@ describe('E2E: full ticket lifecycle', () => {
     const childData = matter(fs.readFileSync(childFile, 'utf8')).data;
     expect(childData.parent).toBe('TKT-001');
   });
+
+  test('auto-advance epic when all children reach same stage', () => {
+    run('create -t "Auto epic" --epic');
+    run('create -t "Child A" --parent TKT-001');
+    run('create -t "Child B" --parent TKT-001');
+
+    // Move both children to shipping
+    run('move TKT-002 shipping');
+    run('move TKT-003 shipping');
+
+    // Epic should have auto-advanced to shipping
+    const ticketsDir = path.join(tmpDir, '.bobby', 'tickets');
+    const entries = fs.readdirSync(ticketsDir).filter(e => e.startsWith('TKT-001'));
+    const { data } = matter(fs.readFileSync(path.join(ticketsDir, entries[0], 'ticket.md'), 'utf8'));
+    expect(data.stage).toBe('shipping');
+  });
 });
