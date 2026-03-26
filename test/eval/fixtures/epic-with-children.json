@@ -1,0 +1,36 @@
+{
+  "description": "Epic with 3 child tickets at various stages",
+  "epic": {
+    "id": "TKT-010",
+    "title": "User onboarding flow",
+    "type": "epic",
+    "priority": "high",
+    "stage": "planning"
+  },
+  "children": [
+    {
+      "id": "TKT-011",
+      "title": "Welcome screen with brand intro",
+      "type": "feature",
+      "priority": "high",
+      "stage": "building",
+      "parent": "TKT-010"
+    },
+    {
+      "id": "TKT-012",
+      "title": "Profile setup form",
+      "type": "feature",
+      "priority": "high",
+      "stage": "planning",
+      "parent": "TKT-010"
+    },
+    {
+      "id": "TKT-013",
+      "title": "Onboarding completion celebration",
+      "type": "feature",
+      "priority": "medium",
+      "stage": "backlog",
+      "parent": "TKT-010"
+    }
+  ]
+}

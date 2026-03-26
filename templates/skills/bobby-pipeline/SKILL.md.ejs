@@ -110,6 +110,14 @@ Repeat for each ticket in the queue.
 {Any blockers, unexpected issues, or patterns observed. Omit section if none.}
 ```
 
+## Context Management
+
+Long pipeline runs may approach the context window limit. To handle this:
+
+- After completing each ticket, write a brief progress note to `<%= runs_dir %>/in-progress.md` so context can be recovered if the session refreshes.
+- If you notice you have processed many tickets and context is getting large, save your current state: which tickets are done, which remain, their current stages, and any issues observed.
+- On continuing after a context refresh, read `<%= runs_dir %>/in-progress.md` to resume where you left off.
+
 ## Key Principles
 
 - **One ticket at a time** — process sequentially, don't parallelize pipeline stages

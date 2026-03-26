@@ -1,0 +1,11 @@
+{
+  "description": "Single ticket going through full pipeline",
+  "ticket": {
+    "id": "TKT-001",
+    "title": "Add user email validation",
+    "type": "feature",
+    "priority": "medium",
+    "stage": "planning",
+    "area": "auth"
+  }
+}

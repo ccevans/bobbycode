@@ -1,0 +1,11 @@
+{
+  "description": "Ticket that was rejected back to building with feedback",
+  "ticket": {
+    "id": "TKT-005",
+    "title": "Fix lead status filter persistence",
+    "type": "bug",
+    "priority": "high",
+    "stage": "building"
+  },
+  "rejectionComment": "AC #3 not met: Filter resets to All on page refresh. The filterByStatus function does not read URL params on mount."
+}

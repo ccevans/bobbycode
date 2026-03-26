@@ -185,6 +185,14 @@ Cross-cutting decisions captured in feature-plan.md:
 {Any blockers, integration issues, or patterns observed. Omit section if none.}
 ```
 
+## Context Management
+
+Long feature runs may approach the context window limit. To handle this:
+
+- After completing each ticket, write a brief progress note to `<%= runs_dir %>/in-progress-feature.md` so context can be recovered if the session refreshes.
+- If you notice you have processed many tickets and context is getting large, save your current state: which tickets are done, which remain, their current stages, and any integration issues observed.
+- On continuing after a context refresh, read `<%= runs_dir %>/in-progress-feature.md` and `feature-plan.md` to resume where you left off.
+
 ## Key Principles
 
 - **Plan holistically first** — plan all tickets before building any, so each plan benefits from knowing its siblings

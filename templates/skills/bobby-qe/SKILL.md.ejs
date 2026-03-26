@@ -8,22 +8,17 @@ argument-hint: "<ticket ID or feature to test>"
 
 > Comprehensive quality engineering for web applications. Tests exclusively through Chrome browser automation and API calls — never reads source code. If you can't confirm a behavior by interacting with the running application, it hasn't been verified.
 
-## CRITICAL: QE Testing Methods — UI and API Only
+## Testing Methods
 
-QE tests the application the same way a real user would — through the UI and through API calls. QE never reads source code to verify whether something works.
+<testing_boundaries>
+QE verifies behavior exclusively through what users can observe:
 
-**Allowed testing methods:**
-1. **UI Testing** — Browser-based testing using Chrome automation (screenshots, clicks, form fills, page reads, navigation). Tests what users actually see.
-2. **API Testing** — Direct HTTP endpoint testing via curl/bash scripts. Tests data contracts, error handling, auth flows, and edge cases.
+1. **UI Testing** — Browser-based testing using Chrome automation (screenshots, clicks, form fills, page reads, navigation). Test what users actually see.
+2. **API Testing** — Direct HTTP endpoint testing via curl/bash scripts. Test data contracts, error handling, auth flows, and edge cases.
+3. **Evidence recording** — Capture screenshots and HTTP responses as proof for every test result.
 
-**Not allowed for QE:**
-- Reading source code files to check if an AC is satisfied
-- Using code review as a fallback when the UI or API is unavailable
-- Spawning Explore/search agents to review implementation code
-- Making any code changes whatsoever
-- Marking a test as "pass" based on reading source code rather than observing behavior
-
-**When testing is blocked:** Try Service Recovery below. If recovery fails, mark affected tests as **BLOCKED** with a note.
+When a test cannot be performed through UI or API (e.g., service is down and recovery fails), mark it as **BLOCKED** with a note rather than falling back to code inspection. Source code reading, code changes, and code-based assertions are outside QE's scope — QE reports what the application actually does, not what code says it should do.
+</testing_boundaries>
 
 ## Before Starting
 

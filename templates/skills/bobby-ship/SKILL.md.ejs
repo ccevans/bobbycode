@@ -44,14 +44,14 @@ Verify you're on a feature branch (not main/master). If on main, STOP — there'
 
 ### 4. Rebase onto Main
 
-Before pushing, rebase each repo's feature branch onto the latest main:
+Before pushing, rebase each repo's feature branch onto the latest main — so the PR contains only the feature's changes and CI tests against the latest code:
 
 ```
 git fetch origin
 git rebase origin/main
 ```
 
-If there are conflicts, resolve them before continuing. Do NOT skip the rebase — PRs must be up-to-date with main to avoid merge conflicts and ensure CI runs against the latest code.
+If there are conflicts, resolve them before continuing. PRs must be up-to-date with main to avoid merge conflicts.
 
 <% if (typeof repos !== 'undefined' && repos && repos.length > 0) { %>
 ## Repositories

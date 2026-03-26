@@ -50,6 +50,14 @@ backlog → planning → building → reviewing → testing → shipping → don
 Tickets live in `<%= tickets_dir %>/` — stage is tracked in ticket.md frontmatter.
 Blocked tickets have `blocked: true` in frontmatter with a reason.
 
+## Working Style
+
+- Read referenced files before forming opinions or writing code. Do not speculate about code you have not opened.
+- When multiple files need to be read, read them in parallel to save time.
+- Commit all changed files before marking work complete. A clean `git status` is required after every stage.
+- Provide evidence for claims: test output, screenshots, API responses. Assertions without evidence are not accepted.
+- Implement exactly what the plan specifies. Prefer minimal solutions over overengineered ones.
+
 ## Pipeline
 
 - **Fast mode:** `bobby run pipeline TKT-001` — auto-chains all agents

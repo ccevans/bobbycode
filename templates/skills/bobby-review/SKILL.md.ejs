@@ -14,12 +14,22 @@ argument-hint: "<ticket ID to review>"
 2. Run `git log --oneline -10` to understand what was built and in how many commits
 3. Read the ticket's `ticket.md` for acceptance criteria
 
+## Investigation First
+
+<investigation_rules>
+Before forming any opinion about the code:
+- Read `ticket.md` and `plan.md` in parallel — understand what was supposed to be built and the intended approach
+- Read every file referenced in `plan.md` that was supposed to change
+- If the diff touches files not in the plan, read those files to understand why
+- Do not approve or reject based on the diff alone — verify against the acceptance criteria
+</investigation_rules>
+
 ## Review Process
 
 1. Read `ticket.md` — understand what was supposed to be built
-2. Read `plan.md` — understand the intended approach
+2. Read `plan.md` — to verify implementation matches the intended approach, not just the ACs
 3. Review the git diff — `git diff` or `git log --oneline` for recent commits
-4. Run tests: `<%= commands && commands.test ? commands.test : 'npm test' %>`
+4. Run tests: `<%= commands && commands.test ? commands.test : 'npm test' %>` — to independently verify the build agent's work in a fresh context
 
 ## Review Checklist
 
@@ -42,6 +52,27 @@ argument-hint: "<ticket ID to review>"
 - [ ] Lint passes: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
 - [ ] No console.log or debug artifacts left behind
 
+## Review Scope
+
+<review_boundaries>
+Focus your review on whether the implementation matches the plan and satisfies the ACs:
+- Verify the plan was followed, not whether a different plan would be better
+- Flag bugs, security issues, and quality problems in the changed code
+- Minor fixes (lint cleanup, debug artifact removal) are fine to make yourself
+- Architectural suggestions or refactors beyond the plan's scope belong in a new ticket, not a rejection
+</review_boundaries>
+
+## Self-Check Before Deciding
+
+<self_check>
+Before approving or rejecting:
+
+1. Re-read each AC from `ticket.md`. For each one, confirm the diff includes code that satisfies it.
+2. Verify you actually ran the test suite and lint — show the output as evidence.
+3. If approving, state which specific changes satisfy each AC.
+4. If rejecting, provide exact file paths and descriptions for every issue.
+</self_check>
+
 ## Decision
 
 ### Approve
@@ -55,6 +86,17 @@ If all checks pass:
 If issues found:
 1. Move back with specific feedback: `bobby move {ID} reject "Specific issue description"`
 2. Be specific — the build agent needs to know exactly what to fix
+
+<examples>
+<example label="Good rejection (specific and actionable)">
+`bobby move TKT-042 reject "AC #3 not met: 'Filter persists after page refresh' — tested by refreshing /leads?status=active and the filter dropdown resets to 'All'. The filterByStatus function doesn't read URL params on mount. Fix: read query params in useEffect and set initial filter state."`
+</example>
+
+<example label="Bad rejection (vague)">
+`bobby move TKT-042 reject "Filtering doesn't work properly"`
+Why this fails: The build agent won't know what specifically to fix or which AC failed.
+</example>
+</examples>
 
 ## If Something Goes Wrong
 

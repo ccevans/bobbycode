@@ -32,7 +32,7 @@ Follow the conventions in these skills. They take precedence over general patter
 <% } %>
 ## Branch Guard
 
-Before writing ANY code, check your branch:
+Before writing any code, check your branch — commits to main bypass review and can break CI:
 
 1. Run `git branch --show-current`
 2. If on `main` or `master`: create a feature branch first:
@@ -40,13 +40,24 @@ Before writing ANY code, check your branch:
    - Use the ticket ID and a short slug from the ticket title
 3. If already on a feature branch: continue on the current branch
 
-**NEVER commit directly to main/master.**
+NEVER commit directly to main/master.
 
 ## Picking Up Work
 
 1. Run `git log --oneline -10` — understand recent commits, critical on retries to know what's already been built
-2. Read the ticket's `ticket.md`, `plan.md`, and `test-cases.md`
+2. Read the ticket's `ticket.md`, `plan.md`, and `test-cases.md` in parallel
 3. Check for rejection comments — if this is a retry, read the rejection feedback first
+
+## Investigation First
+
+<investigation_rules>
+Before writing any code:
+- Read every file referenced in `plan.md` before modifying it — so you implement what was planned, not your own interpretation
+- If the ticket references a specific function, class, or component, open and read that file first
+- When fixing a bug, reproduce it first and read the relevant code path end-to-end
+- Read multiple related files in parallel when possible to minimize round-trips
+- If you are unsure how an existing module works, read it rather than guessing
+</investigation_rules>
 
 ## Development Process (TDD)
 
@@ -61,6 +72,18 @@ Before writing ANY code, check your branch:
    - Run: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
 4. Repeat for each acceptance criterion
 
+<example label="TDD cycle for an AC">
+**AC:** "User can filter leads by status"
+
+**RED:** Write test: `it('filters leads by active status', () => { ... })`. Run tests. Test fails — filter function doesn't exist yet.
+
+**GREEN:** Add `filterByStatus()` to leads service. Add status dropdown to UI. Run tests — passes.
+
+**REFACTOR:** Extract dropdown into reusable `<StatusFilter>` component (only if plan.md calls for it). Run tests — still passes. Run lint — clean.
+
+**Commit:** `TKT-042: Add lead status filtering with dropdown UI`
+</example>
+
 ### For Bug Tickets
 
 1. **Reproduce** — Confirm the bug exists
@@ -68,6 +91,17 @@ Before writing ANY code, check your branch:
 3. **Fix** — Write the minimum fix
 4. **Verify** — Test passes, bug no longer reproduces
 5. **Regression check** — Run full test suite
+
+## Staying Lean
+
+<avoid_overengineering>
+- Implement exactly what `plan.md` specifies — nothing more, nothing less.
+- Prefer modifying existing files over creating new ones.
+- Do not create wrapper classes, utility modules, or abstraction layers unless the plan explicitly calls for them.
+- If you find yourself creating more than 2 new files not listed in the plan, stop and re-read `plan.md`.
+- Write code that handles the general case correctly — if a test uses "John" as input, your code should handle any name, not just "John".
+- Do not add error handling, fallbacks, or validation for scenarios that can't happen. Only validate at system boundaries (user input, external APIs).
+</avoid_overengineering>
 
 ## Completing Work
 
@@ -78,13 +112,16 @@ Before writing ANY code, check your branch:
 5. If you discovered anything non-obvious or a pattern future builds should avoid: `bobby learn bobby-build "pattern" "description"`
 6. Move to review: `bobby move {ID} review`
 
-## Verification Before Completion
+## Self-Check Before Completing
 
-**CRITICAL:** Never mark work as complete without evidence.
+<self_check>
+Before committing and moving the ticket forward, pause and verify:
 
-- Tests pass (show output)
-- Lint passes (show output)
-- Each acceptance criterion is met (reference specific test)
+1. Re-read each acceptance criterion from `ticket.md`. For each one, identify the specific test that covers it. If any AC lacks a test, write one now.
+2. Confirm every file listed in `plan.md` was addressed. If you skipped a file, explain why in your commit message.
+3. Run `git diff --stat` and review what you changed. Are there files you modified that are not in the plan? Consider whether they are necessary.
+4. Run the full test suite and lint — show the output as evidence. Assertions without proof are not accepted.
+</self_check>
 
 ## If Something Goes Wrong
 

@@ -13,6 +13,17 @@ argument-hint: "<ticket ID to plan>"
 1. **Check learnings** — Read `.claude/skills/bobby-plan/learnings.md`
 2. **Read the ticket** — Understand what's being asked
 
+## Investigation First
+
+<investigation_rules>
+Before creating any plan:
+- Read the ticket's title, description, and acceptance criteria fully
+- If the ticket has a `parent` field, read the parent epic's ticket.md and plan.md
+- Read any existing `feature-plan.md` to understand cross-cutting decisions already made
+- If you are unsure about the scope of an AC, improve the AC text rather than guessing
+- Explore the codebase to understand existing patterns before proposing new ones
+</investigation_rules>
+
 ## Mode Detection
 
 - If the ticket has `type: epic` → **Epic Mode** (break down into child tickets)
@@ -25,7 +36,7 @@ argument-hint: "<ticket ID to plan>"
 
 ### Step 1: Generate & Score Approaches
 
-Generate 3 approaches, then score each on these dimensions (1-5 scale):
+Generate 3 approaches, then score each on these dimensions (1-5 scale) — scoring makes the decision traceable and defensible, not gut-feel:
 
 | Dimension | Weight | Description |
 |-----------|--------|-------------|
@@ -133,6 +144,36 @@ Update `test-cases.md`:
 
 **Anti-pattern to avoid:** Do NOT write test cases that only verify structure (e.g., "CSS variable exists", "element is on page"). Every test case must include a user action and an observable outcome. If an AC says "X updates when Y changes," the test case MUST change Y and verify X — not just verify X exists in its default state.
 
+<examples>
+<example type="bad" label="Structure-only (wrong)">
+**Test:** Verify dashboard has a chart component
+**Steps:** Navigate to /dashboard, check page contains canvas element
+**Expected:** Canvas element exists on page
+**Why this fails:** Verifies HTML structure, not behavior. Chart could be empty or broken.
+</example>
+
+<example type="good" label="Behavior-focused (correct)">
+**Test:** Dashboard chart renders with real data
+**Precondition:** At least 1 record exists in the database
+**Steps:** Navigate to /dashboard, wait for chart to load, read chart labels
+**Expected:** Chart displays labels matching the database records, not placeholder text
+</example>
+
+<example type="bad" label="Read-only (incomplete)">
+**Test:** Settings page shows user email
+**Steps:** Navigate to /settings, read email field value
+**Expected:** Email field contains current user's email
+**Why this fails:** Only tests the read path. Doesn't verify saving works.
+</example>
+
+<example type="good" label="Write path included (correct)">
+**Test:** User can update their email in settings
+**Precondition:** User is logged in with email "old@test.com"
+**Steps:** Navigate to /settings, clear email field, type "new@test.com", click Save, wait for success message, refresh page, read email field
+**Expected:** Email field shows "new@test.com" after refresh
+</example>
+</examples>
+
 ### Step 4: Update Feature Plan
 
 Maintain the epic-level `feature-plan.md` at `<%= tickets_dir %>/{parent}*/feature-plan.md`:
@@ -219,6 +260,36 @@ Update `test-cases.md`:
 - **Error path** — What happens on invalid input, auth failure, missing data?
 
 **Anti-pattern to avoid:** Do NOT write test cases that only verify structure (e.g., "CSS variable exists", "element is on page"). Every test case must include a user action and an observable outcome. If an AC says "X updates when Y changes," the test case MUST change Y and verify X — not just verify X exists in its default state.
+
+<examples>
+<example type="bad" label="Structure-only (wrong)">
+**Test:** Verify dashboard has a chart component
+**Steps:** Navigate to /dashboard, check page contains canvas element
+**Expected:** Canvas element exists on page
+**Why this fails:** Verifies HTML structure, not behavior. Chart could be empty or broken.
+</example>
+
+<example type="good" label="Behavior-focused (correct)">
+**Test:** Dashboard chart renders with real data
+**Precondition:** At least 1 record exists in the database
+**Steps:** Navigate to /dashboard, wait for chart to load, read chart labels
+**Expected:** Chart displays labels matching the database records, not placeholder text
+</example>
+
+<example type="bad" label="Read-only (incomplete)">
+**Test:** Settings page shows user email
+**Steps:** Navigate to /settings, read email field value
+**Expected:** Email field contains current user's email
+**Why this fails:** Only tests the read path. Doesn't verify saving works.
+</example>
+
+<example type="good" label="Write path included (correct)">
+**Test:** User can update their email in settings
+**Precondition:** User is logged in with email "old@test.com"
+**Steps:** Navigate to /settings, clear email field, type "new@test.com", click Save, wait for success message, refresh page, read email field
+**Expected:** Email field shows "new@test.com" after refresh
+</example>
+</examples>
 
 ### Step 4: Estimate Complexity
 

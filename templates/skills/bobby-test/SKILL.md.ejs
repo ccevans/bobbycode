@@ -60,7 +60,7 @@ Create `test-evidence/` and `test-evidence/screenshots/` at the start of testing
 # Test Evidence — {ID}
 
 **Date:** {YYYY-MM-DD}
-**Verdict:** PASS | FAIL
+**Verdict:** PASS | FAIL | PARTIAL ({N} of {M} ACs passed)
 
 ## Acceptance Criteria
 
@@ -72,6 +72,12 @@ Create `test-evidence/` and `test-evidence/screenshots/` at the start of testing
 ## Notes
 {Any observations, blocked items, or issues discovered}
 ```
+
+<example label="Good results.md entry">
+| 2 | Filter persists after refresh | PASS | screenshot: screenshots/filter-persist-after-refresh.png |
+
+Steps taken: Selected "Active" from status dropdown → URL changed to /leads?status=active → Refreshed page → Dropdown still shows "Active" → Lead list shows only active leads.
+</example>
 
 ## Testing Process
 
@@ -85,7 +91,7 @@ Create `test-evidence/` and `test-evidence/screenshots/` at the start of testing
 ### UI Testing
 
 1. **Navigate** to the affected page(s)
-2. **Screenshot** the initial state — this is your baseline
+2. **Screenshot** the initial state — to establish a visual baseline so you can prove what changed after your actions
 3. **Read the page** accessibility tree to verify elements exist
 4. **Check console** for errors before interacting
 5. **Execute steps** — click buttons, fill forms, navigate
@@ -115,6 +121,16 @@ curl -s -w "\n%{http_code}" http://localhost:3000/api/endpoint
 - No broken images or missing assets
 - **Write path works** — If the feature involves saving/updating data, actually change a value, save it, refresh, and confirm it persisted
 - **Auth on write endpoints** — If testing an authenticated feature, verify that save/update/delete operations succeed (not just reads)
+
+## Self-Check Before Verdict
+
+<self_check>
+Before recording your verdict:
+
+1. Re-read each AC from `ticket.md`. For each one, confirm you tested it through the live app (not by reading code).
+2. Verify every AC has a corresponding entry in `results.md` with evidence (screenshot or API response).
+3. If any AC was not testable through the live app, mark it as BLOCKED with an explanation rather than guessing.
+</self_check>
 
 ## Decision
 
