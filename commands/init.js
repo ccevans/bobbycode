@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STACKS_DIR = path.join(__dirname, '..', 'stacks');
 const AGENT_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'agents');
+const COMMAND_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'commands');
 
 function loadStack(stackName) {
   const stackFile = path.join(STACKS_DIR, `${stackName}.json`);
@@ -79,6 +80,16 @@ export function scaffoldProject(rootDir, config) {
       const content = renderTemplate(`agents/${agent}.md.ejs`, templateData);
       fs.writeFileSync(path.join(agentsDir, `${agent}.md`), content, 'utf8');
     }
+  }
+
+  // Scaffold slash commands
+  const commandsDir = path.join(rootDir, '.claude', 'commands');
+  fs.mkdirSync(commandsDir, { recursive: true });
+
+  const commandFiles = fs.readdirSync(COMMAND_TEMPLATES_DIR).filter(f => f.endsWith('.md'));
+  for (const file of commandFiles) {
+    const src = path.join(COMMAND_TEMPLATES_DIR, file);
+    fs.writeFileSync(path.join(commandsDir, file), fs.readFileSync(src, 'utf8'), 'utf8');
   }
 }
 
@@ -219,6 +230,7 @@ export function registerInit(program) {
         success('Created .bobbyrc.yml');
         success('Created .claude/skills/ with 9 workflow skills');
         success('Created .claude/agents/ with 8 agent definitions');
+        success('Created .claude/commands/ with 10 slash commands');
         success('Created CLAUDE.md with Bobby workflow instructions');
         console.log('');
         console.log("  You're ready! Here's how to get started:");

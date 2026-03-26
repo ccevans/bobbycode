@@ -1,0 +1,6 @@
+---
+description: "Work an entire epic — plan all tickets, then build → review → test each"
+argument-hint: "<epic ticket ID>"
+---
+
+Load and follow the skill in `.claude/skills/bobby-feature/SKILL.md` to work the specified epic.

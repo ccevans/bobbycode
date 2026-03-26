@@ -1,0 +1,6 @@
+---
+description: "UX/design review — evaluate design quality, brand consistency, and UX"
+argument-hint: "<page URL or feature to review>"
+---
+
+Load and follow the skill in `.claude/skills/bobby-ux/SKILL.md` to review the specified page or feature.
