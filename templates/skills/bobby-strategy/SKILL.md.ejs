@@ -1,0 +1,251 @@
+---
+name: strategy-gate
+description: "Strategy Gate Skill: Validates demand, assesses alternatives, scores impact before tickets enter planning. MANDATORY TRIGGERS: strategy, validate, should we build, worth building, prioritize, demand, gate, go no-go, evaluate."
+argument-hint: "<ticket ID to evaluate, or omit for batch backlog evaluation>"
+---
+
+# Bobby Strategy Skill
+
+> Pre-planning gate that validates whether a ticket is worth building. Evaluates demand evidence, status quo alternatives, scope optimization, and impact scoring. Makes autonomous approve/defer/kill decisions.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/bobby-strategy/learnings.md`
+2. **Read the ticket** — title, description, acceptance criteria, priority, type, area
+3. **Survey the backlog** — `bobby list backlog --sort priority` to understand relative positioning
+4. **Check in-flight work** — `bobby list planning`, `bobby list building` to see current capacity
+
+## Investigation First
+
+<investigation_rules>
+Before forming any strategic opinion:
+- Read the ticket's full description, not just the title
+- Check for existing tickets that overlap or duplicate this one: scan the backlog and in-flight stages
+- If the ticket references a user need, look for evidence (bug reports, comments, related tickets)
+- If the ticket has a parent epic, read the epic's ticket.md and any existing plan.md
+- Read the project's README.md or CLAUDE.md to understand the product's current state and priorities
+- Do not evaluate implementation feasibility — that's bobby-plan's job
+- Do not design solutions — evaluate the problem's worthiness
+</investigation_rules>
+
+## Evaluation Framework
+
+Run these six assessments sequentially. Each builds on the prior.
+
+### 1. Demand Validation
+
+<demand_validation>
+**Core question:** Is there real evidence someone needs this?
+
+Evaluate:
+- **Behavioral evidence:** Bug reports, support requests, workaround usage, repeated asks in comments
+- **Specificity test:** Can you name a specific user or scenario that needs this? "Users want" is vague; "Users who try to export CSVs with >1000 rows get a timeout" is specific
+- **Interest vs. demand:** Hypothetical interest ("it would be nice") is NOT demand. Demand requires evidence of pain or blocked workflows
+- **Frequency:** Is this a daily problem, weekly annoyance, or rare edge case?
+
+Score 1-5:
+- 5: Multiple pieces of behavioral evidence, specific users/scenarios, frequent occurrence
+- 4: Clear evidence of one specific pain point, moderate frequency
+- 3: Reasonable inference of need but no direct evidence
+- 2: Speculative — "users might want this"
+- 1: No evidence of demand, hypothetical only
+</demand_validation>
+
+### 2. Status Quo Analysis
+
+<status_quo>
+**Core question:** What happens if we do nothing?
+
+Evaluate:
+- **Current workaround:** How do users solve this today? Manual process? Third-party tool? They just don't?
+- **Workaround cost:** How painful is the workaround? (Time, error-prone, requires expertise?)
+- **Degradation trajectory:** Is the problem getting worse over time, stable, or improving?
+- **"Do nothing" outcome:** If we wait 6 months, what happens? Users leave? Nothing? Problem solves itself?
+
+Score 1-5:
+- 5: No workaround exists, problem is actively worsening, users are blocked
+- 4: Workaround exists but is painful, problem is growing
+- 3: Workaround is tolerable, problem is stable
+- 2: Good workaround exists, problem is minor
+- 1: Problem is trivial or self-resolving
+</status_quo>
+
+### 3. Scope Assessment
+
+<scope_assessment>
+**Core question:** What is the narrowest version that delivers value?
+
+Evaluate:
+- **Current scope:** What does the ticket as written propose?
+- **Minimal viable version:** What is the absolute smallest thing that solves the core problem? Can we cut 50% of the scope and still deliver value?
+- **Scope creep signals:** Does the ticket mix multiple concerns? Does it say "and also" more than once?
+- **Wedge opportunity:** Is there a tiny entry point that validates the approach before investing fully?
+
+If the ticket's scope is too broad, note the recommended reduction in the strategy brief.
+
+Score 1-5:
+- 5: Ticket is already narrowly scoped, single concern, clear boundaries
+- 4: Minor scope trimming possible, generally focused
+- 3: Moderate scope reduction needed, mixed concerns
+- 2: Significant scope creep, multiple features in one ticket
+- 1: Sprawling scope, needs epic breakdown before evaluation
+</scope_assessment>
+
+### 4. Alternative Exploration
+
+<alternatives>
+**Core question:** Are there simpler ways to achieve the same outcome?
+
+Generate 2-3 alternatives (one MUST be "minimal viable"):
+
+| # | Approach | Effort | Value | Trade-off |
+|---|----------|--------|-------|-----------|
+| 1 | As proposed | [est] | [what it delivers] | [what it costs] |
+| 2 | Minimal viable | [est] | [subset of value] | [what's lost] |
+| 3 | Alternative | [est] | [different angle] | [different trade-off] |
+
+If the minimal viable alternative delivers 80%+ of the value at 30% or less effort, recommend scope reduction rather than full implementation.
+</alternatives>
+
+### 5. Impact Scoring
+
+<impact_scoring>
+**Weighted scorecard:**
+
+| Dimension | Weight | Score (1-5) | Weighted |
+|-----------|--------|-------------|----------|
+| Demand | 3x | {from step 1} | {score x 3} |
+| Urgency (Status Quo) | 2x | {from step 2} | {score x 2} |
+| Effort-to-Value | 2x | {derived} | {score x 2} |
+| Risk | 1x | {assessed} | {score x 1} |
+| **Total** | | | **{sum}/40** |
+
+**Effort-to-Value scoring:**
+- 5: Low effort, high value (quick win)
+- 4: Moderate effort, high value
+- 3: Proportional effort to value
+- 2: High effort, moderate value
+- 1: High effort, low value
+
+**Risk scoring (inverted — lower risk = higher score):**
+- 5: Low risk — well-understood domain, clear implementation path
+- 4: Minor risk — some unknowns but manageable
+- 3: Moderate risk — significant unknowns or dependencies
+- 2: High risk — major unknowns, external dependencies
+- 1: Very high risk — speculative, architectural changes, data migration
+
+**Thresholds:**
+- **28-40:** Strong approve — move to planning
+- **20-27:** Conditional — approve with scope notes, or defer if backlog is full
+- **12-19:** Weak — defer with specific revisit conditions
+- **8-11:** Kill — archive with explanation
+</impact_scoring>
+
+### 6. Go/No-Go Decision
+
+<decision>
+Based on the total score and the qualitative analysis, make ONE of three decisions:
+
+**APPROVE** (score 28+, or 20-27 with strong demand):
+Strategy brief format:
+```
+## Strategy Brief — {ticket ID}
+
+**Decision:** APPROVED
+**Score:** {total}/40 (Demand: {d}/5, Urgency: {u}/5, Effort-Value: {ev}/5, Risk: {r}/5)
+
+### Why Build This
+{1-2 sentences on the core justification}
+
+### Recommended Scope
+{If scope reduction recommended, describe the narrower version. Otherwise: "As proposed."}
+
+### Key Risks
+{Top 1-2 risks the planning agent should address}
+
+### Alternatives Considered
+{Brief summary of alternatives and why the recommended approach won}
+```
+
+**DEFER** (score 12-27 without strong demand, or when backlog priorities are higher):
+- The ticket has some merit but isn't ready or isn't the highest priority right now
+- Include specific conditions for revisiting (e.g., "Revisit when X feature ships" or "Revisit if 3+ users report this")
+
+**KILL** (score 8-11, or ticket is duplicate/obsolete):
+- The ticket does not justify the effort, has no demand evidence, or is obsolete
+- Archive with clear explanation so it can be resurrected if conditions change
+</decision>
+
+## Confidence Gate
+
+<confidence_gate>
+Only make decisions with **7/10 or higher confidence**. For each evaluation:
+
+1. State the decision (approve/defer/kill)
+2. Show the complete scorecard
+3. Rate your confidence 1-10
+4. If confidence is below 7: DEFER (not kill) and note what information would raise confidence
+
+Do NOT:
+- Approve tickets with vague descriptions just because the title sounds good
+- Kill tickets because you can't find demand evidence — absence of evidence is not evidence of absence. Defer instead.
+- Let a single high score override multiple low scores — the weighted total is the decision, not any single dimension
+- Evaluate implementation feasibility — that's bobby-plan's job
+</confidence_gate>
+
+## Batch Mode
+
+When evaluating multiple backlog tickets (no specific ID provided):
+
+1. Run `bobby list backlog --sort priority` to get all backlog tickets
+2. Evaluate each ticket through the full framework above
+3. Rank all tickets by total score
+4. Apply decisions based on thresholds
+5. Produce a batch summary:
+
+```markdown
+## Strategy Review — Batch
+
+| Ticket | Title | Score | Decision | Key Reason |
+|--------|-------|-------|----------|------------|
+| {ID} | {title} | {n}/40 | APPROVE/DEFER/KILL | {one-line reason} |
+
+### Approved ({n} tickets)
+{Recommended planning order based on dependencies and priority}
+
+### Deferred ({n} tickets)
+{Revisit conditions for each}
+
+### Killed ({n} tickets)
+{Archived with reasons}
+```
+
+## Bobby Commands Reference
+
+```bash
+# Read ticket
+cat <%= tickets_dir %>/{ID}*/ticket.md
+
+# View backlog
+bobby list backlog --sort priority
+
+# View in-flight work
+bobby list planning
+bobby list building
+
+# Approve to planning
+bobby move {ID} plan
+
+# Add strategy comment
+bobby comment {ID} --by bobby-strategy "STRATEGY: {brief}"
+
+# Archive (kill)
+bobby archive {ID}
+
+# Record learning
+bobby learn bobby-strategy "pattern" "description"
+```
+
+## Feature Areas
+
+<%= areas && areas.length > 0 ? areas.join(' | ') : '_No areas configured_' %>
