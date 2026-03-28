@@ -153,8 +153,8 @@ When told to "update docs" or "document release", load `.claude/skills/bobby-doc
 - Updates README, CLAUDE.md, CHANGELOG after shipping
 - Only changes documentation that is now stale
 
-### Performance (bobby-perf)
-When told to "benchmark" or "check performance", load `.claude/skills/bobby-perf/SKILL.md`.
+### Performance (bobby-performance)
+When told to "benchmark" or "check performance", load `.claude/skills/bobby-performance/SKILL.md`.
 - Measures page load times, resource sizes, request counts
 - Compares against baseline, flags regressions
 
@@ -189,7 +189,7 @@ bobby run pm                                # Freeform PM product review
 bobby run security TKT-001                  # Security audit (OWASP + STRIDE)
 bobby run debug TKT-001                     # Root-cause debugging
 bobby run docs                              # Update docs after shipping
-bobby run perf                              # Performance benchmarking
+bobby run performance                              # Performance benchmarking
 bobby run watchdog                            # Post-deploy health check
 bobby retro TKT-001 "pattern"              # Create retrospective
 bobby retro --weekly                        # Weekly retro with metrics

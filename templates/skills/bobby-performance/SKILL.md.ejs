@@ -1,0 +1,110 @@
+---
+name: benchmark-perf
+description: "Performance Benchmarking Skill: Measures page load times, resource sizes, and detects regressions. MANDATORY TRIGGERS: performance, benchmark, perf, page speed, load time, Core Web Vitals, slow, regression."
+argument-hint: "<page URL or feature to benchmark>"
+---
+
+# Bobby Performance Skill
+
+> Measures page load times, resource sizes, and detects regressions. Establishes baselines and compares before/after on every run.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/bobby-performance/learnings.md`
+2. Read `.bobby/benchmarks/baseline.json` if it exists
+3. **Health check** — Verify dev environment:
+<% if (health_checks && health_checks.length > 0) { %>
+<% health_checks.forEach(function(check) { %>
+   - `curl -s -o /dev/null -w "%{http_code}" <%= check.url %>` (<%= check.description || check.name %>)
+<% }); %>
+<% } %>
+
+## Benchmarking Process
+
+### Step 1: Identify Pages to Benchmark
+
+Benchmark these pages (in order of priority):
+1. Homepage / landing page
+2. Main dashboard or primary user view
+3. Any pages affected by recently shipped tickets
+4. Pages listed in `.bobbyrc.yml` under `watchdog_pages` (if configured)
+
+### Step 2: Measure Each Page
+
+For each page, measure via Chrome browser automation:
+
+**Page Load Metrics:**
+- Time to First Byte (TTFB) — `performance.timing.responseStart - performance.timing.requestStart`
+- First Contentful Paint (FCP) — `performance.getEntriesByName('first-contentful-paint')[0].startTime`
+- DOM Content Loaded — `performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart`
+- Full Page Load — `performance.timing.loadEventEnd - performance.timing.navigationStart`
+
+**Resource Metrics:**
+- Total transfer size — sum of `performance.getEntriesByType('resource').map(r => r.transferSize)`
+- Number of requests — `performance.getEntriesByType('resource').length`
+- Largest resource — identify the biggest JS/CSS/image file
+
+**Interaction Metrics (if applicable):**
+- Time to Interactive — can the user click/type within 3 seconds?
+- Layout shift — does the page jump around during load?
+
+### Step 3: Record Results
+
+Save results to `.bobby/benchmarks/run-{YYYYMMDD-HHmmss}.json`:
+
+```json
+{
+  "timestamp": "ISO date",
+  "branch": "current git branch",
+  "pages": [
+    {
+      "url": "/dashboard",
+      "ttfb_ms": 120,
+      "fcp_ms": 450,
+      "dom_loaded_ms": 800,
+      "full_load_ms": 1200,
+      "total_transfer_kb": 850,
+      "request_count": 42,
+      "largest_resource": { "url": "/js/bundle.js", "size_kb": 320 }
+    }
+  ]
+}
+```
+
+### Step 4: Compare to Baseline
+
+<comparison_rules>
+If a baseline exists (`.bobby/benchmarks/baseline.json`):
+
+| Metric | Regression Threshold | Action |
+|--------|---------------------|--------|
+| TTFB | >20% slower | Flag as warning |
+| FCP | >15% slower | Flag as warning |
+| Full Load | >10% slower | Flag as regression |
+| Transfer Size | >15% larger | Flag as warning |
+| Request Count | >20% more | Flag as warning |
+
+**Regression** = critical issue that should block shipping
+**Warning** = worth investigating but not blocking
+
+If no baseline exists, save current results as `.bobby/benchmarks/baseline.json`.
+</comparison_rules>
+
+## Completing Work
+
+1. Save benchmark results to `.bobby/benchmarks/`
+2. If this is the first run, also save as `baseline.json`
+3. Output a summary table:
+
+```
+Performance Report — {date}
+Branch: {branch}
+
+| Page | TTFB | FCP | Load | Size | Requests | Status |
+|------|------|-----|------|------|----------|--------|
+| /dashboard | 120ms | 450ms | 1.2s | 850KB | 42 | ✓ OK |
+| /settings | 200ms (+40%) | ... | ... | ... | ... | ⚠ TTFB regression |
+```
+
+4. If regressions found: `bobby create -t "PERF: {page} load time regressed {%}" --type bug -p high`
+5. If you discovered a pattern: `bobby learn bobby-performance "pattern" "description"`
