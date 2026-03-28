@@ -4,10 +4,10 @@ import inquirer from 'inquirer';
 import { readConfig, findProjectRoot } from '../lib/config.js';
 import { findTicket, listTickets, getFeatureTickets, listEpics } from '../lib/tickets.js';
 import { TRANSITIONS } from '../lib/stages.js';
-import { DEFAULT_PIPELINE, buildOrchestrationPrompt, buildSingleAgentPrompt, buildShipPrompt, buildUxPrompt, buildPmPrompt, buildQePrompt, buildGroomPrompt, buildVetPrompt, buildNextStepPrompt, buildBatchStagePrompt, buildFeaturePrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt, buildPerformancePrompt, buildWatchdogPrompt } from '../lib/pipeline.js';
+import { DEFAULT_PIPELINE, buildOrchestrationPrompt, buildSingleAgentPrompt, buildShipPrompt, buildUxPrompt, buildPmPrompt, buildQePrompt, buildGroomPrompt, buildVetPrompt, buildStrategyPrompt, buildNextStepPrompt, buildBatchStagePrompt, buildFeaturePrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt, buildPerformancePrompt, buildWatchdogPrompt } from '../lib/pipeline.js';
 import { bold, dim, success, error } from '../lib/colors.js';
 
-const VALID_AGENTS = ['plan', 'build', 'review', 'test', 'ship', 'pipeline', 'feature', 'ux', 'pm', 'qe', 'groom', 'vet', 'next', 'security', 'debug', 'docs', 'performance', 'watchdog'];
+const VALID_AGENTS = ['plan', 'build', 'review', 'test', 'ship', 'pipeline', 'feature', 'ux', 'pm', 'qe', 'groom', 'vet', 'strategy', 'next', 'security', 'debug', 'docs', 'performance', 'watchdog'];
 
 export function registerRun(program) {
   program
@@ -20,6 +20,7 @@ export function registerRun(program) {
       '  Batch:      bobby run plan            — runs agent on all tickets in matching stage\n' +
       '  Direct:     bobby run plan|build|review|test|ship|ux|pm <id>\n' +
       '  Vet:        bobby run vet [id]       — interrogate design before planning\n' +
+      '  Strategy:   bobby run strategy [id]  — strategic validation gate\n' +
       '  Security:   bobby run security <id>  — OWASP + STRIDE audit\n' +
       '  Debug:      bobby run debug <id>     — root-cause investigation\n' +
       '  Freeform:   bobby run docs|performance|watchdog — no ticket required'
@@ -48,7 +49,7 @@ export function registerRun(program) {
           // Support both full objects [{stage, agent}] and shorthand strings ['plan', 'build', 'review', 'security', 'test']
           pipeline = Array.isArray(pipelineConfig) ? pipelineConfig.map(step => {
             if (typeof step === 'string') {
-              const STAGE_MAP = { plan: 'planning', build: 'building', review: 'reviewing', test: 'testing', security: 'reviewing', debug: 'building' };
+              const STAGE_MAP = { plan: 'planning', build: 'building', review: 'reviewing', test: 'testing', security: 'reviewing', debug: 'building', strategy: 'backlog' };
               return { stage: STAGE_MAP[step] || step, agent: `bobby-${step}` };
             }
             return step;
@@ -71,12 +72,12 @@ export function registerRun(program) {
           return;
         }
 
-        if (agent === 'ux' || agent === 'pm' || agent === 'qe' || agent === 'groom' || agent === 'vet') {
+        if (agent === 'ux' || agent === 'pm' || agent === 'qe' || agent === 'groom' || agent === 'vet' || agent === 'strategy') {
           // Cowork agents work without ticket IDs (freeform) or with a specific ticket
           const agentName = `bobby-${agent}`;
-          const labels = { ux: 'Bobby UX', pm: 'Bobby PM', qe: 'Bobby QE', groom: 'Bobby Groom', vet: 'Bobby Vet' };
+          const labels = { ux: 'Bobby UX', pm: 'Bobby PM', qe: 'Bobby QE', groom: 'Bobby Groom', vet: 'Bobby Vet', strategy: 'Bobby Strategy' };
           const label = labels[agent];
-          const promptFns = { ux: buildUxPrompt, pm: buildPmPrompt, qe: buildQePrompt, groom: buildGroomPrompt, vet: buildVetPrompt };
+          const promptFns = { ux: buildUxPrompt, pm: buildPmPrompt, qe: buildQePrompt, groom: buildGroomPrompt, vet: buildVetPrompt, strategy: buildStrategyPrompt };
           const promptFn = promptFns[agent];
           let prompt;
           if (ticketIds.length > 0) {
