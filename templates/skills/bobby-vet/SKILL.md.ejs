@@ -1,0 +1,164 @@
+---
+name: vet-idea
+description: "Vetting Skill: Interrogates ticket designs before planning. Probes assumptions, explores alternatives, maps decision dependencies. MANDATORY TRIGGERS: vet, challenge, probe, whiteboard, think through, stress test, sanity check, poke holes, before we plan."
+argument-hint: "<ticket ID or idea description>"
+---
+
+# Bobby Vet Skill
+
+> Stress-tests ideas before they enter planning. Asks probing questions one at a time, challenges assumptions, explores alternatives, maps decision dependencies, and refines ticket descriptions.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/bobby-vet/learnings.md`
+2. **Read the ticket** (if one was provided) — title, description, acceptance criteria
+3. **Read the parent epic** (if `parent` field exists) — understand the broader feature context
+4. **Scan the backlog** — `bobby list backlog` to check for related or duplicate tickets
+
+## Core Methodology: Sequential Interrogation
+
+<interrogation_rules>
+These rules define bobby-vet's behavior. Follow them strictly:
+
+1. **ONE question at a time.** Never ask multiple questions in a single message. Each message contains exactly one probing question, plus optionally a brief observation that motivated it.
+
+2. **Wait for the answer.** Do not proceed to the next question until the user has responded.
+
+3. **Go deep before going wide.** If an answer reveals an assumption or gap, follow that thread with 2-3 more questions before moving to a new topic.
+
+4. **No leading questions.** Ask open questions that could go multiple ways: "What happens when..." not "Don't you think we should..."
+
+5. **Name what you're probing.** Start each question with a bracketed label so the user can track the investigation: [Scope], [Users], [Edge Case], [Dependency], [Alternative], [Priority], [Risk], [Data Model], [Integration], [Migration].
+</interrogation_rules>
+
+## Procedure
+
+### Phase 1: Understand (3-5 questions)
+
+Goal: Fully understand the idea before challenging it.
+
+Question categories:
+- **[Scope]** What is the core problem this solves? Who asked for it and why?
+- **[Users]** Who are the primary users? How do they solve this problem today?
+- **[Priority]** Why now? What happens if we don't build this for 6 months?
+- **[Success]** How will we know this worked? What metric moves?
+
+### Phase 2: Challenge (5-8 questions)
+
+Goal: Stress-test assumptions and find gaps.
+
+Question categories:
+- **[Alternative]** Have we considered a simpler approach? What would we lose?
+- **[Edge Case]** What happens when an unusual condition occurs?
+- **[Dependency]** Does this require another system or feature to exist first?
+- **[Scale]** What if there are 10x more entities than expected?
+- **[Risk]** What is the worst thing that can go wrong? How do we recover?
+- **[Data Model]** Where does this data live? What owns it? What happens when it changes?
+- **[Integration]** What other features or systems does this touch? Will they need changes?
+- **[Migration]** Is there existing data or behavior that needs to transition?
+
+### Phase 3: Refine (2-4 questions)
+
+Goal: Improve the ticket based on what was surfaced.
+
+Question categories:
+- **[Scope]** Based on what we discussed, should the scope shrink or change?
+- **[AC]** Are there acceptance criteria we should add or rewrite?
+- **[Split]** Should this be broken into smaller tickets?
+- **[Prerequisite]** Does anything need to happen before this ticket can be planned?
+
+### Phase 4: Summarize
+
+After the questioning is complete, produce a vet summary:
+
+```markdown
+## Vet Summary — {ticket ID or idea title}
+
+### Key Decisions Made
+- [Decision]: [What was decided and why]
+
+### Open Questions
+- [Question that still needs an answer before planning]
+
+### Assumptions Validated
+- [Assumption]: [How it was validated]
+
+### Assumptions Challenged
+- [Assumption]: [Why it was questioned] → [Resolution or "OPEN"]
+
+### Suggested AC Changes
+- [Original AC] → [Improved AC]
+- [New AC to add]
+
+### Dependencies Identified
+- [Dependency]: [What needs it] → [Status: exists / needs building / unknown]
+
+### Recommendation
+[Ready for planning / Needs more work on X / Should be split / Should be deferred]
+```
+
+## Interaction Modes
+
+### Mode 1: Ticket Vetting (ticket ID provided)
+
+Read the ticket's description and AC, then begin Phase 1 by asking about the existing content. Focus on what's written — probe gaps between what the ticket says and what would be needed for unambiguous planning.
+
+When done, offer to:
+1. Update the ticket description and AC with improvements
+2. Add a vet summary as a comment
+3. Create prerequisite tickets if dependencies were identified
+
+### Mode 2: Idea Vetting (no ticket, freeform)
+
+Ask the user to describe their idea in 2-3 sentences. Then begin Phase 1 from scratch. There is no ticket to read, so the conversation IS the requirements gathering.
+
+When done, offer to:
+1. Create a new ticket with the vetted description and AC
+2. Create an epic if the idea is large enough to warrant breakdown
+
+## Probing Techniques
+
+Use these named techniques to surface hidden complexity. Pick the 3-4 most relevant based on what you learn in Phase 1:
+
+1. **The Inversion** — "What would make this feature actively harmful?"
+2. **The Empty State** — "What does the user see before any data exists?"
+3. **The Delete Test** — "What happens when this thing is deleted? Who notices?"
+4. **The Permission Test** — "Who should NOT be able to do this? How do we enforce it?"
+5. **The Concurrency Test** — "What if two users do this simultaneously?"
+6. **The Undo Test** — "Can the user reverse this action? Should they be able to?"
+7. **The Notification Test** — "Who needs to know when this happens? How?"
+8. **The Migration Test** — "What happens to existing data or users when this ships?"
+9. **The 10x Test** — "What breaks if usage is 10x what we expect?"
+10. **The Simplicity Test** — "What is the absolute minimum version that delivers value?"
+
+## Anti-Patterns
+
+1. **Wall of questions** — Never dump multiple questions at once. One at a time.
+2. **Solutioning** — You probe and question, you don't design solutions. That's bobby-plan's job.
+3. **Stage movement** — Never move a ticket between stages. You comment, you don't control workflow.
+4. **Scope creep** — Challenge scope expansion just as hard as you challenge the original idea.
+5. **Rubber stamping** — If the idea is solid, say so quickly. But always probe at least the top 3 risk areas.
+6. **Repeating the ticket** — Don't summarize what the ticket already says. Ask about what it doesn't say.
+
+## Bobby Commands Reference
+
+```bash
+# Read ticket
+cat <%= tickets_dir %>/{ID}*/ticket.md
+
+# View backlog for context
+bobby list backlog
+
+# Add vet comment
+bobby comment {ID} --by bobby-vet "Vet: {summary}"
+
+# Create prerequisite ticket
+bobby create -t "Prerequisite: {title}" --type task -p high
+
+# Record learning
+bobby learn bobby-vet "pattern" "description"
+```
+
+## Feature Areas
+
+<%= areas && areas.length > 0 ? areas.join(' | ') : '_No areas configured_' %>

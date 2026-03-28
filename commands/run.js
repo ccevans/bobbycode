@@ -4,10 +4,10 @@ import inquirer from 'inquirer';
 import { readConfig, findProjectRoot } from '../lib/config.js';
 import { findTicket, listTickets, getFeatureTickets, listEpics } from '../lib/tickets.js';
 import { TRANSITIONS } from '../lib/stages.js';
-import { DEFAULT_PIPELINE, buildOrchestrationPrompt, buildSingleAgentPrompt, buildShipPrompt, buildUxPrompt, buildPmPrompt, buildQePrompt, buildGroomPrompt, buildNextStepPrompt, buildBatchStagePrompt, buildFeaturePrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt, buildPerfPrompt, buildCanaryPrompt } from '../lib/pipeline.js';
+import { DEFAULT_PIPELINE, buildOrchestrationPrompt, buildSingleAgentPrompt, buildShipPrompt, buildUxPrompt, buildPmPrompt, buildQePrompt, buildGroomPrompt, buildVetPrompt, buildNextStepPrompt, buildBatchStagePrompt, buildFeaturePrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt, buildPerfPrompt, buildCanaryPrompt } from '../lib/pipeline.js';
 import { bold, dim, success, error } from '../lib/colors.js';
 
-const VALID_AGENTS = ['plan', 'build', 'review', 'test', 'ship', 'pipeline', 'feature', 'ux', 'pm', 'qe', 'groom', 'next', 'security', 'debug', 'docs', 'perf', 'canary'];
+const VALID_AGENTS = ['plan', 'build', 'review', 'test', 'ship', 'pipeline', 'feature', 'ux', 'pm', 'qe', 'groom', 'vet', 'next', 'security', 'debug', 'docs', 'perf', 'canary'];
 
 export function registerRun(program) {
   program
@@ -19,6 +19,7 @@ export function registerRun(program) {
       '  Slow mode:  bobby run next <id>       — runs next agent for current stage\n' +
       '  Batch:      bobby run plan            — runs agent on all tickets in matching stage\n' +
       '  Direct:     bobby run plan|build|review|test|ship|ux|pm <id>\n' +
+      '  Vet:        bobby run vet [id]       — interrogate design before planning\n' +
       '  Security:   bobby run security <id>  — OWASP + STRIDE audit\n' +
       '  Debug:      bobby run debug <id>     — root-cause investigation\n' +
       '  Freeform:   bobby run docs|perf|canary — no ticket required'
@@ -70,12 +71,12 @@ export function registerRun(program) {
           return;
         }
 
-        if (agent === 'ux' || agent === 'pm' || agent === 'qe' || agent === 'groom') {
+        if (agent === 'ux' || agent === 'pm' || agent === 'qe' || agent === 'groom' || agent === 'vet') {
           // Cowork agents work without ticket IDs (freeform) or with a specific ticket
           const agentName = `bobby-${agent}`;
-          const labels = { ux: 'Bobby UX', pm: 'Bobby PM', qe: 'Bobby QE', groom: 'Bobby Groom' };
+          const labels = { ux: 'Bobby UX', pm: 'Bobby PM', qe: 'Bobby QE', groom: 'Bobby Groom', vet: 'Bobby Vet' };
           const label = labels[agent];
-          const promptFns = { ux: buildUxPrompt, pm: buildPmPrompt, qe: buildQePrompt, groom: buildGroomPrompt };
+          const promptFns = { ux: buildUxPrompt, pm: buildPmPrompt, qe: buildQePrompt, groom: buildGroomPrompt, vet: buildVetPrompt };
           const promptFn = promptFns[agent];
           let prompt;
           if (ticketIds.length > 0) {

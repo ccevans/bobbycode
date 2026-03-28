@@ -1,0 +1,6 @@
+---
+description: "Vet an idea — probe assumptions, explore alternatives, challenge design before planning"
+argument-hint: "<ticket ID or idea description>"
+---
+
+Load and follow the skill in `.claude/skills/bobby-vet/SKILL.md` to vet the specified ticket or idea.
