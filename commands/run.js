@@ -4,10 +4,10 @@ import inquirer from 'inquirer';
 import { readConfig, findProjectRoot } from '../lib/config.js';
 import { findTicket, listTickets, getFeatureTickets, listEpics } from '../lib/tickets.js';
 import { TRANSITIONS } from '../lib/stages.js';
-import { DEFAULT_PIPELINE, buildOrchestrationPrompt, buildSingleAgentPrompt, buildShipPrompt, buildUxPrompt, buildPmPrompt, buildQePrompt, buildGroomPrompt, buildVetPrompt, buildNextStepPrompt, buildBatchStagePrompt, buildFeaturePrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt, buildPerfPrompt, buildCanaryPrompt } from '../lib/pipeline.js';
+import { DEFAULT_PIPELINE, buildOrchestrationPrompt, buildSingleAgentPrompt, buildShipPrompt, buildUxPrompt, buildPmPrompt, buildQePrompt, buildGroomPrompt, buildVetPrompt, buildNextStepPrompt, buildBatchStagePrompt, buildFeaturePrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt, buildPerfPrompt, buildWatchdogPrompt } from '../lib/pipeline.js';
 import { bold, dim, success, error } from '../lib/colors.js';
 
-const VALID_AGENTS = ['plan', 'build', 'review', 'test', 'ship', 'pipeline', 'feature', 'ux', 'pm', 'qe', 'groom', 'vet', 'next', 'security', 'debug', 'docs', 'perf', 'canary'];
+const VALID_AGENTS = ['plan', 'build', 'review', 'test', 'ship', 'pipeline', 'feature', 'ux', 'pm', 'qe', 'groom', 'vet', 'next', 'security', 'debug', 'docs', 'perf', 'watchdog'];
 
 export function registerRun(program) {
   program
@@ -22,7 +22,7 @@ export function registerRun(program) {
       '  Vet:        bobby run vet [id]       — interrogate design before planning\n' +
       '  Security:   bobby run security <id>  — OWASP + STRIDE audit\n' +
       '  Debug:      bobby run debug <id>     — root-cause investigation\n' +
-      '  Freeform:   bobby run docs|perf|canary — no ticket required'
+      '  Freeform:   bobby run docs|perf|watchdog — no ticket required'
     )
     .option('--max-retries <n>', 'Max retry loops on rejection per ticket', '3')
     .option('--max-iterations <n>', 'Max total agent invocations across all tickets')
@@ -116,9 +116,9 @@ export function registerRun(program) {
         }
 
         // Freeform agents (no ticket required)
-        if (agent === 'docs' || agent === 'perf' || agent === 'canary') {
-          const labels = { docs: 'Bobby Docs', perf: 'Bobby Perf', canary: 'Bobby Canary' };
-          const promptFns = { docs: buildDocsPrompt, perf: buildPerfPrompt, canary: buildCanaryPrompt };
+        if (agent === 'docs' || agent === 'perf' || agent === 'watchdog') {
+          const labels = { docs: 'Bobby Docs', perf: 'Bobby Perf', watchdog: 'Bobby Watchdog' };
+          const promptFns = { docs: buildDocsPrompt, perf: buildPerfPrompt, watchdog: buildWatchdogPrompt };
           const prompt = promptFns[agent](config.tickets_dir);
           console.log('');
           console.log(`  ${bold(labels[agent])}`);

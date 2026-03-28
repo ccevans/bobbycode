@@ -158,8 +158,8 @@ When told to "benchmark" or "check performance", load `.claude/skills/bobby-perf
 - Measures page load times, resource sizes, request counts
 - Compares against baseline, flags regressions
 
-### Canary (bobby-canary)
-When told to "canary check" or "verify deploy", load `.claude/skills/bobby-canary/SKILL.md`.
+### Watchdog (bobby-watchdog)
+When told to "watchdog check" or "verify deploy", load `.claude/skills/bobby-watchdog/SKILL.md`.
 - Post-deploy health verification: page loads, console errors, API responses
 - Files critical bugs for any failures
 
@@ -190,7 +190,7 @@ bobby run security TKT-001                  # Security audit (OWASP + STRIDE)
 bobby run debug TKT-001                     # Root-cause debugging
 bobby run docs                              # Update docs after shipping
 bobby run perf                              # Performance benchmarking
-bobby run canary                            # Post-deploy health check
+bobby run watchdog                            # Post-deploy health check
 bobby retro TKT-001 "pattern"              # Create retrospective
 bobby retro --weekly                        # Weekly retro with metrics
 bobby learn bobby-build "pattern" "desc"    # Add learning
