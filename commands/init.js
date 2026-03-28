@@ -228,9 +228,9 @@ export function registerInit(program) {
         success(`Created ${config.tickets_dir}/ (single directory, frontmatter-based stages)`);
         success(`Created ${config.runs_dir}/ (pipeline run logs)`);
         success('Created .bobbyrc.yml');
-        success('Created .claude/skills/ with 14 workflow skills');
-        success('Created .claude/agents/ with 13 agent definitions');
-        success('Created .claude/commands/ with 10 slash commands');
+        success('Created .claude/skills/ with 17 workflow skills');
+        success('Created .claude/agents/ with 15 agent definitions');
+        success('Created .claude/commands/ with 17 slash commands');
         success('Created CLAUDE.md with Bobby workflow instructions');
         console.log('');
         console.log("  You're ready! Here's how to get started:");

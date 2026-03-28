@@ -4,10 +4,10 @@ import inquirer from 'inquirer';
 import { readConfig, findProjectRoot } from '../lib/config.js';
 import { findTicket, listTickets, getFeatureTickets, listEpics } from '../lib/tickets.js';
 import { TRANSITIONS } from '../lib/stages.js';
-import { DEFAULT_PIPELINE, buildOrchestrationPrompt, buildSingleAgentPrompt, buildShipPrompt, buildUxPrompt, buildPmPrompt, buildQePrompt, buildGroomPrompt, buildVetPrompt, buildStrategyPrompt, buildNextStepPrompt, buildBatchStagePrompt, buildFeaturePrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt, buildPerformancePrompt, buildWatchdogPrompt } from '../lib/pipeline.js';
+import { DEFAULT_PIPELINE, buildOrchestrationPrompt, buildSingleAgentPrompt, buildShipPrompt, buildUxPrompt, buildPmPrompt, buildQePrompt, buildVetPrompt, buildStrategyPrompt, buildNextStepPrompt, buildBatchStagePrompt, buildFeaturePrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt, buildPerformancePrompt, buildWatchdogPrompt } from '../lib/pipeline.js';
 import { bold, dim, success, error } from '../lib/colors.js';
 
-const VALID_AGENTS = ['plan', 'build', 'review', 'test', 'ship', 'pipeline', 'feature', 'ux', 'pm', 'qe', 'groom', 'vet', 'strategy', 'next', 'security', 'debug', 'docs', 'performance', 'watchdog'];
+const VALID_AGENTS = ['plan', 'build', 'review', 'test', 'ship', 'pipeline', 'feature', 'ux', 'pm', 'qe', 'vet', 'strategy', 'next', 'security', 'debug', 'docs', 'performance', 'watchdog'];
 
 export function registerRun(program) {
   program
@@ -18,7 +18,7 @@ export function registerRun(program) {
       '  Feature:    bobby run feature [epic]   — full epic workflow on one branch\n' +
       '  Slow mode:  bobby run next <id>       — runs next agent for current stage\n' +
       '  Batch:      bobby run plan            — runs agent on all tickets in matching stage\n' +
-      '  Direct:     bobby run plan|build|review|test|ship|ux|pm <id>\n' +
+      '  Direct:     bobby run plan|build|review|test|ship|ux|pm|qe <id>\n' +
       '  Vet:        bobby run vet [id]       — interrogate design before planning\n' +
       '  Strategy:   bobby run strategy [id]  — strategic validation gate\n' +
       '  Security:   bobby run security <id>  — OWASP + STRIDE audit\n' +
@@ -72,12 +72,12 @@ export function registerRun(program) {
           return;
         }
 
-        if (agent === 'ux' || agent === 'pm' || agent === 'qe' || agent === 'groom' || agent === 'vet' || agent === 'strategy') {
+        if (agent === 'ux' || agent === 'pm' || agent === 'qe' || agent === 'vet' || agent === 'strategy') {
           // Cowork agents work without ticket IDs (freeform) or with a specific ticket
           const agentName = `bobby-${agent}`;
-          const labels = { ux: 'Bobby UX', pm: 'Bobby PM', qe: 'Bobby QE', groom: 'Bobby Groom', vet: 'Bobby Vet', strategy: 'Bobby Strategy' };
+          const labels = { ux: 'Bobby UX', pm: 'Bobby PM', qe: 'Bobby QE', vet: 'Bobby Vet', strategy: 'Bobby Strategy' };
           const label = labels[agent];
-          const promptFns = { ux: buildUxPrompt, pm: buildPmPrompt, qe: buildQePrompt, groom: buildGroomPrompt, vet: buildVetPrompt, strategy: buildStrategyPrompt };
+          const promptFns = { ux: buildUxPrompt, pm: buildPmPrompt, qe: buildQePrompt, vet: buildVetPrompt, strategy: buildStrategyPrompt };
           const promptFn = promptFns[agent];
           let prompt;
           if (ticketIds.length > 0) {
