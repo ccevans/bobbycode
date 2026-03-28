@@ -15,6 +15,14 @@ Load and follow the skill instructions in `.claude/skills/bobby-ship/SKILL.md`.
 2. Run `bobby list shipping` to see tickets ready to ship
 3. Run `git status --short` — if uncommitted source changes exist, STOP and return tickets to build (uncommitted files mean a prior agent failed to finish cleanly)
 
+## Safety
+
+Follow the Safety Rules in `CLAUDE.md`. In particular:
+- Never use `git push --force` — use `--force-with-lease` if rebase requires a force push
+- Never merge without CI passing
+- Never delete remote branches that other tickets depend on
+- Verify `git diff --stat origin/main..HEAD` before creating PR to confirm only expected files changed
+
 ## Completing Work
 
 - Rebase onto origin/main before pushing

@@ -1,0 +1,86 @@
+---
+name: update-docs
+description: "Documentation Skill: Updates project documentation after shipping to keep README, CLAUDE.md, and docs in sync with code. MANDATORY TRIGGERS: docs, documentation, update docs, document release, sync docs, update readme."
+argument-hint: ""
+---
+
+# Bobby Docs Skill
+
+> Updates project documentation after shipping. Keeps README, CLAUDE.md, and docs in sync with what was actually shipped.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/bobby-docs/learnings.md`
+2. Run `bobby list done --sort newest` to see recently shipped tickets
+3. Run `git log --oneline -20` to understand recent changes
+4. Read current documentation files in parallel:
+   - `README.md`
+   - `CLAUDE.md`
+   - Any `docs/` directory if it exists
+   - `CONTRIBUTING.md` if it exists
+   - `CHANGELOG.md` if it exists
+
+## Documentation Update Process
+
+### Step 1: Identify What Changed
+
+For each recently shipped ticket:
+1. Read the ticket's `ticket.md` and `plan.md` to understand what was built
+2. Check if the changes affect any documented features, APIs, or workflows
+3. List which documentation files need updates
+
+### Step 2: Update Each File
+
+<update_rules>
+For each documentation file that needs changes:
+
+**README.md:**
+- Update feature descriptions if new features were shipped
+- Update installation/setup instructions if dependencies or config changed
+- Update usage examples if CLI or API interfaces changed
+- Update screenshots if UI changed significantly
+- Do NOT rewrite sections that are still accurate
+
+**CLAUDE.md:**
+- Update agent descriptions if new agents or skills were added
+- Update workflow instructions if the pipeline changed
+- Update CLI command reference if new commands were added
+- Keep the "Working Style" and "Safety Rules" sections current
+
+**CHANGELOG.md** (if it exists):
+- Add entries for shipped features, fixes, and improvements
+- Follow the existing changelog format (Keep a Changelog, conventional, etc.)
+- Group by: Added, Changed, Fixed, Removed
+
+**API docs** (if they exist):
+- Update endpoint documentation for new or changed endpoints
+- Update request/response examples
+- Update authentication/authorization docs if auth changed
+</update_rules>
+
+### Step 3: Verify Accuracy
+
+<self_check>
+Before committing documentation changes:
+1. Re-read each changed section — does it accurately describe the current code?
+2. Are all code examples and commands still correct? Test any CLI commands you documented.
+3. Did you update version numbers or dates where applicable?
+4. Are there broken links or references to removed features?
+5. Is the documentation concise and scannable? Remove filler words and unnecessary explanation.
+</self_check>
+
+## What NOT to Update
+
+<boundaries>
+- Do not rewrite documentation that is still accurate
+- Do not add documentation for features that haven't shipped yet
+- Do not change the documentation style or structure (match existing conventions)
+- Do not add auto-generated API docs (that's a build tool's job)
+- Do not update docs for changes in dependencies (unless they affect user-facing behavior)
+</boundaries>
+
+## Completing Work
+
+1. Commit changes: `git add` changed docs, `git commit` with `docs: update for {brief description of shipped features}`
+2. If you noticed a documentation pattern: `bobby learn bobby-docs "pattern" "description"`
+3. Output summary listing each file updated and what changed

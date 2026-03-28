@@ -4,10 +4,10 @@ import inquirer from 'inquirer';
 import { readConfig, findProjectRoot } from '../lib/config.js';
 import { findTicket, listTickets, getFeatureTickets, listEpics } from '../lib/tickets.js';
 import { TRANSITIONS } from '../lib/stages.js';
-import { DEFAULT_PIPELINE, buildOrchestrationPrompt, buildSingleAgentPrompt, buildShipPrompt, buildUxPrompt, buildPmPrompt, buildQePrompt, buildNextStepPrompt, buildBatchStagePrompt, buildFeaturePrompt } from '../lib/pipeline.js';
+import { DEFAULT_PIPELINE, buildOrchestrationPrompt, buildSingleAgentPrompt, buildShipPrompt, buildUxPrompt, buildPmPrompt, buildQePrompt, buildGroomPrompt, buildNextStepPrompt, buildBatchStagePrompt, buildFeaturePrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt, buildPerfPrompt, buildCanaryPrompt } from '../lib/pipeline.js';
 import { bold, dim, success, error } from '../lib/colors.js';
 
-const VALID_AGENTS = ['plan', 'build', 'review', 'test', 'ship', 'pipeline', 'feature', 'ux', 'pm', 'qe', 'next'];
+const VALID_AGENTS = ['plan', 'build', 'review', 'test', 'ship', 'pipeline', 'feature', 'ux', 'pm', 'qe', 'groom', 'next', 'security', 'debug', 'docs', 'perf', 'canary'];
 
 export function registerRun(program) {
   program
@@ -18,10 +18,14 @@ export function registerRun(program) {
       '  Feature:    bobby run feature [epic]   — full epic workflow on one branch\n' +
       '  Slow mode:  bobby run next <id>       — runs next agent for current stage\n' +
       '  Batch:      bobby run plan            — runs agent on all tickets in matching stage\n' +
-      '  Direct:     bobby run plan|build|review|test|ship|ux|pm <id>'
+      '  Direct:     bobby run plan|build|review|test|ship|ux|pm <id>\n' +
+      '  Security:   bobby run security <id>  — OWASP + STRIDE audit\n' +
+      '  Debug:      bobby run debug <id>     — root-cause investigation\n' +
+      '  Freeform:   bobby run docs|perf|canary — no ticket required'
     )
     .option('--max-retries <n>', 'Max retry loops on rejection per ticket', '3')
     .option('--max-iterations <n>', 'Max total agent invocations across all tickets')
+    .option('--pipeline <name>', 'Named pipeline to use (from .bobbyrc.yml pipelines config)', 'default')
     .action(async (agent, ticketIds, opts) => {
       try {
         if (!VALID_AGENTS.includes(agent)) {
@@ -35,8 +39,25 @@ export function registerRun(program) {
         const maxRetries = parseInt(opts.maxRetries, 10) || 3;
         const maxIterations = opts.maxIterations ? parseInt(opts.maxIterations, 10) : undefined;
 
-        // Load pipeline config (use default if not configured)
-        const pipeline = (config.pipelines && config.pipelines.default) || DEFAULT_PIPELINE;
+        // Load pipeline config — support named pipelines from .bobbyrc.yml
+        const pipelineName = opts.pipeline || 'default';
+        let pipeline;
+        if (config.pipelines && config.pipelines[pipelineName]) {
+          const pipelineConfig = config.pipelines[pipelineName];
+          // Support both full objects [{stage, agent}] and shorthand strings ['plan', 'build', 'review', 'security', 'test']
+          pipeline = Array.isArray(pipelineConfig) ? pipelineConfig.map(step => {
+            if (typeof step === 'string') {
+              const STAGE_MAP = { plan: 'planning', build: 'building', review: 'reviewing', test: 'testing', security: 'reviewing', debug: 'building' };
+              return { stage: STAGE_MAP[step] || step, agent: `bobby-${step}` };
+            }
+            return step;
+          }) : DEFAULT_PIPELINE;
+        } else if (pipelineName !== 'default') {
+          error(`Unknown pipeline '${pipelineName}'. Available: ${config.pipelines ? Object.keys(config.pipelines).join(', ') : 'default'}`);
+          process.exit(1);
+        } else {
+          pipeline = DEFAULT_PIPELINE;
+        }
 
         if (agent === 'ship') {
           // Ship doesn't need ticket IDs
@@ -49,12 +70,12 @@ export function registerRun(program) {
           return;
         }
 
-        if (agent === 'ux' || agent === 'pm' || agent === 'qe') {
+        if (agent === 'ux' || agent === 'pm' || agent === 'qe' || agent === 'groom') {
           // Cowork agents work without ticket IDs (freeform) or with a specific ticket
           const agentName = `bobby-${agent}`;
-          const labels = { ux: 'Bobby UX', pm: 'Bobby PM', qe: 'Bobby QE' };
+          const labels = { ux: 'Bobby UX', pm: 'Bobby PM', qe: 'Bobby QE', groom: 'Bobby Groom' };
           const label = labels[agent];
-          const promptFns = { ux: buildUxPrompt, pm: buildPmPrompt, qe: buildQePrompt };
+          const promptFns = { ux: buildUxPrompt, pm: buildPmPrompt, qe: buildQePrompt, groom: buildGroomPrompt };
           const promptFn = promptFns[agent];
           let prompt;
           if (ticketIds.length > 0) {
@@ -67,6 +88,39 @@ export function registerRun(program) {
           }
           console.log('');
           console.log(`  ${bold(label)}${ticketIds.length > 0 ? ` — ${ticketIds[0]}` : ''}`);
+          console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
+          console.log('');
+          console.log(prompt);
+          return;
+        }
+
+        // Ticket-required agents with custom prompts
+        if (agent === 'security' || agent === 'debug') {
+          if (ticketIds.length === 0) {
+            error(`Usage: bobby run ${agent} <ticketId>`);
+            process.exit(1);
+          }
+          const ticketId = ticketIds[0];
+          const found = findTicket(ticketsDir, ticketId);
+          if (!found) { error(`Ticket ${ticketId} not found`); process.exit(1); }
+          const labels = { security: 'Bobby Security', debug: 'Bobby Debug' };
+          const promptFns = { security: buildSecurityPrompt, debug: buildDebugPrompt };
+          const prompt = promptFns[agent](ticketId, config.tickets_dir);
+          console.log('');
+          console.log(`  ${bold(labels[agent])} — ${ticketId}`);
+          console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
+          console.log('');
+          console.log(prompt);
+          return;
+        }
+
+        // Freeform agents (no ticket required)
+        if (agent === 'docs' || agent === 'perf' || agent === 'canary') {
+          const labels = { docs: 'Bobby Docs', perf: 'Bobby Perf', canary: 'Bobby Canary' };
+          const promptFns = { docs: buildDocsPrompt, perf: buildPerfPrompt, canary: buildCanaryPrompt };
+          const prompt = promptFns[agent](config.tickets_dir);
+          console.log('');
+          console.log(`  ${bold(labels[agent])}`);
           console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
           console.log('');
           console.log(prompt);

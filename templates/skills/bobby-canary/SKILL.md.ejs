@@ -1,0 +1,116 @@
+---
+name: canary-check
+description: "Post-Deploy Canary Skill: Verifies production health after deployment. Checks page loads, console errors, and API responses. MANDATORY TRIGGERS: canary, post-deploy, verify deploy, production check, health check, smoke test."
+argument-hint: ""
+---
+
+# Bobby Canary Skill
+
+> Post-deploy verification. Checks that production pages load, APIs respond, and no new console errors appear after deployment.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/bobby-canary/learnings.md`
+2. Read `.bobbyrc.yml` for production config:
+   - `production_url` — base URL for production
+   - `canary_pages` — list of paths to check (default: `["/"]`)
+
+## Canary Check Process
+
+### Step 1: Determine What to Check
+
+Check these pages (in order):
+1. Pages listed in `canary_pages` config
+2. If no config: homepage (`/`), login page, main dashboard
+3. Any pages specifically affected by the most recent deployment
+
+### Step 2: Health Checks
+
+For each page, verify via browser automation:
+
+**Page Load:**
+- [ ] HTTP status is 200 (or expected redirect)
+- [ ] Page renders within 5 seconds
+- [ ] No blank/white page (check that main content container exists)
+- [ ] Title tag is present and not "Error" or "500"
+
+**Console Errors:**
+- [ ] No JavaScript errors in console
+- [ ] No failed network requests (4xx/5xx) except expected ones
+- [ ] No unhandled promise rejections
+
+**Visual Verification:**
+- [ ] Screenshot each page for the record
+- [ ] Key UI elements are present (navigation, main content, footer)
+- [ ] No "loading" spinners stuck indefinitely
+
+**API Health (if applicable):**
+- [ ] Health endpoint responds: `curl -s {production_url}/api/health`
+- [ ] Key API endpoints return expected status codes
+
+### Step 3: Compare to Pre-Deploy State
+
+If previous canary results exist (`.bobby/canary/last-run.json`):
+- Compare screenshot diffs for unexpected visual changes
+- Compare console error counts (new errors = regression)
+- Compare response times (>50% slower = regression)
+
+### Step 4: Record Results
+
+Save to `.bobby/canary/run-{YYYYMMDD-HHmmss}.json`:
+
+```json
+{
+  "timestamp": "ISO date",
+  "production_url": "https://...",
+  "pages": [
+    {
+      "path": "/",
+      "status": 200,
+      "load_time_ms": 850,
+      "console_errors": 0,
+      "failed_requests": 0,
+      "screenshot": "canary/screenshots/home-{timestamp}.png",
+      "passed": true
+    }
+  ],
+  "overall": "passed"
+}
+```
+
+Also save as `last-run.json` for future comparisons.
+
+## Decision
+
+### All Checks Pass
+Output:
+```
+Canary check PASSED — {timestamp}
+Production: {url}
+Pages checked: {n}
+Console errors: 0
+Failed requests: 0
+All pages loaded within 5s.
+```
+
+### Issues Found
+1. File bug tickets for each issue:
+   ```bash
+   bobby create -t "CANARY: {page} returns {status}" --type bug -p critical
+   bobby create -t "CANARY: JS error on {page}: {error message}" --type bug -p high
+   ```
+2. Output:
+```
+Canary check FAILED — {timestamp}
+Production: {url}
+Issues found:
+- {page}: {issue description}
+- {page}: {issue description}
+Tickets filed: {ticket IDs}
+```
+
+## If Something Goes Wrong
+
+- Production URL not configured: Ask user to add `production_url` to `.bobbyrc.yml`
+- Production is completely down: `bobby create -t "CANARY: Production is DOWN — {url} unreachable" --type bug -p critical`
+- If you discovered a deployment pattern: `bobby learn bobby-canary "pattern" "description"`

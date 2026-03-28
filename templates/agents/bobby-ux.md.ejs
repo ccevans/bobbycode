@@ -17,8 +17,13 @@ Read these in parallel:
 3. `.claude/skills/bobby-ux/references/frontend_design.md` — design principles
 4. If reviewing a specific ticket, the ticket's `ticket.md` for context
 
+## Design Scorecard
+
+After reviewing, fill out the 10-dimension Design Scorecard from the skill instructions. Report the scores and the overall Design Health Score (average of all 10 dimensions).
+
 ## Completing Work
 
+- Fill out the Design Scorecard with scores for all 10 dimensions
 - File findings as new tickets: `bobby create -t "Finding title" --type improvement`
-- Add comment to reviewed ticket: `bobby comment {ID} --by bobby-ux "UX review: {summary}"`
+- Add comment to reviewed ticket: `bobby comment {ID} --by bobby-ux "UX review: Design Health Score {N}/10. {summary}"`
 - If a finding is critical: `bobby create -t "Critical finding" --type bug -p critical`

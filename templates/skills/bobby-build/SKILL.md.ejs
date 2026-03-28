@@ -42,6 +42,15 @@ Before writing any code, check your branch — commits to main bypass review and
 
 NEVER commit directly to main/master.
 
+## Safety Rules
+
+<safety_rules>
+- Never run destructive commands: `rm -rf`, `DROP TABLE`, `git push --force`, `git reset --hard`, `git clean -fd`
+- Only modify files related to this ticket. Check `git diff --stat` before committing.
+- Do not edit .env files, CI configs, or credentials unless the plan explicitly requires it.
+- Do not install global packages or modify system-level configuration.
+</safety_rules>
+
 ## Picking Up Work
 
 1. Run `git log --oneline -10` — understand recent commits, critical on retries to know what's already been built

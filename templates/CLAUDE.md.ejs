@@ -50,6 +50,34 @@ backlog → planning → building → reviewing → testing → shipping → don
 Tickets live in `<%= tickets_dir %>/` — stage is tracked in ticket.md frontmatter.
 Blocked tickets have `blocked: true` in frontmatter with a reason.
 
+## Safety Rules
+
+<safety_rules>
+All agents must follow these rules. Violations are treated as critical failures.
+
+**Never run destructive commands:**
+- `rm -rf` or `rm -r` on directories outside the ticket's scope
+- `DROP TABLE`, `DROP DATABASE`, `TRUNCATE` or any destructive SQL
+- `git push --force` or `git push -f` (use `--force-with-lease` if rebase is needed)
+- `git reset --hard` (use `git stash` or `git checkout -- <file>` for targeted reverts)
+- `git clean -fd` or `git clean -fx`
+- `docker system prune`, `docker volume rm`
+- `kill -9` on unknown processes
+- `chmod -R 777` or `chown -R` on system directories
+- Any command with `sudo` unless the plan explicitly requires it
+
+**Never modify outside your scope:**
+- Do not edit files unrelated to the current ticket
+- Do not change CI/CD configuration unless the ticket explicitly requires it
+- Do not modify environment files (.env, credentials, secrets)
+- Do not install global packages or change system-level config
+
+**Always verify before acting:**
+- Run `git diff --stat` before committing to review what changed
+- Run tests before marking work complete
+- Check `git status` after every commit to confirm clean state
+</safety_rules>
+
 ## Working Style
 
 - Read referenced files before forming opinions or writing code. Do not speculate about code you have not opened.
@@ -64,6 +92,18 @@ Blocked tickets have `blocked: true` in frontmatter with a reason.
 - **Slow mode:** `bobby run next TKT-001` — runs next agent for current stage
 - **Batch mode:** `bobby run plan` (no ticket ID) — runs agent on all tickets in stage
 - **Ship:** `bobby run ship` — creates PR, merges, moves to done
+- **Named pipeline:** `bobby run pipeline TKT-001 --pipeline thorough` — uses a named pipeline from `.bobbyrc.yml`
+
+### Custom Pipelines
+
+Define named pipelines in `.bobbyrc.yml`:
+
+```yaml
+pipelines:
+  default: [plan, build, review, test]
+  thorough: [plan, build, review, security, test]
+  quick: [plan, build, test]
+```
 
 ## Agents
 
@@ -98,6 +138,31 @@ When told to "review design" or "UX audit", load `.claude/skills/bobby-ux/SKILL.
 When told to "PM review" or "product review", load `.claude/skills/bobby-pm/SKILL.md`.
 - Reviews live app, identifies UX gaps and feature opportunities
 
+### Security Auditor (bobby-security)
+When told to "security audit" or "security review", load `.claude/skills/bobby-security/SKILL.md`.
+- OWASP Top 10 + STRIDE threat modeling on changed code
+- Only flags findings with 8/10+ confidence and concrete exploit scenarios
+
+### Debugger (bobby-debug)
+When told to "debug" or "investigate", load `.claude/skills/bobby-debug/SKILL.md`.
+- Systematic root-cause debugging: Reproduce → Hypothesize → Trace → Verify → Fix
+- Scope-locked: only fixes the bug, never refactors
+
+### Documentation (bobby-docs)
+When told to "update docs" or "document release", load `.claude/skills/bobby-docs/SKILL.md`.
+- Updates README, CLAUDE.md, CHANGELOG after shipping
+- Only changes documentation that is now stale
+
+### Performance (bobby-perf)
+When told to "benchmark" or "check performance", load `.claude/skills/bobby-perf/SKILL.md`.
+- Measures page load times, resource sizes, request counts
+- Compares against baseline, flags regressions
+
+### Canary (bobby-canary)
+When told to "canary check" or "verify deploy", load `.claude/skills/bobby-canary/SKILL.md`.
+- Post-deploy health verification: page loads, console errors, API responses
+- Files critical bugs for any failures
+
 ## Learnings
 
 Each skill has a `learnings.md` file that accumulates anti-patterns. Always check learnings before starting work.
@@ -121,6 +186,13 @@ bobby run plan                              # Batch: plan all tickets in plannin
 bobby run ship                              # Ship all ready tickets
 bobby run ux                                # Freeform UX design review
 bobby run pm                                # Freeform PM product review
+bobby run security TKT-001                  # Security audit (OWASP + STRIDE)
+bobby run debug TKT-001                     # Root-cause debugging
+bobby run docs                              # Update docs after shipping
+bobby run perf                              # Performance benchmarking
+bobby run canary                            # Post-deploy health check
 bobby retro TKT-001 "pattern"              # Create retrospective
+bobby retro --weekly                        # Weekly retro with metrics
 bobby learn bobby-build "pattern" "desc"    # Add learning
+bobby upgrade                               # Upgrade Bobby to latest version
 ```

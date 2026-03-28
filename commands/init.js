@@ -73,7 +73,7 @@ export function scaffoldProject(rootDir, config) {
   const agentsDir = path.join(rootDir, '.claude', 'agents');
   fs.mkdirSync(agentsDir, { recursive: true });
 
-  const agentFiles = ['bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship', 'bobby-ux', 'bobby-pm', 'bobby-qe'];
+  const agentFiles = ['bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship', 'bobby-ux', 'bobby-pm', 'bobby-qe', 'bobby-security', 'bobby-debug', 'bobby-docs', 'bobby-perf', 'bobby-canary'];
   for (const agent of agentFiles) {
     const agentTemplate = path.join(AGENT_TEMPLATES_DIR, `${agent}.md.ejs`);
     if (fs.existsSync(agentTemplate)) {
@@ -228,8 +228,8 @@ export function registerInit(program) {
         success(`Created ${config.tickets_dir}/ (single directory, frontmatter-based stages)`);
         success(`Created ${config.runs_dir}/ (pipeline run logs)`);
         success('Created .bobbyrc.yml');
-        success('Created .claude/skills/ with 9 workflow skills');
-        success('Created .claude/agents/ with 8 agent definitions');
+        success('Created .claude/skills/ with 14 workflow skills');
+        success('Created .claude/agents/ with 13 agent definitions');
         success('Created .claude/commands/ with 10 slash commands');
         success('Created CLAUDE.md with Bobby workflow instructions');
         console.log('');

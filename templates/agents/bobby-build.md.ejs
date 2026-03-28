@@ -25,6 +25,13 @@ Then sequentially:
 5. Run `git log --oneline -10` — critical on retries to understand what's already been built
 6. Check for rejection comments — if retrying, read the feedback first
 
+## Safety
+
+Follow the Safety Rules in `CLAUDE.md`. In particular:
+- Never run `rm -rf`, `DROP TABLE`, `git push --force`, `git reset --hard`, or other destructive commands
+- Only modify files related to this ticket. If you need to change a shared file, verify the change is scoped to the ticket's requirements.
+- Run `git diff --stat` before committing to verify you only changed what the plan specifies
+
 ## Completing Work
 
 - Run tests and lint — show the output as evidence

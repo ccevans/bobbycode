@@ -1,0 +1,116 @@
+---
+name: debug-investigate
+description: "Debug Skill: Systematic root-cause debugging with hypothesis testing. MANDATORY TRIGGERS: debug, investigate, root cause, trace, reproduce, diagnose, troubleshoot, why is this failing, what's wrong."
+argument-hint: "<ticket ID to debug>"
+---
+
+# Bobby Debug Skill
+
+> Systematic root-cause debugging. Reproduce → Hypothesize → Trace → Verify → Fix. Never guess — follow the evidence.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/bobby-debug/learnings.md`
+2. Read the ticket's `ticket.md` — understand the expected vs actual behavior
+3. Read rejection comments — understand what was tried and what failed
+4. Run `git log --oneline -10` to see recent changes
+
+## Investigation Methodology
+
+<investigation_rules>
+Follow this process strictly. Do not skip steps or jump to fixes.
+
+### Step 1: Reproduce
+- Reproduce the failure with the exact steps from the rejection comment or bug report
+- If it's a test failure: run the specific test and capture the full output
+- If it's a runtime failure: trigger the exact flow and capture error output
+- **If you cannot reproduce the bug, STOP. Report that the bug is not reproducible with the given steps.**
+
+### Step 2: Hypothesize
+- Based on the error output and code path, form 1-3 hypotheses about the root cause
+- Write them down explicitly before investigating:
+  - H1: "{description of what might be wrong}"
+  - H2: "{alternative explanation}"
+  - H3: "{less likely but possible cause}"
+
+### Step 3: Trace
+- For each hypothesis, trace the data flow through the code:
+  - Read the entry point (API route, event handler, test setup)
+  - Follow the call chain to where the error occurs
+  - Check variable values, types, and state at each step
+  - Use targeted `console.log` / `print` / debugger statements if needed (remove before committing)
+- Read files in parallel when tracing multiple hypotheses
+
+### Step 4: Verify
+- Identify which hypothesis is correct based on tracing evidence
+- Confirm by finding the exact line(s) where the bug manifests
+- Document: "Root cause: {specific explanation with file:line references}"
+
+### Step 5: Fix
+- Write the minimal fix that addresses the root cause
+- Write or update a test that would catch this regression
+- Run the full test suite: `<%= commands && commands.test ? commands.test : 'npm test' %>`
+- Run lint: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+</investigation_rules>
+
+## Scope Lock
+
+<scope_lock>
+The debug agent has a strict scope:
+- ONLY fix the specific bug or failure identified in the rejection/bug report
+- Do NOT refactor surrounding code, even if it's messy
+- Do NOT add features or enhancements
+- Do NOT change unrelated tests
+- If you discover other issues, file them: `bobby create -t "Found during debug: {issue}" --type bug`
+- Maximum 3 fix attempts. If you cannot fix after 3 tries, escalate:
+  `bobby move {ID} block "Debug: tried 3 approaches, none resolved the issue. Root cause analysis: {what you found}"`
+</scope_lock>
+
+## Attempt Tracking
+
+<attempt_tracking>
+Track your fix attempts explicitly:
+
+**Attempt 1:**
+- Hypothesis: {which hypothesis}
+- Change: {what you changed and why}
+- Result: {did it fix the issue? what happened?}
+
+**Attempt 2:** (only if attempt 1 failed)
+- Hypothesis: {revised hypothesis based on attempt 1 results}
+- Change: {what you changed}
+- Result: {outcome}
+
+**Attempt 3:** (only if attempt 2 failed)
+- Hypothesis: {final hypothesis}
+- Change: {what you changed}
+- Result: {outcome}
+
+If all 3 attempts fail, block the ticket with your analysis.
+</attempt_tracking>
+
+## Completing Work
+
+1. Commit the fix: `git add` changed files, `git commit` with `TKT-{ID}: fix — {root cause summary}`
+2. Remove any debug logging (console.log, print statements) added during investigation
+3. Run full test suite and lint — show output as evidence
+4. Add comment: `bobby comment {ID} --by bobby-debug "Root cause: {explanation}. Fix: {what was changed}"`
+5. If pattern is worth remembering: `bobby learn bobby-debug "pattern" "description"` and `bobby retro {ID} "pattern"`
+6. Move to review: `bobby move {ID} review`
+
+## Self-Check Before Completing
+
+<self_check>
+Before committing:
+1. Does the fix address the root cause, not just the symptom?
+2. Is there a test that would catch this regression?
+3. Did you remove all debug logging?
+4. Did you ONLY change files related to the bug?
+5. Do all tests pass? Show the output.
+</self_check>
+
+## If Something Goes Wrong
+
+- Cannot reproduce: `bobby move {ID} block "Cannot reproduce: {steps tried}"`
+- Fix requires architectural change: `bobby move {ID} block "Root cause identified but fix requires {scope description}. Recommend new ticket."`
+- 3 attempts exhausted: `bobby move {ID} block "Debug: 3 attempts failed. Analysis: {summary of hypotheses and results}"`

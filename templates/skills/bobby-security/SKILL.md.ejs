@@ -1,0 +1,142 @@
+---
+name: security-audit
+description: "Security Audit Skill: OWASP Top 10 and STRIDE threat modeling on changed code. MANDATORY TRIGGERS: security, audit, vulnerability, OWASP, threat model, security review, pen test, injection, XSS, CSRF, auth bypass."
+argument-hint: "<ticket ID to audit>"
+---
+
+# Bobby Security Skill
+
+> Security audit using OWASP Top 10 and STRIDE threat modeling. Reviews changed code for vulnerabilities with concrete exploit scenarios.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/bobby-security/learnings.md`
+2. Run `git log --oneline -10` to understand what changed
+3. Read the ticket's `ticket.md` and `plan.md` for context
+
+## Investigation First
+
+<investigation_rules>
+Before forming any security opinion:
+- Read every file that was changed: `git diff --name-only`
+- For each changed file, understand the data flow: where does user input enter, how is it processed, where does it exit?
+- Read adjacent files that handle auth, validation, or data access if the changed code interacts with them
+- Do not flag issues in code that was not changed by this ticket unless it's a critical vulnerability the change exposed
+</investigation_rules>
+
+## OWASP Top 10 Checklist
+
+For each changed file, check:
+
+### Injection (A03:2021)
+- [ ] SQL queries use parameterized queries / prepared statements (never string concatenation)
+- [ ] Shell commands use argument arrays, not string interpolation
+- [ ] LDAP, XPath, NoSQL queries are parameterized
+- [ ] ORM queries don't use raw SQL with user input
+
+### Broken Access Control (A01:2021)
+- [ ] API endpoints verify user authorization (not just authentication)
+- [ ] Direct object references (IDs in URLs) are validated against the user's permissions
+- [ ] Server-side access control cannot be bypassed by manipulating client-side state
+- [ ] Admin functions are protected by role checks
+
+### Cryptographic Failures (A02:2021)
+- [ ] Passwords are hashed with bcrypt/scrypt/argon2 (never MD5/SHA1)
+- [ ] Sensitive data is not logged or exposed in error messages
+- [ ] API keys and secrets are not hardcoded
+- [ ] HTTPS is used for all external communication
+
+### Security Misconfiguration (A05:2021)
+- [ ] Error pages don't expose stack traces or internal details
+- [ ] Default credentials are not present
+- [ ] CORS is configured restrictively (not `*`)
+- [ ] Security headers are present (CSP, HSTS, X-Frame-Options)
+
+### XSS (A07:2021)
+- [ ] User input is escaped before rendering in HTML
+- [ ] React/Vue/Angular templates auto-escape (but check `dangerouslySetInnerHTML`, `v-html`, `[innerHTML]`)
+- [ ] URL parameters are validated before use in DOM
+- [ ] Rich text editors sanitize output
+
+### SSRF (A10:2021)
+- [ ] User-supplied URLs are validated against an allowlist
+- [ ] Internal services are not accessible via user-controlled URLs
+- [ ] Redirects validate destination URLs
+
+### Authentication (A07:2021)
+- [ ] Session tokens are generated securely (crypto.randomBytes, not Math.random)
+- [ ] Password reset flows don't leak information about valid accounts
+- [ ] Rate limiting is applied to auth endpoints
+- [ ] JWT tokens are verified with proper algorithm pinning
+
+## STRIDE Threat Model
+
+For significant features (new endpoints, data flows, auth changes):
+
+| Threat | Question | Check |
+|--------|----------|-------|
+| **S**poofing | Can an attacker impersonate a user or service? | Auth + session validation |
+| **T**ampering | Can data be modified in transit or at rest? | Input validation + integrity checks |
+| **R**epudiation | Can actions be denied? | Audit logging |
+| **I**nformation Disclosure | Can sensitive data leak? | Error handling + logging |
+| **D**enial of Service | Can the service be overwhelmed? | Rate limiting + resource bounds |
+| **E**levation of Privilege | Can a user gain unauthorized access? | RBAC + authorization checks |
+
+## Confidence Gate
+
+<confidence_gate>
+Only flag findings with **8/10 or higher confidence**. For each finding:
+1. State the vulnerability type (e.g., "SQL Injection in user search")
+2. Show the exact code path (file:line)
+3. Describe a concrete exploit scenario ("An attacker could send `' OR 1=1 --` as the search query to...")
+4. Rate confidence 1-10
+5. Suggest a specific fix
+
+Do NOT flag:
+- Theoretical issues with no concrete exploit path
+- Issues in unchanged code (unless the current change exposed them)
+- Style preferences disguised as security issues
+- Dependencies with known CVEs (that's a separate audit tool's job)
+- Issues that are mitigated by framework defaults (e.g., React auto-escaping)
+</confidence_gate>
+
+## False Positive Exclusions
+
+<false_positives>
+These are commonly flagged but are NOT vulnerabilities in most contexts:
+1. React JSX expressions (auto-escaped by default)
+2. ORM method calls (parameterized by default)
+3. Environment variables read at startup (not user input)
+4. Internal API calls between trusted services
+5. Test files using hardcoded values
+6. Migration files with raw SQL (one-time execution, no user input)
+7. Static config files
+8. Type definitions and interfaces
+</false_positives>
+
+## Decision
+
+### Approve
+If no high-confidence findings:
+1. Add comment: `bobby comment {ID} --by bobby-security "Security audit passed. Checked: {summary of what was reviewed}"`
+2. If you discovered a pattern: `bobby learn bobby-security "pattern" "description"`
+
+### Reject
+If high-confidence findings exist:
+1. Move back: `bobby move {ID} reject "SECURITY: {vulnerability type} in {file}:{line} — {exploit scenario}. Fix: {specific remediation}"`
+2. Be specific — the build agent needs exact file, line, and fix
+
+<examples>
+<example label="Good rejection (specific, actionable, high confidence)">
+`bobby move TKT-042 reject "SECURITY: SQL Injection in app/models/user.rb:45 — the search_users method concatenates params[:query] directly into a SQL string. An attacker could send ' OR 1=1 -- as the query parameter to dump all user records. Fix: Use User.where('name LIKE ?', "%#{params[:query]}%") instead of string interpolation. Confidence: 9/10"`
+</example>
+
+<example label="Bad rejection (vague, low confidence)">
+`bobby move TKT-042 reject "There might be security issues with how user input is handled"`
+</example>
+</examples>
+
+## If Something Goes Wrong
+
+- If you discover a critical vulnerability in existing code (not introduced by this ticket): `bobby create -t "SECURITY: {vulnerability}" --type bug -p critical`
+- If you discover a systemic pattern: `bobby learn bobby-security "pattern" "description"`
