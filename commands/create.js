@@ -1,8 +1,8 @@
 // commands/create.js
 import path from 'path';
 import { readConfig, findProjectRoot } from '../lib/config.js';
-import { createTicket } from '../lib/tickets.js';
-import { success, error } from '../lib/colors.js';
+import { createTicket, listTickets } from '../lib/tickets.js';
+import { success, warn, error } from '../lib/colors.js';
 
 export function registerCreate(program) {
   program
@@ -33,6 +33,14 @@ export function registerCreate(program) {
         console.log(`  → ${config.tickets_dir}/${result.dirname}/`);
         if (opts.epic) {
           console.log(`  → Type: epic — run 'bobby run plan ${result.id}' to break it down`);
+        }
+
+        // Backlog cap warning
+        if (config.backlog_limit) {
+          const backlogCount = listTickets(ticketsDir, { stage: 'backlog' }).length;
+          if (backlogCount > config.backlog_limit) {
+            warn(`Backlog has ${backlogCount} items (limit: ${config.backlog_limit}). Run: bobby triage`);
+          }
         }
       } catch (e) {
         error(e.message);

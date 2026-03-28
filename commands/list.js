@@ -2,24 +2,64 @@
 import path from 'path';
 import { readConfig, findProjectRoot } from '../lib/config.js';
 import { STAGES, stageColor } from '../lib/stages.js';
-import { listTickets } from '../lib/tickets.js';
-import { bold, dim, error } from '../lib/colors.js';
+import { listTickets, backlogHealth } from '../lib/tickets.js';
+import { bold, dim, warn, error } from '../lib/colors.js';
 
 const ACTIVE_STAGES = ['planning', 'building', 'reviewing', 'testing'];
 
-function renderBoard(ticketsDir, filterStages, opts) {
+function renderBoard(ticketsDir, filterStages, opts, config) {
   const filters = {};
   if (opts.blocked) filters.blocked = true;
   if (opts.epic) filters.epic = opts.epic;
+  if (opts.area) filters.area = opts.area;
+  if (opts.priority) filters.priority = opts.priority;
+  if (opts.type) filters.type = opts.type;
+  if (opts.stale) filters.staleDays = parseInt(opts.stale, 10);
+  if (opts.sort) filters.sort = opts.sort;
+
+  // When filtering by stage via positional args, apply stage filter in listTickets
+  // only when a single stage is selected (otherwise we group manually)
+  const singleStage = filterStages.length === 1 ? filterStages[0] : null;
+  if (singleStage) filters.stage = singleStage;
 
   const tickets = listTickets(ticketsDir, filters);
 
   console.log('');
   console.log(`  ${bold('TICKET BOARD')}`);
   console.log('  ═══════════════════════════════════════════════════');
+
+  // Show active filters
+  const activeFilters = [];
+  if (opts.area) activeFilters.push(`area: ${opts.area}`);
+  if (opts.priority) activeFilters.push(`priority: ${opts.priority}`);
+  if (opts.type) activeFilters.push(`type: ${opts.type}`);
+  if (opts.stale) activeFilters.push(`stale: >${opts.stale} days`);
+  if (opts.sort) activeFilters.push(`sort: ${opts.sort}`);
+  if (activeFilters.length > 0) {
+    console.log(`  ${dim('Filters: ' + activeFilters.join(' · '))}`);
+  }
   console.log('');
 
-  // Group by stage
+  // When --sort is active, render a flat list with stage tags
+  if (opts.sort) {
+    if (tickets.length === 0) {
+      console.log(`    ${dim('No tickets match filters.')}`);
+    } else {
+      for (const t of tickets) {
+        const colorFn = stageColor(t.stage || 'backlog');
+        const stageTag = colorFn(`[${(t.stage || 'backlog').toUpperCase()}]`);
+        const priority = t.priority || '';
+        const assigned = t.assigned || '—';
+        const parent = t.parent ? ` ${dim(`[${t.parent}]`)}` : '';
+        const blockedTag = t.blocked ? ` ${dim('🚫 ' + (t.blocked_reason || 'blocked'))}` : '';
+        console.log(`    ${bold(t.id)}  ${stageTag}  ${t.title}  ${dim(`[${priority}]`)}  ${dim(`→ ${assigned}`)}${parent}${blockedTag}`);
+      }
+    }
+    console.log('');
+    return;
+  }
+
+  // Standard grouped-by-stage view
   const byStage = {};
   for (const t of tickets) {
     const s = t.stage || 'backlog';
@@ -31,14 +71,18 @@ function renderBoard(ticketsDir, filterStages, opts) {
 
   for (const stage of stagesToShow) {
     const stageTickets = byStage[stage] || [];
+    // Hide archived tickets from done column unless --archived is set
+    const visible = stage === 'done' && !opts.archived
+      ? stageTickets.filter(t => !t.archived)
+      : stageTickets;
     const colorFn = stageColor(stage);
 
-    console.log(`  ${colorFn(bold(`▎ ${stage.toUpperCase()}`))} ${dim(`(${stageTickets.length})`)}`);
+    console.log(`  ${colorFn(bold(`▎ ${stage.toUpperCase()}`))} ${dim(`(${visible.length})`)}`);
 
-    if (stageTickets.length === 0) {
+    if (visible.length === 0) {
       console.log(`    ${dim('(empty)')}`);
     } else {
-      for (const t of stageTickets) {
+      for (const t of visible) {
         const priority = t.priority || '';
         const assigned = t.assigned || '—';
         const parent = t.parent ? ` ${dim(`[${t.parent}]`)}` : '';
@@ -47,6 +91,26 @@ function renderBoard(ticketsDir, filterStages, opts) {
       }
     }
     console.log('');
+  }
+
+  // Backlog health metrics (only when backlog is visible)
+  const showBacklog = filterStages.length === 0 || filterStages.includes('backlog');
+  if (showBacklog) {
+    const staleDays = config.backlog_stale_days || 30;
+    const health = backlogHealth(ticketsDir, staleDays);
+    if (health.total > 0) {
+      const parts = [`${health.total} items`];
+      if (health.stale > 0) parts.push(`${health.stale} older than ${health.staleDays} days`);
+      if (health.noAcceptanceCriteria > 0) parts.push(`${health.noAcceptanceCriteria} missing acceptance criteria`);
+
+      console.log(`  ${bold('BACKLOG HEALTH')}  ${dim(parts.join(' · '))}`);
+
+      const cap = config.backlog_limit;
+      if (cap && health.total > cap) {
+        warn(`Backlog exceeds limit (${health.total}/${cap}). Run: bobby triage`);
+      }
+      console.log('');
+    }
   }
 }
 
@@ -57,6 +121,12 @@ export function registerList(program) {
     .option('--blocked', 'Show only blocked tickets')
     .option('--epic <id>', 'Show children of an epic')
     .option('--active', 'Show active stages: planning, building, reviewing, testing')
+    .option('--area <area>', 'Filter by feature area')
+    .option('-p, --priority <priority>', 'Filter by priority (critical, high, medium, low)')
+    .option('--type <type>', 'Filter by ticket type (bug, feature, improvement, task, epic)')
+    .option('--stale <days>', 'Show only tickets older than N days')
+    .option('--sort <order>', 'Sort tickets: newest, oldest, updated, priority')
+    .option('--archived', 'Include archived tickets in done column')
     .option('-w, --watch [seconds]', 'Auto-refresh the board')
     .action((stages, opts) => {
       try {
@@ -72,7 +142,7 @@ export function registerList(program) {
           process.stdout.write('\x1B[?1049h\x1B[?25l');
           const render = () => {
             process.stdout.write('\x1B[H\x1B[2J');
-            renderBoard(ticketsDir, filterStages, opts);
+            renderBoard(ticketsDir, filterStages, opts, config);
             console.log(dim(`  Refreshing every ${interval / 1000}s — Ctrl+C to exit`));
           };
           // Restore on exit
@@ -85,7 +155,7 @@ export function registerList(program) {
           render();
           setInterval(render, interval);
         } else {
-          renderBoard(ticketsDir, filterStages, opts);
+          renderBoard(ticketsDir, filterStages, opts, config);
         }
       } catch (e) {
         error(e.message);
