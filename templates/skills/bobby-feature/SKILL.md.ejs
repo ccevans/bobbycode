@@ -89,6 +89,7 @@ If stage is `backlog`, move to planning: `bobby move {ID} plan`
 - After the **first** ticket is planned, verify `<%= tickets_dir %>/{epicId}*/feature-plan.md` was created. If not, the plan agent missed it — create it now with the cross-cutting decisions from the first ticket's plan.
 - After **each subsequent** ticket is planned, verify `feature-plan.md` was updated.
 - Ensure `feature-plan.md` includes a **File References** section with line ranges for large files (>500 lines) that multiple tickets will touch. Example: `agentDashboard.css — Emails section: lines 7094-7150`. This prevents every agent from re-reading thousands of lines to find the right section.
+- If the epic ticket references a design mockup (HTML file, screenshot, Figma URL), record it in `feature-plan.md` under a `## Design Reference` section with the file path and which pages/tabs it covers. This allows the test agent to compare the live app against the mockup during verification.
 
 ### 6. Next Ticket (Planning)
 Continue to the next ticket that needs planning. Skip tickets already in `building` or later — but still read their `plan.md` as sibling context.

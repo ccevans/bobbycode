@@ -247,6 +247,38 @@ After verifying all ACs, do a quick sanity check on adjacent features that share
 
 This is not a full regression suite — just a 2-minute sanity check. Document any regressions found in `results.md` under a "Regression" section.
 
+### Design Reference Check
+
+If the ticket or its parent epic references a design mockup (HTML file, screenshot, or Figma URL):
+
+1. **Locate the reference** — Check the ticket's `ticket.md` description and the parent epic's `feature-plan.md` for a `## Design Reference` or `## File References` section pointing to a mockup file.
+2. **Read the mockup** — If it's an HTML file, read the relevant section (use grep to find the tab/component, not the whole file). Note the expected layout, colors, spacing, and structure.
+3. **Screenshot the live app** — Navigate to the page the ticket affects and take a full-page screenshot at desktop (1440px) and mobile (375px) viewports.
+4. **Compare structure** — Verify the live app matches the mockup in:
+   - Layout (grid columns, card arrangement, section order)
+   - Colors (accent colors, backgrounds, text colors match design tokens)
+   - Typography (font sizes, weights, headings vs body)
+   - Spacing (padding, margins, gaps between elements)
+   - Interactive states (hover effects, active tabs, focus rings)
+5. **Report mismatches** — Add a `## Design Comparison` section to `results.md`:
+   ```
+   ## Design Comparison
+
+   **Reference:** {path to mockup}
+   **Pages checked:** {URLs}
+
+   | Aspect | Match? | Notes |
+   |--------|--------|-------|
+   | Layout | ✅/❌ | {details} |
+   | Colors | ✅/❌ | {details} |
+   | Typography | ✅/❌ | {details} |
+   | Spacing | ✅/❌ | {details} |
+   | Interactions | ✅/❌ | {details} |
+   ```
+6. **Verdict impact** — Design mismatches are informational, not blocking. Minor spacing differences are acceptable. Significant structural or color mismatches should be noted but don't auto-reject — the review agent or user decides if they matter.
+
+Skip this section if no design reference is found.
+
 ## Self-Check Before Verdict
 
 <self_check>
@@ -261,6 +293,7 @@ Before recording your verdict:
 7. Confirm all required services were running during your tests (web, workers, queues) — if a feature depends on a background worker and it wasn't running, your test of that feature is invalid.
 8. For backend features, confirm you traced the result to a UI surface — if you only verified through `rails runner` or `curl` but didn't check the UI where users would see the result, go back and verify there too.
 9. Confirm you did a quick regression check on adjacent features sharing the same page or component.
+10. If a design mockup was referenced in the ticket or feature-plan.md, confirm you compared the live app against it and documented findings in a Design Comparison section of results.md.
 </self_check>
 
 ## Decision
