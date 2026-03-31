@@ -249,7 +249,7 @@ describe('pipeline', () => {
     test('mentions worktree isolation', () => {
       const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
       expect(prompt).toContain('worktree');
-      expect(prompt).toContain('isolated from main');
+      expect(prompt).toContain('isolated worktree');
     });
   });
 });

@@ -42,7 +42,7 @@ argument-hint: "<epic ticket ID>"
    |-------|--------|-------|----------|---------------|
    | 1 | ... | ... | ... | ... |
 
-6. **Branch guard** — Run `git branch --show-current`. If on main/master, create the feature branch: `git checkout -b feature/{epicId}-{slug}`. NEVER commit directly to main/master. All child ticket work goes on this single branch.
+6. **Branch guard** — This workflow runs in an isolated worktree, so the working directory is clean. Run `git branch --show-current`. If on main/master, create the feature branch: `git checkout -b feature/{epicId}-{slug}`. NEVER commit directly to main/master. All child ticket work goes on this single branch.
 
 ## Safety Limits
 
@@ -88,6 +88,7 @@ If stage is `backlog`, move to planning: `bobby move {ID} plan`
 ### 5. Feature Plan Check
 - After the **first** ticket is planned, verify `<%= tickets_dir %>/{epicId}*/feature-plan.md` was created. If not, the plan agent missed it — create it now with the cross-cutting decisions from the first ticket's plan.
 - After **each subsequent** ticket is planned, verify `feature-plan.md` was updated.
+- Ensure `feature-plan.md` includes a **File References** section with line ranges for large files (>500 lines) that multiple tickets will touch. Example: `agentDashboard.css — Emails section: lines 7094-7150`. This prevents every agent from re-reading thousands of lines to find the right section.
 
 ### 6. Next Ticket (Planning)
 Continue to the next ticket that needs planning. Skip tickets already in `building` or later — but still read their `plan.md` as sibling context.
@@ -97,6 +98,7 @@ After ALL tickets are planned, review `feature-plan.md` for consistency across a
 - Are there contradictory approaches between tickets?
 - Are shared utilities referenced consistently?
 - Are dependencies between tickets clear and satisfiable?
+- **Bundling check:** Are any tickets so tightly coupled (same file, overlapping JSX/code sections) that they'll inevitably be built together? If so, note this in `feature-plan.md` under a `## Bundled Tickets` section — e.g., "TKT-262 will be built as part of TKT-261 since both modify the same component inline." This is informational; it sets expectations for the run log rather than requiring ticket merging.
 
 Update `feature-plan.md` if the later plans revealed better approaches or inconsistencies.
 
@@ -143,7 +145,7 @@ After each agent completes:
 
 ### 5. Integration Check (Between Tickets)
 After each ticket reaches shipping:
-1. Run the project's full test suite<% if (commands && commands.test) { %> (`<%= commands.test %>`)<% } %>
+1. Run the project's full test suite<% if (commands && commands.test) { %> (`<%= commands.test %>`)<% } %>. If the full test command fails because a service is unavailable (e.g., Docker not running, database not reachable), fall back to the frontend tests only<% if (commands && commands.build) { %> (`<%= commands.build %>`)<% } %>. Record which test command actually ran — this goes in the run log.
 2. If tests fail, the most recent ticket's changes likely caused it. Move that ticket back to building (`bobby move {ID} build "Integration test failure: {details}"`) and retry.
 3. If tests pass, proceed to the next ticket.
 
@@ -175,6 +177,22 @@ Repeat for each ticket in the queue.
 |--------|-------------|---------|---------|
 | {ID} | {stage} | {n} | {passed / failed / skipped: reason} |
 
+## Commits
+
+| Ticket | Commit | Files Changed | +/- Lines |
+|--------|--------|---------------|-----------|
+| {ID} | {short SHA} | {N} files | +{added} / -{removed} |
+
+(Get these stats from `git log --oneline --stat` on the feature branch.)
+
+## Tests
+
+| Command | Result |
+|---------|--------|
+| {test command that ran} | {pass / fail / skipped: reason} |
+
+(Record every test/build/lint command executed during the run and its outcome.)
+
 ## Feature Plan
 
 Cross-cutting decisions captured in feature-plan.md:
@@ -182,7 +200,7 @@ Cross-cutting decisions captured in feature-plan.md:
 
 ## Notes
 
-{Any blockers, integration issues, or patterns observed. Omit section if none.}
+{Any blockers, integration issues, bundled tickets, or patterns observed. Omit section if none.}
 ```
 
 ## Context Management

@@ -22,6 +22,7 @@ Before creating any plan:
 - Read any existing `feature-plan.md` to understand cross-cutting decisions already made
 - If you are unsure about the scope of an AC, improve the AC text rather than guessing
 - Explore the codebase to understand existing patterns before proposing new ones
+- **Large file discipline:** For files over 500 lines (CSS, large components, mockups), do NOT read the entire file. Instead, grep for the relevant section name or keyword to find the line range, then read only that range. Record useful line ranges in the plan's `## Files to modify` section so downstream agents (build, review) can do targeted reads too.
 </investigation_rules>
 
 ## Mode Detection
