@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "setup": "<%= commands && commands.dev && commands.dev.startsWith('docker') ? 'docker compose build && npm install' : 'npm install' %>",
+    "run": "<%= commands && commands.dev ? commands.dev : 'npm run dev' %>"
+  }
+}

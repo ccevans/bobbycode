@@ -204,6 +204,7 @@ export function registerRun(program) {
             console.log(`  ${dim(`All planned → Execute ${childIds.join(' → ')}`)}`);
           }
           console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
+          console.log(`  ${dim('Launch with: isolation: "worktree" (keeps main clean)')}`);
           console.log('');
           console.log(prompt);
           return;
@@ -247,9 +248,10 @@ export function registerRun(program) {
           }
           const ids = available.map(t => t.id);
           const agentName = `bobby-${agent}`;
-          const prompt = buildBatchStagePrompt(agentName, ids, config.tickets_dir);
+          const prompt = buildBatchStagePrompt(agentName, ids, config.tickets_dir, config.parallel_isolation || 'none');
+          const isolationLabel = config.parallel_isolation === 'worktree' ? ' (worktree-isolated)' : '';
           console.log('');
-          console.log(`  ${bold(`Bobby ${agent}`)} — ${ids.length} ticket(s) in ${stage}`);
+          console.log(`  ${bold(`Bobby ${agent}`)} — ${ids.length} ticket(s) in ${stage}${isolationLabel}`);
           console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
           console.log('');
           console.log(prompt);

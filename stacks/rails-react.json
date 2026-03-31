@@ -24,6 +24,7 @@
     { "name": "api", "path_hint": "_api" },
     { "name": "ui", "path_hint": "-ui" }
   ],
+  "testing_tools": ["playwright", "curl"],
   "template_vars": {
     "test_command": "bundle exec rspec / npm test",
     "lint_command": "rubocop / npm run lint",

@@ -89,6 +89,22 @@ describe('pipeline', () => {
     expect(prompt).toContain('subagent');
   });
 
+  test('buildBatchStagePrompt default has no worktree instructions', () => {
+    const prompt = buildBatchStagePrompt('bobby-build', ['TKT-001', 'TKT-002']);
+    expect(prompt).not.toContain('worktree');
+    expect(prompt).not.toContain('isolation');
+  });
+
+  test('buildBatchStagePrompt with worktree isolation includes isolation instructions', () => {
+    const prompt = buildBatchStagePrompt('bobby-build', ['TKT-001', 'TKT-002'], '.bobby/tickets', 'worktree');
+    expect(prompt).toContain('worktree isolation');
+    expect(prompt).toContain('isolation: "worktree"');
+    expect(prompt).toContain('git checkout -b tkt-{ID}');
+    expect(prompt).toContain('TKT-001');
+    expect(prompt).toContain('TKT-002');
+    expect(prompt).toContain('parallel');
+  });
+
   test('buildUxPrompt mentions Chrome browser', () => {
     expect(buildUxPrompt()).toContain('Chrome browser');
   });
@@ -228,6 +244,12 @@ describe('pipeline', () => {
       const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
       expect(prompt).toContain('two phases');
       expect(prompt).toContain('plan all tickets holistically');
+    });
+
+    test('mentions worktree isolation', () => {
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      expect(prompt).toContain('worktree');
+      expect(prompt).toContain('isolated from main');
     });
   });
 });

@@ -17,6 +17,7 @@
     "lint": "npm run lint",
     "build": "npm run build"
   },
+  "testing_tools": ["curl"],
   "template_vars": {
     "test_command": "npm test",
     "lint_command": "npm run lint",

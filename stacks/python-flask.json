@@ -17,6 +17,7 @@
     "lint": "flake8",
     "build": "python setup.py build"
   },
+  "testing_tools": ["curl"],
   "template_vars": {
     "test_command": "pytest",
     "lint_command": "flake8",

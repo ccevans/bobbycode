@@ -49,6 +49,10 @@ export function scaffoldProject(rootDir, config) {
   const claudeMd = renderTemplate('CLAUDE.md.ejs', templateData);
   fs.writeFileSync(path.join(rootDir, 'CLAUDE.md'), claudeMd, 'utf8');
 
+  // Render and write conductor.json for Conductor.build users
+  const conductorJson = renderTemplate('conductor.json.ejs', templateData);
+  fs.writeFileSync(path.join(rootDir, 'conductor.json'), conductorJson, 'utf8');
+
   // Render and write WORKFLOW.md
   const workflowMd = renderTemplate('WORKFLOW.md.ejs', templateData);
   fs.writeFileSync(path.join(ticketsDir, 'WORKFLOW.md'), workflowMd, 'utf8');
@@ -219,6 +223,7 @@ export function registerInit(program) {
           commands: stack.commands,
           repos: repos.length > 0 ? repos : undefined,
           build_skills: buildSkills.length > 0 ? buildSkills : undefined,
+          testing_tools: stack.testing_tools || ['curl'],
           max_retries: 3,
         };
 
@@ -232,6 +237,7 @@ export function registerInit(program) {
         success('Created .claude/agents/ with 15 agent definitions');
         success('Created .claude/commands/ with 17 slash commands');
         success('Created CLAUDE.md with Bobby workflow instructions');
+        success('Created conductor.json (for Conductor.build parallel workspaces)');
         console.log('');
         console.log("  You're ready! Here's how to get started:");
         console.log('');

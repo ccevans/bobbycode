@@ -43,4 +43,18 @@ describe('config', () => {
     expect(config.health_checks).toEqual([]);
     expect(config.areas).toEqual([]);
   });
+
+  test('defaults include testing_tools', () => {
+    const yml = `project: test-app\nstack: nextjs\n`;
+    fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), yml);
+    const config = readConfig(tmpDir);
+    expect(config.testing_tools).toEqual(['curl']);
+  });
+
+  test('user can override testing_tools', () => {
+    const yml = `project: test-app\nstack: nextjs\ntesting_tools:\n  - playwright\n  - curl\n`;
+    fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), yml);
+    const config = readConfig(tmpDir);
+    expect(config.testing_tools).toEqual(['playwright', 'curl']);
+  });
 });

@@ -6,7 +6,13 @@ argument-hint: "<ticket ID to test>"
 
 # Bobby Test Skill
 
-> Live application testing. Verifies ticket acceptance criteria through the running app — browser automation and API calls. Never re-runs the test suite (review already did that).
+> Bug hunter, not spec runner. Finds bugs by exercising the running app — browser automation, API calls, direct runtime execution. NEVER runs the test suite (rspec/jest/npm test) — build and review already did that. Running specs here is a critical error.
+
+## Hard Rules
+
+- **NEVER run any spec/test runner** — no `<%= commands && commands.test ? commands.test : 'npm test' %>`, `rspec`, `jest`, `pytest`, `go test`, or any unit/integration test command. The build agent writes specs (TDD) and the review agent runs them independently. Running specs here is redundant and wastes the testing budget.
+- **NEVER verify behavior by reading source code** — you verify by observing the live app.
+- If a test case cannot be verified through the live app, mark it **BLOCKED** — do not fall back to running specs as a substitute.
 
 ## Before Starting
 
@@ -25,21 +31,56 @@ Verify the dev environment is running before testing:
 - `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000` (app)
 <% } %>
 
+### Required Services
+
+The web server is not enough. Read `plan.md` to identify ALL services the feature depends on — background workers (Sidekiq, Celery, Bull), message queues, caches, etc. Verify each one is running:
+
+- **Web server** — health check above
+- **Background workers** — check if the worker process is running (e.g., `docker compose ps`, `ps aux | grep sidekiq`). If not running, start it: `docker compose up -d sidekiq` or the equivalent.
+- **Databases / caches** — verify connectivity if the feature depends on Redis, Elasticsearch, etc.
+
 ### Service Recovery
 
-If a health check fails, attempt **one** restart:
+If a service isn't running or a health check fails, attempt **one** restart per service:
 <% if (commands && commands.dev) { %>
-- Run `<%= commands.dev %>` in the background
+- Web: Run `<%= commands.dev %>` in the background
 <% } else { %>
-- Run `npm run dev` in the background
+- Web: Run `npm run dev` in the background
 <% } %>
+- Workers: `docker compose up -d sidekiq` or the project's equivalent
 - Wait up to 15 seconds, then re-check
-- If it doesn't come back, mark affected tests as **BLOCKED**
+- If it doesn't come back after one attempt, mark affected tests as **BLOCKED**
+
+### Migrations
+
+If there are pending migrations needed for the feature under test, run them. The build agent may have added migrations that haven't been applied to the dev database yet.
 
 **Boundaries:**
 - One restart attempt per service — if it doesn't come back, it's BLOCKED
-- Never run migrations, installs, or edit config files
+- Never edit application source code or config files
 - Never debug application logs for code issues
+
+## Test Data Setup
+
+**"No data" is never an excuse for a soft pass.** If the dev DB doesn't have the data conditions your test needs, create them.
+
+### Process
+
+1. **Read `plan.md` and `test-cases.md`** to understand what data conditions each AC requires (e.g., "a tenant with a daily_recalc followup rule and a list with matching house_requests")
+2. **Query the live DB** to check if those conditions already exist (via API calls, `rails runner`, `node -e`, admin UI)
+3. **If missing, create the data** through the app's own interfaces — API endpoints, `rails runner`, admin UI, or seed scripts. Do NOT write raw SQL.
+4. **Document what you seeded** in `results.md` under a "Test Data Created" section so it's clear what was set up for testing
+5. **Clean up after** if the test data would confuse other developers — note in results.md if cleanup was skipped
+
+### Examples
+
+- AC says "followup emails fire for daily_recalc rules" but no tenant has a daily_recalc rule with matching data → create a followup rule via the API or `rails runner`, add a list with the required records, then run the sweep
+- AC says "user sees notification badge after action" but no users exist → create a user through the signup flow or API, perform the action, verify the badge
+- AC says "export handles 1000+ rows" but only 3 rows exist → seed enough rows via API or bulk create script
+
+### When You Truly Cannot Create Data
+
+If creating the required data is impossible (e.g., requires third-party OAuth tokens, paid API keys, or production-only infrastructure), mark the AC as **BLOCKED** with a specific explanation of what's missing and why you can't create it. "No matching data in dev DB" is never a valid reason for BLOCKED — that's your job to fix.
 
 ## Evidence Storage
 
@@ -71,6 +112,9 @@ Create `test-evidence/` and `test-evidence/screenshots/` at the start of testing
 
 ## Notes
 {Any observations, blocked items, or issues discovered}
+
+## Regression
+{Quick check of adjacent features — note any issues found or "No regressions observed"}
 ```
 
 <example label="Good results.md entry">
@@ -78,6 +122,37 @@ Create `test-evidence/` and `test-evidence/screenshots/` at the start of testing
 
 Steps taken: Selected "Active" from status dropdown → URL changed to /leads?status=active → Refreshed page → Dropdown still shows "Active" → Lead list shows only active leads.
 </example>
+
+## Preferred Testing Tools
+
+<% if (typeof testing_tools !== 'undefined' && testing_tools) { %>
+<% if (testing_tools.includes('playwright')) { %>
+### Playwright (Browser Automation)
+
+Use Playwright MCP for all UI testing when available. Prefer real browser interaction over screenshots-only:
+- `mcp__playwright__browser_navigate` to load pages
+- `mcp__playwright__browser_click` / `mcp__playwright__browser_type` for interactions
+- `mcp__playwright__browser_screenshot` for evidence capture
+- `mcp__playwright__browser_snapshot` to read the accessibility tree
+
+Fall back to curl + screenshots only if Playwright MCP is not connected.
+<% } %>
+<% if (testing_tools.includes('curl')) { %>
+### curl (API Testing)
+
+Use curl for all API endpoint verification:
+- `curl -s -w "\n%{http_code}"` for status checks
+- `curl -X POST -H "Content-Type: application/json" -d '{...}'` for write operations
+- Always capture and include the response body and status code as evidence
+<% } %>
+<% if (testing_tools.includes('cypress')) { %>
+### Cypress
+
+Run Cypress tests for e2e verification: `npx cypress run --spec "cypress/e2e/{relevant-spec}.cy.js"`
+<% } %>
+<% } else { %>
+Use curl for API testing and browser screenshots for UI verification.
+<% } %>
 
 ## Testing Process
 
@@ -90,6 +165,11 @@ Steps taken: Selected "Active" from status dropdown → URL changed to /leads?st
 
 ### UI Testing
 
+<% if (typeof testing_tools !== 'undefined' && testing_tools && testing_tools.includes('playwright')) { %>
+Use Playwright MCP for browser testing. For each AC with a UI surface:
+<% } else { %>
+For each AC with a UI surface:
+<% } %>
 1. **Navigate** to the affected page(s)
 2. **Screenshot** the initial state — to establish a visual baseline so you can prove what changed after your actions
 3. **Read the page** accessibility tree to verify elements exist
@@ -122,6 +202,51 @@ curl -s -w "\n%{http_code}" http://localhost:3000/api/endpoint
 - **Write path works** — If the feature involves saving/updating data, actually change a value, save it, refresh, and confirm it persisted
 - **Auth on write endpoints** — If testing an authenticated feature, verify that save/update/delete operations succeed (not just reads)
 
+### Bug Hunting Strategy
+
+Don't just verify the happy path — actively try to break things:
+
+- **Boundary values** — If AC says "user can enter a name", try empty string, 1 character, 500 characters, special characters, emoji
+- **State transitions** — If AC says "status changes to X", what happens if you trigger it twice? From an unexpected starting state?
+- **Persistence** — Save data, refresh the page, verify it's still there. Navigate away and come back. Close and reopen.
+- **Concurrent/conflicting inputs** — If the feature modifies shared state, try conflicting operations
+- **Error recovery** — Submit invalid data, hit endpoints with missing params, try unauthorized access
+- **Side effects** — If the feature creates records, verify related records update too. Check that notifications fire, counters increment, audit logs record.
+
+### Non-UI Features (Background Jobs, Workers, API-only, CLI)
+
+Not every ticket has a UI entry point — but almost every feature has a UI surface where its effects are visible. Your job is to trigger the feature AND verify the result end-to-end.
+
+#### Step 1: Trigger the Feature
+
+1. **Background jobs / workers** — Use `rails runner`, `node -e`, or the equivalent to trigger the job directly. Make sure the worker process is running (see Health Check above).
+2. **API-only endpoints** — Use `curl` to call the endpoint. Verify response status, payload, and any side effects.
+3. **CLI tools / scripts** — Run the command and verify its output and side effects.
+4. **Data migrations / seeds** — Verify the data state before and after by querying the database or API.
+
+#### Step 2: Trace to UI
+
+After triggering the backend feature, identify where its effects surface in the UI and verify there too:
+
+- **Background job sends emails** → check the sent folder, notification badge, delivery status page, or admin dashboard in the browser
+- **API creates/updates records** → navigate to the page that displays those records and confirm the change is visible
+- **Cron job recalculates data** → open the dashboard or report that shows the recalculated values
+- **Worker processes a queue** → check the admin panel, job status page, or affected user-facing page
+
+If there truly is no UI surface (pure infrastructure — logging, metrics, internal tooling with no web UI), document why in results.md and verify through the closest observable output (log files, admin API, monitoring endpoint).
+
+**Never stop at "the job chain executed without error."** That proves the code doesn't crash — it doesn't prove the feature works. Follow the data all the way to where a user would see it.
+
+### Regression Check
+
+After verifying all ACs, do a quick sanity check on adjacent features that share the same page or component:
+
+- **Same page** — If you tested changes to a tab, verify the other tabs on that page still load and function
+- **Shared components** — If the ticket modified a shared component (header, sidebar, modal), spot-check one other page that uses it
+- **Navigation** — Verify you can navigate to and from the affected page without errors
+
+This is not a full regression suite — just a 2-minute sanity check. Document any regressions found in `results.md` under a "Regression" section.
+
 ## Self-Check Before Verdict
 
 <self_check>
@@ -130,6 +255,12 @@ Before recording your verdict:
 1. Re-read each AC from `ticket.md`. For each one, confirm you tested it through the live app (not by reading code).
 2. Verify every AC has a corresponding entry in `results.md` with evidence (screenshot or API response).
 3. If any AC was not testable through the live app, mark it as BLOCKED with an explanation rather than guessing.
+4. Confirm you did NOT run any test suite commands (npm test, rspec, jest, pytest, etc.). If you did, your results are invalid — redo them through the live app.
+5. Confirm you tested beyond the happy path — if every AC is PASS with no edge cases explored, you haven't tested hard enough.
+6. Confirm you created test data where the dev DB was missing required conditions — if you soft-passed any AC because "no matching data in dev DB," go back and seed the data, then retest.
+7. Confirm all required services were running during your tests (web, workers, queues) — if a feature depends on a background worker and it wasn't running, your test of that feature is invalid.
+8. For backend features, confirm you traced the result to a UI surface — if you only verified through `rails runner` or `curl` but didn't check the UI where users would see the result, go back and verify there too.
+9. Confirm you did a quick regression check on adjacent features sharing the same page or component.
 </self_check>
 
 ## Decision
