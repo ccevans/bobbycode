@@ -1,9 +1,12 @@
 // test/lib/pipeline.test.js
 import {
   buildSingleAgentPrompt, buildNextStepPrompt, buildBatchStagePrompt,
-  buildUxPrompt, buildPmPrompt, buildQePrompt, buildShipPrompt, buildFeaturePrompt, DEFAULT_PIPELINE,
+  buildUxPrompt, buildPmPrompt, buildQePrompt, buildShipPrompt, buildFeaturePrompt,
+  buildOrchestrationPrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt,
+  buildPerformancePrompt, buildWatchdogPrompt, buildVetPrompt, buildStrategyPrompt,
+  resolveNextAgent, DEFAULT_PIPELINE,
 } from '../../lib/pipeline.js';
-import { createTicket, moveTicket } from '../../lib/tickets.js';
+import { createTicket, moveTicket, findTicket, writeTicket } from '../../lib/tickets.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -119,6 +122,268 @@ describe('pipeline', () => {
 
   test('buildQePrompt mentions Chrome browser', () => {
     expect(buildQePrompt()).toContain('Chrome browser');
+  });
+
+  describe('resolveNextAgent', () => {
+    test('returns agent for matching stage', () => {
+      expect(resolveNextAgent(DEFAULT_PIPELINE, 'planning')).toBe('bobby-plan');
+      expect(resolveNextAgent(DEFAULT_PIPELINE, 'building')).toBe('bobby-build');
+      expect(resolveNextAgent(DEFAULT_PIPELINE, 'reviewing')).toBe('bobby-review');
+      expect(resolveNextAgent(DEFAULT_PIPELINE, 'testing')).toBe('bobby-test');
+    });
+
+    test('returns null for unmapped stage', () => {
+      expect(resolveNextAgent(DEFAULT_PIPELINE, 'shipping')).toBeNull();
+      expect(resolveNextAgent(DEFAULT_PIPELINE, 'done')).toBeNull();
+      expect(resolveNextAgent(DEFAULT_PIPELINE, 'blocked')).toBeNull();
+    });
+  });
+
+  describe('buildOrchestrationPrompt', () => {
+    test('includes ticket list', () => {
+      const prompt = buildOrchestrationPrompt(['TKT-001', 'TKT-002'], DEFAULT_PIPELINE);
+      expect(prompt).toContain('- TKT-001');
+      expect(prompt).toContain('- TKT-002');
+    });
+
+    test('includes branch guard', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      expect(prompt).toContain('Branch guard');
+      expect(prompt).toContain('git branch --show-current');
+      expect(prompt).toContain('tkt-TKT-001');
+    });
+
+    test('includes safety limits', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE, 5, '.bobby/tickets', 30);
+      expect(prompt).toContain('Max retries per ticket: 5');
+      expect(prompt).toContain('Max total agent invocations across all tickets: 30');
+    });
+
+    test('includes all pipeline agent references', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      expect(prompt).toContain('.claude/agents/bobby-plan.md');
+      expect(prompt).toContain('.claude/agents/bobby-build.md');
+      expect(prompt).toContain('.claude/agents/bobby-review.md');
+      expect(prompt).toContain('.claude/agents/bobby-test.md');
+    });
+
+    test('includes retry and debug logic', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      expect(prompt).toContain('rejection');
+      expect(prompt).toContain('bobby-debug');
+      expect(prompt).toContain('.claude/agents/bobby-debug.md');
+    });
+
+    test('includes run log format', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE, 3, '.bobby/tickets', 20, '.bobby/runs');
+      expect(prompt).toContain('Pipeline Run');
+      expect(prompt).toContain('.bobby/runs/');
+      expect(prompt).toContain('run-{YYYYMMDD-HHmmss}.md');
+    });
+
+    test('handles single ticket ID (non-array)', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      expect(prompt).toContain('- TKT-001');
+    });
+
+    test('uses custom ticketsDir', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE, 3, 'custom/tickets');
+      expect(prompt).toContain('custom/tickets');
+    });
+  });
+
+  describe('buildSecurityPrompt', () => {
+    test('includes ticket ID and agent ref', () => {
+      const prompt = buildSecurityPrompt('TKT-001');
+      expect(prompt).toContain('TKT-001');
+      expect(prompt).toContain('.claude/agents/bobby-security.md');
+    });
+
+    test('references OWASP and STRIDE', () => {
+      const prompt = buildSecurityPrompt('TKT-001');
+      expect(prompt).toContain('OWASP Top 10');
+      expect(prompt).toContain('STRIDE');
+    });
+
+    test('includes claim step', () => {
+      const prompt = buildSecurityPrompt('TKT-001');
+      expect(prompt).toContain('bobby assign TKT-001 bobby-security');
+    });
+
+    test('uses custom ticketsDir', () => {
+      const prompt = buildSecurityPrompt('TKT-001', 'custom/tickets');
+      expect(prompt).toContain('custom/tickets/TKT-001');
+    });
+  });
+
+  describe('buildDebugPrompt', () => {
+    test('includes ticket ID and agent ref', () => {
+      const prompt = buildDebugPrompt('TKT-001');
+      expect(prompt).toContain('TKT-001');
+      expect(prompt).toContain('.claude/agents/bobby-debug.md');
+    });
+
+    test('references debug methodology', () => {
+      const prompt = buildDebugPrompt('TKT-001');
+      expect(prompt).toContain('Reproduce');
+      expect(prompt).toContain('Hypothesize');
+      expect(prompt).toContain('Trace');
+      expect(prompt).toContain('Verify');
+      expect(prompt).toContain('Fix');
+    });
+
+    test('includes scope lock', () => {
+      const prompt = buildDebugPrompt('TKT-001');
+      expect(prompt).toContain('Scope lock');
+      expect(prompt).toContain('only fix the bug');
+    });
+
+    test('includes claim step', () => {
+      const prompt = buildDebugPrompt('TKT-001');
+      expect(prompt).toContain('bobby assign TKT-001 bobby-debug');
+    });
+  });
+
+  describe('buildDocsPrompt', () => {
+    test('includes agent ref', () => {
+      const prompt = buildDocsPrompt();
+      expect(prompt).toContain('.claude/agents/bobby-docs.md');
+    });
+
+    test('references git log', () => {
+      const prompt = buildDocsPrompt();
+      expect(prompt).toContain('git log');
+    });
+
+    test('includes commit message format', () => {
+      const prompt = buildDocsPrompt();
+      expect(prompt).toContain('docs: update');
+    });
+  });
+
+  describe('buildPerformancePrompt', () => {
+    test('includes agent ref', () => {
+      const prompt = buildPerformancePrompt();
+      expect(prompt).toContain('.claude/agents/bobby-performance.md');
+    });
+
+    test('references benchmarks path', () => {
+      const prompt = buildPerformancePrompt();
+      expect(prompt).toContain('.bobby/benchmarks/');
+    });
+
+    test('mentions regression threshold', () => {
+      const prompt = buildPerformancePrompt();
+      expect(prompt).toContain('10%');
+    });
+  });
+
+  describe('buildWatchdogPrompt', () => {
+    test('includes agent ref', () => {
+      const prompt = buildWatchdogPrompt();
+      expect(prompt).toContain('.claude/agents/bobby-watchdog.md');
+    });
+
+    test('references health check steps', () => {
+      const prompt = buildWatchdogPrompt();
+      expect(prompt).toContain('HTTP 200');
+      expect(prompt).toContain('5 seconds');
+      expect(prompt).toContain('JavaScript console errors');
+    });
+
+    test('references watchdog output', () => {
+      const prompt = buildWatchdogPrompt();
+      expect(prompt).toContain('.bobby/watchdog/');
+    });
+  });
+
+  describe('buildVetPrompt', () => {
+    test('includes agent ref', () => {
+      const prompt = buildVetPrompt();
+      expect(prompt).toContain('.claude/agents/bobby-vet.md');
+    });
+
+    test('uses ticketsDir for path interpolation', () => {
+      const prompt = buildVetPrompt('custom/tickets');
+      expect(prompt).toContain('custom/tickets/{ID}*/ticket.md');
+    });
+
+    test('does not move ticket between stages', () => {
+      const prompt = buildVetPrompt();
+      expect(prompt).toContain('Do NOT move the ticket');
+    });
+
+    test('asks one question at a time', () => {
+      const prompt = buildVetPrompt();
+      expect(prompt).toContain('ONE probing question');
+    });
+  });
+
+  describe('buildStrategyPrompt', () => {
+    test('includes agent ref', () => {
+      const prompt = buildStrategyPrompt();
+      expect(prompt).toContain('.claude/agents/bobby-strategy.md');
+    });
+
+    test('uses ticketsDir for path interpolation', () => {
+      const prompt = buildStrategyPrompt('custom/tickets');
+      expect(prompt).toContain('custom/tickets/{ID}*/ticket.md');
+    });
+
+    test('includes decision outcomes', () => {
+      const prompt = buildStrategyPrompt();
+      expect(prompt).toContain('APPROVE');
+      expect(prompt).toContain('DEFER');
+      expect(prompt).toContain('KILL');
+    });
+
+    test('references strategy framework', () => {
+      const prompt = buildStrategyPrompt();
+      expect(prompt).toContain('demand validation');
+      expect(prompt).toContain('impact scoring');
+    });
+  });
+
+  test('buildShipPrompt with multi-repo includes per-repo steps', () => {
+    const repos = [
+      { name: 'Backend', path: 'api/' },
+      { name: 'Frontend', path: 'web/' },
+    ];
+    const prompt = buildShipPrompt('.bobby/tickets', repos);
+    expect(prompt).toContain('multi-repo');
+    expect(prompt).toContain('api/');
+    expect(prompt).toContain('web/');
+    expect(prompt).toContain('PRs for ALL repos');
+  });
+
+  test('buildShipPrompt includes agent ref', () => {
+    const prompt = buildShipPrompt();
+    expect(prompt).toContain('.claude/agents/bobby-ship.md');
+  });
+
+  test('buildNextStepPrompt returns no-agent message for unmapped stage', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Test', author: 'dev', area: '' });
+    moveTicket(tmpDir, 'TKT-001', 'reviewing', 'dev');
+
+    // Use a pipeline that has no entry for "reviewing"
+    const customPipeline = [
+      { stage: 'planning', agent: 'bobby-plan' },
+      { stage: 'building', agent: 'bobby-build' },
+    ];
+    const prompt = buildNextStepPrompt('TKT-001', customPipeline, tmpDir);
+    expect(prompt).toContain('No agent mapped for stage');
+  });
+
+  test('buildNextStepPrompt shows "no reason given" when blocked without reason', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Test', author: 'dev', area: '' });
+    moveTicket(tmpDir, 'TKT-001', 'building', 'dev');
+    moveTicket(tmpDir, 'TKT-001', 'blocked', 'dev');
+    // Force blocked_reason to null
+    const found = findTicket(tmpDir, 'TKT-001');
+    writeTicket(found.path, { ...found.data, blocked_reason: null }, found.content);
+
+    const prompt = buildNextStepPrompt('TKT-001', DEFAULT_PIPELINE, tmpDir);
+    expect(prompt).toContain('no reason given');
   });
 
   describe('buildFeaturePrompt', () => {
@@ -250,6 +515,15 @@ describe('pipeline', () => {
       const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
       expect(prompt).toContain('worktree');
       expect(prompt).toContain('isolated worktree');
+    });
+
+    test('handles all tickets past planning with empty pastPlanning edge', () => {
+      // All children are in stages past planning but pass an empty array
+      // to test the !pastPlanning.length branch
+      const emptyChildren = [];
+      const prompt = buildFeaturePrompt('TKT-001', 'Empty Epic', emptyChildren, DEFAULT_PIPELINE);
+      expect(prompt).toContain('already past planning');
+      expect(prompt).toContain('Skipping to Phase 2');
     });
   });
 });

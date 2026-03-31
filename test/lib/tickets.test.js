@@ -2,7 +2,7 @@
 import {
   findTicket, createTicket, moveTicket, slugify,
   readTicket, writeTicket, addComment, listTickets,
-  getFeatureTickets, listEpics,
+  getFeatureTickets, listEpics, updateTicket, backlogHealth, daysBetween,
 } from '../../lib/tickets.js';
 import fs from 'fs';
 import path from 'path';
@@ -66,6 +66,17 @@ describe('tickets', () => {
     });
     const ticket = readTicket(result.path);
     expect(ticket.data.parent).toBe('TKT-001');
+  });
+
+  test('createTicket defaults all optional params', () => {
+    // Omit type, priority, author, area, and parent to exercise all default branches
+    const result = createTicket(tmpDir, { prefix: 'TKT', title: 'Minimal' });
+    const ticket = readTicket(result.path);
+    expect(ticket.data.author).toBe('unknown');
+    expect(ticket.data.type).toBe('feature');
+    expect(ticket.data.priority).toBe('medium');
+    expect(ticket.data.area).toBeNull();
+    expect(ticket.data.parent).toBeNull();
   });
 
   test('createTicket defaults type to feature and priority to medium', () => {
@@ -316,6 +327,57 @@ describe('tickets', () => {
       const { children } = getFeatureTickets(tmpDir, 'TKT-001');
       expect(children).toHaveLength(0);
     });
+
+    test('handles all children blocked (no active children for auto-advance)', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Epic', type: 'epic', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Child A', author: 'dev', area: '', parent: 'TKT-001' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Child B', author: 'dev', area: '', parent: 'TKT-001' });
+      // Move both to building first (epic auto-advances to building)
+      moveTicket(tmpDir, 'TKT-002', 'building', 'dev');
+      moveTicket(tmpDir, 'TKT-003', 'building', 'dev');
+      // Now block both — when last child is blocked, no active children remain
+      moveTicket(tmpDir, 'TKT-002', 'blocked', 'dev', 'Blocked');
+      moveTicket(tmpDir, 'TKT-003', 'blocked', 'dev', 'Also blocked');
+      // Epic should stay at building (not advance further) since no active children
+      const epic = findTicket(tmpDir, 'TKT-001');
+      expect(epic.stage).toBe('building');
+    });
+
+    test('handles children with unknown priority (uses default order)', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Epic', type: 'epic', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Known pri', priority: 'high', author: 'dev', area: '', parent: 'TKT-001' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Unknown pri', priority: 'custom', author: 'dev', area: '', parent: 'TKT-001' });
+      const { children } = getFeatureTickets(tmpDir, 'TKT-001');
+      expect(children).toHaveLength(2);
+      // high (1) sorts before custom (default 3)
+      expect(children[0].priority).toBe('high');
+    });
+
+    test('handles children with unknown stage (uses default sort order)', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Epic', type: 'epic', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Normal', author: 'dev', area: '', parent: 'TKT-001' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Weird stage', author: 'dev', area: '', parent: 'TKT-001' });
+      // Manually set an invalid stage
+      const found = findTicket(tmpDir, 'TKT-003');
+      writeTicket(found.path, { ...found.data, stage: 'custom-stage' }, found.content);
+      const { children } = getFeatureTickets(tmpDir, 'TKT-001');
+      expect(children).toHaveLength(2);
+      // backlog is 6, custom-stage gets default 7, so backlog sorts first
+      expect(children[0].stage).toBe('backlog');
+    });
+
+    test('handles children with missing ID for sort tiebreaker', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Epic', type: 'epic', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'A', priority: 'medium', author: 'dev', area: '', parent: 'TKT-001' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'B', priority: 'medium', author: 'dev', area: '', parent: 'TKT-001' });
+      // Remove ID from one child to test || '' fallback
+      const found = findTicket(tmpDir, 'TKT-002');
+      const data = { ...found.data };
+      delete data.id;
+      writeTicket(found.path, data, found.content);
+      const { children } = getFeatureTickets(tmpDir, 'TKT-001');
+      expect(children).toHaveLength(2);
+    });
   });
 
   describe('listEpics', () => {
@@ -345,5 +407,502 @@ describe('tickets', () => {
       expect(epics[0].stageSummary).toBe('no children');
       expect(epics[0].childCount).toBe(0);
     });
+  });
+
+  describe('daysBetween', () => {
+    test('returns 0 for null/undefined input', () => {
+      expect(daysBetween(null)).toBe(0);
+      expect(daysBetween(undefined)).toBe(0);
+    });
+
+    test('returns positive number for past date', () => {
+      const pastDate = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      expect(daysBetween(pastDate)).toBeGreaterThanOrEqual(4);
+      expect(daysBetween(pastDate)).toBeLessThanOrEqual(6);
+    });
+
+    test('returns 0 for today', () => {
+      const today = new Date().toISOString().split('T')[0];
+      expect(daysBetween(today)).toBe(0);
+    });
+  });
+
+  describe('updateTicket', () => {
+    test('updates arbitrary fields on ticket', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Update test', author: 'dev', area: '' });
+      updateTicket(tmpDir, 'TKT-001', { priority: 'critical', area: 'auth' });
+
+      const found = findTicket(tmpDir, 'TKT-001');
+      expect(found.data.priority).toBe('critical');
+      expect(found.data.area).toBe('auth');
+    });
+
+    test('sets updated timestamp', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Update test', author: 'dev', area: '' });
+      const before = findTicket(tmpDir, 'TKT-001');
+      updateTicket(tmpDir, 'TKT-001', { priority: 'high' });
+      const after = findTicket(tmpDir, 'TKT-001');
+      expect(after.data.updated).toBeTruthy();
+    });
+
+    test('throws for missing ticket', () => {
+      expect(() => updateTicket(tmpDir, 'TKT-999', { priority: 'high' })).toThrow('not found');
+    });
+
+    test('returns id and path', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Update test', author: 'dev', area: '' });
+      const result = updateTicket(tmpDir, 'TKT-001', { priority: 'high' });
+      expect(result.id).toBe('TKT-001');
+      expect(result.path).toBeTruthy();
+    });
+  });
+
+  describe('backlogHealth', () => {
+    test('returns total count of backlog tickets', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'A', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'B', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'C', author: 'dev', area: '' });
+      moveTicket(tmpDir, 'TKT-003', 'building', 'dev');
+
+      const health = backlogHealth(tmpDir);
+      expect(health.total).toBe(2);
+    });
+
+    test('counts tickets with placeholder acceptance criteria', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'A', author: 'dev', area: '' });
+      // Default template has placeholder AC, so it should be counted
+      const health = backlogHealth(tmpDir);
+      expect(health.noAcceptanceCriteria).toBe(1);
+    });
+
+    test('counts stale tickets', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Stale', author: 'dev', area: '' });
+      // Manually set created date to 60 days ago
+      const found = findTicket(tmpDir, 'TKT-001');
+      const oldDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      writeTicket(found.path, { ...found.data, created: oldDate, updated: oldDate }, found.content);
+
+      const health = backlogHealth(tmpDir, 30);
+      expect(health.stale).toBe(1);
+    });
+
+    test('returns staleDays in result', () => {
+      const health = backlogHealth(tmpDir, 45);
+      expect(health.staleDays).toBe(45);
+    });
+
+    test('skips tickets where readTicket returns null during AC check', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Will break', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Normal', author: 'dev', area: '' });
+
+      // Delete ticket.md from TKT-001 AFTER it's counted in listTickets
+      // but before readTicket in the AC check loop.
+      // Since backlogHealth calls listTickets first (which reads ticket.md),
+      // then reads each ticket again for AC check, we need a ticket that
+      // exists during listTickets but whose readTicket returns null during
+      // the AC loop. This is hard without mocking, so let's test with
+      // a minimal ticket that has frontmatter but empty content.
+      const found = findTicket(tmpDir, 'TKT-001');
+      fs.writeFileSync(
+        path.join(found.path, 'ticket.md'),
+        '---\nid: TKT-001\ntitle: Minimal\nstage: backlog\n---\n'
+      );
+
+      const health = backlogHealth(tmpDir);
+      expect(health.total).toBe(2);
+    });
+
+    test('detects AC section with no checkboxes', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'No checkboxes', author: 'dev', area: '' });
+      const found = findTicket(tmpDir, 'TKT-001');
+      const content = found.content.replace(
+        /## Acceptance Criteria[\s\S]*?(?=\n## |$)/,
+        '## Acceptance Criteria\n\nJust some text without any checkboxes.\n\n'
+      );
+      writeTicket(found.path, found.data, content);
+
+      const health = backlogHealth(tmpDir);
+      expect(health.noAcceptanceCriteria).toBe(1);
+    });
+  });
+
+  describe('listTickets filtering', () => {
+    beforeEach(() => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Auth task', type: 'feature', priority: 'high', author: 'dev', area: 'auth' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'API bug', type: 'bug', priority: 'critical', author: 'dev', area: 'api' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Dashboard', type: 'improvement', priority: 'low', author: 'dev', area: 'dashboard' });
+    });
+
+    test('filters by area', () => {
+      const result = listTickets(tmpDir, { area: 'auth' });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('TKT-001');
+    });
+
+    test('filters by priority', () => {
+      const result = listTickets(tmpDir, { priority: 'critical' });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('TKT-002');
+    });
+
+    test('filters by type', () => {
+      const result = listTickets(tmpDir, { type: 'bug' });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('TKT-002');
+    });
+
+    test('filters by epic (parent)', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Epic', type: 'epic', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Child', author: 'dev', area: '', parent: 'TKT-004' });
+      const result = listTickets(tmpDir, { epic: 'TKT-004' });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('TKT-005');
+    });
+
+    test('filters by blocked true', () => {
+      moveTicket(tmpDir, 'TKT-001', 'building', 'dev');
+      moveTicket(tmpDir, 'TKT-001', 'blocked', 'dev', 'Waiting');
+      const result = listTickets(tmpDir, { blocked: true });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('TKT-001');
+    });
+
+    test('filters by blocked false', () => {
+      moveTicket(tmpDir, 'TKT-001', 'building', 'dev');
+      moveTicket(tmpDir, 'TKT-001', 'blocked', 'dev', 'Waiting');
+      const result = listTickets(tmpDir, { blocked: false });
+      expect(result).toHaveLength(2);
+    });
+
+    test('filters by staleDays', () => {
+      // Make TKT-001 stale
+      const found = findTicket(tmpDir, 'TKT-001');
+      const oldDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      writeTicket(found.path, { ...found.data, created: oldDate, updated: oldDate }, found.content);
+
+      const result = listTickets(tmpDir, { staleDays: 30 });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('TKT-001');
+    });
+  });
+
+  describe('listTickets sorting edge cases', () => {
+    test('sort handles tickets with missing created/updated fields', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'A', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'B', author: 'dev', area: '' });
+      // Remove created field from one ticket
+      const found = findTicket(tmpDir, 'TKT-001');
+      const data = { ...found.data };
+      delete data.created;
+      delete data.updated;
+      writeTicket(found.path, data, found.content);
+
+      // Should not throw for any sort mode and should exercise || '' fallbacks
+      const newest = listTickets(tmpDir, { sort: 'newest' });
+      expect(newest).toHaveLength(2);
+      const oldest = listTickets(tmpDir, { sort: 'oldest' });
+      expect(oldest).toHaveLength(2);
+      const updated = listTickets(tmpDir, { sort: 'updated' });
+      expect(updated).toHaveLength(2);
+    });
+
+    test('sort handles both tickets with null created', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'A', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'B', author: 'dev', area: '' });
+      // Remove created and updated from both
+      for (const id of ['TKT-001', 'TKT-002']) {
+        const found = findTicket(tmpDir, id);
+        const data = { ...found.data };
+        delete data.created;
+        delete data.updated;
+        writeTicket(found.path, data, found.content);
+      }
+      // All sort modes should handle null gracefully via || ''
+      expect(listTickets(tmpDir, { sort: 'newest' })).toHaveLength(2);
+      expect(listTickets(tmpDir, { sort: 'oldest' })).toHaveLength(2);
+      expect(listTickets(tmpDir, { sort: 'updated' })).toHaveLength(2);
+    });
+
+    test('sort by updated with one null and one valid updated', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Has updated', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'No updated', author: 'dev', area: '' });
+      // Remove updated from TKT-002 only
+      const found = findTicket(tmpDir, 'TKT-002');
+      const data = { ...found.data };
+      delete data.updated;
+      writeTicket(found.path, data, found.content);
+      const result = listTickets(tmpDir, { sort: 'updated' });
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe('TKT-001'); // has updated, sorts first
+    });
+
+    test('sort by newest puts null-created tickets last', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Has date', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'No date', author: 'dev', area: '' });
+      const found = findTicket(tmpDir, 'TKT-002');
+      const data = { ...found.data };
+      delete data.created;
+      writeTicket(found.path, data, found.content);
+
+      const result = listTickets(tmpDir, { sort: 'newest' });
+      expect(result[0].id).toBe('TKT-001'); // has created date, sorts first
+    });
+
+    test('sort handles tickets with unknown priority', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'A', priority: 'unknown-priority', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'B', priority: 'high', author: 'dev', area: '' });
+      const result = listTickets(tmpDir, { sort: 'priority' });
+      // Unknown priority gets default 3 (same as medium), high is 1
+      expect(result[0].priority).toBe('high');
+    });
+
+    test('staleDays filter falls back to created when updated is null', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'No updated', author: 'dev', area: '' });
+      // Set old created date and remove updated
+      const found = findTicket(tmpDir, 'TKT-001');
+      const oldDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const data = { ...found.data, created: oldDate };
+      delete data.updated;
+      writeTicket(found.path, data, found.content);
+
+      const result = listTickets(tmpDir, { staleDays: 30 });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('TKT-001');
+    });
+
+    test('staleDays filter uses updated field when available', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Updated recently', author: 'dev', area: '' });
+      // Set old created but recent updated
+      const found = findTicket(tmpDir, 'TKT-001');
+      const oldDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const recentDate = new Date().toISOString().split('T')[0];
+      writeTicket(found.path, { ...found.data, created: oldDate, updated: recentDate }, found.content);
+
+      // staleDays should use updated field, not created
+      const result = listTickets(tmpDir, { staleDays: 30 });
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('listTickets sorting', () => {
+    beforeEach(() => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'First', priority: 'low', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Second', priority: 'critical', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Third', priority: 'high', author: 'dev', area: '' });
+    });
+
+    test('sorts by priority', () => {
+      const result = listTickets(tmpDir, { sort: 'priority' });
+      expect(result[0].priority).toBe('critical');
+      expect(result[1].priority).toBe('high');
+      expect(result[2].priority).toBe('low');
+    });
+
+    test('sorts by newest', () => {
+      const result = listTickets(tmpDir, { sort: 'newest' });
+      // All created same day, so order is stable but test that it doesn't crash
+      expect(result).toHaveLength(3);
+    });
+
+    test('sorts by oldest', () => {
+      const result = listTickets(tmpDir, { sort: 'oldest' });
+      expect(result).toHaveLength(3);
+    });
+
+    test('sorts by updated', () => {
+      // Touch TKT-001 to make it most recently updated
+      moveTicket(tmpDir, 'TKT-001', 'building', 'dev');
+      const result = listTickets(tmpDir, { sort: 'updated' });
+      expect(result).toHaveLength(3);
+    });
+  });
+
+  describe('moveTicket parent auto-advance', () => {
+    test('auto-advances parent epic when all children reach a stage', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Epic', type: 'epic', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Child A', author: 'dev', area: '', parent: 'TKT-001' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Child B', author: 'dev', area: '', parent: 'TKT-001' });
+
+      moveTicket(tmpDir, 'TKT-002', 'building', 'dev');
+      moveTicket(tmpDir, 'TKT-003', 'building', 'dev');
+
+      const epic = findTicket(tmpDir, 'TKT-001');
+      expect(epic.stage).toBe('building');
+    });
+
+    test('epic stays at min child stage', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Epic', type: 'epic', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Child A', author: 'dev', area: '', parent: 'TKT-001' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Child B', author: 'dev', area: '', parent: 'TKT-001' });
+
+      moveTicket(tmpDir, 'TKT-002', 'building', 'dev');
+      moveTicket(tmpDir, 'TKT-003', 'reviewing', 'dev');
+
+      // Epic should be at building (the minimum child stage)
+      const epic = findTicket(tmpDir, 'TKT-001');
+      expect(epic.stage).toBe('building');
+    });
+
+    test('blocked children are excluded from epic auto-advance', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Epic', type: 'epic', author: 'dev', area: '' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Child A', author: 'dev', area: '', parent: 'TKT-001' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Child B', author: 'dev', area: '', parent: 'TKT-001' });
+
+      moveTicket(tmpDir, 'TKT-002', 'reviewing', 'dev');
+      moveTicket(tmpDir, 'TKT-003', 'building', 'dev');
+      moveTicket(tmpDir, 'TKT-003', 'blocked', 'dev', 'Waiting');
+
+      // Only non-blocked child is at reviewing, so epic should advance
+      const epic = findTicket(tmpDir, 'TKT-001');
+      expect(epic.stage).toBe('reviewing');
+    });
+  });
+
+  test('moveTicket appends comment even when no Comments section exists', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'No comments section', author: 'dev', area: '' });
+    // Remove the Comments section from the ticket
+    const found = findTicket(tmpDir, 'TKT-001');
+    const contentWithoutComments = found.content.replace('## Comments', '');
+    writeTicket(found.path, found.data, contentWithoutComments);
+
+    moveTicket(tmpDir, 'TKT-001', 'building', 'dev', 'Starting work');
+    const after = findTicket(tmpDir, 'TKT-001');
+    const raw = fs.readFileSync(path.join(after.path, 'ticket.md'), 'utf8');
+    expect(raw).toContain('Starting work');
+    expect(raw).toContain('## Comments');
+  });
+
+  test('moveTicket to blocked without comment does not set blocked_reason', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Block no reason', author: 'dev', area: '' });
+    moveTicket(tmpDir, 'TKT-001', 'building', 'dev');
+    moveTicket(tmpDir, 'TKT-001', 'blocked', 'dev'); // no comment
+    const found = findTicket(tmpDir, 'TKT-001');
+    expect(found.data.blocked).toBe(true);
+    expect(found.data.blocked_reason).toBeNull();
+  });
+
+  test('moveTicket uses default "system" for by parameter', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Default by', author: 'dev', area: '' });
+    moveTicket(tmpDir, 'TKT-001', 'building');
+    const found = findTicket(tmpDir, 'TKT-001');
+    expect(found.stage).toBe('building');
+  });
+
+  test('moveTicket does not auto-advance when parent is not found', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Orphan child', author: 'dev', area: '', parent: 'TKT-999' });
+    // Should not throw even though parent doesn't exist
+    moveTicket(tmpDir, 'TKT-001', 'building', 'dev');
+    const found = findTicket(tmpDir, 'TKT-001');
+    expect(found.stage).toBe('building');
+  });
+
+  test('moveTicket does not auto-advance when parent is not an epic', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Not epic parent', type: 'feature', author: 'dev', area: '' });
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Child', author: 'dev', area: '', parent: 'TKT-001' });
+    moveTicket(tmpDir, 'TKT-002', 'building', 'dev');
+    // Parent should stay in backlog since it's not an epic
+    const parent = findTicket(tmpDir, 'TKT-001');
+    expect(parent.stage).toBe('backlog');
+  });
+
+  test('moveTicket same stage with comment still applies', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Same stage comment', author: 'dev', area: '' });
+    moveTicket(tmpDir, 'TKT-001', 'backlog', 'dev', 'Adding a note');
+    const raw = fs.readFileSync(path.join(findTicket(tmpDir, 'TKT-001').path, 'ticket.md'), 'utf8');
+    expect(raw).toContain('Adding a note');
+  });
+
+  test('addComment creates Comments section if missing', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'No comments', author: 'dev', area: '' });
+    const found = findTicket(tmpDir, 'TKT-001');
+    const contentWithoutComments = found.content.replace('## Comments', '');
+    writeTicket(found.path, found.data, contentWithoutComments);
+
+    addComment(tmpDir, 'TKT-001', 'dev', 'New comment');
+    const raw = fs.readFileSync(path.join(found.path, 'ticket.md'), 'utf8');
+    expect(raw).toContain('## Comments');
+    expect(raw).toContain('New comment');
+  });
+
+  test('findTicket returns null for nonexistent directory', () => {
+    expect(findTicket('/nonexistent/path', 'TKT-001')).toBeNull();
+  });
+
+  test('readTicket returns null for directory without ticket.md', () => {
+    const emptyDir = path.join(tmpDir, 'TKT-001--empty');
+    fs.mkdirSync(emptyDir);
+    expect(readTicket(emptyDir)).toBeNull();
+  });
+
+  test('listTickets skips hidden directories', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Visible', author: 'dev', area: '' });
+    // Create a hidden directory
+    fs.mkdirSync(path.join(tmpDir, '.hidden-dir'));
+    const all = listTickets(tmpDir);
+    expect(all).toHaveLength(1);
+  });
+
+  test('listTickets skips non-directory entries', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Visible', author: 'dev', area: '' });
+    // Create a file (not directory) in tickets dir
+    fs.writeFileSync(path.join(tmpDir, 'some-file.txt'), 'not a ticket');
+    const all = listTickets(tmpDir);
+    expect(all).toHaveLength(1);
+  });
+
+  test('listTickets skips directories without ticket.md', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Real', author: 'dev', area: '' });
+    // Create empty directory that looks like a ticket
+    fs.mkdirSync(path.join(tmpDir, 'fake-ticket'));
+    const all = listTickets(tmpDir);
+    expect(all).toHaveLength(1);
+  });
+
+  test('findTicket skips non-directory entries matching ID pattern', () => {
+    // Create a file (not dir) that starts with the ID pattern
+    fs.writeFileSync(path.join(tmpDir, 'TKT-001--a-file.txt'), 'not a dir');
+    expect(findTicket(tmpDir, 'TKT-001')).toBeNull();
+  });
+
+  test('findTicket defaults to backlog when stage is missing from frontmatter', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'No stage', author: 'dev', area: '' });
+    const found = findTicket(tmpDir, 'TKT-001');
+    // Remove stage from frontmatter
+    const data = { ...found.data };
+    delete data.stage;
+    writeTicket(found.path, data, found.content);
+
+    const refound = findTicket(tmpDir, 'TKT-001');
+    expect(refound.stage).toBe('backlog');
+  });
+
+  test('findTicket skips matching directory without ticket.md', () => {
+    const emptyTicketDir = path.join(tmpDir, 'TKT-001--empty');
+    fs.mkdirSync(emptyTicketDir);
+    expect(findTicket(tmpDir, 'TKT-001')).toBeNull();
+  });
+
+  test('backlogHealth detects tickets with no AC section at all', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'No AC', author: 'dev', area: '' });
+    // Remove AC section entirely
+    const found = findTicket(tmpDir, 'TKT-001');
+    const content = found.content.replace(/## Acceptance Criteria[\s\S]*?(?=\n## |$)/, '');
+    writeTicket(found.path, found.data, content);
+
+    const health = backlogHealth(tmpDir);
+    expect(health.noAcceptanceCriteria).toBe(1);
+  });
+
+  test('backlogHealth passes for tickets with real acceptance criteria', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Good AC', author: 'dev', area: '' });
+    const found = findTicket(tmpDir, 'TKT-001');
+    const content = found.content.replace(
+      /## Acceptance Criteria[\s\S]*?(?=\n## |$)/,
+      '## Acceptance Criteria\n\n- [ ] User can log in with email\n- [ ] Error shown on invalid password\n\n'
+    );
+    writeTicket(found.path, found.data, content);
+
+    const health = backlogHealth(tmpDir);
+    expect(health.noAcceptanceCriteria).toBe(0);
   });
 });

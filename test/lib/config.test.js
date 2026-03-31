@@ -1,5 +1,5 @@
 // test/lib/config.test.js
-import { readConfig, writeConfig, findProjectRoot } from '../../lib/config.js';
+import { readConfig, writeConfig, findProjectRoot, configExists } from '../../lib/config.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -56,5 +56,66 @@ describe('config', () => {
     fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), yml);
     const config = readConfig(tmpDir);
     expect(config.testing_tools).toEqual(['playwright', 'curl']);
+  });
+
+  test('configExists returns true when .bobbyrc.yml exists', () => {
+    fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'project: test\n');
+    expect(configExists(tmpDir)).toBe(true);
+  });
+
+  test('configExists returns false when .bobbyrc.yml is missing', () => {
+    expect(configExists(tmpDir)).toBe(false);
+  });
+
+  test('findProjectRoot walks up directories to find config', () => {
+    fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'project: test\n');
+    const subDir = path.join(tmpDir, 'a', 'b', 'c');
+    fs.mkdirSync(subDir, { recursive: true });
+    expect(findProjectRoot(subDir)).toBe(tmpDir);
+  });
+
+  test('findProjectRoot throws when no config found', () => {
+    expect(() => findProjectRoot(tmpDir)).toThrow('Not a Bobby project');
+  });
+
+  test('findProjectRoot finds config in current directory', () => {
+    fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'project: test\n');
+    expect(findProjectRoot(tmpDir)).toBe(tmpDir);
+  });
+
+  test('findProjectRoot uses cwd as default when no argument given', () => {
+    const origCwd = process.cwd();
+    const realTmpDir = fs.realpathSync(tmpDir);
+    process.chdir(realTmpDir);
+    fs.writeFileSync(path.join(realTmpDir, '.bobbyrc.yml'), 'project: test\n');
+    try {
+      expect(findProjectRoot()).toBe(realTmpDir);
+    } finally {
+      process.chdir(origCwd);
+    }
+  });
+
+  test('readConfig derives tickets_dir and runs_dir from bobby_dir', () => {
+    const yml = `project: test-app\nbobby_dir: .custom\n`;
+    fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), yml);
+    const config = readConfig(tmpDir);
+    expect(config.tickets_dir).toBe('.custom/tickets');
+    expect(config.runs_dir).toBe('.custom/runs');
+  });
+
+  test('readConfig handles empty YAML file', () => {
+    fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), '');
+    const config = readConfig(tmpDir);
+    // Should get all defaults
+    expect(config.ticket_prefix).toBe('TKT');
+    expect(config.bobby_dir).toBe('.bobby');
+  });
+
+  test('readConfig preserves explicit tickets_dir and runs_dir', () => {
+    const yml = `project: test-app\nbobby_dir: .custom\ntickets_dir: my/tickets\nruns_dir: my/runs\n`;
+    fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), yml);
+    const config = readConfig(tmpDir);
+    expect(config.tickets_dir).toBe('my/tickets');
+    expect(config.runs_dir).toBe('my/runs');
   });
 });

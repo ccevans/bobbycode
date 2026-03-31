@@ -1,5 +1,5 @@
 // test/lib/template.test.js
-import { renderTemplate, renderSkillTemplates } from '../../lib/template.js';
+import { renderTemplate, renderSkillTemplates, copyStaticTemplate } from '../../lib/template.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -50,6 +50,14 @@ describe('template', () => {
     expect(fs.existsSync(path.join(tmpDir, 'bobby-pm', 'SKILL.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'bobby-qe', 'SKILL.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'bobby-pipeline', 'SKILL.md'))).toBe(true);
+  });
+
+  test('copyStaticTemplate copies file to destination', () => {
+    const destPath = path.join(tmpDir, 'copied-workflow.md');
+    copyStaticTemplate('commands/bobby-pipeline.md', destPath);
+    expect(fs.existsSync(destPath)).toBe(true);
+    const content = fs.readFileSync(destPath, 'utf8');
+    expect(content.length).toBeGreaterThan(0);
   });
 
   test('renderSkillTemplates handles subdirectories (references)', () => {

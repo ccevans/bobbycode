@@ -1,4 +1,5 @@
 // test/lib/counter.test.js
+import { jest } from '@jest/globals';
 import { nextId, repairCounter } from '../../lib/counter.js';
 import fs from 'fs';
 import path from 'path';
@@ -89,5 +90,95 @@ describe('counter', () => {
     fs.mkdirSync(path.join(tmpDir, 'TKT-003--ticket'), { recursive: true });
     const result = nextId(tmpDir, 'TKT', 'new');
     expect(result.id).toBe('TKT-004');
+  });
+
+  test('nextId throws after exhausting MAX_RETRIES', () => {
+    // Pre-create 21 directories (counter at 0, tries 1-20 all taken)
+    for (let i = 1; i <= 21; i++) {
+      fs.mkdirSync(path.join(tmpDir, `TKT-${String(i).padStart(3, '0')}--taken`));
+    }
+    fs.writeFileSync(path.join(tmpDir, '.counter'), '0');
+    expect(() => nextId(tmpDir, 'TKT', 'new')).toThrow('Failed to claim ticket ID after');
+  });
+
+  test('nextId works when counter file is missing', () => {
+    // No .counter file — should start from 0
+    const result = nextId(tmpDir, 'TKT', 'first');
+    expect(result.id).toBe('TKT-001');
+  });
+
+  test('nextId retries on EEXIST from mkdir race condition', () => {
+    // Simulate: readdirSync sees nothing, but another process creates TKT-001 before mkdirSync
+    const origMkdirSync = fs.mkdirSync;
+    let raceTriggered = false;
+    const spy = jest.spyOn(fs, 'mkdirSync').mockImplementation((dirpath, opts) => {
+      if (!raceTriggered && dirpath.includes('TKT-001')) {
+        raceTriggered = true;
+        const err = new Error('EEXIST');
+        err.code = 'EEXIST';
+        throw err;
+      }
+      return origMkdirSync(dirpath, opts);
+    });
+
+    const result = nextId(tmpDir, 'TKT', 'raced');
+    expect(result.id).toBe('TKT-002'); // Skipped 001 due to EEXIST
+    spy.mockRestore();
+  });
+
+  test('nextId uses empty array when ticketsDir does not exist for readdirSync', () => {
+    // Trick: make existsSync return false for the tickets dir check on line 25
+    // but the counter file still exists. We do this by spying.
+    const origExistsSync = fs.existsSync;
+    let callCount = 0;
+    const spy = jest.spyOn(fs, 'existsSync').mockImplementation((p) => {
+      // The counter file check comes first (inside readCounter), then ticketsDir check
+      // Counter file: path ends with '.counter'
+      // ticketsDir check: path === tmpDir
+      if (p === tmpDir && callCount === 0) {
+        callCount++;
+        return false; // pretend ticketsDir doesn't exist for the readdirSync check
+      }
+      return origExistsSync(p);
+    });
+
+    const result = nextId(tmpDir, 'TKT', 'new');
+    expect(result.id).toBe('TKT-001');
+    spy.mockRestore();
+  });
+
+  test('repairCounter skips non-matching entries', () => {
+    fs.mkdirSync(path.join(tmpDir, 'not-a-ticket'));
+    fs.mkdirSync(path.join(tmpDir, 'TKT-005--real'));
+    fs.mkdirSync(path.join(tmpDir, 'OTHER-001--different'));
+    const repaired = repairCounter(tmpDir, 'TKT');
+    expect(repaired).toBe(5);
+  });
+
+  test('repairCounter handles lower ID seen after higher (num <= maxId branch)', () => {
+    // Mock readdirSync to return entries in reverse order so higher ID is seen first
+    fs.mkdirSync(path.join(tmpDir, 'TKT-003--lower'));
+    fs.mkdirSync(path.join(tmpDir, 'TKT-010--higher'));
+    const origReaddirSync = fs.readdirSync;
+    const spy = jest.spyOn(fs, 'readdirSync').mockImplementation((dir) => {
+      const entries = origReaddirSync(dir);
+      return entries.reverse(); // TKT-010 before TKT-003
+    });
+    const repaired = repairCounter(tmpDir, 'TKT');
+    expect(repaired).toBe(10);
+    spy.mockRestore();
+  });
+
+  test('nextId propagates non-EEXIST errors from mkdir', () => {
+    const spy = jest.spyOn(fs, 'mkdirSync').mockImplementation((dirpath, opts) => {
+      if (dirpath.includes('TKT-')) {
+        const err = new Error('EACCES');
+        err.code = 'EACCES';
+        throw err;
+      }
+    });
+
+    expect(() => nextId(tmpDir, 'TKT', 'fail')).toThrow('EACCES');
+    spy.mockRestore();
   });
 });

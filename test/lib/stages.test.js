@@ -31,8 +31,14 @@ describe('stages', () => {
     expect(isValidStage('1-backlog')).toBe(false);
   });
 
-  test('stageColor returns color functions', () => {
+  test('stageColor returns color functions for known stages', () => {
     const color = stageColor('building');
+    expect(color).toBeDefined();
+    expect(typeof color).toBe('function');
+  });
+
+  test('stageColor returns fallback for unknown stage', () => {
+    const color = stageColor('nonexistent');
     expect(color).toBeDefined();
     expect(typeof color).toBe('function');
   });
