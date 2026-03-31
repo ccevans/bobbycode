@@ -108,58 +108,58 @@ pipelines:
 ## Agents
 
 ### Planner (bobby-plan)
-When told to "plan", "refine", or "brainstorm", load `.claude/skills/bobby-plan/SKILL.md`.
+When told to "plan", "refine", or "brainstorm", load `<%= paths.skills %>/bobby-plan/SKILL.md`.
 - **Epic mode**: breaks big ideas into child tickets
 - **Refine mode**: creates plan.md + test-cases.md for a ticket
 
 ### Builder (bobby-build)
-When told to "build" or "work tickets", load `.claude/skills/bobby-build/SKILL.md`.
+When told to "build" or "work tickets", load `<%= paths.skills %>/bobby-build/SKILL.md`.
 - TDD red-green-refactor cycle
 - Commits code to current branch
 
 ### Reviewer (bobby-review)
-When told to "review", load `.claude/skills/bobby-review/SKILL.md`.
+When told to "review", load `<%= paths.skills %>/bobby-review/SKILL.md`.
 - Reviews git diff + acceptance criteria
 - Separate agent from build for fresh perspective
 
 ### Tester (bobby-test)
-When told to "test", load `.claude/skills/bobby-test/SKILL.md`.
+When told to "test", load `<%= paths.skills %>/bobby-test/SKILL.md`.
 - Runs test suite, verifies acceptance criteria
 
 ### Shipper (bobby-ship)
-When told to "ship", load `.claude/skills/bobby-ship/SKILL.md`.
+When told to "ship", load `<%= paths.skills %>/bobby-ship/SKILL.md`.
 - Creates PR, waits for CI, merges
 
 ### UX Designer (bobby-ux)
-When told to "review design" or "UX audit", load `.claude/skills/bobby-ux/SKILL.md`.
+When told to "review design" or "UX audit", load `<%= paths.skills %>/bobby-ux/SKILL.md`.
 - Reviews live app through Chrome browser — never reads source code
 
 ### Product Manager (bobby-pm)
-When told to "PM review" or "product review", load `.claude/skills/bobby-pm/SKILL.md`.
+When told to "PM review" or "product review", load `<%= paths.skills %>/bobby-pm/SKILL.md`.
 - Reviews live app, identifies UX gaps and feature opportunities
 
 ### Security Auditor (bobby-security)
-When told to "security audit" or "security review", load `.claude/skills/bobby-security/SKILL.md`.
+When told to "security audit" or "security review", load `<%= paths.skills %>/bobby-security/SKILL.md`.
 - OWASP Top 10 + STRIDE threat modeling on changed code
 - Only flags findings with 8/10+ confidence and concrete exploit scenarios
 
 ### Debugger (bobby-debug)
-When told to "debug" or "investigate", load `.claude/skills/bobby-debug/SKILL.md`.
+When told to "debug" or "investigate", load `<%= paths.skills %>/bobby-debug/SKILL.md`.
 - Systematic root-cause debugging: Reproduce → Hypothesize → Trace → Verify → Fix
 - Scope-locked: only fixes the bug, never refactors
 
 ### Documentation (bobby-docs)
-When told to "update docs" or "document release", load `.claude/skills/bobby-docs/SKILL.md`.
+When told to "update docs" or "document release", load `<%= paths.skills %>/bobby-docs/SKILL.md`.
 - Updates README, CLAUDE.md, CHANGELOG after shipping
 - Only changes documentation that is now stale
 
 ### Performance (bobby-performance)
-When told to "benchmark" or "check performance", load `.claude/skills/bobby-performance/SKILL.md`.
+When told to "benchmark" or "check performance", load `<%= paths.skills %>/bobby-performance/SKILL.md`.
 - Measures page load times, resource sizes, request counts
 - Compares against baseline, flags regressions
 
 ### Watchdog (bobby-watchdog)
-When told to "watchdog check" or "verify deploy", load `.claude/skills/bobby-watchdog/SKILL.md`.
+When told to "watchdog check" or "verify deploy", load `<%= paths.skills %>/bobby-watchdog/SKILL.md`.
 - Post-deploy health verification: page loads, console errors, API responses
 - Files critical bugs for any failures
 

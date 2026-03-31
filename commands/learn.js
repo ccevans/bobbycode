@@ -1,8 +1,9 @@
 // commands/learn.js
 import fs from 'fs';
 import path from 'path';
-import { findProjectRoot } from '../lib/config.js';
+import { findProjectRoot, readConfig } from '../lib/config.js';
 import { success, error } from '../lib/colors.js';
+import { getTarget } from '../lib/targets/index.js';
 
 const VALID_SKILLS = ['bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship'];
 
@@ -19,7 +20,9 @@ export function registerLearn(program) {
         }
 
         const root = findProjectRoot();
-        const learningsFile = path.join(root, '.claude', 'skills', skill, 'learnings.md');
+        const config = readConfig(root);
+        const target = getTarget(config.target || 'claude-code');
+        const learningsFile = path.join(root, target.paths().skills, skill, 'learnings.md');
         if (!fs.existsSync(learningsFile)) {
           error(`Learnings file not found: ${learningsFile}`);
           process.exit(1);

@@ -275,6 +275,7 @@ describe('eval: bobby-test skill', () => {
       commands: { test: 'npm test', lint: 'npm run lint', dev: 'npm run dev', build: 'npm run build' },
       tickets_dir: '.bobby/tickets',
       runs_dir: '.bobby/runs',
+      paths: { agents: '.claude/agents', skills: '.claude/skills', commands: '.claude/commands', rules: 'CLAUDE.md' },
     };
     renderSkillTemplates(tmpDir, config);
     skillContent = fs.readFileSync(path.join(tmpDir, 'bobby-test', 'SKILL.md'), 'utf8');
@@ -463,6 +464,7 @@ describe('eval: bobby-test skill with playwright', () => {
       tickets_dir: '.bobby/tickets',
       runs_dir: '.bobby/runs',
       testing_tools: ['playwright', 'curl'],
+      paths: { agents: '.claude/agents', skills: '.claude/skills', commands: '.claude/commands', rules: 'CLAUDE.md' },
     };
     renderSkillTemplates(tmpDir, config);
     skillContent = fs.readFileSync(path.join(tmpDir, 'bobby-test', 'SKILL.md'), 'utf8');
@@ -499,6 +501,7 @@ describe('eval: bobby-test skill without testing_tools', () => {
       commands: { test: 'npm test', lint: 'npm run lint', dev: 'npm run dev', build: 'npm run build' },
       tickets_dir: '.bobby/tickets',
       runs_dir: '.bobby/runs',
+      paths: { agents: '.claude/agents', skills: '.claude/skills', commands: '.claude/commands', rules: 'CLAUDE.md' },
     };
     renderSkillTemplates(tmpDir, config);
     skillContent = fs.readFileSync(path.join(tmpDir, 'bobby-test', 'SKILL.md'), 'utf8');

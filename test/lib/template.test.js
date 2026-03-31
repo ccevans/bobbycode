@@ -4,6 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
+const DEFAULT_PATHS = { agents: '.claude/agents', skills: '.claude/skills', commands: '.claude/commands', rules: 'CLAUDE.md' };
+
 describe('template', () => {
   let tmpDir;
 
@@ -22,6 +24,7 @@ describe('template', () => {
       commands: { test: 'npm test', lint: 'npm run lint', dev: 'npm run dev', build: 'npm run build' },
       tickets_dir: '.bobby/tickets',
       runs_dir: '.bobby/runs',
+      paths: DEFAULT_PATHS,
     };
     const result = renderTemplate('CLAUDE.md.ejs', config);
     expect(result).toContain('test-app');
@@ -38,9 +41,9 @@ describe('template', () => {
       commands: { test: 'npm test', lint: 'npm run lint' },
       tickets_dir: '.bobby/tickets',
       runs_dir: '.bobby/runs',
+      paths: DEFAULT_PATHS,
     };
     renderSkillTemplates(tmpDir, config);
-    // 9 skills: bobby-plan, bobby-build, bobby-review, bobby-test, bobby-ship, bobby-ux, bobby-pm, bobby-qe, bobby-pipeline
     expect(fs.existsSync(path.join(tmpDir, 'bobby-plan', 'SKILL.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'bobby-build', 'SKILL.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'bobby-review', 'SKILL.md'))).toBe(true);
@@ -54,7 +57,7 @@ describe('template', () => {
 
   test('copyStaticTemplate copies file to destination', () => {
     const destPath = path.join(tmpDir, 'copied-workflow.md');
-    copyStaticTemplate('commands/bobby-pipeline.md', destPath);
+    copyStaticTemplate('WORKFLOW.md.ejs', destPath);
     expect(fs.existsSync(destPath)).toBe(true);
     const content = fs.readFileSync(destPath, 'utf8');
     expect(content.length).toBeGreaterThan(0);
@@ -69,9 +72,9 @@ describe('template', () => {
       commands: { test: 'npm test', lint: 'npm run lint' },
       tickets_dir: '.bobby/tickets',
       runs_dir: '.bobby/runs',
+      paths: DEFAULT_PATHS,
     };
     renderSkillTemplates(tmpDir, config);
-    // bobby-ux should have references subdirectory with files
     expect(fs.existsSync(path.join(tmpDir, 'bobby-ux', 'references', 'brand_guidelines.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'bobby-ux', 'references', 'frontend_design.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'bobby-ux', 'references', 'ui_ux_pro_max.md'))).toBe(true);

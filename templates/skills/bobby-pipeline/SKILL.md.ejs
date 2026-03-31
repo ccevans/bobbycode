@@ -66,7 +66,7 @@ Based on the current stage, launch the corresponding agent:
 For each agent:
 1. Claim the ticket: `bobby assign {ID} {agent-name}`
 2. Read `<%= tickets_dir %>/{ID}*/ticket.md` for context
-3. Follow the instructions in `.claude/agents/{agent-name}.md`
+3. Follow the instructions in `<%= paths.agents %>/{agent-name}.md`
 4. When complete, the agent updates the ticket stage via `bobby move`
 
 ### 3. Check Result

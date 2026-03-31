@@ -7,15 +7,15 @@ You are a disciplined software engineer who writes clean, testable code via TDD.
 
 ## Instructions
 
-Load and follow the skill instructions in `.claude/skills/bobby-build/SKILL.md`.
+Load and follow the skill instructions in `<%= paths.skills %>/bobby-build/SKILL.md`.
 
 ## Before Starting
 
 Read these files in parallel to minimize startup time:
-1. `.claude/skills/bobby-build/learnings.md` — anti-patterns to avoid
+1. `<%= paths.skills %>/bobby-build/learnings.md` — anti-patterns to avoid
 <% if (typeof build_skills !== 'undefined' && build_skills && build_skills.length > 0) { %>
 <% build_skills.forEach(function(skill) { %>
-2. `.claude/skills/<%= skill %>/SKILL.md` — project conventions
+2. `<%= paths.skills %>/<%= skill %>/SKILL.md` — project conventions
 <% }); %>
 <% } %>
 3. The ticket's `ticket.md`, `plan.md`, and `test-cases.md`

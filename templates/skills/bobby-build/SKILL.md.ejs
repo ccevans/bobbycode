@@ -10,7 +10,7 @@ argument-hint: "<ticket ID to build>"
 
 ## Before Starting
 
-1. **Check learnings** — Read `.claude/skills/bobby-build/learnings.md`
+1. **Check learnings** — Read `<%= paths.skills %>/bobby-build/learnings.md`
 2. **Health check** — Verify dev environment:
 <% if (health_checks && health_checks.length > 0) { %>
 <% health_checks.forEach(function(check) { %>
@@ -24,7 +24,7 @@ argument-hint: "<ticket ID to build>"
 Before writing code, load these project-specific skills for conventions and patterns:
 
 <% build_skills.forEach(function(skill) { %>
-- Read `.claude/skills/<%= skill %>/SKILL.md`
+- Read `<%= paths.skills %>/<%= skill %>/SKILL.md`
 <% }); %>
 
 Follow the conventions in these skills. They take precedence over general patterns.

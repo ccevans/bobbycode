@@ -1,5 +1,0 @@
----
-description: "Performance benchmarking — measure and detect regressions"
----
-
-Load and follow the skill in `.claude/skills/bobby-performance/SKILL.md` to benchmark the project and identify performance regressions.

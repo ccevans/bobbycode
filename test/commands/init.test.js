@@ -216,20 +216,12 @@ describe('registerInit (interactive flow)', () => {
 
   test('fresh init with nextjs stack scaffolds project', async () => {
     let promptCall = 0;
-    promptSpy = jest.spyOn(inquirer, 'prompt').mockImplementation(async (questions) => {
+    promptSpy = jest.spyOn(inquirer, 'prompt').mockImplementation(async () => {
       promptCall++;
-      if (promptCall === 1) {
-        // project name + stack
-        return { project: 'test-proj', stack: 'nextjs' };
-      }
-      if (promptCall === 2) {
-        // dev URL
-        return { devUrl: 'http://localhost:3000' };
-      }
-      if (promptCall === 3) {
-        // bobby dir
-        return { bobbyDir: '.bobby' };
-      }
+      if (promptCall === 1) return { project: 'test-proj', stack: 'nextjs' };
+      if (promptCall === 2) return { targetName: 'claude-code' };
+      if (promptCall === 3) return { devUrl: 'http://localhost:3000' };
+      if (promptCall === 4) return { bobbyDir: '.bobby' };
       return {};
     });
 
@@ -244,7 +236,6 @@ describe('registerInit (interactive flow)', () => {
   });
 
   test('re-init with confirm=false cancels', async () => {
-    // First init to create config
     scaffoldProject(tmpDir, {
       project: 'existing', stack: 'nextjs',
       health_checks: [], areas: [],
@@ -259,12 +250,10 @@ describe('registerInit (interactive flow)', () => {
     registerInit(program);
     await program.getAction()();
 
-    // Should have logged 'Cancelled.'
     expect(logSpy).toHaveBeenCalledWith('Cancelled.');
   });
 
   test('re-init with confirm=true proceeds', async () => {
-    // First init
     scaffoldProject(tmpDir, {
       project: 'existing', stack: 'nextjs',
       health_checks: [{ name: 'app', url: 'http://localhost:3000' }],
@@ -277,8 +266,9 @@ describe('registerInit (interactive flow)', () => {
       promptCall++;
       if (promptCall === 1) return { confirm: true };
       if (promptCall === 2) return { project: 'updated-proj', stack: 'nextjs' };
-      if (promptCall === 3) return { devUrl: 'http://localhost:4000' };
-      if (promptCall === 4) return { bobbyDir: '.bobby' };
+      if (promptCall === 3) return { targetName: 'claude-code' };
+      if (promptCall === 4) return { devUrl: 'http://localhost:4000' };
+      if (promptCall === 5) return { bobbyDir: '.bobby' };
       return {};
     });
 
@@ -295,8 +285,9 @@ describe('registerInit (interactive flow)', () => {
     promptSpy = jest.spyOn(inquirer, 'prompt').mockImplementation(async () => {
       promptCall++;
       if (promptCall === 1) return { project: 'test', stack: 'nonexistent-stack' };
-      if (promptCall === 2) return { devUrl: 'http://localhost:3000' };
-      if (promptCall === 3) return { bobbyDir: '.bobby' };
+      if (promptCall === 2) return { targetName: 'claude-code' };
+      if (promptCall === 3) return { devUrl: 'http://localhost:3000' };
+      if (promptCall === 4) return { bobbyDir: '.bobby' };
       return {};
     });
 
@@ -304,12 +295,10 @@ describe('registerInit (interactive flow)', () => {
     registerInit(program);
     await program.getAction()();
 
-    // Should fall back to generic stack
     expect(fs.existsSync(path.join(tmpDir, '.bobbyrc.yml'))).toBe(true);
   });
 
   test('init detects project skills and prompts for selection', async () => {
-    // Create a project skill directory before init
     const skillDir = path.join(tmpDir, '.claude', 'skills', 'api-patterns');
     fs.mkdirSync(skillDir, { recursive: true });
     fs.writeFileSync(path.join(skillDir, 'SKILL.md'), '# API Patterns');
@@ -318,9 +307,10 @@ describe('registerInit (interactive flow)', () => {
     promptSpy = jest.spyOn(inquirer, 'prompt').mockImplementation(async () => {
       promptCall++;
       if (promptCall === 1) return { project: 'test', stack: 'nextjs' };
-      if (promptCall === 2) return { devUrl: 'http://localhost:3000' };
-      if (promptCall === 3) return { bobbyDir: '.bobby' };
-      if (promptCall === 4) return { selectedSkills: ['api-patterns'] };
+      if (promptCall === 2) return { targetName: 'claude-code' };
+      if (promptCall === 3) return { devUrl: 'http://localhost:3000' };
+      if (promptCall === 4) return { bobbyDir: '.bobby' };
+      if (promptCall === 5) return { selectedSkills: ['api-patterns'] };
       return {};
     });
 
@@ -333,7 +323,6 @@ describe('registerInit (interactive flow)', () => {
   });
 
   test('init with rails-react detects multi-repo', async () => {
-    // Create subdirs with .git to simulate multi-repo
     fs.mkdirSync(path.join(tmpDir, 'listrobin_api', '.git'), { recursive: true });
     fs.mkdirSync(path.join(tmpDir, 'listrobin-ui', '.git'), { recursive: true });
 
@@ -341,9 +330,10 @@ describe('registerInit (interactive flow)', () => {
     promptSpy = jest.spyOn(inquirer, 'prompt').mockImplementation(async () => {
       promptCall++;
       if (promptCall === 1) return { project: 'test', stack: 'rails-react' };
-      if (promptCall === 2) return { devUrl: 'http://localhost:3000' };
-      if (promptCall === 3) return { bobbyDir: '.bobby' };
-      if (promptCall === 4) return { useDetected: true };
+      if (promptCall === 2) return { targetName: 'claude-code' };
+      if (promptCall === 3) return { devUrl: 'http://localhost:3000' };
+      if (promptCall === 4) return { bobbyDir: '.bobby' };
+      if (promptCall === 5) return { useDetected: true };
       return {};
     });
 
@@ -351,7 +341,6 @@ describe('registerInit (interactive flow)', () => {
     registerInit(program);
     await program.getAction()();
 
-    const config = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
     expect(fs.existsSync(path.join(tmpDir, '.bobbyrc.yml'))).toBe(true);
   });
 
@@ -363,9 +352,10 @@ describe('registerInit (interactive flow)', () => {
     promptSpy = jest.spyOn(inquirer, 'prompt').mockImplementation(async () => {
       promptCall++;
       if (promptCall === 1) return { project: 'test', stack: 'rails-react' };
-      if (promptCall === 2) return { devUrl: 'http://localhost:3000' };
-      if (promptCall === 3) return { bobbyDir: '.bobby' };
-      if (promptCall === 4) return { useDetected: false };
+      if (promptCall === 2) return { targetName: 'claude-code' };
+      if (promptCall === 3) return { devUrl: 'http://localhost:3000' };
+      if (promptCall === 4) return { bobbyDir: '.bobby' };
+      if (promptCall === 5) return { useDetected: false };
       return {};
     });
 
@@ -382,8 +372,9 @@ describe('registerInit (interactive flow)', () => {
     promptSpy = jest.spyOn(inquirer, 'prompt').mockImplementation(async () => {
       promptCall++;
       if (promptCall === 1) return { project: 'test', stack: 'generic' };
-      if (promptCall === 2) return { devUrl: 'http://localhost:8080' };
-      if (promptCall === 3) return { bobbyDir: '.bobby' };
+      if (promptCall === 2) return { targetName: 'claude-code' };
+      if (promptCall === 3) return { devUrl: 'http://localhost:8080' };
+      if (promptCall === 4) return { bobbyDir: '.bobby' };
       return {};
     });
 
@@ -395,7 +386,6 @@ describe('registerInit (interactive flow)', () => {
   });
 
   test('init project skill detection skips bobby- prefixed skills', async () => {
-    // Pre-create bobby-build skill (should be skipped) and a custom one
     const bobbySkill = path.join(tmpDir, '.claude', 'skills', 'bobby-build');
     const customSkill = path.join(tmpDir, '.claude', 'skills', 'my-patterns');
     fs.mkdirSync(bobbySkill, { recursive: true });
@@ -407,9 +397,10 @@ describe('registerInit (interactive flow)', () => {
     promptSpy = jest.spyOn(inquirer, 'prompt').mockImplementation(async () => {
       promptCall++;
       if (promptCall === 1) return { project: 'test', stack: 'nextjs' };
-      if (promptCall === 2) return { devUrl: 'http://localhost:3000' };
-      if (promptCall === 3) return { bobbyDir: '.bobby' };
-      if (promptCall === 4) return { selectedSkills: [] }; // deselect all
+      if (promptCall === 2) return { targetName: 'claude-code' };
+      if (promptCall === 3) return { devUrl: 'http://localhost:3000' };
+      if (promptCall === 4) return { bobbyDir: '.bobby' };
+      if (promptCall === 5) return { selectedSkills: [] };
       return {};
     });
 
@@ -418,7 +409,6 @@ describe('registerInit (interactive flow)', () => {
     await program.getAction()();
 
     const config = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
-    // build_skills should not be in config since we selected none
     expect(config).not.toContain('build_skills');
   });
 

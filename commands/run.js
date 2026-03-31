@@ -6,6 +6,7 @@ import { findTicket, listTickets, getFeatureTickets, listEpics } from '../lib/ti
 import { TRANSITIONS } from '../lib/stages.js';
 import { DEFAULT_PIPELINE, buildOrchestrationPrompt, buildSingleAgentPrompt, buildShipPrompt, buildUxPrompt, buildPmPrompt, buildQePrompt, buildVetPrompt, buildStrategyPrompt, buildNextStepPrompt, buildBatchStagePrompt, buildFeaturePrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt, buildPerformancePrompt, buildWatchdogPrompt } from '../lib/pipeline.js';
 import { bold, dim, success, error } from '../lib/colors.js';
+import { getTarget } from '../lib/targets/index.js';
 
 const VALID_AGENTS = ['plan', 'build', 'review', 'test', 'ship', 'pipeline', 'feature', 'ux', 'pm', 'qe', 'vet', 'strategy', 'next', 'security', 'debug', 'docs', 'performance', 'watchdog'];
 
@@ -37,6 +38,9 @@ export function registerRun(program) {
 
         const root = findProjectRoot();
         const config = readConfig(root);
+        const target = getTarget(config.target || 'claude-code');
+        const agentsPath = target.paths().agents;
+        const hint = target.promptHint();
         const ticketsDir = path.join(root, config.tickets_dir);
         const maxRetries = parseInt(opts.maxRetries, 10) || 3;
         const maxIterations = opts.maxIterations ? parseInt(opts.maxIterations, 10) : undefined;
@@ -63,10 +67,10 @@ export function registerRun(program) {
 
         if (agent === 'ship') {
           // Ship doesn't need ticket IDs
-          const prompt = buildShipPrompt(config.tickets_dir, config.repos || []);
+          const prompt = buildShipPrompt(config.tickets_dir, config.repos || [], agentsPath);
           console.log('');
           console.log(`  ${bold('Bobby Ship')}`);
-          console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
+          console.log(`  ${dim(hint)}`);
           console.log('');
           console.log(prompt);
           return;
@@ -84,13 +88,13 @@ export function registerRun(program) {
             const ticketId = ticketIds[0];
             const found = findTicket(ticketsDir, ticketId);
             if (!found) { error(`Ticket ${ticketId} not found`); process.exit(1); }
-            prompt = buildSingleAgentPrompt(agentName, ticketId, config.tickets_dir);
+            prompt = buildSingleAgentPrompt(agentName, ticketId, config.tickets_dir, agentsPath);
           } else {
-            prompt = promptFn(config.tickets_dir);
+            prompt = promptFn(config.tickets_dir, agentsPath);
           }
           console.log('');
           console.log(`  ${bold(label)}${ticketIds.length > 0 ? ` — ${ticketIds[0]}` : ''}`);
-          console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
+          console.log(`  ${dim(hint)}`);
           console.log('');
           console.log(prompt);
           return;
@@ -107,10 +111,10 @@ export function registerRun(program) {
           if (!found) { error(`Ticket ${ticketId} not found`); process.exit(1); }
           const labels = { security: 'Bobby Security', debug: 'Bobby Debug' };
           const promptFns = { security: buildSecurityPrompt, debug: buildDebugPrompt };
-          const prompt = promptFns[agent](ticketId, config.tickets_dir);
+          const prompt = promptFns[agent](ticketId, config.tickets_dir, agentsPath);
           console.log('');
           console.log(`  ${bold(labels[agent])} — ${ticketId}`);
-          console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
+          console.log(`  ${dim(hint)}`);
           console.log('');
           console.log(prompt);
           return;
@@ -120,10 +124,10 @@ export function registerRun(program) {
         if (agent === 'docs' || agent === 'performance' || agent === 'watchdog') {
           const labels = { docs: 'Bobby Docs', performance: 'Bobby Performance', watchdog: 'Bobby Watchdog' };
           const promptFns = { docs: buildDocsPrompt, performance: buildPerformancePrompt, watchdog: buildWatchdogPrompt };
-          const prompt = promptFns[agent](config.tickets_dir);
+          const prompt = promptFns[agent](config.tickets_dir, agentsPath);
           console.log('');
           console.log(`  ${bold(labels[agent])}`);
-          console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
+          console.log(`  ${dim(hint)}`);
           console.log('');
           console.log(prompt);
           return;
@@ -153,10 +157,10 @@ export function registerRun(program) {
             if (!found) { error(`Ticket ${id} not found`); process.exit(1); }
           }
 
-          const prompt = buildOrchestrationPrompt(ids, pipeline, maxRetries, config.tickets_dir, maxIterations, config.runs_dir);
+          const prompt = buildOrchestrationPrompt(ids, pipeline, maxRetries, config.tickets_dir, maxIterations, config.runs_dir, agentsPath);
           console.log('');
           console.log(`  ${bold('Bobby Pipeline')} — ${ids.length} ticket(s)`);
-          console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
+          console.log(`  ${dim(hint)}`);
           console.log('');
           console.log(prompt);
           return;
@@ -192,7 +196,7 @@ export function registerRun(program) {
             process.exit(1);
           }
 
-          const prompt = buildFeaturePrompt(epicId, epic.data.title, children, pipeline, maxRetries, config.tickets_dir, maxIterations, config.runs_dir);
+          const prompt = buildFeaturePrompt(epicId, epic.data.title, children, pipeline, maxRetries, config.tickets_dir, maxIterations, config.runs_dir, agentsPath);
           const childIds = children.map(t => t.id);
           const needsPlanning = children.filter(t => ['backlog', 'planning'].includes(t.stage));
           const pastPlanning = children.filter(t => !['backlog', 'planning'].includes(t.stage));
@@ -203,7 +207,7 @@ export function registerRun(program) {
           } else {
             console.log(`  ${dim(`All planned → Execute ${childIds.join(' → ')}`)}`);
           }
-          console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
+          console.log(`  ${dim(hint)}`);
           console.log(`  ${dim('Launch with: isolation: "worktree" (keeps main clean)')}`);
           console.log('');
           console.log(prompt);
@@ -216,12 +220,12 @@ export function registerRun(program) {
             process.exit(1);
           }
           const ticketId = ticketIds[0];
-          const prompt = buildNextStepPrompt(ticketId, pipeline, ticketsDir, config.tickets_dir);
+          const prompt = buildNextStepPrompt(ticketId, pipeline, ticketsDir, config.tickets_dir, agentsPath);
           const found = findTicket(ticketsDir, ticketId);
           const stageLabel = found ? ` [${found.data.stage}]` : '';
           console.log('');
           console.log(`  ${bold('Bobby Next')} — ${ticketId}${stageLabel}`);
-          console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
+          console.log(`  ${dim(hint)}`);
           console.log('');
           console.log(prompt);
           return;
@@ -248,11 +252,11 @@ export function registerRun(program) {
           }
           const ids = available.map(t => t.id);
           const agentName = `bobby-${agent}`;
-          const prompt = buildBatchStagePrompt(agentName, ids, config.tickets_dir, config.parallel_isolation || 'none');
+          const prompt = buildBatchStagePrompt(agentName, ids, config.tickets_dir, config.parallel_isolation || 'none', agentsPath);
           const isolationLabel = config.parallel_isolation === 'worktree' ? ' (worktree-isolated)' : '';
           console.log('');
           console.log(`  ${bold(`Bobby ${agent}`)} — ${ids.length} ticket(s) in ${stage}${isolationLabel}`);
-          console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
+          console.log(`  ${dim(hint)}`);
           console.log('');
           console.log(prompt);
           return;
@@ -263,10 +267,10 @@ export function registerRun(program) {
         if (!found) { error(`Ticket ${ticketId} not found`); process.exit(1); }
 
         const agentName = `bobby-${agent}`;
-        const prompt = buildSingleAgentPrompt(agentName, ticketId, config.tickets_dir);
+        const prompt = buildSingleAgentPrompt(agentName, ticketId, config.tickets_dir, agentsPath);
         console.log('');
         console.log(`  ${bold(`Bobby ${agent}`)} — ${ticketId}`);
-        console.log(`  ${dim('Copy this prompt into Claude Code or run with a subagent:')}`);
+        console.log(`  ${dim(hint)}`);
         console.log('');
         console.log(prompt);
       } catch (e) {

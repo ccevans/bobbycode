@@ -23,9 +23,9 @@ When the app is down, try Service Recovery (below). If recovery fails, mark your
 
 ## Before Starting
 
-1. **Check learnings** — Read `.claude/skills/bobby-ux/learnings.md`
-2. **Load brand guide** — Read `.claude/skills/bobby-ux/references/brand_guidelines.md`
-3. **Load design principles** — Read `.claude/skills/bobby-ux/references/frontend_design.md`
+1. **Check learnings** — Read `<%= paths.skills %>/bobby-ux/learnings.md`
+2. **Load brand guide** — Read `<%= paths.skills %>/bobby-ux/references/brand_guidelines.md`
+3. **Load design principles** — Read `<%= paths.skills %>/bobby-ux/references/frontend_design.md`
 4. **Health check** — Verify dev environment:
 <% if (health_checks && health_checks.length > 0) { %>
 <% health_checks.forEach(function(check) { %>
@@ -323,7 +323,7 @@ Whenever the designer proposes or approves design changes that affect brand toke
 ### How to update:
 
 1. After filing a design ticket or completing a design review that establishes new standards:
-   - Open `.claude/skills/bobby-ux/references/brand_guidelines.md`
+   - Open `<%= paths.skills %>/bobby-ux/references/brand_guidelines.md`
    - Update the relevant token tables, usage notes, and checklists
    - Add a changelog entry with date and description of the change
 2. Keep all brand reference files consistent — they should never contradict each other on token values

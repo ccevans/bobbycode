@@ -77,7 +77,7 @@ If stage is `backlog`, move to planning: `bobby move {ID} plan`
 ### 3. Run Bobby-Plan (Feature-Aware)
 1. Claim the ticket: `bobby assign {ID} bobby-plan`
 2. Read `<%= tickets_dir %>/{ID}*/ticket.md` for context
-3. Follow the instructions in `.claude/agents/bobby-plan.md` — the bobby-plan skill will automatically detect **Feature-Aware Refine Mode** when it sees the ticket has a `parent` field. This mode reads sibling plans and the feature-plan.md for cross-ticket context.
+3. Follow the instructions in `<%= paths.agents %>/bobby-plan.md` — the bobby-plan skill will automatically detect **Feature-Aware Refine Mode** when it sees the ticket has a `parent` field. This mode reads sibling plans and the feature-plan.md for cross-ticket context.
 4. When complete, the agent moves the ticket to building via `bobby move`
 
 ### 4. Verify Planning Complete
@@ -129,7 +129,7 @@ For each agent:
 1. Claim the ticket: `bobby assign {ID} {agent-name}`
 2. Read `<%= tickets_dir %>/{ID}*/ticket.md` for context
 3. Read `<%= tickets_dir %>/{epicId}*/feature-plan.md` for cross-cutting feature context
-4. Follow the instructions in `.claude/agents/{agent-name}.md`
+4. Follow the instructions in `<%= paths.agents %>/{agent-name}.md`
 5. When complete, the agent updates the ticket stage via `bobby move`
 
 ### 3. Check Result

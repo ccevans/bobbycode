@@ -5,6 +5,7 @@ import inquirer from 'inquirer';
 import { writeConfig, readConfig, configExists } from '../lib/config.js';
 import { renderTemplate, renderSkillTemplates } from '../lib/template.js';
 import { success, warn, error, bold } from '../lib/colors.js';
+import { getTarget, TARGETS } from '../lib/targets/index.js';
 
 // Load stack configs
 import { fileURLToPath } from 'url';
@@ -25,6 +26,10 @@ export function scaffoldProject(rootDir, config) {
   if (!config.tickets_dir) config.tickets_dir = `${bobbyDir}/tickets`;
   if (!config.runs_dir) config.runs_dir = `${bobbyDir}/runs`;
 
+  // Resolve target adapter
+  const target = getTarget(config.target || 'claude-code');
+  const targetPaths = target.paths();
+
   const ticketsDir = path.join(rootDir, config.tickets_dir);
 
   // Create single tickets directory (no stage folders)
@@ -38,16 +43,20 @@ export function scaffoldProject(rootDir, config) {
   // Write config
   writeConfig(rootDir, config);
 
-  // Build template data
+  // Build template data with target paths
   const templateData = {
     ...config,
     commands: config.commands || {},
     build_skills: config.build_skills || [],
+    paths: targetPaths,
+    target: config.target || 'claude-code',
   };
 
-  // Render and write CLAUDE.md
-  const claudeMd = renderTemplate('CLAUDE.md.ejs', templateData);
-  fs.writeFileSync(path.join(rootDir, 'CLAUDE.md'), claudeMd, 'utf8');
+  // Render and write rules file (CLAUDE.md or .clinerules/rules.md)
+  const rulesContent = renderTemplate('CLAUDE.md.ejs', templateData);
+  const rulesPath = path.join(rootDir, targetPaths.rules);
+  fs.mkdirSync(path.dirname(rulesPath), { recursive: true });
+  fs.writeFileSync(rulesPath, rulesContent, 'utf8');
 
   // Render and write conductor.json for Conductor.build users
   const conductorJson = renderTemplate('conductor.json.ejs', templateData);
@@ -69,12 +78,12 @@ export function scaffoldProject(rootDir, config) {
     fs.writeFileSync(counterFile, '0', 'utf8');
   }
 
-  // Render skills
-  const skillsDir = path.join(rootDir, '.claude', 'skills');
+  // Render skills to target-specific path
+  const skillsDir = path.join(rootDir, targetPaths.skills);
   renderSkillTemplates(skillsDir, templateData);
 
-  // Scaffold agent definitions
-  const agentsDir = path.join(rootDir, '.claude', 'agents');
+  // Scaffold agent definitions to target-specific path
+  const agentsDir = path.join(rootDir, targetPaths.agents);
   fs.mkdirSync(agentsDir, { recursive: true });
 
   const agentFiles = ['bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship', 'bobby-ux', 'bobby-pm', 'bobby-qe', 'bobby-vet', 'bobby-strategy', 'bobby-security', 'bobby-debug', 'bobby-docs', 'bobby-performance', 'bobby-watchdog'];
@@ -86,15 +95,19 @@ export function scaffoldProject(rootDir, config) {
     }
   }
 
-  // Scaffold slash commands
-  const commandsDir = path.join(rootDir, '.claude', 'commands');
+  // Scaffold slash commands / workflows to target-specific path (now EJS-rendered)
+  const commandsDir = path.join(rootDir, targetPaths.commands);
   fs.mkdirSync(commandsDir, { recursive: true });
 
-  const commandFiles = fs.readdirSync(COMMAND_TEMPLATES_DIR).filter(f => f.endsWith('.md'));
+  const commandFiles = fs.readdirSync(COMMAND_TEMPLATES_DIR).filter(f => f.endsWith('.md.ejs'));
   for (const file of commandFiles) {
-    const src = path.join(COMMAND_TEMPLATES_DIR, file);
-    fs.writeFileSync(path.join(commandsDir, file), fs.readFileSync(src, 'utf8'), 'utf8');
+    const content = renderTemplate(`commands/${file}`, templateData);
+    const outName = file.replace('.ejs', '');
+    fs.writeFileSync(path.join(commandsDir, outName), content, 'utf8');
   }
+
+  // Target-specific extras (e.g., .clineignore for Cline)
+  target.scaffoldExtras(rootDir);
 }
 
 export function registerInit(program) {
@@ -139,6 +152,18 @@ export function registerInit(program) {
         ]);
 
         const stack = loadStack(answers.stack) || loadStack('generic');
+
+        // Ask for AI target
+        const { targetName } = await inquirer.prompt([{
+          type: 'list',
+          name: 'targetName',
+          message: 'AI target:',
+          choices: [
+            { name: 'Claude Code', value: 'claude-code' },
+            { name: 'Cline (VS Code)', value: 'cline' },
+          ],
+          default: existingConfig?.target || 'claude-code',
+        }]);
 
         // Ask for dev URL override
         const defaultUrl = existingConfig?.health_checks?.[0]?.url || stack.health_checks[0]?.url || 'http://localhost:3000';
@@ -192,8 +217,9 @@ export function registerInit(program) {
         }
 
         // Auto-detect project skills for the build agent
+        const targetAdapter = getTarget(targetName);
         let buildSkills = [];
-        const skillsDir = path.join(rootDir, '.claude', 'skills');
+        const skillsDir = path.join(rootDir, targetAdapter.paths().skills);
         if (fs.existsSync(skillsDir)) {
           const projectSkills = fs.readdirSync(skillsDir, { withFileTypes: true })
             .filter(d => d.isDirectory() && !d.name.startsWith('bobby-'))
@@ -214,6 +240,7 @@ export function registerInit(program) {
         const config = {
           project: answers.project,
           stack: answers.stack,
+          target: targetName,
           bobby_dir: bobbyDir,
           tickets_dir: `${bobbyDir}/tickets`,
           runs_dir: `${bobbyDir}/runs`,
@@ -229,14 +256,15 @@ export function registerInit(program) {
 
         scaffoldProject(rootDir, config);
 
+        const tp = targetAdapter.paths();
         console.log('');
         success(`Created ${config.tickets_dir}/ (single directory, frontmatter-based stages)`);
         success(`Created ${config.runs_dir}/ (pipeline run logs)`);
         success('Created .bobbyrc.yml');
-        success('Created .claude/skills/ with 17 workflow skills');
-        success('Created .claude/agents/ with 15 agent definitions');
-        success('Created .claude/commands/ with 17 slash commands');
-        success('Created CLAUDE.md with Bobby workflow instructions');
+        success(`Created ${tp.skills}/ with 17 workflow skills`);
+        success(`Created ${tp.agents}/ with 15 agent definitions`);
+        success(`Created ${tp.commands}/ with 17 slash commands`);
+        success(`Created ${tp.rules} with Bobby workflow instructions`);
         success('Created conductor.json (for Conductor.build parallel workspaces)');
         console.log('');
         console.log("  You're ready! Here's how to get started:");

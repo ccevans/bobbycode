@@ -10,7 +10,7 @@ argument-hint: "<ticket ID to review>"
 
 ## Pre-flight Checks
 
-1. **Check learnings** — Read `.claude/skills/bobby-review/learnings.md`
+1. **Check learnings** — Read `<%= paths.skills %>/bobby-review/learnings.md`
 2. **Branch check** — `git branch --show-current` must NOT be main/master
 3. **Hygiene check** — `git status --short` should show no uncommitted source files (build agent left dirty state if it does)
 4. **Load context** — Read these in parallel:
