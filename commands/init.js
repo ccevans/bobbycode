@@ -6,6 +6,7 @@ import { writeConfig, readConfig, configExists } from '../lib/config.js';
 import { renderTemplate, renderSkillTemplates } from '../lib/template.js';
 import { success, warn, error, bold } from '../lib/colors.js';
 import { getTarget, TARGETS } from '../lib/targets/index.js';
+import { detectServices, aggregateAreas, aggregateHealthChecks } from '../lib/services.js';
 
 // Load stack configs
 import { fileURLToPath } from 'url';
@@ -48,6 +49,7 @@ export function scaffoldProject(rootDir, config) {
     ...config,
     commands: config.commands || {},
     build_skills: config.build_skills || [],
+    services: config.services || {},
     paths: targetPaths,
     target: config.target || 'claude-code',
   };
@@ -139,6 +141,7 @@ export function registerInit(program) {
           { name: 'Next.js', value: 'nextjs' },
           { name: 'Rails + React', value: 'rails-react' },
           { name: 'Python / Flask', value: 'python-flask' },
+          { name: 'Polyglot / Multi-Service', value: 'polyglot' },
           { name: 'Other (configure manually)', value: 'generic' },
         ];
 
@@ -216,6 +219,87 @@ export function registerInit(program) {
           }
         }
 
+        // Service definition flow for polyglot stacks
+        let services = existingConfig?.services || undefined;
+        if (stack.services || answers.stack === 'polyglot') {
+          const detected = detectServices(rootDir);
+          if (detected.length > 0) {
+            console.log('');
+            console.log(`  ${bold('Detected services:')}`);
+            detected.forEach(s => console.log(`    ${s.name} (${s.language}) — ${s.path}`));
+            console.log('');
+
+            const { useDetected } = await inquirer.prompt([{
+              type: 'confirm',
+              name: 'useDetected',
+              message: 'Use these detected services?',
+              default: true,
+            }]);
+
+            if (useDetected) {
+              services = {};
+              for (const svc of detected) {
+                const svcAnswers = await inquirer.prompt([
+                  { type: 'input', name: 'name', message: `Service name for ${svc.path}:`, default: svc.name },
+                  { type: 'input', name: 'test', message: `  Test command:`, default: svc.commands.test },
+                  { type: 'input', name: 'lint', message: `  Lint command:`, default: svc.commands.lint },
+                  { type: 'input', name: 'build', message: `  Build command:`, default: svc.commands.build },
+                  { type: 'input', name: 'healthUrl', message: `  Health check URL (blank to skip):`, default: '' },
+                  { type: 'input', name: 'areas', message: `  Areas (comma-separated):`, default: '' },
+                ]);
+                services[svcAnswers.name] = {
+                  path: svc.path,
+                  language: svc.language,
+                  commands: {
+                    test: svcAnswers.test,
+                    lint: svcAnswers.lint,
+                    build: svcAnswers.build,
+                  },
+                  ...(svcAnswers.healthUrl ? { health_checks: [{ name: svcAnswers.name, url: svcAnswers.healthUrl }] } : {}),
+                  ...(svcAnswers.areas ? { areas: svcAnswers.areas.split(',').map(a => a.trim()).filter(Boolean) } : {}),
+                };
+              }
+            }
+          }
+
+          // Allow adding services manually
+          let addMore = detected.length === 0;
+          if (detected.length === 0) {
+            console.log('');
+            console.log(`  No services auto-detected. You can add them manually.`);
+            services = services || {};
+          }
+          if (!addMore && detected.length > 0) {
+            const { wantMore } = await inquirer.prompt([{
+              type: 'confirm', name: 'wantMore', message: 'Add more services manually?', default: false,
+            }]);
+            addMore = wantMore;
+          }
+          while (addMore) {
+            services = services || {};
+            const manual = await inquirer.prompt([
+              { type: 'input', name: 'name', message: 'Service name (blank to finish):', default: '' },
+            ]);
+            if (!manual.name) break;
+            const details = await inquirer.prompt([
+              { type: 'input', name: 'path', message: `  Path (relative to root):`, default: manual.name },
+              { type: 'list', name: 'language', message: `  Language:`, choices: ['dotnet', 'ruby', 'python', 'javascript', 'go', 'rust', 'java', 'other'] },
+              { type: 'input', name: 'test', message: `  Test command:`, default: '' },
+              { type: 'input', name: 'lint', message: `  Lint command:`, default: '' },
+              { type: 'input', name: 'build', message: `  Build command:`, default: '' },
+              { type: 'input', name: 'healthUrl', message: `  Health check URL (blank to skip):`, default: '' },
+              { type: 'input', name: 'areas', message: `  Areas (comma-separated):`, default: '' },
+            ]);
+            services[manual.name] = {
+              path: details.path,
+              language: details.language,
+              commands: { test: details.test, lint: details.lint, build: details.build },
+              ...(details.healthUrl ? { health_checks: [{ name: manual.name, url: details.healthUrl }] } : {}),
+              ...(details.areas ? { areas: details.areas.split(',').map(a => a.trim()).filter(Boolean) } : {}),
+            };
+          }
+        }
+
         // Auto-detect project skills for the build agent
         const targetAdapter = getTarget(targetName);
         let buildSkills = [];
@@ -237,7 +321,7 @@ export function registerInit(program) {
           }
         }
 
-        const config = {
+        const configBase = {
           project: answers.project,
           stack: answers.stack,
           target: targetName,
@@ -249,9 +333,17 @@ export function registerInit(program) {
           ticket_prefix: 'TKT',
           commands: stack.commands,
           repos: repos.length > 0 ? repos : undefined,
+          services: services && Object.keys(services).length > 0 ? services : undefined,
           build_skills: buildSkills.length > 0 ? buildSkills : undefined,
           testing_tools: stack.testing_tools || ['curl'],
           max_retries: 3,
+        };
+
+        // Aggregate areas and health checks from services
+        const config = {
+          ...configBase,
+          areas: aggregateAreas(configBase),
+          health_checks: aggregateHealthChecks(configBase),
         };
 
         scaffoldProject(rootDir, config);

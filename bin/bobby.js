@@ -30,6 +30,7 @@ import { registerExport } from '../commands/export.js';
 import { registerArchive } from '../commands/archive.js';
 import { registerTriage } from '../commands/triage.js';
 import { registerUpgrade } from '../commands/upgrade.js';
+import { registerAttach } from '../commands/attach.js';
 
 registerInit(program);
 registerCreate(program);
@@ -47,6 +48,7 @@ registerExport(program);
 registerArchive(program);
 registerTriage(program);
 registerUpgrade(program);
+registerAttach(program);
 
 // Show help when no subcommand given
 program.action(() => program.help());

@@ -4,6 +4,9 @@
 **Priority:** {PRIORITY}
 **Area:** <%= areas && areas.length > 0 ? areas.join(' | ') : '_unspecified_' %>
 **Stack:** <%= stack %>
+<% if (typeof services !== 'undefined' && services && Object.keys(services).length > 0) { %>
+**Services:** <%= Object.keys(services).join(' | ') %>
+<% } %>
 **Skills:** _none_
 **Created by:** {AUTHOR}
 **Assigned to:** —

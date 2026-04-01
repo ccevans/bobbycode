@@ -96,8 +96,16 @@ After the deep review, verify the minimum bar:
 
 Run these independently to verify the build agent's work in a fresh context:
 
+<% if (typeof services !== 'undefined' && services && Object.keys(services).length > 0) { %>
+Read the ticket's `services` frontmatter to determine which service(s) were touched. For each affected service, run its test and lint commands from the service directory:
+
+<% Object.entries(services).forEach(function([name, svc]) { %>
+- **<%= name %>**: `cd <%= svc.path %> && <%= svc.commands.test %>` / `cd <%= svc.path %> && <%= svc.commands.lint %>`
+<% }); %>
+<% } else { %>
 1. Tests: `<%= commands && commands.test ? commands.test : 'npm test' %>`
 2. Lint: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+<% } %>
 
 Show the output as evidence. If tests can't run (missing deps, broken environment), this is a BLOCK, not an approval.
 

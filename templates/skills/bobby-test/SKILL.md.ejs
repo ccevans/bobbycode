@@ -10,7 +10,7 @@ argument-hint: "<ticket ID to test>"
 
 ## Hard Rules
 
-- **NEVER run any spec/test runner** — no `<%= commands && commands.test ? commands.test : 'npm test' %>`, `rspec`, `jest`, `pytest`, `go test`, or any unit/integration test command. The build agent writes specs (TDD) and the review agent runs them independently. Running specs here is redundant and wastes the testing budget.
+- **NEVER run any spec/test runner** — no `<%= commands && commands.test ? commands.test : 'npm test' %>`, `rspec`, `jest`, `pytest`, `dotnet test`, `go test`, or any unit/integration test command. The build agent writes specs (TDD) and the review agent runs them independently. Running specs here is redundant and wastes the testing budget.
 - **NEVER verify behavior by reading source code** — you verify by observing the live app.
 - If a test case cannot be verified through the live app, mark it **BLOCKED** — do not fall back to running specs as a substitute.
 
@@ -23,7 +23,11 @@ argument-hint: "<ticket ID to test>"
 ## Health Check
 
 Verify the dev environment is running before testing:
-<% if (health_checks && health_checks.length > 0) { %>
+<% if (typeof services !== 'undefined' && services && Object.keys(services).length > 0) { %>
+<% Object.entries(services).forEach(function([name, svc]) { if (svc.health_checks) { svc.health_checks.forEach(function(check) { %>
+- `curl -s -o /dev/null -w "%{http_code}" <%= check.url %>` (<%= check.description || name %>)
+<% }); } }); %>
+<% } else if (health_checks && health_checks.length > 0) { %>
 <% health_checks.forEach(function(check) { %>
 - `curl -s -o /dev/null -w "%{http_code}" <%= check.url %>` (<%= check.description || check.name %>)
 <% }); %>

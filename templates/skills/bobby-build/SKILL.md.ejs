@@ -12,7 +12,11 @@ argument-hint: "<ticket ID to build>"
 
 1. **Check learnings** — Read `<%= paths.skills %>/bobby-build/learnings.md`
 2. **Health check** — Verify dev environment:
-<% if (health_checks && health_checks.length > 0) { %>
+<% if (typeof services !== 'undefined' && services && Object.keys(services).length > 0) { %>
+<% Object.entries(services).forEach(function([name, svc]) { if (svc.health_checks) { svc.health_checks.forEach(function(check) { %>
+   - `curl -s <%= check.url %>` (<%= check.description || name %>)
+<% }); } }); %>
+<% } else if (health_checks && health_checks.length > 0) { %>
 <% health_checks.forEach(function(check) { %>
    - `curl -s <%= check.url %>` (<%= check.description || check.name %>)
 <% }); %>
@@ -68,10 +72,35 @@ Before writing any code:
 - If you are unsure how an existing module works, read it rather than guessing
 </investigation_rules>
 
+<% if (typeof services !== 'undefined' && services && Object.keys(services).length > 0) { %>
+## Service-Aware Commands
+
+This is a multi-service project. Read the ticket's `services` frontmatter to determine which service(s) this ticket touches. For each service, run commands from its directory:
+
+<% Object.entries(services).forEach(function([name, svc]) { %>
+### <%= name %> (`<%= svc.path %>`)
+- Test: `cd <%= svc.path %> && <%= svc.commands.test %>`
+- Lint: `cd <%= svc.path %> && <%= svc.commands.lint %>`
+<% if (svc.commands.build) { %>- Build: `cd <%= svc.path %> && <%= svc.commands.build %>`<% } %>
+<% }); %>
+
+If the ticket's `services` field is empty, resolve from the ticket's `area` by matching against the areas each service claims (see `.bobbyrc.yml`).
+
+<% } %>
 ## Development Process (TDD)
 
 ### For Feature Tickets
 
+<% if (typeof services !== 'undefined' && services && Object.keys(services).length > 0) { %>
+1. **RED** — Write a failing test first
+   - Run the test command for the affected service(s) — see Service-Aware Commands above
+   - Confirm the test fails for the right reason
+2. **GREEN** — Write the minimum code to make the test pass
+   - Run tests again — should pass
+3. **REFACTOR** — Clean up while tests stay green
+   - Run the lint command for the affected service(s) — see Service-Aware Commands above
+4. Repeat for each acceptance criterion
+<% } else { %>
 1. **RED** — Write a failing test first
    - Run: `<%= commands && commands.test ? commands.test : 'npm test' %>`
    - Confirm the test fails for the right reason
@@ -80,6 +109,7 @@ Before writing any code:
 3. **REFACTOR** — Clean up while tests stay green
    - Run: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
 4. Repeat for each acceptance criterion
+<% } %>
 
 <example label="TDD cycle for an AC">
 **AC:** "User can filter leads by status"
@@ -114,8 +144,12 @@ Before writing any code:
 
 ## Completing Work
 
+<% if (typeof services !== 'undefined' && services && Object.keys(services).length > 0) { %>
+1. Run the test and lint commands for each affected service (see Service-Aware Commands above)
+<% } else { %>
 1. Run the full test suite: `<%= commands && commands.test ? commands.test : 'npm test' %>`
 2. Run the linter: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+<% } %>
 3. **Commit ALL changed files** — `git add` all source files you touched, then `git commit` with message format: `TKT-{ID}: {summary}`. Do NOT leave uncommitted changes behind.
 4. Add comment: `bobby comment {ID} --by bobby-build "Built: {summary}"`
 5. If you discovered anything non-obvious or a pattern future builds should avoid: `bobby learn bobby-build "pattern" "description"`

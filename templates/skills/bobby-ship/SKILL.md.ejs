@@ -81,8 +81,16 @@ This is a multi-repo project. Ship each repo separately:
 
 ### Run Tests & Lint
 
+<% if (typeof services !== 'undefined' && services && Object.keys(services).length > 0) { %>
+Run tests and lint for each service that has changes on this branch:
+
+<% Object.entries(services).forEach(function([name, svc]) { %>
+- **<%= name %>**: `cd <%= svc.path %> && <%= svc.commands.test %>` / `cd <%= svc.path %> && <%= svc.commands.lint %>`
+<% }); %>
+<% } else { %>
 1. All tests pass: `<%= commands && commands.test ? commands.test : 'npm test' %>`
 2. Lint clean: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+<% } %>
 
 ### Rebase & Create Pull Request
 

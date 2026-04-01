@@ -54,6 +54,43 @@ describe('tickets', () => {
     expect(ticket.data.blocked).toBe(false);
   });
 
+  test('createTicket supports services option', () => {
+    const result = createTicket(tmpDir, {
+      prefix: 'TKT',
+      title: 'Fix auth API',
+      type: 'bug',
+      priority: 'high',
+      author: 'dev',
+      area: 'auth',
+      services: ['auth-api', 'web-ui'],
+    });
+    const ticket = readTicket(result.path);
+    expect(ticket.data.services).toEqual(['auth-api', 'web-ui']);
+  });
+
+  test('createTicket sets services to null when empty', () => {
+    const result = createTicket(tmpDir, {
+      prefix: 'TKT',
+      title: 'No services',
+      author: 'dev',
+      area: '',
+      services: [],
+    });
+    const ticket = readTicket(result.path);
+    expect(ticket.data.services).toBeNull();
+  });
+
+  test('createTicket sets services to null when not provided', () => {
+    const result = createTicket(tmpDir, {
+      prefix: 'TKT',
+      title: 'Default',
+      author: 'dev',
+      area: '',
+    });
+    const ticket = readTicket(result.path);
+    expect(ticket.data.services).toBeNull();
+  });
+
   test('createTicket supports parent option', () => {
     const result = createTicket(tmpDir, {
       prefix: 'TKT',
