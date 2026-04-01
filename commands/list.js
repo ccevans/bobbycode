@@ -1,6 +1,6 @@
 // commands/list.js
 import path from 'path';
-import { readConfig, findProjectRoot } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
 import { STAGES, stageColor } from '../lib/stages.js';
 import { listTickets, backlogHealth } from '../lib/tickets.js';
 import { bold, dim, warn, error } from '../lib/colors.js';
@@ -132,7 +132,7 @@ export function registerList(program) {
       try {
         const root = findProjectRoot();
         const config = readConfig(root);
-        const ticketsDir = path.join(root, config.tickets_dir);
+        const ticketsDir = resolveTicketsDir(root, config);
 
         const filterStages = opts.active ? ACTIVE_STAGES : (stages || []);
 

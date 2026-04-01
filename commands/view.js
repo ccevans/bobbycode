@@ -1,7 +1,7 @@
 // commands/view.js
 import fs from 'fs';
 import path from 'path';
-import { readConfig, findProjectRoot } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
 import { findTicket } from '../lib/tickets.js';
 import { stageColor } from '../lib/stages.js';
 import { bold, dim, error } from '../lib/colors.js';
@@ -16,7 +16,7 @@ export function registerView(program) {
       try {
         const root = findProjectRoot();
         const config = readConfig(root);
-        const ticketsDir = path.join(root, config.tickets_dir);
+        const ticketsDir = resolveTicketsDir(root, config);
         const found = findTicket(ticketsDir, id);
         if (!found) { error(`Ticket ${id} not found`); process.exit(1); }
 

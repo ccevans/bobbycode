@@ -1,6 +1,6 @@
 // commands/move.js
 import path from 'path';
-import { readConfig, findProjectRoot } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
 import { moveTicket, findTicket } from '../lib/tickets.js';
 import { resolveTransition, stageColor } from '../lib/stages.js';
 import { success, bold, error } from '../lib/colors.js';
@@ -15,7 +15,7 @@ export function registerMove(program) {
       try {
         const root = findProjectRoot();
         const config = readConfig(root);
-        const ticketsDir = path.join(root, config.tickets_dir);
+        const ticketsDir = resolveTicketsDir(root, config);
 
         // Handle special aliases
         if (alias === 'reject') {

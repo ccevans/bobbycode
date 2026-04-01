@@ -1,6 +1,6 @@
 // commands/create.js
 import path from 'path';
-import { readConfig, findProjectRoot } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
 import { createTicket, listTickets } from '../lib/tickets.js';
 import { success, warn, error } from '../lib/colors.js';
 
@@ -15,11 +15,12 @@ export function registerCreate(program) {
     .option('--area <area>', 'Feature area')
     .option('--epic', 'Create as an epic (bobby-plan will break it down)')
     .option('--parent <id>', 'Parent epic ticket ID')
+    .option('--services <names>', 'Comma-separated service names this ticket touches')
     .action((opts) => {
       try {
         const root = findProjectRoot();
         const config = readConfig(root);
-        const ticketsDir = path.join(root, config.tickets_dir);
+        const ticketsDir = resolveTicketsDir(root, config);
         const result = createTicket(ticketsDir, {
           prefix: config.ticket_prefix,
           title: opts.title.trim(),
@@ -28,6 +29,7 @@ export function registerCreate(program) {
           author: opts.author,
           area: opts.area || '',
           parent: opts.parent || null,
+          services: opts.services ? opts.services.split(',').map(s => s.trim()) : null,
         });
         success(`Created ${result.id} — ${opts.title}`);
         console.log(`  → ${config.tickets_dir}/${result.dirname}/`);

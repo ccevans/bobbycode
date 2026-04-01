@@ -1,7 +1,7 @@
 // commands/archive.js
 import path from 'path';
 import inquirer from 'inquirer';
-import { readConfig, findProjectRoot } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
 import { listTickets, updateTicket, addComment, daysBetween } from '../lib/tickets.js';
 import { success, warn, dim, bold, error } from '../lib/colors.js';
 
@@ -16,7 +16,7 @@ export function registerArchive(program) {
       try {
         const root = findProjectRoot();
         const config = readConfig(root);
-        const ticketsDir = path.join(root, config.tickets_dir);
+        const ticketsDir = resolveTicketsDir(root, config);
 
         let targets;
 

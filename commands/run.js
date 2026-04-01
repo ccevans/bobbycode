@@ -1,7 +1,7 @@
 // commands/run.js
 import path from 'path';
 import inquirer from 'inquirer';
-import { readConfig, findProjectRoot } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
 import { findTicket, listTickets, getFeatureTickets, listEpics } from '../lib/tickets.js';
 import { TRANSITIONS } from '../lib/stages.js';
 import { DEFAULT_PIPELINE, buildOrchestrationPrompt, buildSingleAgentPrompt, buildShipPrompt, buildUxPrompt, buildPmPrompt, buildQePrompt, buildVetPrompt, buildStrategyPrompt, buildNextStepPrompt, buildBatchStagePrompt, buildFeaturePrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt, buildPerformancePrompt, buildWatchdogPrompt } from '../lib/pipeline.js';
@@ -41,9 +41,10 @@ export function registerRun(program) {
         const target = getTarget(config.target || 'claude-code');
         const agentsPath = target.paths().agents;
         const hint = target.promptHint();
-        const ticketsDir = path.join(root, config.tickets_dir);
+        const ticketsDir = resolveTicketsDir(root, config);
         const maxRetries = parseInt(opts.maxRetries, 10) || 3;
         const maxIterations = opts.maxIterations ? parseInt(opts.maxIterations, 10) : undefined;
+        const hasServices = !!(config.services && Object.keys(config.services).length > 0);
 
         // Load pipeline config — support named pipelines from .bobbyrc.yml
         const pipelineName = opts.pipeline || 'default';
@@ -88,7 +89,7 @@ export function registerRun(program) {
             const ticketId = ticketIds[0];
             const found = findTicket(ticketsDir, ticketId);
             if (!found) { error(`Ticket ${ticketId} not found`); process.exit(1); }
-            prompt = buildSingleAgentPrompt(agentName, ticketId, config.tickets_dir, agentsPath);
+            prompt = buildSingleAgentPrompt(agentName, ticketId, config.tickets_dir, agentsPath, hasServices);
           } else {
             prompt = promptFn(config.tickets_dir, agentsPath);
           }
@@ -157,7 +158,7 @@ export function registerRun(program) {
             if (!found) { error(`Ticket ${id} not found`); process.exit(1); }
           }
 
-          const prompt = buildOrchestrationPrompt(ids, pipeline, maxRetries, config.tickets_dir, maxIterations, config.runs_dir, agentsPath);
+          const prompt = buildOrchestrationPrompt(ids, pipeline, maxRetries, config.tickets_dir, maxIterations, config.runs_dir, agentsPath, hasServices);
           console.log('');
           console.log(`  ${bold('Bobby Pipeline')} — ${ids.length} ticket(s)`);
           console.log(`  ${dim(hint)}`);
@@ -267,7 +268,7 @@ export function registerRun(program) {
         if (!found) { error(`Ticket ${ticketId} not found`); process.exit(1); }
 
         const agentName = `bobby-${agent}`;
-        const prompt = buildSingleAgentPrompt(agentName, ticketId, config.tickets_dir, agentsPath);
+        const prompt = buildSingleAgentPrompt(agentName, ticketId, config.tickets_dir, agentsPath, hasServices);
         console.log('');
         console.log(`  ${bold(`Bobby ${agent}`)} — ${ticketId}`);
         console.log(`  ${dim(hint)}`);

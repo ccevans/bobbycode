@@ -1,7 +1,7 @@
 // commands/retro.js
 import fs from 'fs';
 import path from 'path';
-import { readConfig, findProjectRoot } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
 import { findTicket, listTickets, slugify } from '../lib/tickets.js';
 import { success, error, bold, dim } from '../lib/colors.js';
 
@@ -62,7 +62,7 @@ function parseRunLogs(runsDir, sinceDays = 7) {
  * Generate a weekly retrospective report
  */
 function generateWeeklyRetro(config, root) {
-  const ticketsDir = path.join(root, config.tickets_dir);
+  const ticketsDir = resolveTicketsDir(root, config);
   const runsDir = path.join(root, config.runs_dir);
   const retroDir = path.join(ticketsDir, 'retrospectives');
   fs.mkdirSync(retroDir, { recursive: true });
@@ -220,7 +220,7 @@ export function registerRetro(program) {
       try {
         const root = findProjectRoot();
         const config = readConfig(root);
-        const ticketsDir = path.join(root, config.tickets_dir);
+        const ticketsDir = resolveTicketsDir(root, config);
 
         // Weekly retro mode
         if (opts.weekly) {

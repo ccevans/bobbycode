@@ -1,5 +1,6 @@
 // test/lib/config.test.js
-import { readConfig, writeConfig, findProjectRoot, configExists } from '../../lib/config.js';
+import { readConfig, writeConfig, findProjectRoot, configExists, findMainWorktreeRoot, resolveTicketsDir } from '../../lib/config.js';
+import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -117,5 +118,70 @@ describe('config', () => {
     const config = readConfig(tmpDir);
     expect(config.tickets_dir).toBe('my/tickets');
     expect(config.runs_dir).toBe('my/runs');
+  });
+});
+
+describe('worktree resolution', () => {
+  let mainDir;
+  let worktreeDir;
+
+  beforeEach(() => {
+    mainDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-main-'));
+    worktreeDir = path.join(os.tmpdir(), `bobby-wt-${Date.now()}`);
+    // Set up a real git repo and worktree
+    execSync('git init', { cwd: mainDir, stdio: 'pipe' });
+    execSync('git commit --allow-empty -m "init"', { cwd: mainDir, stdio: 'pipe' });
+    execSync(`git worktree add "${worktreeDir}" -b test-wt`, { cwd: mainDir, stdio: 'pipe' });
+  });
+
+  afterEach(() => {
+    execSync(`git worktree remove "${worktreeDir}" --force`, { cwd: mainDir, stdio: 'pipe' });
+    fs.rmSync(mainDir, { recursive: true });
+  });
+
+  test('findMainWorktreeRoot returns null when not in a worktree', () => {
+    const origCwd = process.cwd();
+    process.chdir(mainDir);
+    try {
+      expect(findMainWorktreeRoot()).toBeNull();
+    } finally {
+      process.chdir(origCwd);
+    }
+  });
+
+  test('findMainWorktreeRoot returns main root when in a worktree', () => {
+    const origCwd = process.cwd();
+    process.chdir(worktreeDir);
+    try {
+      const result = findMainWorktreeRoot();
+      expect(fs.realpathSync(result)).toBe(fs.realpathSync(mainDir));
+    } finally {
+      process.chdir(origCwd);
+    }
+  });
+
+  test('resolveTicketsDir returns local path when not in a worktree', () => {
+    const origCwd = process.cwd();
+    process.chdir(mainDir);
+    try {
+      const config = { tickets_dir: '.bobby/tickets' };
+      const result = resolveTicketsDir(mainDir, config);
+      expect(result).toBe(path.join(mainDir, '.bobby/tickets'));
+    } finally {
+      process.chdir(origCwd);
+    }
+  });
+
+  test('resolveTicketsDir returns main worktree path when in a worktree', () => {
+    const origCwd = process.cwd();
+    process.chdir(worktreeDir);
+    try {
+      const config = { tickets_dir: '.bobby/tickets' };
+      const result = resolveTicketsDir(worktreeDir, config);
+      expect(fs.realpathSync(path.dirname(path.dirname(result)))).toBe(fs.realpathSync(mainDir));
+      expect(result).toContain('.bobby/tickets');
+    } finally {
+      process.chdir(origCwd);
+    }
   });
 });
