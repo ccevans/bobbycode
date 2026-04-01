@@ -27,6 +27,17 @@ describe('pipeline', () => {
     expect(prompt).toContain('bobby move');
   });
 
+  test('buildSingleAgentPrompt includes service hint when hasServices is true', () => {
+    const prompt = buildSingleAgentPrompt('bobby-build', 'TKT-001', '.bobby/tickets', '.claude/agents', true);
+    expect(prompt).toContain('services');
+    expect(prompt).toContain('.bobbyrc.yml');
+  });
+
+  test('buildSingleAgentPrompt has no service hint when hasServices is false', () => {
+    const prompt = buildSingleAgentPrompt('bobby-build', 'TKT-001', '.bobby/tickets', '.claude/agents', false);
+    expect(prompt).not.toContain('.bobbyrc.yml');
+  });
+
   test('buildNextStepPrompt returns plan prompt for planning stage', () => {
     createTicket(tmpDir, { prefix: 'TKT', title: 'Test', author: 'dev', area: '' });
     moveTicket(tmpDir, 'TKT-001', 'planning', 'dev');
@@ -189,6 +200,51 @@ describe('pipeline', () => {
     test('uses custom ticketsDir', () => {
       const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE, 3, 'custom/tickets');
       expect(prompt).toContain('custom/tickets');
+    });
+
+    test('includes service hint when hasServices is true', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE, 3, '.bobby/tickets', 20, '.bobby/runs', '.claude/agents', true);
+      expect(prompt).toContain('services');
+      expect(prompt).toContain('.bobbyrc.yml');
+    });
+
+    test('has no service hint when hasServices is false', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE, 3, '.bobby/tickets', 20, '.bobby/runs', '.claude/agents', false);
+      expect(prompt).not.toContain('.bobbyrc.yml');
+    });
+
+    test('instructs subagent-per-stage, not inline execution', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      expect(prompt).toContain('Launch a subagent');
+      expect(prompt).toContain('Agent tool');
+      expect(prompt).toContain('coordination, not execution');
+      // Should NOT say "Follow the instructions" (inline pattern)
+      expect(prompt).not.toMatch(/^\s*c\) Follow the instructions in/m);
+    });
+
+    test('includes bobby create guardrail', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      expect(prompt).toContain('bobby create');
+      expect(prompt).toContain('Never write ticket files manually');
+    });
+
+    test('includes no-todo-tracking guardrail', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      expect(prompt).toContain('sole progress tracker');
+      expect(prompt).not.toContain('TodoWrite');
+    });
+
+    test('includes no-error-suppression guardrail', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      expect(prompt).toContain('Never suppress errors');
+      expect(prompt).toContain('2>/dev/null');
+    });
+
+    test('includes health check pre-gate for test stage', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      expect(prompt).toContain('Pre-gate');
+      expect(prompt).toContain('health check');
+      expect(prompt).toContain('live app, not run specs');
     });
   });
 

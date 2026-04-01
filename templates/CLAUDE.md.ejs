@@ -30,6 +30,25 @@ Before starting work, verify the dev environment is running:
 
 <%= areas && areas.length > 0 ? areas.join(' | ') : '_No areas configured_' %>
 
+<% if (typeof services !== 'undefined' && services && Object.keys(services).length > 0) { %>
+## Services
+
+This is a multi-service project. Each ticket specifies which service(s) it touches via the `services` frontmatter field. Run commands from within each service's directory.
+
+| Service | Path | Language | Test | Lint | Build |
+|---------|------|----------|------|------|-------|
+<% Object.entries(services).forEach(function([name, svc]) { %>
+| <%= name %> | `<%= svc.path %>` | <%= svc.language %> | `cd <%= svc.path %> && <%= svc.commands.test %>` | `cd <%= svc.path %> && <%= svc.commands.lint %>` | `cd <%= svc.path %> && <%= svc.commands.build %>` |
+<% }); %>
+
+**When working a ticket:** Read the ticket's `services` field (or resolve from `area` — see `.bobbyrc.yml` for area-to-service mapping). Only run test/lint/build for the affected service(s), from within each service's directory.
+
+<% if (commands) { %>
+### Global Commands (orchestration)
+
+- **Dev:** `<%= commands.dev || 'docker compose up -d' %>`
+<% } %>
+<% } else { %>
 ## Commands
 
 <% if (commands) { %>
@@ -37,6 +56,7 @@ Before starting work, verify the dev environment is running:
 - **Test:** `<%= commands.test || 'npm test' %>`
 - **Lint:** `<%= commands.lint || 'npm run lint' %>`
 - **Build:** `<%= commands.build || 'npm run build' %>`
+<% } %>
 <% } %>
 
 ## Workflow
@@ -85,6 +105,9 @@ All agents must follow these rules. Violations are treated as critical failures.
 - Commit all changed files before marking work complete. A clean `git status` is required after every stage.
 - Provide evidence for claims: test output, screenshots, API responses. Assertions without evidence are not accepted.
 - Implement exactly what the plan specifies. Prefer minimal solutions over overengineered ones.
+- **Always use `bobby create` to make tickets.** Never write ticket files or the `.counter` file manually — the CLI handles frontmatter structure, slug generation, counter atomicity, and starter `test-cases.md`.
+- **Never suppress errors** in bobby commands (no `2>/dev/null`, no `|| true`). If a command fails, investigate the cause.
+- **The ticket stage is the sole progress tracker.** Do not create separate task/todo lists to track pipeline progress — read `ticket.md` frontmatter to know what stage a ticket is in.
 
 ## Pipeline
 
@@ -124,7 +147,7 @@ When told to "review", load `<%= paths.skills %>/bobby-review/SKILL.md`.
 
 ### Tester (bobby-test)
 When told to "test", load `<%= paths.skills %>/bobby-test/SKILL.md`.
-- Runs test suite, verifies acceptance criteria
+- Tests through the **live running app** (browser, API calls) — never runs specs (build/review already did that)
 
 ### Shipper (bobby-ship)
 When told to "ship", load `<%= paths.skills %>/bobby-ship/SKILL.md`.
