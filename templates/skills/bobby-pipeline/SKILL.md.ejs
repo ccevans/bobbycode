@@ -66,7 +66,7 @@ Based on the current stage, launch the corresponding agent:
 For each agent:
 1. Claim the ticket: `bobby assign {ID} {agent-name}`
 2. Read `<%= tickets_dir %>/{ID}*/ticket.md` for context
-3. Follow the instructions in `<%= paths.agents %>/{agent-name}.md`
+3. CRITICAL: Read and follow `<%= paths.agents %>/{agent-name}.md` end-to-end — this file IS the agent's workflow. Do not improvise.
 4. When complete, the agent updates the ticket stage via `bobby move`
 
 ### 3. Check Result
@@ -120,6 +120,7 @@ Long pipeline runs may approach the context window limit. To handle this:
 
 ## Key Principles
 
+- **Use agent files, not inline prompts** — always tell subagents to read their `.md` agent file. Never write custom inline instructions that bypass standardized agent behavior.
 - **One ticket at a time** — process sequentially, don't parallelize pipeline stages
 - **Trust agent decisions** — if an agent rejects, don't override it
 - **Clean workspace** — verify `git status` after each agent
