@@ -1,0 +1,271 @@
+---
+name: local-dev
+description: "Local Dev Skill: Sets up and manages local development environments by profile name. MANDATORY TRIGGERS: setup, local dev, start the app, set up my local env, dev environment, docker compose issues, port conflicts, container problems, dev server won't start, fresh setup, environment variables, migration errors, npm install problems, health checks, daily startup, rebuild docker, check if everything is running."
+argument-hint: "<profile> [fresh|daily|reset|check]"
+---
+
+# Bobby Local Skill
+
+> Sets up the local development environment for a named profile. Run `/bobby-local <profile>` to stand up all repos and services for that project.
+
+## Before Starting
+
+1. **Check learnings** — Read `<%= paths.skills %>/bobby-local/learnings.md`
+2. **Parse the argument** — Extract the profile name and optional action:
+   - `/bobby-local robinflow` → profile `robinflow`, action `fresh` (default for first run) or `daily` (if already set up)
+   - `/bobby-local robinflow reset` → profile `robinflow`, action `reset`
+   - `/bobby-local robinflow check` → profile `robinflow`, action `check`
+   - `/bobby-local` with no argument → list available profiles
+
+## Safety Rules
+
+<safety_rules>
+- Never delete `.env` files or credentials — they contain secrets that cannot be regenerated.
+- Never run `docker compose down -v` without explicit user confirmation — it destroys database volumes.
+- Never run `rails db:reset` or `rails db:drop` — these destroy billing plans and tenant data. Use `rails db:prepare` for safe setup.
+- Do not modify CI configs, production env vars, or deploy scripts.
+- Do not install global packages or modify system-level configuration.
+</safety_rules>
+
+<%
+// Helper: find repo config by name hint
+var _repos = typeof repos !== 'undefined' && repos ? repos : [];
+function findRepo(repoList, hint) {
+  if (!repoList || !repoList.length) return null;
+  return repoList.find(function(r) {
+    var name = r.name || r.path || r;
+    return name === hint || name.includes(hint);
+  });
+}
+var apiRepo = findRepo(_repos, 'api');
+var uiRepo = findRepo(_repos, 'ui');
+var apiPath = apiRepo ? (apiRepo.path || apiRepo.name || apiRepo) : '';
+var uiPath = uiRepo ? (uiRepo.path || uiRepo.name || uiRepo) : '';
+%>
+<% if (typeof local !== 'undefined' && local && Object.keys(local).length > 0) { %>
+## Available Profiles
+
+| Profile | API Port | UI Port | Compose Project |
+|---------|----------|---------|-----------------|
+<% Object.entries(local).forEach(function([name, p]) { %>
+| `<%= name %>` | <%= p.ports && p.ports.api ? p.ports.api : '—' %> | <%= p.ports && p.ports.ui ? p.ports.ui : '—' %> | `<%= p.compose_project || '—' %>` |
+<% }); %>
+
+<% Object.entries(local).forEach(function([profileName, profile]) { %>
+---
+
+### Profile: `<%= profileName %>`
+
+<% if (profile.description) { %>
+> <%= profile.description %>
+<% } %>
+
+<% var apiPort = profile.ports && profile.ports.api ? profile.ports.api : 3000; %>
+<% var uiPort = profile.ports && profile.ports.ui ? profile.ports.ui : 3001; %>
+<% var pgPort = profile.ports && profile.ports.postgres ? profile.ports.postgres : 5432; %>
+<% var redisPort = profile.ports && profile.ports.redis ? profile.ports.redis : 6379; %>
+<% var composePrefix = profile.compose_project ? 'COMPOSE_PROJECT_NAME=' + profile.compose_project + ' ' : ''; %>
+<% var subdomain = profile.subdomain || profileName; %>
+
+**Ports:** API `<%= apiPort %>` · UI `<%= uiPort %>`<% if (profile.ports && profile.ports.postgres) { %> · Postgres `<%= pgPort %>`<% } %><% if (profile.ports && profile.ports.redis) { %> · Redis `<%= redisPort %>`<% } %>
+
+#### Health Checks
+<% if (profile.health_checks && profile.health_checks.length > 0) { %>
+<% profile.health_checks.forEach(function(check) { %>
+- `curl -s <%= check.url %>` (<%= check.description || check.name %>)
+<% }); %>
+<% } else { %>
+- `curl -s http://localhost:<%= apiPort %>/health` (API)
+- `curl -s http://localhost:<%= uiPort %>` (UI)
+<% } %>
+
+<% if (profile.steps) { %>
+<%   /* ── Custom steps override ── */ %>
+#### Setup (`fresh`)
+<% if (profile.steps.fresh) { profile.steps.fresh.forEach(function(step, i) { %>
+<%= i + 1 %>. **<%= step.name %>** — `<%= step.command %>`<% if (step.cwd) { %> (from `<%= step.cwd %>`)<% } %>
+<% }); } %>
+
+#### Daily Startup (`daily`)
+<% if (profile.steps.daily) { profile.steps.daily.forEach(function(step, i) { %>
+<%= i + 1 %>. **<%= step.name %>** — `<%= step.command %>`<% if (step.cwd) { %> (from `<%= step.cwd %>`)<% } %>
+<% }); } %>
+
+#### Full Reset (`reset`)
+> **DESTRUCTIVE** — Always confirm with the user before proceeding.
+<% if (profile.steps.reset) { profile.steps.reset.forEach(function(step, i) { %>
+<%= i + 1 %>. **<%= step.name %>** — `<%= step.command %>`<% if (step.cwd) { %> (from `<%= step.cwd %>`)<% } %>
+<% }); } %>
+
+<% } else if (stack === 'rails-react') { %>
+<%   /* ── Auto-generated: Rails + React ── */ %>
+#### Setup (`fresh`)
+1. **Start backend** — `cd <%= apiPath %> && <%= composePrefix %>docker compose up --build -d`
+2. **Prepare database** — `cd <%= apiPath %> && <%= composePrefix %>docker compose run web rails db:prepare`
+3. **Install frontend** — `cd <%= uiPath %> && npm install`
+4. **Start frontend** — `cd <%= uiPath %> && NEXT_PUBLIC_SUBDOMAIN=<%= subdomain %> NEXT_PUBLIC_API_URL=http://localhost:<%= apiPort %> npm run dev -- -p <%= uiPort %>`
+
+#### Daily Startup (`daily`)
+1. **Start backend** — `cd <%= apiPath %> && <%= composePrefix %>docker compose up -d`
+2. **Run migrations** — `cd <%= apiPath %> && <%= composePrefix %>docker compose run web rails db:migrate`
+3. **Start frontend** — `cd <%= uiPath %> && NEXT_PUBLIC_SUBDOMAIN=<%= subdomain %> NEXT_PUBLIC_API_URL=http://localhost:<%= apiPort %> npm run dev -- -p <%= uiPort %>`
+
+#### Full Reset (`reset`)
+> **DESTRUCTIVE** — Always confirm with the user before proceeding.
+
+1. **Stop backend & remove volumes** — `cd <%= apiPath %> && <%= composePrefix %>docker compose down -v` (**confirm first!**)
+2. **Rebuild backend** — `cd <%= apiPath %> && <%= composePrefix %>docker compose build --no-cache`
+3. **Start backend** — `cd <%= apiPath %> && <%= composePrefix %>docker compose up --build -d`
+4. **Prepare database** — `cd <%= apiPath %> && <%= composePrefix %>docker compose run web rails db:prepare`
+5. **Clean frontend** — `cd <%= uiPath %> && rm -rf node_modules .next`
+6. **Reinstall frontend** — `cd <%= uiPath %> && npm install`
+7. **Start frontend** — `cd <%= uiPath %> && NEXT_PUBLIC_SUBDOMAIN=<%= subdomain %> NEXT_PUBLIC_API_URL=http://localhost:<%= apiPort %> npm run dev -- -p <%= uiPort %>`
+
+<% } else if (stack === 'nextjs') { %>
+<%   /* ── Auto-generated: Next.js only ── */ %>
+#### Setup (`fresh`)
+1. **Install dependencies** — `npm install`
+2. **Start dev server** — `npm run dev -- -p <%= uiPort %>`
+
+#### Daily Startup (`daily`)
+1. **Start dev server** — `npm run dev -- -p <%= uiPort %>`
+
+#### Full Reset (`reset`)
+> **DESTRUCTIVE** — Always confirm with the user before proceeding.
+
+1. **Clean** — `rm -rf node_modules .next`
+2. **Reinstall** — `npm install`
+3. **Start** — `npm run dev -- -p <%= uiPort %>`
+
+<% } else if (stack === 'python-flask') { %>
+<%   /* ── Auto-generated: Python / Flask ── */ %>
+#### Setup (`fresh`)
+1. **Create virtualenv** — `python -m venv venv && source venv/bin/activate`
+2. **Install dependencies** — `pip install -r requirements.txt`
+3. **Run migrations** — `flask db upgrade` (if applicable)
+4. **Start dev server** — `flask run --port <%= apiPort %>`
+
+#### Daily Startup (`daily`)
+1. **Activate env** — `source venv/bin/activate`
+2. **Start** — `flask run --port <%= apiPort %>`
+
+#### Full Reset (`reset`)
+> **DESTRUCTIVE** — Always confirm with the user before proceeding.
+
+1. **Remove venv** — `rm -rf venv`
+2. **Recreate** — `python -m venv venv && source venv/bin/activate && pip install -r requirements.txt`
+3. **Start** — `flask run --port <%= apiPort %>`
+
+<% } else { %>
+<%   /* ── Auto-generated: Generic / unknown stack ── */ %>
+#### Setup (`fresh`)
+1. Install dependencies: `<%= commands && commands.install ? commands.install : 'npm install' %>`
+2. Start dev server: `<%= commands && commands.dev ? commands.dev : 'npm run dev' %>`
+
+#### Daily Startup (`daily`)
+1. Start: `<%= commands && commands.dev ? commands.dev : 'npm run dev' %>`
+
+#### Full Reset (`reset`)
+> **DESTRUCTIVE** — Always confirm with the user before proceeding.
+
+1. Remove build artifacts and reinstall dependencies
+2. Start fresh
+
+<% } %>
+<% }); %>
+<% } else { %>
+## No Profiles Configured
+
+Add a `local` block to `.bobbyrc.yml` to define named profiles:
+
+```yaml
+local:
+  myproject:
+    subdomain: myproject
+    compose_project: myproject_dev
+    ports: { api: 3000, ui: 3001 }
+```
+
+That's it — commands are auto-generated from your `stack` and `repos` config. Add `steps` to override:
+
+```yaml
+local:
+  myproject:
+    ports: { api: 3000, ui: 3001 }
+    steps:
+      fresh:
+        - name: Start backend
+          command: docker compose up --build
+          cwd: backend-api
+        - name: Start frontend
+          command: npm run dev
+          cwd: frontend-ui
+```
+
+<% if (typeof services !== 'undefined' && services && Object.keys(services).length > 0) { %>
+### Falling Back to Services Config
+
+<% Object.entries(services).forEach(function([name, svc]) { %>
+#### <%= name %> (`<%= svc.path %>`)
+<% if (svc.commands && svc.commands.dev) { %>- Start: `cd <%= svc.path %> && <%= svc.commands.dev %>`<% } %>
+<% if (svc.commands && svc.commands.test) { %>- Test: `cd <%= svc.path %> && <%= svc.commands.test %>`<% } %>
+<% }); %>
+<% } else { %>
+### Falling Back to Default Commands
+
+```bash
+<%= commands && commands.dev ? commands.dev : 'npm run dev' %>
+```
+<% } %>
+<% } %>
+
+## Running the Setup
+
+### Action: `check` (default when environment exists)
+
+1. Run every health check for the profile
+2. Report which services are up/down
+3. Check for pending database migrations
+4. Verify required env files exist
+
+### Action: `fresh` (default for first run)
+
+1. Verify prerequisites are installed
+2. Check env files exist (prompt user to create from templates if missing)
+3. Execute each step in order
+4. Run all health checks to verify
+5. Report final status
+
+### Action: `daily`
+
+1. Execute each step in order
+2. Check for pending migrations: `git log --oneline origin/main..HEAD -- db/migrate`
+3. Run health checks
+4. Report status
+
+### Action: `reset`
+
+1. **Confirm with user** — list what will be destroyed
+2. Execute reset steps
+3. Run fresh steps to rebuild
+4. Run health checks to verify
+
+## Troubleshooting
+
+If a health check fails:
+
+1. **Check if the process is running** — `docker compose ps` or check process list
+2. **Check logs** — Look for errors in service logs
+3. **Check ports** — Ensure no port conflicts: `lsof -i :<port>`
+4. **Check env vars** — Verify required environment files exist and have required values
+5. **Check dependencies** — Ensure all packages are installed and up to date
+
+If you discover a recurring issue or fix, save it:
+`bobby learn bobby-local "pattern" "description"`
+
+## Completing
+
+After any action:
+1. Run all health checks and report results
+2. If something failed, diagnose and fix it or report the issue to the user
+3. Log any new learnings discovered during setup
