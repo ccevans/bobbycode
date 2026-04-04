@@ -4,12 +4,11 @@ import inquirer from 'inquirer';
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir } from '../lib/config.js';
 import { findTicket, listTickets, getFeatureTickets, listEpics } from '../lib/tickets.js';
 import { TRANSITIONS } from '../lib/stages.js';
-import { DEFAULT_PIPELINE, buildOrchestrationPrompt, buildSingleAgentPrompt, buildShipPrompt, buildUxPrompt, buildPmPrompt, buildQePrompt, buildVetPrompt, buildStrategyPrompt, buildNextStepPrompt, buildBatchStagePrompt, buildFeaturePrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt, buildPerformancePrompt, buildWatchdogPrompt } from '../lib/pipeline.js';
+import { DEFAULT_PIPELINE, buildOrchestrationPrompt, buildSingleAgentPrompt, buildNextStepPrompt, buildBatchStagePrompt, buildFeaturePrompt, buildShipPrompt, buildGenericPrompt } from '../lib/pipeline.js';
+import { AGENT_REGISTRY, VALID_AGENTS } from '../lib/agent-registry.js';
 import { bold, dim, success, error } from '../lib/colors.js';
 import { getTarget } from '../lib/targets/index.js';
 import { initSession } from '../lib/session.js';
-
-const VALID_AGENTS = ['plan', 'build', 'review', 'test', 'ship', 'pipeline', 'feature', 'ux', 'pm', 'qe', 'vet', 'strategy', 'next', 'security', 'debug', 'docs', 'performance', 'watchdog'];
 
 /**
  * Prepend the session env var export to a prompt so all bobby commands log to this session.
@@ -78,68 +77,12 @@ export function registerRun(program) {
           pipeline = DEFAULT_PIPELINE;
         }
 
+        const reg = AGENT_REGISTRY[agent];
+
         if (agent === 'ship') {
-          // Ship doesn't need ticket IDs
           const prompt = buildShipPrompt(config.tickets_dir, config.repos || [], agentsPath);
           console.log('');
           console.log(`  ${bold('Bobby Ship')}  ${dim(`Session: ${sessionId}`)}`);
-          console.log(`  ${dim(hint)}`);
-          console.log('');
-          console.log(withSession(prompt, sessionId));
-          return;
-        }
-
-        if (agent === 'ux' || agent === 'pm' || agent === 'qe' || agent === 'vet' || agent === 'strategy') {
-          // Cowork agents work without ticket IDs (freeform) or with a specific ticket
-          const agentName = `bobby-${agent}`;
-          const labels = { ux: 'Bobby UX', pm: 'Bobby PM', qe: 'Bobby QE', vet: 'Bobby Vet', strategy: 'Bobby Strategy' };
-          const label = labels[agent];
-          const promptFns = { ux: buildUxPrompt, pm: buildPmPrompt, qe: buildQePrompt, vet: buildVetPrompt, strategy: buildStrategyPrompt };
-          const promptFn = promptFns[agent];
-          let prompt;
-          if (ticketIds.length > 0) {
-            const ticketId = ticketIds[0];
-            const found = findTicket(ticketsDir, ticketId);
-            if (!found) { error(`Ticket ${ticketId} not found`); process.exit(1); }
-            prompt = buildSingleAgentPrompt(agentName, ticketId, config.tickets_dir, agentsPath, hasServices);
-          } else {
-            prompt = promptFn(config.tickets_dir, agentsPath);
-          }
-          console.log('');
-          console.log(`  ${bold(label)}${ticketIds.length > 0 ? ` — ${ticketIds[0]}` : ''}  ${dim(`Session: ${sessionId}`)}`);
-          console.log(`  ${dim(hint)}`);
-          console.log('');
-          console.log(withSession(prompt, sessionId));
-          return;
-        }
-
-        // Ticket-required agents with custom prompts
-        if (agent === 'security' || agent === 'debug') {
-          if (ticketIds.length === 0) {
-            error(`Usage: bobby run ${agent} <ticketId>`);
-            process.exit(1);
-          }
-          const ticketId = ticketIds[0];
-          const found = findTicket(ticketsDir, ticketId);
-          if (!found) { error(`Ticket ${ticketId} not found`); process.exit(1); }
-          const labels = { security: 'Bobby Security', debug: 'Bobby Debug' };
-          const promptFns = { security: buildSecurityPrompt, debug: buildDebugPrompt };
-          const prompt = promptFns[agent](ticketId, config.tickets_dir, agentsPath);
-          console.log('');
-          console.log(`  ${bold(labels[agent])} — ${ticketId}  ${dim(`Session: ${sessionId}`)}`);
-          console.log(`  ${dim(hint)}`);
-          console.log('');
-          console.log(withSession(prompt, sessionId));
-          return;
-        }
-
-        // Freeform agents (no ticket required)
-        if (agent === 'docs' || agent === 'performance' || agent === 'watchdog') {
-          const labels = { docs: 'Bobby Docs', performance: 'Bobby Performance', watchdog: 'Bobby Watchdog' };
-          const promptFns = { docs: buildDocsPrompt, performance: buildPerformancePrompt, watchdog: buildWatchdogPrompt };
-          const prompt = promptFns[agent](config.tickets_dir, agentsPath);
-          console.log('');
-          console.log(`  ${bold(labels[agent])}  ${dim(`Session: ${sessionId}`)}`);
           console.log(`  ${dim(hint)}`);
           console.log('');
           console.log(withSession(prompt, sessionId));
@@ -245,9 +188,34 @@ export function registerRun(program) {
           return;
         }
 
-        // Single agent run
+        // Registry-driven agents (cowork, ticket-required, freeform)
+        if (reg.promptSteps) {
+          let prompt;
+          if (reg.cowork && ticketIds.length > 0) {
+            const ticketId = ticketIds[0];
+            const found = findTicket(ticketsDir, ticketId);
+            if (!found) { error(`Ticket ${ticketId} not found`); process.exit(1); }
+            prompt = buildSingleAgentPrompt(reg.agentName, ticketId, config.tickets_dir, agentsPath, hasServices);
+          } else if (reg.requiresTicket) {
+            if (ticketIds.length === 0) { error(`Usage: bobby run ${agent} <ticketId>`); process.exit(1); }
+            const ticketId = ticketIds[0];
+            const found = findTicket(ticketsDir, ticketId);
+            if (!found) { error(`Ticket ${ticketId} not found`); process.exit(1); }
+            prompt = buildGenericPrompt(reg, { ticketId, ticketsDir: config.tickets_dir, agentsPath });
+          } else {
+            prompt = buildGenericPrompt(reg, { ticketsDir: config.tickets_dir, agentsPath });
+          }
+          const ticketSuffix = ticketIds.length > 0 ? ` — ${ticketIds[0]}` : '';
+          console.log('');
+          console.log(`  ${bold(reg.label)}${ticketSuffix}  ${dim(`Session: ${sessionId}`)}`);
+          console.log(`  ${dim(hint)}`);
+          console.log('');
+          console.log(withSession(prompt, sessionId));
+          return;
+        }
+
+        // Standard pipeline agents (plan/build/review/test) — single or batch
         if (ticketIds.length === 0) {
-          // No ticket IDs — batch mode: find all tickets in the matching stage
           const stage = TRANSITIONS[agent];
           if (!stage) {
             error(`Usage: bobby run ${agent} <ticketId>`);
@@ -265,11 +233,10 @@ export function registerRun(program) {
             process.exit(1);
           }
           const ids = available.map(t => t.id);
-          const agentName = `bobby-${agent}`;
-          const prompt = buildBatchStagePrompt(agentName, ids, config.tickets_dir, config.parallel_isolation || 'none', agentsPath);
+          const prompt = buildBatchStagePrompt(reg.agentName, ids, config.tickets_dir, config.parallel_isolation || 'none', agentsPath);
           const isolationLabel = config.parallel_isolation === 'worktree' ? ' (worktree-isolated)' : '';
           console.log('');
-          console.log(`  ${bold(`Bobby ${agent}`)} — ${ids.length} ticket(s) in ${stage}${isolationLabel}  ${dim(`Session: ${sessionId}`)}`);
+          console.log(`  ${bold(reg.label)} — ${ids.length} ticket(s) in ${stage}${isolationLabel}  ${dim(`Session: ${sessionId}`)}`);
           console.log(`  ${dim(hint)}`);
           console.log('');
           console.log(withSession(prompt, sessionId));
@@ -280,10 +247,9 @@ export function registerRun(program) {
         const found = findTicket(ticketsDir, ticketId);
         if (!found) { error(`Ticket ${ticketId} not found`); process.exit(1); }
 
-        const agentName = `bobby-${agent}`;
-        const prompt = buildSingleAgentPrompt(agentName, ticketId, config.tickets_dir, agentsPath, hasServices);
+        const prompt = buildSingleAgentPrompt(reg.agentName, ticketId, config.tickets_dir, agentsPath, hasServices);
         console.log('');
-        console.log(`  ${bold(`Bobby ${agent}`)} — ${ticketId}  ${dim(`Session: ${sessionId}`)}`);
+        console.log(`  ${bold(reg.label)} — ${ticketId}  ${dim(`Session: ${sessionId}`)}`);
         console.log(`  ${dim(hint)}`);
         console.log('');
         console.log(withSession(prompt, sessionId));
