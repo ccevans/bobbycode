@@ -99,7 +99,7 @@ After ALL tickets are planned, review `feature-plan.md` for consistency across a
 - Are there contradictory approaches between tickets?
 - Are shared utilities referenced consistently?
 - Are dependencies between tickets clear and satisfiable?
-- **Bundling check:** Are any tickets so tightly coupled (same file, overlapping JSX/code sections) that they'll inevitably be built together? If so, note this in `feature-plan.md` under a `## Bundled Tickets` section — e.g., "TKT-262 will be built as part of TKT-261 since both modify the same component inline." This is informational; it sets expectations for the run log rather than requiring ticket merging.
+- **Bundling check:** Are any tickets so tightly coupled (same file, overlapping JSX/code sections) that they'll inevitably be built together? If so, note this in `feature-plan.md` under a `## Bundled Tickets` section — e.g., "TKT-262 will be built as part of TKT-261 since both modify the same component inline." This is informational; it sets expectations rather than requiring ticket merging.
 
 Update `feature-plan.md` if the later plans revealed better approaches or inconsistencies.
 
@@ -146,7 +146,7 @@ After each agent completes:
 
 ### 5. Integration Check (Between Tickets)
 After each ticket reaches shipping:
-1. Run the project's full test suite<% if (commands && commands.test) { %> (`<%= commands.test %>`)<% } %>. If the full test command fails because a service is unavailable (e.g., Docker not running, database not reachable), fall back to the frontend tests only<% if (commands && commands.build) { %> (`<%= commands.build %>`)<% } %>. Record which test command actually ran — this goes in the run log.
+1. Run the project's full test suite<% if (commands && commands.test) { %> (`<%= commands.test %>`)<% } %>. If the full test command fails because a service is unavailable (e.g., Docker not running, database not reachable), fall back to the frontend tests only<% if (commands && commands.build) { %> (`<%= commands.build %>`)<% } %>.
 2. If tests fail, the most recent ticket's changes likely caused it. Move that ticket back to building (`bobby move {ID} build "Integration test failure: {details}"`) and retry.
 3. If tests pass, proceed to the next ticket.
 
@@ -162,55 +162,6 @@ Repeat for each ticket in the queue.
 3. **If everything passes** — Move the epic to shipping: `bobby move {epicId} ship`
 4. **Report** — Show the final status of each ticket and the epic
 5. **Remind** — Tell the user: `Run bobby run ship to create a PR and merge.`
-6. **Write a run log** to `<%= runs_dir %>/` (create directory if needed). Filename: `feature-{epicId}-{YYYYMMDD-HHmmss}.md`
-
-### Run Log Format
-
-```markdown
-# Feature Run — {epicId}: {epic title}
-
-**Branch:** feature/{epicId}-{slug}
-**Tickets:** {comma-separated ticket IDs}
-
-## Results
-
-| Ticket | Final Stage | Retries | Outcome |
-|--------|-------------|---------|---------|
-| {ID} | {stage} | {n} | {passed / failed / skipped: reason} |
-
-## Commits
-
-| Ticket | Commit | Files Changed | +/- Lines |
-|--------|--------|---------------|-----------|
-| {ID} | {short SHA} | {N} files | +{added} / -{removed} |
-
-(Get these stats from `git log --oneline --stat` on the feature branch.)
-
-## Tests
-
-| Command | Result |
-|---------|--------|
-| {test command that ran} | {pass / fail / skipped: reason} |
-
-(Record every test/build/lint command executed during the run and its outcome.)
-
-## Feature Plan
-
-Cross-cutting decisions captured in feature-plan.md:
-{summary of shared patterns, utilities, conventions}
-
-## Notes
-
-{Any blockers, integration issues, bundled tickets, or patterns observed. Omit section if none.}
-```
-
-## Context Management
-
-Long feature runs may approach the context window limit. To handle this:
-
-- After completing each ticket, write a brief progress note to `<%= runs_dir %>/in-progress-feature.md` so context can be recovered if the session refreshes.
-- If you notice you have processed many tickets and context is getting large, save your current state: which tickets are done, which remain, their current stages, and any integration issues observed.
-- On continuing after a context refresh, read `<%= runs_dir %>/in-progress-feature.md` and `feature-plan.md` to resume where you left off.
 
 ## Key Principles
 

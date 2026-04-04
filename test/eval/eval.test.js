@@ -21,7 +21,7 @@ import os from 'os';
 // ── Orchestration Prompt ──────────────────────────────────
 
 describe('eval: buildOrchestrationPrompt', () => {
-  const prompt = buildOrchestrationPrompt(['TKT-001', 'TKT-002'], DEFAULT_PIPELINE, 3, '.bobby/tickets', 20, '.bobby/runs');
+  const prompt = buildOrchestrationPrompt(['TKT-001', 'TKT-002'], DEFAULT_PIPELINE, 3, '.bobby/tickets', 20);
 
   test('includes branch guard', () => {
     expect(prompt).toContain('git branch --show-current');
@@ -46,11 +46,8 @@ describe('eval: buildOrchestrationPrompt', () => {
     expect(prompt).toContain('Maximum retries');
   });
 
-  test('includes run log format', () => {
-    expect(prompt).toContain('Pipeline Run');
-    expect(prompt).toContain('Results');
-    expect(prompt).toContain('Ticket');
-    expect(prompt).toContain('Outcome');
+  test('includes final status reporting', () => {
+    expect(prompt).toContain('report the final status');
   });
 
   test('includes git status verification', () => {
@@ -96,7 +93,7 @@ describe('eval: buildFeaturePrompt', () => {
   ];
   const prompt = buildFeaturePrompt(
     'TKT-010', 'User onboarding flow', childTickets,
-    DEFAULT_PIPELINE, 3, '.bobby/tickets', undefined, '.bobby/runs'
+    DEFAULT_PIPELINE, 3, '.bobby/tickets', undefined
   );
 
   test('includes Phase 1 holistic planning', () => {
@@ -126,9 +123,9 @@ describe('eval: buildFeaturePrompt', () => {
     expect(prompt).toContain('Max total agent invocations');
   });
 
-  test('includes run log format', () => {
-    expect(prompt).toContain('Feature Run');
-    expect(prompt).toContain('Results');
+  test('includes final status reporting', () => {
+    expect(prompt).toContain('Report');
+    expect(prompt).toContain('final status');
   });
 
   test('lists all child tickets in order', () => {
@@ -246,7 +243,7 @@ describe('eval: cross-cutting quality', () => {
 
     const feat = buildFeaturePrompt('TKT-010', 'Test', [
       { id: 'TKT-011', title: 'Child', priority: 'medium', stage: 'planning' },
-    ], DEFAULT_PIPELINE, 3, '.bobby/tickets', undefined, '.bobby/runs');
+    ], DEFAULT_PIPELINE, 3, '.bobby/tickets', undefined);
     expect(feat).toContain('git status');
     expect(feat).toContain('worktree');
   });
@@ -274,7 +271,7 @@ describe('eval: bobby-test skill', () => {
       health_checks: [{ name: 'app', url: 'http://localhost:3000', description: 'Next.js' }],
       commands: { test: 'npm test', lint: 'npm run lint', dev: 'npm run dev', build: 'npm run build' },
       tickets_dir: '.bobby/tickets',
-      runs_dir: '.bobby/runs',
+      sessions_dir: '.bobby/sessions',
       paths: { agents: '.claude/agents', skills: '.claude/skills', commands: '.claude/commands', rules: 'CLAUDE.md' },
     };
     renderSkillTemplates(tmpDir, config);
@@ -462,7 +459,7 @@ describe('eval: bobby-test skill with playwright', () => {
       health_checks: [{ name: 'app', url: 'http://localhost:3000', description: 'Next.js' }],
       commands: { test: 'npm test', lint: 'npm run lint', dev: 'npm run dev', build: 'npm run build' },
       tickets_dir: '.bobby/tickets',
-      runs_dir: '.bobby/runs',
+      sessions_dir: '.bobby/sessions',
       testing_tools: ['playwright', 'curl'],
       paths: { agents: '.claude/agents', skills: '.claude/skills', commands: '.claude/commands', rules: 'CLAUDE.md' },
     };
@@ -500,7 +497,7 @@ describe('eval: bobby-test skill without testing_tools', () => {
       health_checks: [{ name: 'app', url: 'http://localhost:3000', description: 'Next.js' }],
       commands: { test: 'npm test', lint: 'npm run lint', dev: 'npm run dev', build: 'npm run build' },
       tickets_dir: '.bobby/tickets',
-      runs_dir: '.bobby/runs',
+      sessions_dir: '.bobby/sessions',
       paths: { agents: '.claude/agents', skills: '.claude/skills', commands: '.claude/commands', rules: 'CLAUDE.md' },
     };
     renderSkillTemplates(tmpDir, config);

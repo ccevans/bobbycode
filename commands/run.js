@@ -1,14 +1,22 @@
 // commands/run.js
 import path from 'path';
 import inquirer from 'inquirer';
-import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir } from '../lib/config.js';
 import { findTicket, listTickets, getFeatureTickets, listEpics } from '../lib/tickets.js';
 import { TRANSITIONS } from '../lib/stages.js';
 import { DEFAULT_PIPELINE, buildOrchestrationPrompt, buildSingleAgentPrompt, buildShipPrompt, buildUxPrompt, buildPmPrompt, buildQePrompt, buildVetPrompt, buildStrategyPrompt, buildNextStepPrompt, buildBatchStagePrompt, buildFeaturePrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt, buildPerformancePrompt, buildWatchdogPrompt } from '../lib/pipeline.js';
 import { bold, dim, success, error } from '../lib/colors.js';
 import { getTarget } from '../lib/targets/index.js';
+import { initSession } from '../lib/session.js';
 
 const VALID_AGENTS = ['plan', 'build', 'review', 'test', 'ship', 'pipeline', 'feature', 'ux', 'pm', 'qe', 'vet', 'strategy', 'next', 'security', 'debug', 'docs', 'performance', 'watchdog'];
+
+/**
+ * Prepend the session env var export to a prompt so all bobby commands log to this session.
+ */
+function withSession(prompt, sessionId) {
+  return `**Session tracking:** Before running any bobby commands, set the session env var:\n\`export BOBBY_SESSION_ID=${sessionId}\`\n\n${prompt}`;
+}
 
 export function registerRun(program) {
   program
@@ -46,6 +54,10 @@ export function registerRun(program) {
         const maxIterations = opts.maxIterations ? parseInt(opts.maxIterations, 10) : undefined;
         const hasServices = !!(config.services && Object.keys(config.services).length > 0);
 
+        // Initialize session for logging
+        const sessionsDir = resolveSessionsDir(root, config);
+        const sessionId = initSession(sessionsDir, { ticketIds: ticketIds, agent, pipeline: opts.pipeline || 'default' });
+
         // Load pipeline config — support named pipelines from .bobbyrc.yml
         const pipelineName = opts.pipeline || 'default';
         let pipeline;
@@ -70,10 +82,10 @@ export function registerRun(program) {
           // Ship doesn't need ticket IDs
           const prompt = buildShipPrompt(config.tickets_dir, config.repos || [], agentsPath);
           console.log('');
-          console.log(`  ${bold('Bobby Ship')}`);
+          console.log(`  ${bold('Bobby Ship')}  ${dim(`Session: ${sessionId}`)}`);
           console.log(`  ${dim(hint)}`);
           console.log('');
-          console.log(prompt);
+          console.log(withSession(prompt, sessionId));
           return;
         }
 
@@ -94,10 +106,10 @@ export function registerRun(program) {
             prompt = promptFn(config.tickets_dir, agentsPath);
           }
           console.log('');
-          console.log(`  ${bold(label)}${ticketIds.length > 0 ? ` — ${ticketIds[0]}` : ''}`);
+          console.log(`  ${bold(label)}${ticketIds.length > 0 ? ` — ${ticketIds[0]}` : ''}  ${dim(`Session: ${sessionId}`)}`);
           console.log(`  ${dim(hint)}`);
           console.log('');
-          console.log(prompt);
+          console.log(withSession(prompt, sessionId));
           return;
         }
 
@@ -114,10 +126,10 @@ export function registerRun(program) {
           const promptFns = { security: buildSecurityPrompt, debug: buildDebugPrompt };
           const prompt = promptFns[agent](ticketId, config.tickets_dir, agentsPath);
           console.log('');
-          console.log(`  ${bold(labels[agent])} — ${ticketId}`);
+          console.log(`  ${bold(labels[agent])} — ${ticketId}  ${dim(`Session: ${sessionId}`)}`);
           console.log(`  ${dim(hint)}`);
           console.log('');
-          console.log(prompt);
+          console.log(withSession(prompt, sessionId));
           return;
         }
 
@@ -127,10 +139,10 @@ export function registerRun(program) {
           const promptFns = { docs: buildDocsPrompt, performance: buildPerformancePrompt, watchdog: buildWatchdogPrompt };
           const prompt = promptFns[agent](config.tickets_dir, agentsPath);
           console.log('');
-          console.log(`  ${bold(labels[agent])}`);
+          console.log(`  ${bold(labels[agent])}  ${dim(`Session: ${sessionId}`)}`);
           console.log(`  ${dim(hint)}`);
           console.log('');
-          console.log(prompt);
+          console.log(withSession(prompt, sessionId));
           return;
         }
 
@@ -158,12 +170,12 @@ export function registerRun(program) {
             if (!found) { error(`Ticket ${id} not found`); process.exit(1); }
           }
 
-          const prompt = buildOrchestrationPrompt(ids, pipeline, maxRetries, config.tickets_dir, maxIterations, config.runs_dir, agentsPath, hasServices);
+          const prompt = buildOrchestrationPrompt(ids, pipeline, maxRetries, config.tickets_dir, maxIterations, agentsPath, hasServices);
           console.log('');
-          console.log(`  ${bold('Bobby Pipeline')} — ${ids.length} ticket(s)`);
+          console.log(`  ${bold('Bobby Pipeline')} — ${ids.length} ticket(s)  ${dim(`Session: ${sessionId}`)}`);
           console.log(`  ${dim(hint)}`);
           console.log('');
-          console.log(prompt);
+          console.log(withSession(prompt, sessionId));
           return;
         }
 
@@ -197,7 +209,7 @@ export function registerRun(program) {
             process.exit(1);
           }
 
-          const prompt = buildFeaturePrompt(epicId, epic.data.title, children, pipeline, maxRetries, config.tickets_dir, maxIterations, config.runs_dir, agentsPath);
+          const prompt = buildFeaturePrompt(epicId, epic.data.title, children, pipeline, maxRetries, config.tickets_dir, maxIterations, agentsPath);
           const childIds = children.map(t => t.id);
           const needsPlanning = children.filter(t => ['backlog', 'planning'].includes(t.stage));
           const pastPlanning = children.filter(t => !['backlog', 'planning'].includes(t.stage));
@@ -210,8 +222,9 @@ export function registerRun(program) {
           }
           console.log(`  ${dim(hint)}`);
           console.log(`  ${dim('Launch with: isolation: "worktree" (keeps main clean)')}`);
+          console.log(`  ${dim(`Session: ${sessionId}`)}`);
           console.log('');
-          console.log(prompt);
+          console.log(withSession(prompt, sessionId));
           return;
         }
 
@@ -225,10 +238,10 @@ export function registerRun(program) {
           const found = findTicket(ticketsDir, ticketId);
           const stageLabel = found ? ` [${found.data.stage}]` : '';
           console.log('');
-          console.log(`  ${bold('Bobby Next')} — ${ticketId}${stageLabel}`);
+          console.log(`  ${bold('Bobby Next')} — ${ticketId}${stageLabel}  ${dim(`Session: ${sessionId}`)}`);
           console.log(`  ${dim(hint)}`);
           console.log('');
-          console.log(prompt);
+          console.log(withSession(prompt, sessionId));
           return;
         }
 
@@ -256,10 +269,10 @@ export function registerRun(program) {
           const prompt = buildBatchStagePrompt(agentName, ids, config.tickets_dir, config.parallel_isolation || 'none', agentsPath);
           const isolationLabel = config.parallel_isolation === 'worktree' ? ' (worktree-isolated)' : '';
           console.log('');
-          console.log(`  ${bold(`Bobby ${agent}`)} — ${ids.length} ticket(s) in ${stage}${isolationLabel}`);
+          console.log(`  ${bold(`Bobby ${agent}`)} — ${ids.length} ticket(s) in ${stage}${isolationLabel}  ${dim(`Session: ${sessionId}`)}`);
           console.log(`  ${dim(hint)}`);
           console.log('');
-          console.log(prompt);
+          console.log(withSession(prompt, sessionId));
           return;
         }
 
@@ -270,10 +283,10 @@ export function registerRun(program) {
         const agentName = `bobby-${agent}`;
         const prompt = buildSingleAgentPrompt(agentName, ticketId, config.tickets_dir, agentsPath, hasServices);
         console.log('');
-        console.log(`  ${bold(`Bobby ${agent}`)} — ${ticketId}`);
+        console.log(`  ${bold(`Bobby ${agent}`)} — ${ticketId}  ${dim(`Session: ${sessionId}`)}`);
         console.log(`  ${dim(hint)}`);
         console.log('');
-        console.log(prompt);
+        console.log(withSession(prompt, sessionId));
       } catch (e) {
         error(e.message);
         process.exit(1);

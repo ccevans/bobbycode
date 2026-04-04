@@ -12,7 +12,7 @@ npx bobbycode init
 
 This scaffolds your project with:
 - `.bobby/tickets/` — single directory, frontmatter-based stages
-- `.bobby/runs/` — pipeline run logs
+- `.bobby/sessions/` — session logs for pipeline observability
 - `.bobbyrc.yml` config file
 - `.claude/skills/` with 17 workflow skills
 - `.claude/agents/` with 15 agent definitions
@@ -85,7 +85,7 @@ Tickets live in `.bobby/tickets/`. Stage is tracked in frontmatter — no physic
 | Command | Description |
 |---------|-------------|
 | `bobby learn <skill> "pattern" "desc"` | Record an anti-pattern or best practice to a skill's learnings |
-| `bobby retro` | Generate a weekly retrospective from pipeline run logs |
+| `bobby retro` | Generate a weekly retrospective from session logs |
 
 ### Setup & Admin
 

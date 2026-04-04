@@ -4,6 +4,7 @@ import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js
 import { moveTicket, findTicket } from '../lib/tickets.js';
 import { resolveTransition, stageColor } from '../lib/stages.js';
 import { success, bold, error } from '../lib/colors.js';
+import { tryLogEntry } from '../lib/session.js';
 
 export function registerMove(program) {
   program
@@ -17,12 +18,17 @@ export function registerMove(program) {
         const config = readConfig(root);
         const ticketsDir = resolveTicketsDir(root, config);
 
+        // Read current stage before move for session logging
+        const before = findTicket(ticketsDir, id);
+        const fromStage = before ? before.data.stage : 'unknown';
+
         // Handle special aliases
         if (alias === 'reject') {
           const comment = reason || 'Rejected';
           moveTicket(ticketsDir, id, 'building', opts.by, `REJECTED: ${comment}`);
           const colorFn = stageColor('building');
           success(`${bold(id)} → ${colorFn('building')} (rejected)`);
+          tryLogEntry(root, config, { type: 'move', ticket: id, from: fromStage, to: 'building', detail: `REJECTED: ${comment}` });
           return;
         }
 
@@ -31,6 +37,7 @@ export function registerMove(program) {
           moveTicket(ticketsDir, id, 'blocked', opts.by, comment);
           const colorFn = stageColor('blocked');
           success(`${bold(id)} → ${colorFn('blocked')}: ${comment}`);
+          tryLogEntry(root, config, { type: 'move', ticket: id, from: fromStage, to: 'blocked', detail: comment });
           return;
         }
 
@@ -41,6 +48,7 @@ export function registerMove(program) {
           moveTicket(ticketsDir, id, restoreStage, opts.by, 'Unblocked');
           const colorFn = stageColor(restoreStage);
           success(`${bold(id)} → ${colorFn(restoreStage)} (unblocked)`);
+          tryLogEntry(root, config, { type: 'move', ticket: id, from: 'blocked', to: restoreStage, detail: 'Unblocked' });
           return;
         }
 
@@ -55,6 +63,7 @@ export function registerMove(program) {
         moveTicket(ticketsDir, id, targetStage, opts.by, comment);
         const colorFn = stageColor(targetStage);
         success(`${bold(id)} → ${colorFn(targetStage)}`);
+        tryLogEntry(root, config, { type: 'move', ticket: id, from: fromStage, to: targetStage, detail: comment });
       } catch (e) {
         error(e.message);
         process.exit(1);

@@ -96,12 +96,12 @@ describe('config', () => {
     }
   });
 
-  test('readConfig derives tickets_dir and runs_dir from bobby_dir', () => {
+  test('readConfig derives tickets_dir and sessions_dir from bobby_dir', () => {
     const yml = `project: test-app\nbobby_dir: .custom\n`;
     fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), yml);
     const config = readConfig(tmpDir);
     expect(config.tickets_dir).toBe('.custom/tickets');
-    expect(config.runs_dir).toBe('.custom/runs');
+    expect(config.sessions_dir).toBe('.custom/sessions');
   });
 
   test('readConfig handles empty YAML file', () => {
@@ -112,12 +112,12 @@ describe('config', () => {
     expect(config.bobby_dir).toBe('.bobby');
   });
 
-  test('readConfig preserves explicit tickets_dir and runs_dir', () => {
-    const yml = `project: test-app\nbobby_dir: .custom\ntickets_dir: my/tickets\nruns_dir: my/runs\n`;
+  test('readConfig preserves explicit tickets_dir and sessions_dir', () => {
+    const yml = `project: test-app\nbobby_dir: .custom\ntickets_dir: my/tickets\nsessions_dir: my/sessions\n`;
     fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), yml);
     const config = readConfig(tmpDir);
     expect(config.tickets_dir).toBe('my/tickets');
-    expect(config.runs_dir).toBe('my/runs');
+    expect(config.sessions_dir).toBe('my/sessions');
   });
 });
 

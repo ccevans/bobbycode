@@ -22,10 +22,10 @@ function loadStack(stackName) {
 }
 
 export function scaffoldProject(rootDir, config) {
-  // Derive bobby_dir, runs_dir if not explicitly provided
+  // Derive bobby_dir, sessions_dir if not explicitly provided
   const bobbyDir = config.bobby_dir || '.bobby';
   if (!config.tickets_dir) config.tickets_dir = `${bobbyDir}/tickets`;
-  if (!config.runs_dir) config.runs_dir = `${bobbyDir}/runs`;
+  if (!config.sessions_dir) config.sessions_dir = `${bobbyDir}/sessions`;
 
   // Resolve target adapter
   const target = getTarget(config.target || 'claude-code');
@@ -37,9 +37,9 @@ export function scaffoldProject(rootDir, config) {
   fs.mkdirSync(ticketsDir, { recursive: true });
   fs.mkdirSync(path.join(ticketsDir, 'retrospectives'), { recursive: true });
 
-  // Create runs directory for pipeline run logs
-  const runsDir = path.join(rootDir, config.runs_dir);
-  fs.mkdirSync(runsDir, { recursive: true });
+  // Create sessions directory for session logs
+  const sessionsDir = path.join(rootDir, config.sessions_dir);
+  fs.mkdirSync(sessionsDir, { recursive: true });
 
   // Write config
   writeConfig(rootDir, config);
@@ -327,7 +327,7 @@ export function registerInit(program) {
           target: targetName,
           bobby_dir: bobbyDir,
           tickets_dir: `${bobbyDir}/tickets`,
-          runs_dir: `${bobbyDir}/runs`,
+          sessions_dir: `${bobbyDir}/sessions`,
           health_checks: stack.health_checks,
           areas: stack.areas,
           ticket_prefix: 'TKT',
@@ -351,7 +351,7 @@ export function registerInit(program) {
         const tp = targetAdapter.paths();
         console.log('');
         success(`Created ${config.tickets_dir}/ (single directory, frontmatter-based stages)`);
-        success(`Created ${config.runs_dir}/ (pipeline run logs)`);
+        success(`Created ${config.sessions_dir}/ (session logs)`);
         success('Created .bobbyrc.yml');
         success(`Created ${tp.skills}/ with 17 workflow skills`);
         success(`Created ${tp.agents}/ with 15 agent definitions`);

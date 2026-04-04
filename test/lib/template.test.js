@@ -23,7 +23,7 @@ describe('template', () => {
       health_checks: [{ name: 'app', url: 'http://localhost:3000', description: 'Next.js' }],
       commands: { test: 'npm test', lint: 'npm run lint', dev: 'npm run dev', build: 'npm run build' },
       tickets_dir: '.bobby/tickets',
-      runs_dir: '.bobby/runs',
+      sessions_dir: '.bobby/sessions',
       paths: DEFAULT_PATHS,
     };
     const result = renderTemplate('CLAUDE.md.ejs', config);
@@ -40,7 +40,7 @@ describe('template', () => {
       health_checks: [{ name: 'app', url: 'http://localhost:3000' }],
       commands: { test: 'npm test', lint: 'npm run lint' },
       tickets_dir: '.bobby/tickets',
-      runs_dir: '.bobby/runs',
+      sessions_dir: '.bobby/sessions',
       paths: DEFAULT_PATHS,
     };
     renderSkillTemplates(tmpDir, config);
@@ -71,7 +71,7 @@ describe('template', () => {
       health_checks: [{ name: 'app', url: 'http://localhost:3000' }],
       commands: { test: 'npm test', lint: 'npm run lint' },
       tickets_dir: '.bobby/tickets',
-      runs_dir: '.bobby/runs',
+      sessions_dir: '.bobby/sessions',
       paths: DEFAULT_PATHS,
     };
     renderSkillTemplates(tmpDir, config);

@@ -185,11 +185,9 @@ describe('pipeline', () => {
       expect(prompt).toContain('.claude/agents/bobby-debug.md');
     });
 
-    test('includes run log format', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE, 3, '.bobby/tickets', 20, '.bobby/runs');
-      expect(prompt).toContain('Pipeline Run');
-      expect(prompt).toContain('.bobby/runs/');
-      expect(prompt).toContain('run-{YYYYMMDD-HHmmss}.md');
+    test('includes final status reporting', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      expect(prompt).toContain('report the final status');
     });
 
     test('handles single ticket ID (non-array)', () => {
@@ -203,13 +201,13 @@ describe('pipeline', () => {
     });
 
     test('includes service hint when hasServices is true', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE, 3, '.bobby/tickets', 20, '.bobby/runs', '.claude/agents', true);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE, 3, '.bobby/tickets', 20, '.claude/agents', true);
       expect(prompt).toContain('services');
       expect(prompt).toContain('.bobbyrc.yml');
     });
 
     test('has no service hint when hasServices is false', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE, 3, '.bobby/tickets', 20, '.bobby/runs', '.claude/agents', false);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE, 3, '.bobby/tickets', 20, '.claude/agents', false);
       expect(prompt).not.toContain('.bobbyrc.yml');
     });
 
@@ -493,10 +491,10 @@ describe('pipeline', () => {
       expect(prompt).toContain('bobby-test');
     });
 
-    test('includes run log format', () => {
+    test('includes final status reporting', () => {
       const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
-      expect(prompt).toContain('Feature Run');
-      expect(prompt).toContain('feature-tkt-001');
+      expect(prompt).toContain('Report');
+      expect(prompt).toContain('final status');
     });
 
     test('includes two-phase structure', () => {

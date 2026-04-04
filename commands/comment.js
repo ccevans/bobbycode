@@ -3,6 +3,7 @@ import path from 'path';
 import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
 import { addComment } from '../lib/tickets.js';
 import { success, error } from '../lib/colors.js';
+import { tryLogEntry } from '../lib/session.js';
 
 export function registerComment(program) {
   program
@@ -18,6 +19,7 @@ export function registerComment(program) {
 
         addComment(ticketsDir, id, opts.by, note);
         success(`Comment added to ${id}`);
+        tryLogEntry(root, config, { type: 'comment', ticket: id, by: opts.by, detail: note });
       } catch (e) {
         error(e.message);
         process.exit(1);

@@ -3,6 +3,7 @@ import path from 'path';
 import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
 import { createTicket, listTickets } from '../lib/tickets.js';
 import { success, warn, error } from '../lib/colors.js';
+import { tryLogEntry } from '../lib/session.js';
 
 export function registerCreate(program) {
   program
@@ -33,6 +34,7 @@ export function registerCreate(program) {
         });
         success(`Created ${result.id} — ${opts.title}`);
         console.log(`  → ${config.tickets_dir}/${result.dirname}/`);
+        tryLogEntry(root, config, { type: 'create', ticket: result.id, title: opts.title, ticketType: opts.epic ? 'epic' : opts.type, parent: opts.parent || null });
         if (opts.epic) {
           console.log(`  → Type: epic — run 'bobby run plan ${result.id}' to break it down`);
         }

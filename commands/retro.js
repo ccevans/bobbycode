@@ -1,61 +1,71 @@
 // commands/retro.js
 import fs from 'fs';
 import path from 'path';
-import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir } from '../lib/config.js';
 import { findTicket, listTickets, slugify } from '../lib/tickets.js';
 import { success, error, bold, dim } from '../lib/colors.js';
+import { listSessions, readSession } from '../lib/session.js';
 
 /**
- * Parse run log files from .bobby/runs/ and extract metrics
+ * Parse session logs from .bobby/sessions/ and extract metrics
  */
-function parseRunLogs(runsDir, sinceDays = 7) {
-  if (!fs.existsSync(runsDir)) return [];
+function parseSessionLogs(sessionsDir, sinceDays = 7) {
+  const sessions = listSessions(sessionsDir);
+  const empty = { sessions: [], rejectionReasons: {}, agentRejections: {}, stageDurations: {}, totalDuration: 0, ticketsProcessed: new Set(), totalRejections: 0, ticketOutcomes: {} };
+  if (sessions.length === 0) return empty;
 
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - sinceDays);
 
-  const files = fs.readdirSync(runsDir)
-    .filter(f => f.endsWith('.md'))
-    .sort()
-    .reverse();
+  const recentSessions = sessions.filter(s => s.startTime && s.startTime >= cutoff);
+  const rejectionReasons = {};
+  const agentRejections = {};
+  const stageDurations = {};
+  const ticketsProcessed = new Set();
+  const ticketOutcomes = {}; // ticket -> { finalStage, retries }
+  let totalDuration = 0;
+  let totalRejections = 0;
 
-  const runs = [];
-  for (const file of files) {
-    const content = fs.readFileSync(path.join(runsDir, file), 'utf8');
+  for (const session of recentSessions) {
+    totalDuration += session.durationMs;
+    const entries = readSession(sessionsDir, session.id);
+    const moves = entries.filter(e => e.type === 'move');
 
-    // Extract date from filename: run-YYYYMMDD-HHmmss.md or feature-TKT-XXX-YYYYMMDD-HHmmss.md
-    const dateMatch = file.match(/(\d{8})-(\d{6})\.md$/);
-    if (!dateMatch) continue;
-    const dateStr = dateMatch[1];
-    const year = dateStr.slice(0, 4);
-    const month = dateStr.slice(4, 6);
-    const day = dateStr.slice(6, 8);
-    const runDate = new Date(`${year}-${month}-${day}`);
-    if (runDate < cutoff) continue;
+    // Track per-ticket outcomes
+    for (const move of moves) {
+      ticketsProcessed.add(move.ticket);
+      if (!ticketOutcomes[move.ticket]) ticketOutcomes[move.ticket] = { finalStage: move.to, retries: 0 };
+      ticketOutcomes[move.ticket].finalStage = move.to;
 
-    // Extract results table rows
-    const tableRows = [];
-    const rowPattern = /\|\s*(TKT-\d+|[A-Z]+-\d+)\s*\|\s*(\w+)\s*\|\s*(\d+)\s*\|\s*(.*?)\s*\|/g;
-    let match;
-    while ((match = rowPattern.exec(content)) !== null) {
-      tableRows.push({
-        ticket: match[1],
-        finalStage: match[2],
-        retries: parseInt(match[3], 10),
-        outcome: match[4].trim(),
-      });
+      if (move.detail?.startsWith('REJECTED')) {
+        totalRejections++;
+        ticketOutcomes[move.ticket].retries++;
+        const reason = move.detail.replace('REJECTED: ', '');
+        rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+
+        // Find the last assign before this rejection to identify the agent
+        const moveIdx = entries.indexOf(move);
+        const priorAssign = entries.slice(0, moveIdx).reverse().find(e => e.type === 'assign' && e.ticket === move.ticket);
+        const agent = priorAssign?.agent || 'unknown';
+        agentRejections[agent] = (agentRejections[agent] || 0) + 1;
+      }
     }
 
-    const isFeature = file.startsWith('feature-');
-    runs.push({
-      file,
-      date: `${year}-${month}-${day}`,
-      isFeature,
-      tickets: tableRows,
-    });
+    // Track stage durations
+    const lastMoveByTicket = {};
+    for (const move of moves) {
+      if (lastMoveByTicket[move.ticket]) {
+        const prev = lastMoveByTicket[move.ticket];
+        const stage = prev.to;
+        const elapsed = new Date(move.ts) - new Date(prev.ts);
+        if (!stageDurations[stage]) stageDurations[stage] = [];
+        stageDurations[stage].push(elapsed);
+      }
+      lastMoveByTicket[move.ticket] = move;
+    }
   }
 
-  return runs;
+  return { sessions: recentSessions, rejectionReasons, agentRejections, stageDurations, totalDuration, ticketsProcessed, totalRejections, ticketOutcomes };
 }
 
 /**
@@ -63,41 +73,23 @@ function parseRunLogs(runsDir, sinceDays = 7) {
  */
 function generateWeeklyRetro(config, root) {
   const ticketsDir = resolveTicketsDir(root, config);
-  const runsDir = path.join(root, config.runs_dir);
+  const sessionsDir = resolveSessionsDir(root, config);
   const retroDir = path.join(ticketsDir, 'retrospectives');
   fs.mkdirSync(retroDir, { recursive: true });
 
   const dt = new Date().toISOString().split('T')[0];
 
-  // Parse run logs from the past 7 days
-  const runs = parseRunLogs(runsDir, 7);
+  // Parse session logs from the past 7 days
+  const sessionData = parseSessionLogs(sessionsDir, 7);
 
-  // Aggregate metrics
-  let totalTickets = 0;
-  let totalRetries = 0;
-  let totalPassed = 0;
-  let totalFailed = 0;
-  const rejectionStages = {};
-  const ticketOutcomes = {};
-
-  for (const run of runs) {
-    for (const row of run.tickets) {
-      totalTickets++;
-      totalRetries += row.retries;
-      if (row.outcome.startsWith('passed') || row.outcome.startsWith('shipped') || row.finalStage === 'done' || row.finalStage === 'shipping') {
-        totalPassed++;
-      } else {
-        totalFailed++;
-      }
-      ticketOutcomes[row.ticket] = row;
-
-      // Track which stage rejections came from
-      if (row.retries > 0) {
-        // We can't know the exact stage from the log, but retries imply review/test rejection
-        rejectionStages['review/test'] = (rejectionStages['review/test'] || 0) + row.retries;
-      }
-    }
-  }
+  // Derive metrics from session data
+  const totalTickets = sessionData.ticketsProcessed.size;
+  const totalRejections = sessionData.totalRejections;
+  const ticketOutcomes = sessionData.ticketOutcomes;
+  const passedStages = ['done', 'shipping'];
+  const totalPassed = Object.values(ticketOutcomes).filter(t => passedStages.includes(t.finalStage)).length;
+  const avgRetries = totalTickets > 0 ? (totalRejections / totalTickets).toFixed(1) : '0';
+  const successRate = totalTickets > 0 ? Math.round((totalPassed / totalTickets) * 100) : 0;
 
   // Count tickets by current stage
   const allTickets = listTickets(ticketsDir);
@@ -124,7 +116,6 @@ function generateWeeklyRetro(config, root) {
       const learningsFile = path.join(learningsDir, skill, 'learnings.md');
       if (fs.existsSync(learningsFile)) {
         const content = fs.readFileSync(learningsFile, 'utf8');
-        // Count lines that look like learning entries added this week
         const lines = content.split('\n').filter(l => l.includes(dt.slice(0, 7)));
         learningsCount += lines.length;
       }
@@ -140,9 +131,13 @@ function generateWeeklyRetro(config, root) {
     if (content.includes(`**Discovered:** ${dt.slice(0, 7)}`)) weekRetros++;
   }
 
-  // Calculate averages
-  const avgRetries = totalTickets > 0 ? (totalRetries / totalTickets).toFixed(1) : '0';
-  const successRate = totalTickets > 0 ? Math.round((totalPassed / totalTickets) * 100) : 0;
+  // Build session results table
+  const sessionResultsTable = Object.keys(ticketOutcomes).length > 0
+    ? Object.entries(ticketOutcomes).map(([ticket, data]) => {
+      const outcome = passedStages.includes(data.finalStage) ? 'passed' : data.finalStage;
+      return `| ${ticket} | ${data.finalStage} | ${data.retries} | ${outcome} |`;
+    }).join('\n')
+    : null;
 
   // Build report
   const report = `# Weekly Retrospective — ${dt}
@@ -151,12 +146,13 @@ function generateWeeklyRetro(config, root) {
 
 | Metric | Value |
 |--------|-------|
-| Pipeline runs | ${runs.length} |
+| Sessions | ${sessionData.sessions.length} |
 | Tickets processed | ${totalTickets} |
 | Tickets shipped | ${recentlyDone.length} |
 | Success rate | ${successRate}% |
 | Average retries | ${avgRetries} |
-| Total rejections | ${totalRetries} |
+| Total rejections | ${totalRejections} |
+| Avg session duration | ${sessionData.sessions.length > 0 ? formatDurationMs(sessionData.totalDuration / sessionData.sessions.length) : 'N/A'} |
 | Learnings added | ${learningsCount} |
 | Retrospectives filed | ${weekRetros} |
 
@@ -166,24 +162,41 @@ function generateWeeklyRetro(config, root) {
 |-------|-------|
 ${Object.entries(stageCounts).map(([s, c]) => `| ${s} | ${c} |`).join('\n')}
 
-## Pipeline Results
+## Session Results
 
-${runs.length > 0 ? runs.map(run => {
-  const rows = run.tickets.map(t =>
-    `| ${t.ticket} | ${t.finalStage} | ${t.retries} | ${t.outcome} |`
-  ).join('\n');
-  return `### ${run.file} (${run.date})
-
-| Ticket | Final Stage | Retries | Outcome |
+${sessionResultsTable ? `| Ticket | Final Stage | Retries | Outcome |
 |--------|-------------|---------|---------|
-${rows}`;
-}).join('\n\n') : '_No pipeline runs this week._'}
+${sessionResultsTable}` : '_No sessions this week._'}
 
 ## Rejection Hotspots
 
-${totalRetries > 0 ?
-  `Total rejection loops: ${totalRetries}. Most rejections came from the review/test stages. Consider adding learnings to \`.claude/skills/bobby-build/learnings.md\` to prevent repeat issues.` :
-  '_No rejections this week._'}
+${totalRejections > 0
+  ? `Total rejections: ${totalRejections}. Consider adding learnings to \`.claude/skills/bobby-build/learnings.md\` to prevent repeat issues.`
+  : '_No rejections this week._'}
+${Object.keys(sessionData.rejectionReasons).length > 0 ? `
+### Top Rejection Reasons
+
+| Reason | Count |
+|--------|-------|
+${Object.entries(sessionData.rejectionReasons).sort((a, b) => b[1] - a[1]).map(([reason, count]) => `| ${reason} | ${count} |`).join('\n')}
+` : ''}
+${Object.keys(sessionData.agentRejections).length > 0 ? `
+### Rejection Rate by Agent
+
+| Agent | Rejections |
+|-------|------------|
+${Object.entries(sessionData.agentRejections).sort((a, b) => b[1] - a[1]).map(([agent, count]) => `| ${agent} | ${count} |`).join('\n')}
+` : ''}
+${Object.keys(sessionData.stageDurations).length > 0 ? `
+### Avg Time per Stage
+
+| Stage | Avg Duration | Transitions |
+|-------|-------------|-------------|
+${Object.entries(sessionData.stageDurations).map(([stage, times]) => {
+  const avg = times.reduce((a, b) => a + b, 0) / times.length;
+  return `| ${stage} | ${formatDurationMs(avg)} | ${times.length} |`;
+}).join('\n')}
+` : ''}
 
 ## Recently Shipped
 
@@ -202,7 +215,17 @@ ${recentlyDone.length > 0 ?
   const retroFile = path.join(retroDir, `weekly-${dt}.md`);
   fs.writeFileSync(retroFile, report, 'utf8');
 
-  return { file: retroFile, report, recentlyDone, runs, totalTickets, successRate };
+  return { file: retroFile, report, recentlyDone, sessionData, totalTickets, successRate };
+}
+
+function formatDurationMs(ms) {
+  if (ms < 1000) return '0s';
+  const secs = Math.floor(ms / 1000);
+  const mins = Math.floor(secs / 60);
+  const hrs = Math.floor(mins / 60);
+  if (hrs > 0) return `${hrs}h ${mins % 60}m`;
+  if (mins > 0) return `${mins}m ${secs % 60}s`;
+  return `${secs}s`;
 }
 
 function daysSince(dateStr) {
@@ -227,7 +250,7 @@ export function registerRetro(program) {
           const result = generateWeeklyRetro(config, root);
           console.log('');
           console.log(`  ${bold('Weekly Retrospective')}`);
-          console.log(`  ${dim(`${result.runs.length} pipeline runs, ${result.totalTickets} tickets processed, ${result.recentlyDone.length} shipped, ${result.successRate}% success rate`)}`);
+          console.log(`  ${dim(`${result.sessionData.sessions.length} sessions, ${result.totalTickets} tickets processed, ${result.recentlyDone.length} shipped, ${result.successRate}% success rate`)}`);
           console.log('');
           success(`Created ${path.relative(root, result.file)}`);
           console.log('');

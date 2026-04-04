@@ -187,7 +187,7 @@ describe('pipeline prompts with cline target', () => {
 
   test('buildOrchestrationPrompt uses cline paths', () => {
     const prompt = buildOrchestrationPrompt(
-      'TKT-001', DEFAULT_PIPELINE, 3, '.bobby/tickets', 20, '.bobby/runs', clineAgentsPath
+      'TKT-001', DEFAULT_PIPELINE, 3, '.bobby/tickets', 20, clineAgentsPath
     );
     expect(prompt).toContain('.clinerules/agents/');
     expect(prompt).not.toContain('.claude/agents/');

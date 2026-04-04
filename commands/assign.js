@@ -4,6 +4,7 @@ import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js
 import { findTicket, writeTicket } from '../lib/tickets.js';
 import { success, error } from '../lib/colors.js';
 import chalk from 'chalk';
+import { tryLogEntry } from '../lib/session.js';
 
 export function registerAssign(program) {
   program
@@ -23,6 +24,7 @@ export function registerAssign(program) {
         writeTicket(found.path, data, found.content);
 
         success(`${id} assigned to ${chalk.cyan(name)}`);
+        tryLogEntry(root, config, { type: 'assign', ticket: id, agent: name });
       } catch (e) {
         error(e.message);
         process.exit(1);

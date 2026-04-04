@@ -129,14 +129,14 @@ describe('bobby init (scaffolding)', () => {
     expect(claudeMd).toContain('.claude/skills/');
   });
 
-  test('scaffoldProject creates runs directory', () => {
+  test('scaffoldProject creates sessions directory', () => {
     scaffoldProject(tmpDir, {
       project: 'test-app', stack: 'nextjs',
       health_checks: [], areas: [],
-      commands: {}, tickets_dir: '.bobby/tickets', runs_dir: '.bobby/runs',
+      commands: {}, tickets_dir: '.bobby/tickets', sessions_dir: '.bobby/sessions',
       ticket_prefix: 'TKT',
     });
-    expect(fs.existsSync(path.join(tmpDir, '.bobby', 'runs'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.bobby', 'sessions'))).toBe(true);
   });
 
   test('scaffoldProject defaults bobby_dir when not provided', () => {
@@ -144,10 +144,10 @@ describe('bobby init (scaffolding)', () => {
       project: 'test-app', stack: 'nextjs',
       health_checks: [], areas: [],
       commands: {}, ticket_prefix: 'TKT',
-      // omit bobby_dir, tickets_dir, runs_dir
+      // omit bobby_dir, tickets_dir, sessions_dir
     });
     expect(fs.existsSync(path.join(tmpDir, '.bobby', 'tickets'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, '.bobby', 'runs'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.bobby', 'sessions'))).toBe(true);
   });
 
   test('scaffoldProject does not overwrite existing counter', () => {
