@@ -5,8 +5,6 @@ import { findProjectRoot, readConfig } from '../lib/config.js';
 import { success, error } from '../lib/colors.js';
 import { getTarget } from '../lib/targets/index.js';
 
-const VALID_SKILLS = ['bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship'];
-
 export function registerLearn(program) {
   program
     .command('learn <skill> <pattern> <description>')
@@ -14,20 +12,20 @@ export function registerLearn(program) {
     .option('--source <retroId>', 'Source retrospective ID')
     .action((skill, pattern, description, opts) => {
       try {
-        if (!VALID_SKILLS.includes(skill)) {
-          error(`Unknown skill '${skill}'. Valid: ${VALID_SKILLS.join(', ')}`);
-          process.exit(1);
-        }
-
         const root = findProjectRoot();
         const config = readConfig(root);
         const target = getTarget(config.target || 'claude-code');
-        const learningsFile = path.join(root, target.paths().skills, skill, 'learnings.md');
+        const skillsDir = path.join(root, target.paths().skills);
+        const learningsFile = path.join(skillsDir, skill, 'learnings.md');
+
         if (!fs.existsSync(learningsFile)) {
-          error(`Learnings file not found: ${learningsFile}`);
+          // Discover which skills have learnings files
+          const validSkills = fs.readdirSync(skillsDir)
+            .filter(d => fs.existsSync(path.join(skillsDir, d, 'learnings.md')))
+            .sort();
+          error(`Unknown skill '${skill}'. Valid: ${validSkills.join(', ')}`);
           process.exit(1);
         }
-
         let entry = `- **${pattern}**: ${description}`;
         if (opts.source) entry += ` (source: ${opts.source})`;
 
