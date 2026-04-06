@@ -1,5 +1,5 @@
 // test/lib/config.test.js
-import { readConfig, writeConfig, findProjectRoot, configExists, findMainWorktreeRoot, resolveTicketsDir } from '../../lib/config.js';
+import { readConfig, writeConfig, writeConfigCommented, findProjectRoot, configExists, findMainWorktreeRoot, resolveTicketsDir } from '../../lib/config.js';
 import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -118,6 +118,81 @@ describe('config', () => {
     const config = readConfig(tmpDir);
     expect(config.tickets_dir).toBe('my/tickets');
     expect(config.sessions_dir).toBe('my/sessions');
+  });
+
+  test('writeConfigCommented creates .bobbyrc.yml with comments', () => {
+    const config = {
+      project: 'my-app', stack: 'nextjs', target: 'claude-code',
+      bobby_dir: '.bobby', tickets_dir: '.bobby/tickets', sessions_dir: '.bobby/sessions',
+      ticket_prefix: 'TKT',
+      health_checks: [{ name: 'app', url: 'http://localhost:3000', description: 'Next.js' }],
+      areas: ['auth', 'dashboard'],
+      commands: { dev: 'npm run dev', test: 'npm test', lint: 'npm run lint', build: 'npm run build' },
+      testing_tools: ['curl'],
+      max_retries: 3,
+    };
+    writeConfigCommented(tmpDir, config);
+    const content = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
+    expect(content).toContain('# Bobby Configuration');
+    expect(content).toContain('# Project name');
+    expect(content).toContain('project: my-app');
+    expect(content).toContain('# Tech stack preset');
+    expect(content).toContain('# Optional configuration');
+  });
+
+  test('writeConfigCommented output parses correctly via readConfig', () => {
+    const config = {
+      project: 'roundtrip-test', stack: 'nextjs', target: 'claude-code',
+      bobby_dir: '.bobby', tickets_dir: '.bobby/tickets', sessions_dir: '.bobby/sessions',
+      ticket_prefix: 'TKT',
+      health_checks: [{ name: 'app', url: 'http://localhost:3000', description: 'Dev' }],
+      areas: ['auth', 'api'],
+      commands: { dev: 'npm run dev', test: 'npm test', lint: 'npm run lint', build: 'npm run build' },
+      testing_tools: ['playwright', 'curl'],
+      max_retries: 3,
+    };
+    writeConfigCommented(tmpDir, config);
+    const parsed = readConfig(tmpDir);
+    expect(parsed.project).toBe('roundtrip-test');
+    expect(parsed.stack).toBe('nextjs');
+    expect(parsed.areas).toEqual(['auth', 'api']);
+    expect(parsed.health_checks).toEqual([{ name: 'app', url: 'http://localhost:3000', description: 'Dev' }]);
+    expect(parsed.testing_tools).toEqual(['playwright', 'curl']);
+    expect(parsed.commands.test).toBe('npm test');
+  });
+
+  test('writeConfigCommented includes optional sections as comments', () => {
+    const config = {
+      project: 'test', stack: 'generic', target: 'claude-code',
+      bobby_dir: '.bobby', tickets_dir: '.bobby/tickets', sessions_dir: '.bobby/sessions',
+      ticket_prefix: 'TKT', health_checks: [], areas: [],
+      commands: { dev: '', test: '', lint: '', build: '' },
+      testing_tools: ['curl'], max_retries: 3,
+    };
+    writeConfigCommented(tmpDir, config);
+    const content = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
+    expect(content).toContain('# pipelines:');
+    expect(content).toContain('# skill_routing:');
+    expect(content).toContain('# build_skills:');
+    expect(content).toContain('# repos:');
+    expect(content).toContain('# parallel_isolation:');
+    expect(content).toContain('# backlog_limit:');
+  });
+
+  test('writeConfigCommented handles minimal config', () => {
+    const config = {
+      project: 'minimal', stack: 'generic',
+      bobby_dir: '.bobby', tickets_dir: '.bobby/tickets', sessions_dir: '.bobby/sessions',
+      ticket_prefix: 'TKT',
+    };
+    writeConfigCommented(tmpDir, config);
+    const content = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
+    expect(content).toContain('project: minimal');
+    expect(content).toContain('health_checks: []');
+    expect(content).toContain('areas: []');
+    // Should still be parseable
+    const parsed = readConfig(tmpDir);
+    expect(parsed.project).toBe('minimal');
   });
 });
 

@@ -1,0 +1,32 @@
+# Bobby — session logs (not committed)
+.bobby/sessions/
+
+# Dependencies
+node_modules/
+vendor/
+<% if (stack === 'python-flask') { -%>
+__pycache__/
+*.pyc
+.venv/
+venv/
+<% } -%>
+
+# Build output
+dist/
+build/
+<% if (stack === 'nextjs') { -%>
+.next/
+out/
+<% } -%>
+<% if (stack === 'python-flask') { -%>
+*.egg-info/
+<% } -%>
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
