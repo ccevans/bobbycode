@@ -161,7 +161,8 @@ Repeat for each ticket in the queue.
 2. **Run lint** if configured<% if (commands && commands.lint) { %> (`<%= commands.lint %>`)<% } %>
 3. **If everything passes** — Move the epic to shipping: `bobby move {epicId} ship`
 4. **Report** — Show the final status of each ticket and the epic
-5. **Remind** — Tell the user: `Run bobby run ship to create a PR and merge.`
+5. **Sync** — Run `bobby sync` to commit ticket state changes to the umbrella repo
+6. **Remind** — Tell the user: `Run bobby run ship to create a PR and merge.`
 
 ## Key Principles
 

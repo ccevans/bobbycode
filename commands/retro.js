@@ -5,6 +5,7 @@ import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir } fr
 import { findTicket, listTickets, slugify } from '../lib/tickets.js';
 import { success, error, bold, dim } from '../lib/colors.js';
 import { listSessions, readSession } from '../lib/session.js';
+import { autoSync } from '../lib/auto-sync.js';
 
 /**
  * Parse session logs from .bobby/sessions/ and extract metrics
@@ -253,6 +254,7 @@ export function registerRetro(program) {
           console.log(`  ${dim(`${result.sessionData.sessions.length} sessions, ${result.totalTickets} tickets processed, ${result.recentlyDone.length} shipped, ${result.successRate}% success rate`)}`);
           console.log('');
           success(`Created ${path.relative(root, result.file)}`);
+          autoSync(root, config.bobby_dir || '.bobby');
           console.log('');
           console.log(result.report);
           return;
@@ -321,6 +323,7 @@ ${rejectionHistory}
 <!-- Which skills/stages should check for this -->
 `;
         fs.writeFileSync(retroFile, retroContent, 'utf8');
+        autoSync(root, config.bobby_dir || '.bobby');
         success(`Created ${retroId} — ${pattern}`);
         console.log(`  → ${config.tickets_dir}/retrospectives/${retroId}--${slug}.md`);
       } catch (e) {

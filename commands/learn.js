@@ -4,6 +4,7 @@ import path from 'path';
 import { findProjectRoot, readConfig } from '../lib/config.js';
 import { success, error } from '../lib/colors.js';
 import { getTarget } from '../lib/targets/index.js';
+import { autoSync } from '../lib/auto-sync.js';
 
 export function registerLearn(program) {
   program
@@ -36,6 +37,7 @@ export function registerLearn(program) {
           `$1\n${entry}\n`
         );
         fs.writeFileSync(learningsFile, content, 'utf8');
+        autoSync(root, config.bobby_dir || '.bobby');
 
         success(`Added learning to ${skill}: ${pattern}`);
       } catch (e) {

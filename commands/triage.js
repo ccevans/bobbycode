@@ -5,6 +5,7 @@ import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js
 import { listTickets, updateTicket, addComment, daysBetween, readTicket } from '../lib/tickets.js';
 import { stageColor } from '../lib/stages.js';
 import { success, dim, bold, error } from '../lib/colors.js';
+import { autoSync } from '../lib/auto-sync.js';
 
 export function registerTriage(program) {
   program
@@ -98,6 +99,7 @@ export function registerTriage(program) {
         if (summary.skipped > 0) parts.push(`${summary.skipped} skipped`);
         console.log(`  ${parts.join(' · ')}`);
         console.log('');
+        autoSync(root, config.bobby_dir || '.bobby');
       } catch (e) {
         error(e.message);
         process.exit(1);

@@ -2,11 +2,12 @@
 import fs from 'fs';
 import path from 'path';
 import inquirer from 'inquirer';
-import { writeConfig, readConfig, configExists } from '../lib/config.js';
+import { writeConfig, writeConfigCommented, readConfig, configExists } from '../lib/config.js';
 import { renderTemplate, renderSkillTemplates } from '../lib/template.js';
 import { success, warn, error, bold } from '../lib/colors.js';
 import { getTarget, TARGETS } from '../lib/targets/index.js';
 import { detectServices, aggregateAreas, aggregateHealthChecks } from '../lib/services.js';
+import { execSync } from 'child_process';
 
 // Load stack configs
 import { fileURLToPath } from 'url';
@@ -15,10 +16,39 @@ const STACKS_DIR = path.join(__dirname, '..', 'stacks');
 const AGENT_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'agents');
 const COMMAND_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'commands');
 
-function loadStack(stackName) {
+export function loadStack(stackName, projectRoot) {
+  // Check project-local stacks first
+  if (projectRoot) {
+    const localStackFile = path.join(projectRoot, '.bobby', 'stacks', `${stackName}.json`);
+    if (fs.existsSync(localStackFile)) {
+      return JSON.parse(fs.readFileSync(localStackFile, 'utf8'));
+    }
+  }
+  // Fall back to bundled stacks
   const stackFile = path.join(STACKS_DIR, `${stackName}.json`);
   if (!fs.existsSync(stackFile)) return null;
   return JSON.parse(fs.readFileSync(stackFile, 'utf8'));
+}
+
+function detectCustomStacks(projectRoot) {
+  const localStacksDir = path.join(projectRoot, '.bobby', 'stacks');
+  if (!fs.existsSync(localStacksDir)) return [];
+  return fs.readdirSync(localStacksDir)
+    .filter(f => f.endsWith('.json'))
+    .map(f => {
+      try {
+        const data = JSON.parse(fs.readFileSync(path.join(localStacksDir, f), 'utf8'));
+        return { name: `${data.display || data.name} (custom)`, value: data.name };
+      } catch { return null; }
+    })
+    .filter(Boolean);
+}
+
+function ensureGitRepo(rootDir) {
+  const gitDir = path.join(rootDir, '.git');
+  if (fs.existsSync(gitDir)) return false;
+  execSync('git init', { cwd: rootDir, stdio: 'pipe' });
+  return true;
 }
 
 export function scaffoldProject(rootDir, config) {
@@ -41,8 +71,11 @@ export function scaffoldProject(rootDir, config) {
   const sessionsDir = path.join(rootDir, config.sessions_dir);
   fs.mkdirSync(sessionsDir, { recursive: true });
 
-  // Write config
-  writeConfig(rootDir, config);
+  // Ensure the project directory is a git repo
+  ensureGitRepo(rootDir);
+
+  // Write config (commented version for init, plain for programmatic updates)
+  writeConfigCommented(rootDir, config);
 
   // Build template data with target paths
   const templateData = {
@@ -124,25 +157,68 @@ export function registerInit(program) {
         let existingConfig = null;
         if (configExists(rootDir)) {
           existingConfig = readConfig(rootDir);
-          const { confirm } = await inquirer.prompt([{
-            type: 'confirm',
-            name: 'confirm',
-            message: 'Bobby is already set up. Re-initialize? (Config and skills regenerated, tickets preserved)',
-            default: false,
+
+          console.log('');
+          console.log(`  ${bold('Bobby')} is already set up in this project.`);
+          console.log('');
+          console.log(`    Project:  ${existingConfig.project}`);
+          console.log(`    Stack:    ${existingConfig.stack}`);
+          console.log(`    Target:   ${existingConfig.target || 'claude-code'}`);
+          console.log('');
+
+          const { reinitMode } = await inquirer.prompt([{
+            type: 'list',
+            name: 'reinitMode',
+            message: 'What would you like to do?',
+            choices: [
+              { name: 'Re-scaffold — regenerate skills, agents, and commands from current config', value: 'rescaffold' },
+              { name: 'Reconfigure — change project settings (full setup wizard)', value: 'reconfigure' },
+              { name: 'Cancel', value: 'cancel' },
+            ],
+            default: 'rescaffold',
           }]);
-          if (!confirm) { console.log('Cancelled.'); return; }
+
+          if (reinitMode === 'cancel') { console.log('Cancelled.'); return; }
+
+          if (reinitMode === 'rescaffold') {
+            scaffoldProject(rootDir, existingConfig);
+
+            const targetAdapter = getTarget(existingConfig.target || 'claude-code');
+            const tp = targetAdapter.paths();
+            console.log('');
+            success(`Re-scaffolded from existing .bobbyrc.yml (tickets preserved)`);
+            success(`Updated ${tp.skills}/, ${tp.agents}/, ${tp.commands}/, ${tp.rules}`);
+            console.log('');
+            return;
+          }
+          // reconfigure: fall through to full wizard below
         }
 
         console.log('');
         console.log(`  Welcome to ${bold('Bobby')} — your pair programmer.`);
         console.log('');
 
+        // Setup mode: quick or full
+        const { setupMode } = await inquirer.prompt([{
+          type: 'list',
+          name: 'setupMode',
+          message: 'Setup mode:',
+          choices: [
+            { name: 'Quick — project name + stack, sensible defaults for everything else', value: 'quick' },
+            { name: 'Full — configure health checks, areas, services, and more', value: 'full' },
+          ],
+          default: 'quick',
+        }]);
+
+        // Detect custom stacks and prepend to choices
+        const customStacks = detectCustomStacks(rootDir);
         const stackChoices = [
-          { name: 'Next.js', value: 'nextjs' },
-          { name: 'Rails + React', value: 'rails-react' },
-          { name: 'Python / Flask', value: 'python-flask' },
-          { name: 'Polyglot / Multi-Service', value: 'polyglot' },
-          { name: 'Other (configure manually)', value: 'generic' },
+          ...customStacks,
+          { name: 'Next.js — npm commands, single health check on :3000', value: 'nextjs' },
+          { name: 'Rails + React — multi-repo, dual health checks (API :3000, UI :3001)', value: 'rails-react' },
+          { name: 'Python / Flask — pytest, flake8, Flask on :5000', value: 'python-flask' },
+          { name: 'Polyglot / Multi-Service — auto-detects services, per-service commands', value: 'polyglot' },
+          { name: 'Other — generic defaults, configure manually in .bobbyrc.yml', value: 'generic' },
         ];
 
         const answers = await inquirer.prompt([
@@ -154,7 +230,7 @@ export function registerInit(program) {
           },
         ]);
 
-        const stack = loadStack(answers.stack) || loadStack('generic');
+        const stack = loadStack(answers.stack, rootDir) || loadStack('generic', rootDir);
 
         // Ask for AI target
         const { targetName } = await inquirer.prompt([{
@@ -162,34 +238,43 @@ export function registerInit(program) {
           name: 'targetName',
           message: 'AI target:',
           choices: [
-            { name: 'Claude Code', value: 'claude-code' },
-            { name: 'Cline (VS Code)', value: 'cline' },
+            { name: 'Claude Code — scaffolds to .claude/ (agents, skills, commands, CLAUDE.md)', value: 'claude-code' },
+            { name: 'Cline (VS Code) — scaffolds to .clinerules/ (agents, skills, workflows)', value: 'cline' },
           ],
           default: existingConfig?.target || 'claude-code',
         }]);
 
-        // Ask for dev URL override
-        const defaultUrl = existingConfig?.health_checks?.[0]?.url || stack.health_checks[0]?.url || 'http://localhost:3000';
-        const { devUrl } = await inquirer.prompt([{
-          type: 'input', name: 'devUrl', message: `Dev server URL:`, default: defaultUrl,
-        }]);
+        let devUrl;
+        let bobbyDir;
+
+        if (setupMode === 'full') {
+          // Ask for dev URL override
+          const defaultUrl = existingConfig?.health_checks?.[0]?.url || stack.health_checks[0]?.url || 'http://localhost:3000';
+          ({ devUrl } = await inquirer.prompt([{
+            type: 'input', name: 'devUrl', message: `Dev server URL:`, default: defaultUrl,
+          }]));
+
+          // Ask for Bobby directory
+          ({ bobbyDir } = await inquirer.prompt([{
+            type: 'input',
+            name: 'bobbyDir',
+            message: 'Bobby directory (tickets, runs, etc.):',
+            default: existingConfig?.bobby_dir || '.bobby',
+          }]));
+        } else {
+          // Quick mode: use stack defaults
+          devUrl = existingConfig?.health_checks?.[0]?.url || stack.health_checks[0]?.url || 'http://localhost:3000';
+          bobbyDir = existingConfig?.bobby_dir || '.bobby';
+        }
 
         // Update health check URL if changed
         if (stack.health_checks[0]) {
           stack.health_checks[0].url = devUrl;
         }
 
-        // Ask for Bobby directory
-        const { bobbyDir } = await inquirer.prompt([{
-          type: 'input',
-          name: 'bobbyDir',
-          message: 'Bobby directory (tickets, runs, etc.):',
-          default: existingConfig?.bobby_dir || '.bobby',
-        }]);
-
-        // Auto-detect repos for multi-repo stacks
+        // Auto-detect repos for multi-repo stacks (full mode only)
         let repos = [];
-        if (stack.repos && stack.repos.length > 0) {
+        if (setupMode === 'full' && stack.repos && stack.repos.length > 0) {
           // Find subdirectories with .git/
           const subdirs = fs.readdirSync(rootDir, { withFileTypes: true })
             .filter(d => d.isDirectory() && fs.existsSync(path.join(rootDir, d.name, '.git')))
@@ -219,9 +304,9 @@ export function registerInit(program) {
           }
         }
 
-        // Service definition flow for polyglot stacks
+        // Service definition flow for polyglot stacks (full mode only)
         let services = existingConfig?.services || undefined;
-        if (stack.services || answers.stack === 'polyglot') {
+        if (setupMode === 'full' && (stack.services || answers.stack === 'polyglot')) {
           const detected = detectServices(rootDir);
           if (detected.length > 0) {
             console.log('');
@@ -303,21 +388,23 @@ export function registerInit(program) {
         // Auto-detect project skills for the build agent
         const targetAdapter = getTarget(targetName);
         let buildSkills = [];
-        const skillsDir = path.join(rootDir, targetAdapter.paths().skills);
-        if (fs.existsSync(skillsDir)) {
-          const projectSkills = fs.readdirSync(skillsDir, { withFileTypes: true })
-            .filter(d => d.isDirectory() && !d.name.startsWith('bobby-'))
-            .filter(d => fs.existsSync(path.join(skillsDir, d.name, 'SKILL.md')))
-            .map(d => d.name);
+        if (setupMode === 'full') {
+          const skillsDir = path.join(rootDir, targetAdapter.paths().skills);
+          if (fs.existsSync(skillsDir)) {
+            const projectSkills = fs.readdirSync(skillsDir, { withFileTypes: true })
+              .filter(d => d.isDirectory() && !d.name.startsWith('bobby-'))
+              .filter(d => fs.existsSync(path.join(skillsDir, d.name, 'SKILL.md')))
+              .map(d => d.name);
 
-          if (projectSkills.length > 0) {
-            const { selectedSkills } = await inquirer.prompt([{
-              type: 'checkbox',
-              name: 'selectedSkills',
-              message: 'Which project skills should the build agent follow?',
-              choices: projectSkills.map(s => ({ name: s, checked: true })),
-            }]);
-            buildSkills = selectedSkills;
+            if (projectSkills.length > 0) {
+              const { selectedSkills } = await inquirer.prompt([{
+                type: 'checkbox',
+                name: 'selectedSkills',
+                message: 'Which project skills should the build agent follow?',
+                choices: projectSkills.map(s => ({ name: s, checked: true })),
+              }]);
+              buildSkills = selectedSkills;
+            }
           }
         }
 
@@ -367,6 +454,11 @@ export function registerInit(program) {
         console.log('    bobby run pipeline TKT-001             # Run the full pipeline');
         console.log('');
         console.log('  Tell Claude: "work tickets" and it\'ll pick up from the queue.');
+        console.log('');
+        console.log('  Want to learn more?');
+        console.log('    .bobbyrc.yml                           # All config options (with comments)');
+        console.log('    docs/CUSTOMIZING.md                    # Add agents, skills, pipelines');
+        console.log('    docs/MIGRATING.md                      # Adopt Bobby incrementally');
         console.log('');
       } catch (e) {
         error(e.message);
