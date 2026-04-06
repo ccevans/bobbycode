@@ -99,7 +99,7 @@ export function registerTriage(program) {
         if (summary.skipped > 0) parts.push(`${summary.skipped} skipped`);
         console.log(`  ${parts.join(' · ')}`);
         console.log('');
-        autoSync(root, config.bobby_dir || '.bobby');
+        autoSync(root);
       } catch (e) {
         error(e.message);
         process.exit(1);

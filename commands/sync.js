@@ -2,6 +2,7 @@
 import { execSync } from 'child_process';
 import inquirer from 'inquirer';
 import { findProjectRoot, readConfig } from '../lib/config.js';
+import { getBobbyPaths } from '../lib/auto-sync.js';
 import { success, warn, error, bold, info } from '../lib/colors.js';
 
 function hasRemote(rootDir, remoteName = 'origin') {
@@ -13,9 +14,10 @@ function hasRemote(rootDir, remoteName = 'origin') {
   }
 }
 
-function hasChanges(rootDir, bobbyDir) {
+function hasChanges(rootDir, paths) {
   try {
-    const status = execSync(`git status --porcelain "${bobbyDir}"`, {
+    const pathArgs = paths.map(p => `"${p}"`).join(' ');
+    const status = execSync(`git status --porcelain -- ${pathArgs}`, {
       cwd: rootDir, encoding: 'utf8',
     }).trim();
     return status.length > 0;
@@ -89,13 +91,15 @@ export function registerSync(program) {
           return;
         }
 
-        // Default mode: commit .bobby/ changes
-        if (!hasChanges(root, bobbyDir)) {
+        // Default mode: commit all Bobby-managed files
+        const paths = getBobbyPaths(root);
+        if (!hasChanges(root, paths)) {
           info('Nothing to sync — Bobby data is clean.');
           return;
         }
 
-        execSync(`git add "${bobbyDir}"`, { cwd: root, stdio: 'pipe' });
+        const pathArgs = paths.map(p => `"${p}"`).join(' ');
+        execSync(`git add -- ${pathArgs}`, { cwd: root, stdio: 'pipe' });
 
         const msg = opts.message || 'bobby: sync tickets and sessions';
         execSync(`git commit -m "${msg}"`, { cwd: root, stdio: 'pipe' });

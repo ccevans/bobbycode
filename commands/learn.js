@@ -37,7 +37,7 @@ export function registerLearn(program) {
           `$1\n${entry}\n`
         );
         fs.writeFileSync(learningsFile, content, 'utf8');
-        autoSync(root, config.bobby_dir || '.bobby');
+        autoSync(root);
 
         success(`Added learning to ${skill}: ${pattern}`);
       } catch (e) {
