@@ -1,0 +1,26 @@
+# Bobby Architectural Decision Log
+#
+# Seeded by `bobby run arch`. Updated via `bobby learn` or manually.
+# Format:
+#   id:          kebab-case unique identifier
+#   fact:        the decision or constraint as a declarative statement
+#   decided:     ISO date (approximate if unknown)
+#   ticket:      TKT-XXXX if traceable, "arch" for structural decisions
+#   why:         the reason — include the incident or constraint that drove it
+#   supersedes:  id of the decision this replaces (null if none)
+#   invalidated: ISO date this decision was overturned (null if still active)
+#
+# To record a new decision: add an entry below
+# To invalidate: set invalidated to today's date and add a new superseding entry
+
+---
+
+# Example (delete and replace with real decisions after running `bobby run arch`):
+#
+# - id: no-direct-db-in-components
+#   fact: "Never call the database directly from UI components."
+#   decided: "2025-01-01"
+#   ticket: arch
+#   why: "Breaks separation of concerns and makes testing hard. Use a service layer."
+#   supersedes: null
+#   invalidated: null

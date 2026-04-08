@@ -1,0 +1,104 @@
+---
+name: bobby-ticket-intake
+description: "Ticket Intake Skill: Converts a pasted PM/JIRA spec into a fully populated Bobby ticket. MANDATORY TRIGGERS: intake, ticket intake, create ticket from spec, parse ticket, import ticket, PM spec."
+argument-hint: "(paste the PM spec after the command)"
+---
+
+# Bobby Ticket Intake Skill
+
+> Turn a PM spec into a Bobby ticket with real content in one pass. No placeholders. Pipeline agents should be able to start from the ticket immediately.
+
+## When to Use
+
+The user pastes a JIRA ticket body, a spec doc, or any PM-written description and wants it stored as a Bobby ticket.
+
+## Steps
+
+### 1. Parse the pasted content
+
+Extract the following fields from the pasted spec:
+
+| Field | Where to look |
+|-------|--------------|
+| `id` | Issue key from the ticket system (e.g. `TKT-001`, `PROJ-123`) — often in the title or URL. Omit if not present. |
+| `title` | Summary line or first heading |
+| `type` | `epic` if the spec spans multiple capabilities or explicitly says "Epic"; `bug` if it describes broken behaviour; `task` for infra/config; `feature` otherwise |
+| `priority` | Explicit priority field, or infer: "critical" / "blocker" → `critical`, "high" / "must" → `high`, "nice to have" / "low" → `low`, default → `medium` |
+| `area` | Match to a valid area from `.bobbyrc.yml` — read that file before inferring |
+| `description` | Full body text cleaned to markdown. Preserve section headings and code examples. |
+| `acceptance_criteria` | Checklist-style bullets, "Acceptance Criteria", "Definition of Done", or "AC" sections. Convert to `- [ ] …` format. |
+| `open_questions` | Sections labelled "Open Questions", "TBD", "To Discuss", or any items marked with `??` or `[TBD]`. |
+
+### 2. Read valid areas
+
+Before inferring `area`, read `.bobbyrc.yml` and use its `areas` list. Do not hardcode area names.
+
+### 3. Clarify before creating
+
+If `area` or `priority` are genuinely ambiguous after reading the spec, ask the user. Do not guess at domain ownership — a wrong area routes the ticket to the wrong service.
+
+You do not need to ask about anything else (title, type, description — extract and proceed).
+
+### 4. Create the ticket via Bobby CLI
+
+```bash
+bobby create -t "<title>" --type <type> -p <priority> --area <area>
+# use --epic flag for epics
+```
+
+This claims the directory and ID atomically. Do not create the directory manually.
+
+### 5. Overwrite ticket.md with real content
+
+After `bobby create`, the ticket.md contains placeholder text. Replace the entire body with real content:
+
+```markdown
+## Description
+
+<full description from spec — real prose, not a placeholder>
+
+## Acceptance Criteria
+
+- [ ] <real AC 1>
+- [ ] <real AC 2>
+…
+
+## Steps to Reproduce        ← bugs only, omit for all other types
+
+1. <step>
+2. <step>
+3. Expected: … / Actual: …
+
+## Open Questions
+
+- <open question or TBD from spec>   ← "None yet." if spec has none
+
+## Comments
+- [<today>] system: Ticket created via bobby-ticket-intake from PM spec.
+```
+
+### 6. Add epic planning note (epics only)
+
+If `type === epic`, append a comment:
+
+```
+- [<today>] system: Epic — run `bobby run plan <id>` to break into child tickets.
+```
+
+### 7. Confirm to the user
+
+Output one line:
+```
+Created <id>: "<title>" [<type> · <priority> · <area>] → <%= tickets_dir %>/<dirname>/ticket.md
+```
+
+## Rules
+
+- **Never leave placeholder text** — `[What is this ticket about?]`, `[First criterion]`, `_None yet._` (unless there are genuinely no open questions) are failures.
+- **Preserve PM language** — don't paraphrase the description. Keep the PM's wording so agents have the authoritative spec.
+- **Bugs get Steps to Reproduce** — all other types do not.
+- **Do not move the ticket to planning** — leave it in `backlog`. The engineer decides when to advance it.
+
+## Anti-Patterns
+
+<!-- bobby learn bobby-ticket-intake adds entries below this line -->

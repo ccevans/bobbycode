@@ -1,0 +1,11 @@
+---
+name: bobby-arch
+description: "Architecture Skill: Discovers and documents the codebase so all Bobby agents start with shared context. MANDATORY TRIGGERS: arch, architecture, discover codebase, document architecture, regenerate wakeup, update decisions."
+argument-hint: "(no arguments)"
+---
+
+# Bobby Arch Skill
+
+> Autonomously learns the codebase, writes `.bobby/architecture.md` (full reference), `.bobby/architecture-wakeup.md` (compressed ~300-token summary loaded by all agents), and seeds `.bobby/decisions.yaml` (enforced by bobby-review).
+
+Load and follow the agent instructions in `<%= paths.agents %>/bobby-arch.md`.

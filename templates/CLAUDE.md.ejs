@@ -187,9 +187,36 @@ When told to "watchdog check" or "verify deploy", load `<%= paths.skills %>/bobb
 - Post-deploy health verification: page loads, console errors, API responses
 - Files critical bugs for any failures
 
+### Architect (bobby-arch)
+When told to "run arch", "discover architecture", or "regenerate wakeup", load `<%= paths.skills %>/bobby-arch/SKILL.md`.
+- Autonomously reads the codebase and writes three files agents use to start work faster
+- `.bobby/architecture.md` — full reference
+- `.bobby/architecture-wakeup.md` — compressed ~300-token summary (loaded by all agents before starting)
+- `.bobby/decisions.yaml` — architectural decisions enforced by bobby-review
+
+### Ticket Intake (bobby-ticket-intake)
+When told to "intake", "convert spec", or "create ticket from PM spec", load `<%= paths.skills %>/bobby-ticket-intake/SKILL.md`.
+- Parses a pasted PM/JIRA spec and creates a fully-populated ticket — no placeholders
+- Leaves ticket in backlog; engineer decides when to advance
+
+## Hooks
+
+Bobby scaffolds two Claude Code hooks that protect against context loss and missing learnings:
+
+- **PreCompact** (`hooks/precompact.sh`) — fires before Claude compresses context. Prompts you to write a `progress.md` checkpoint in the ticket folder so work can resume after compaction without losing your place.
+- **Stop** (`hooks/stop.sh`) — fires every `BOBBY_SAVE_INTERVAL` turns (default 20) before stopping. Prompts you to record any new anti-patterns or validated approaches via `bobby learn` before the session ends.
+
+Set `BOBBY_SAVE_INTERVAL` in your shell environment to change the frequency.
+
+## Architecture Wakeup
+
+All agents should load `.bobby/architecture-wakeup.md` (if it exists) as part of their "Before Starting" step. This compressed summary (~300 tokens) gives agents shared context about the codebase without loading the full `architecture.md`.
+
+Run `bobby run arch` to generate or regenerate these files after major refactors.
+
 ## Learnings
 
-Each skill has a `learnings.md` file that accumulates anti-patterns. Always check learnings before starting work.
+Each skill has a `learnings.md` file that accumulates anti-patterns. Always check learnings before starting work. Also check `<%= paths.skills %>/bobby-shared/learnings.md` — it holds cross-agent patterns that apply to all agents.
 
 ## Bobby CLI Commands
 
@@ -208,6 +235,8 @@ bobby run next TKT-001                      # Slow mode: next agent for stage
 bobby run pipeline TKT-001                  # Fast mode: auto-chain all agents
 bobby run plan                              # Batch: plan all tickets in planning
 bobby run ship                              # Ship all ready tickets
+bobby run arch                              # Discover + document architecture (wakeup + decisions)
+bobby run intake                            # Convert pasted PM spec → ticket
 bobby run ux                                # Freeform UX design review
 bobby run pm                                # Freeform PM product review
 bobby run security TKT-001                  # Security audit (OWASP + STRIDE)

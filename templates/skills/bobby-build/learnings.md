@@ -13,5 +13,11 @@ This file accumulates anti-patterns and best practices discovered during develop
 **Pattern:** Build agent writes code that only works for the specific values in test cases (e.g., checking `if name == "John"` instead of implementing general logic).
 **Fix:** Implement the actual algorithm. Tests verify correctness; they don't define the solution.
 
+### lint-before-commit
+**Run lint before every commit**: Always run the project's lint command immediately after tests, before committing. Linting violations won't surface from tests alone and will fail CI. Make this a habit even when tests pass.
+
+### rspec-subject-stub-use-ivar
+**(Rails/RSpec) Seed memoized cache via `instance_variable_set` instead of stubbing**: Never stub a method on the test subject itself (`allow(obj).to receive(:method)`). For memoized methods (`@cache ||= ...`), pre-seed the instance variable instead: `obj.instance_variable_set(:@cache, { ... })`. Same effect, avoids RSpec/SubjectStub cop violations, and tests the real memoization path.
+
 ## Best Practices
 <!-- Document what works well -->

@@ -10,7 +10,7 @@ argument-hint: "<ticket ID to review>"
 
 ## Pre-flight Checks
 
-1. **Check learnings** — Read `<%= paths.skills %>/bobby-review/learnings.md`
+1. **Check learnings** — Read `<%= paths.skills %>/bobby-review/learnings.md` and `<%= paths.skills %>/bobby-shared/learnings.md` in parallel
 2. **Branch check** — `git branch --show-current` must NOT be main/master
 3. **Hygiene check** — `git status --short` should show no uncommitted source files (build agent left dirty state if it does)
 4. **Load context** — Read these in parallel:
@@ -84,6 +84,15 @@ Don't just check that tests exist — check that they would actually catch bugs:
 - Read `test-cases.md` and confirm each documented test case has a corresponding test in the diff
 - Are test descriptions accurate? A test named "should filter by status" that doesn't actually test filtering is misleading.
 
+## Decisions Check
+
+If `.bobby/decisions.yaml` exists, scan the changed code for violations of active decisions (where `invalidated` is null). For each violation found, flag it by decision `id` in `review.md` under a "Decision Violations" section. A decision violation is a rejection reason.
+
+Examples of what to look for based on the decision `fact` field:
+- "Never call the database directly from UI components" → grep changed files for DB calls in component code
+- "All API calls must go through the service layer" → check for direct fetch/axios calls in components
+- Any project-specific constraint in `decisions.yaml`
+
 ## AC Verification
 
 After the deep review, verify the minimum bar:
@@ -124,6 +133,10 @@ Write `review.md` in the ticket directory with this structure:
 ### Code Concerns
 - {any issues found — broken callers, performance issues, LLM mistakes, etc.}
 - {or "None found" if clean}
+
+### Decision Violations
+- {any violations of .bobby/decisions.yaml entries}
+- {or "None" if decisions.yaml doesn't exist or no violations found}
 
 ### AC Verification
 - [x] AC 1: {how it's satisfied}

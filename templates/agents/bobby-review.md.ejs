@@ -13,6 +13,7 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-review/SKIL
 
 1. **Branch check** — Run `git branch --show-current`. If you're on main/master, STOP and reject: the build agent should have created a feature branch.
 2. **Hygiene check** — Run `git status --short`. If there are uncommitted source files, flag it — the build agent left dirty state.
+3. **Decisions** — If `.bobby/decisions.yaml` exists, read it. You will check changed code against these decisions during review.
 
 Then follow the skill's pre-flight and review process.
 

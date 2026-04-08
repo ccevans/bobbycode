@@ -18,6 +18,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STACKS_DIR = path.join(__dirname, '..', 'stacks');
 const AGENT_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'agents');
 const COMMAND_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'commands');
+const HOOKS_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'hooks');
+const BOBBY_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'bobby');
 
 export function loadStack(stackName, projectRoot) {
   // Check project-local stacks first
@@ -142,7 +144,7 @@ export function scaffoldProject(rootDir, config) {
   const agentsDir = path.join(rootDir, targetPaths.agents);
   fs.mkdirSync(agentsDir, { recursive: true });
 
-  const agentFiles = ['bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship', 'bobby-ux', 'bobby-pm', 'bobby-qe', 'bobby-vet', 'bobby-strategy', 'bobby-security', 'bobby-debug', 'bobby-docs', 'bobby-performance', 'bobby-watchdog'];
+  const agentFiles = ['bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship', 'bobby-ux', 'bobby-pm', 'bobby-qe', 'bobby-vet', 'bobby-strategy', 'bobby-security', 'bobby-debug', 'bobby-docs', 'bobby-performance', 'bobby-watchdog', 'bobby-arch', 'bobby-ticket-intake'];
   for (const agent of agentFiles) {
     const agentTemplate = path.join(AGENT_TEMPLATES_DIR, `${agent}.md.ejs`);
     if (fs.existsSync(agentTemplate)) {
@@ -160,6 +162,43 @@ export function scaffoldProject(rootDir, config) {
     const content = renderTemplate(`commands/${file}`, templateData);
     const outName = file.replace('.ejs', '');
     fs.writeFileSync(path.join(commandsDir, outName), content, 'utf8');
+  }
+
+  // Scaffold hooks/ directory (claude-code target only)
+  if ((config.target || 'claude-code') === 'claude-code' && fs.existsSync(HOOKS_TEMPLATES_DIR)) {
+    const hooksDir = path.join(rootDir, 'hooks');
+    fs.mkdirSync(hooksDir, { recursive: true });
+    for (const hookFile of fs.readdirSync(HOOKS_TEMPLATES_DIR)) {
+      const src = path.join(HOOKS_TEMPLATES_DIR, hookFile);
+      const dest = path.join(hooksDir, hookFile);
+      if (!fs.existsSync(dest)) {
+        fs.copyFileSync(src, dest);
+        fs.chmodSync(dest, 0o755);
+      }
+    }
+
+    // Scaffold .claude/settings.json with hooks (do not overwrite if exists)
+    const settingsPath = path.join(rootDir, '.claude', 'settings.json');
+    if (!fs.existsSync(settingsPath)) {
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      const settingsContent = renderTemplate('settings.json.ejs', templateData);
+      fs.writeFileSync(settingsPath, settingsContent, 'utf8');
+    }
+  }
+
+  // Scaffold .bobby/decisions.yaml stub (if not already present)
+  const decisionsPath = path.join(rootDir, bobbyDir, 'decisions.yaml');
+  if (!fs.existsSync(decisionsPath)) {
+    const decisionsTemplate = path.join(BOBBY_TEMPLATES_DIR, 'decisions.yaml');
+    if (fs.existsSync(decisionsTemplate)) {
+      fs.copyFileSync(decisionsTemplate, decisionsPath);
+    }
+  }
+
+  // Scaffold .bobby/architecture-wakeup.md stub (if not already present)
+  const wakeupPath = path.join(rootDir, bobbyDir, 'architecture-wakeup.md');
+  if (!fs.existsSync(wakeupPath)) {
+    fs.writeFileSync(wakeupPath, `# Architecture Wakeup\n\n_Not yet generated. Run \`bobby run arch\` to discover and document this codebase._\n`, 'utf8');
   }
 
   // Target-specific extras (e.g., .clineignore for Cline)
@@ -527,11 +566,17 @@ export function registerInit(program) {
         success(`Created ${config.tickets_dir}/ (single directory, frontmatter-based stages)`);
         success(`Created ${config.sessions_dir}/ (session logs)`);
         success('Created .bobbyrc.yml');
-        success(`Created ${tp.skills}/ with 17 workflow skills`);
-        success(`Created ${tp.agents}/ with 15 agent definitions`);
-        success(`Created ${tp.commands}/ with 17 slash commands`);
+        success(`Created ${tp.skills}/ with 19 workflow skills`);
+        success(`Created ${tp.agents}/ with 17 agent definitions`);
+        success(`Created ${tp.commands}/ with 19 slash commands`);
         success(`Created ${tp.rules} with Bobby workflow instructions`);
         success('Created conductor.json (for Conductor.build parallel workspaces)');
+        if ((targetName || 'claude-code') === 'claude-code') {
+          success('Created hooks/precompact.sh + hooks/stop.sh (context checkpoint + learning capture)');
+          success('Created .claude/settings.json (hooks configured)');
+        }
+        success(`Created ${bobbyDir || '.bobby'}/decisions.yaml (architectural decision log)`);
+        success(`Created ${bobbyDir || '.bobby'}/architecture-wakeup.md (run \`bobby run arch\` to populate)`);
         console.log('');
         // Offer local dev profile setup
         const localResult = await runLocalProfileWizard(rootDir, config);
