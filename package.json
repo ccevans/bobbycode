@@ -1,6 +1,6 @@
 {
   "name": "bobbycode",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "type": "module",
   "description": "Bobby — your pair programmer. AI-native SDLC framework for Claude Code.",
   "bin": {
@@ -41,6 +41,8 @@
     "lib/",
     "templates/",
     "stacks/",
+    "docs/CUSTOMIZING.md",
+    "docs/MIGRATING.md",
     "LICENSE",
     "README.md"
   ],

@@ -128,6 +128,63 @@ describe('bobby init (scaffolding)', () => {
     expect(claudeMd).toContain('bobby-plan');
     expect(claudeMd).toContain('bobby-build');
     expect(claudeMd).toContain('.claude/skills/');
+    expect(claudeMd).toContain('<!-- bobby:start -->');
+    expect(claudeMd).toContain('<!-- bobby:end -->');
+  });
+
+  test('scaffoldProject merges with existing user CLAUDE.md', () => {
+    const userContent = '# My Project\n\nCustom architecture docs that should be preserved.\n';
+    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), userContent, 'utf8');
+
+    scaffoldProject(tmpDir, {
+      project: 'test-app', stack: 'nextjs',
+      health_checks: [], areas: [],
+      commands: { dev: 'npm run dev', test: 'npm test', lint: 'npm run lint' },
+      tickets_dir: '.bobby/tickets', ticket_prefix: 'TKT',
+    });
+
+    const claudeMd = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
+    expect(claudeMd).toContain('# My Project');
+    expect(claudeMd).toContain('Custom architecture docs');
+    expect(claudeMd).toContain('<!-- bobby:start -->');
+    expect(claudeMd).toContain('bobby-plan');
+    // Backup should exist
+    expect(fs.existsSync(path.join(tmpDir, 'CLAUDE.md.pre-bobby'))).toBe(true);
+  });
+
+  test('scaffoldProject updates only Bobby section on re-scaffold with markers', () => {
+    const mixed = '# My Docs\n\n<!-- bobby:start -->\n# Old Bobby\n<!-- bobby:end -->\n\n## Footer';
+    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), mixed, 'utf8');
+
+    scaffoldProject(tmpDir, {
+      project: 'updated-project', stack: 'nextjs',
+      health_checks: [], areas: [],
+      commands: { dev: 'npm run dev', test: 'npm test', lint: 'npm run lint' },
+      tickets_dir: '.bobby/tickets', ticket_prefix: 'TKT',
+    });
+
+    const claudeMd = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
+    expect(claudeMd).toContain('# My Docs');
+    expect(claudeMd).toContain('## Footer');
+    expect(claudeMd).toContain('updated-project');
+    expect(claudeMd).not.toContain('# Old Bobby');
+  });
+
+  test('scaffoldProject overwrites fully Bobby-generated CLAUDE.md', () => {
+    const bobbyOnly = '<!-- bobby:start -->\n# Old Project — Bobby Workflow\n<!-- bobby:end -->\n';
+    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), bobbyOnly, 'utf8');
+
+    scaffoldProject(tmpDir, {
+      project: 'new-project', stack: 'nextjs',
+      health_checks: [], areas: [],
+      commands: {}, tickets_dir: '.bobby/tickets', ticket_prefix: 'TKT',
+    });
+
+    const claudeMd = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
+    expect(claudeMd).toContain('new-project');
+    expect(claudeMd).not.toContain('Old Project');
+    // No backup for Bobby-generated files
+    expect(fs.existsSync(path.join(tmpDir, 'CLAUDE.md.pre-bobby'))).toBe(false);
   });
 
   test('scaffoldProject creates sessions directory', () => {

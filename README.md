@@ -28,6 +28,69 @@ bobby list                                     # See your board
 bobby run pipeline TKT-001                    # Run the full pipeline
 ```
 
+## Getting Started: Your First Ticket, End to End
+
+After `npx bobbycode init`, here's a complete walkthrough:
+
+### 1. Create a ticket
+
+```bash
+bobby create -t "Add health check endpoint" -p medium --area api
+```
+
+### 2. See your board
+
+```bash
+bobby list
+```
+
+```
+ BACKLOG          PLANNING         BUILDING         REVIEWING        TESTING          SHIPPING
+ ───────          ────────         ────────         ─────────        ───────          ────────
+ TKT-001          ·                ·                ·                ·                ·
+ Add health       
+ check endpoint   
+ ■ medium         
+```
+
+### 3. Run the pipeline
+
+```bash
+bobby run pipeline TKT-001
+```
+
+Bobby chains four agents automatically:
+
+```
+[bobby-plan]   → Breaks down the ticket, writes plan.md + test-cases.md
+[bobby-build]  → TDD implementation, commits to a feature branch
+[bobby-review] → Code review against acceptance criteria
+[bobby-test]   → Runs tests, verifies ACs pass
+```
+
+If review or test rejects, Bobby loops back to build (up to 3 retries).
+
+### 4. Ship it
+
+```bash
+bobby run ship
+```
+
+Creates a PR, waits for CI, and merges.
+
+### Which Agent Should I Use?
+
+| Situation | Command |
+|-----------|---------|
+| I have a clear task to build | `bobby run pipeline TKT-001` |
+| I have a big feature idea | `bobby create -t "Feature" --epic` then `bobby run feature TKT-001` |
+| I want to review the live app | `bobby run ux` / `bobby run pm` / `bobby run qe` |
+| I want to validate before building | `bobby run vet TKT-001` or `bobby run strategy` |
+| Something broke | `bobby run debug TKT-001` |
+| I need a security audit | `bobby run security TKT-001` |
+| I want to ship what's ready | `bobby run ship` |
+| I want to step through one agent at a time | `bobby run next TKT-001` |
+
 ## How It Works
 
 Bobby chains Claude Code agents through a pipeline:
@@ -246,7 +309,10 @@ Bobby comes with pre-configured defaults for:
 - **Next.js** — `npm` commands, single health check on :3000
 - **Rails + React** — multi-repo support, dual health checks (API :3000, UI :3001)
 - **Python / Flask** — `pytest`, `flake8`, Flask defaults on :5000
-- **Generic** — sensible defaults, configure manually
+- **Polyglot / Multi-Service** — auto-detects services, per-service commands
+- **Generic** — sensible defaults, configure manually in `.bobbyrc.yml`
+
+You can also create **custom stacks** by placing a JSON file in `.bobby/stacks/<name>.json`. See [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) for the stack JSON schema.
 
 ## Custom Pipelines
 
