@@ -186,6 +186,14 @@ export function scaffoldProject(rootDir, config) {
     }
   }
 
+  // Scaffold .bobby/docs/ for user-contributed context (arch agent reads this)
+  const docsDir = path.join(rootDir, bobbyDir, 'docs');
+  fs.mkdirSync(docsDir, { recursive: true });
+  const docsReadme = path.join(docsDir, 'README.md');
+  if (!fs.existsSync(docsReadme)) {
+    fs.writeFileSync(docsReadme, `# ${config.project} — Architecture Docs\n\nDrop any diagrams, ADRs, domain notes, or external system contracts here.\nThe \`bobby-arch\` agent reads everything in this directory before writing \`.bobby/architecture.md\`.\n`, 'utf8');
+  }
+
   // Scaffold .bobby/decisions.yaml stub (if not already present)
   const decisionsPath = path.join(rootDir, bobbyDir, 'decisions.yaml');
   if (!fs.existsSync(decisionsPath)) {
@@ -575,6 +583,7 @@ export function registerInit(program) {
           success('Created hooks/precompact.sh + hooks/stop.sh (context checkpoint + learning capture)');
           success('Created .claude/settings.json (hooks configured)');
         }
+        success(`Created ${bobbyDir || '.bobby'}/docs/ (drop diagrams and ADRs here for \`bobby run arch\`)`);
         success(`Created ${bobbyDir || '.bobby'}/decisions.yaml (architectural decision log)`);
         success(`Created ${bobbyDir || '.bobby'}/architecture-wakeup.md (run \`bobby run arch\` to populate)`);
         console.log('');

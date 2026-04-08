@@ -166,6 +166,28 @@ Before committing and moving the ticket forward, pause and verify:
 4. Run the full test suite and lint — show the output as evidence. Assertions without proof are not accepted.
 </self_check>
 
+## Checkpointing Mid-Task
+
+If you are interrupted or context limits are approaching during a multi-step implementation, write a checkpoint to `.bobby/tickets/{ID}*/progress.md` before stopping:
+
+```markdown
+## Progress Checkpoint — {ID}
+
+**Branch:** tkt-{ID}-{slug}
+**Last completed step:** [step N from plan.md]
+**Done:**
+- `path/to/file.ext` — [what was done]
+
+**Remaining:**
+- [step N+1 from plan.md]
+- [step N+2 from plan.md]
+
+**Tests:** [passed N / M so far — or not yet run]
+**Blockers:** [anything unexpected]
+```
+
+On resume, read `progress.md` first and pick up from the last completed step. Delete it after `bobby move {ID} review`.
+
 ## If Something Goes Wrong
 
 - If tests fail: fix them before moving on

@@ -23,9 +23,10 @@ Read these files in parallel to minimize startup time:
 3. The ticket's `ticket.md`, `plan.md`, and `test-cases.md`
 
 Then sequentially:
-4. **Branch guard** — If on main/master, create feature branch: `git checkout -b tkt-{ID}` (commits to main bypass review and can break CI)
-5. Run `git log --oneline -10` — critical on retries to understand what's already been built
-6. Check for rejection comments — if retrying, read the feedback first
+4. **Resume check** — If `.bobby/tickets/{ID}*/progress.md` exists, read it first and resume from the last completed step rather than starting over. Delete `progress.md` after `bobby move {ID} review`.
+5. **Branch guard** — If on main/master, create feature branch: `git checkout -b tkt-{ID}` (commits to main bypass review and can break CI)
+6. Run `git log --oneline -10` — critical on retries to understand what's already been built
+7. Check for rejection comments — if retrying, read the feedback first
 
 ## Safety
 
