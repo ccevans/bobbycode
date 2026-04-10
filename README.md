@@ -26,7 +26,50 @@ bobby create -t "Build login page" -p high    # Create a ticket
 bobby create -t "User auth" --epic             # Create an epic (breaks down)
 bobby list                                     # See your board
 bobby run pipeline TKT-001                    # Run the full pipeline
+bobby dashboard                                # Open the workspace dashboard
 ```
+
+## Dashboard
+
+Bobby ships with a local web dashboard for kicking off agents in parallel, isolated workspaces and watching them work in real time. Inspired by Conductor, Claude Squad, and Augment Intent, but built on bobby's existing ticket + session primitives.
+
+```bash
+bobby dashboard             # Opens http://127.0.0.1:7777 in your browser
+bobby dashboard --port 7778 # Custom port
+bobby dashboard --no-open   # Don't auto-open the browser
+```
+
+**Workspace model.** Each workspace = one ticket + one git worktree on its own branch + one `claude` subprocess. Multiple workspaces run in parallel without colliding — each agent lives in its own isolated checkout under `../bobby-wt/`.
+
+**What you get:**
+- **Workspace list** on the left — live status dots (running, awaiting approval, ready to merge, failed, stopped)
+- **Live logs** streamed via Server-Sent Events — every tool call, every file edit, every stage transition
+- **Diff viewer** — unified diff of the workspace branch vs main
+- **Files tab** — changed files with added/removed line counts
+- **Runs history** — every agent invocation with exit codes and durations
+- **Actions per workspace:** `Run`, `Stop`, `Approve →` (advance to next pipeline stage), `Reject` (retry build), `Merge` (no-ff into main), `Discard`
+
+**Available agents from the New Workspace modal:**
+- `pipeline` — runs the full `plan → build → review → test` chain in one go
+- `feature` — epic workflow (ticket must be an epic with children)
+- `next` — runs whichever agent matches the ticket's current stage
+- All individual stage and specialist agents (`plan`, `build`, `review`, `test`, `security`, `debug`, `ux`, `pm`, `qe`, `vet`, `strategy`, `arch`, `intake`, `docs`, `performance`, `watchdog`)
+
+**Crash-safe state.** Workspace state is persisted atomically to `.bobby/workspaces.json`, so `bobby dashboard` survives restarts — workspaces still running when the dashboard went down are surfaced as `unknown` so you can re-run or discard them.
+
+**Configuration** (in `.bobbyrc.yml`, all optional):
+
+```yaml
+dashboard:
+  port: 7777                    # Default port
+  worktree_root: ../bobby-wt    # Where worktrees live (sibling of main repo)
+  auto_approve_stages: []       # e.g. [planning] to auto-advance past plan
+  auto_merge: false             # Require manual merge button
+  sandbox: worktree             # 'worktree' today — 'docker' planned
+  executor: claude              # 'claude' today — 'agent-sdk'/'managed' planned
+```
+
+**Security.** The dashboard binds to `127.0.0.1` only and has no authentication. If you override the host, bobby prints a loud warning — don't expose it to a network you don't trust.
 
 ## Getting Started: Your First Ticket, End to End
 
@@ -116,7 +159,7 @@ backlog → planning → building → reviewing → testing → shipping → don
 
 Tickets live in `.bobby/tickets/`. Stage is tracked in frontmatter — no physical file moves, clean git diffs.
 
-## Command Reference (16 commands)
+## Command Reference (17 commands)
 
 ### Ticket Management
 
@@ -142,6 +185,7 @@ Tickets live in `.bobby/tickets/`. Stage is tracked in frontmatter — no physic
 | Command | Description |
 |---------|-------------|
 | `bobby run <agent> [ids...]` | Run an agent on ticket(s) — see [Run Modes](#run-modes) below |
+| `bobby dashboard` | Launch the local web dashboard — parallel workspaces, live logs, diffs, approvals (`--port`, `--no-open`, `--pipeline`) |
 
 ### Learning & Retrospectives
 
