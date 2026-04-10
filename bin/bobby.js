@@ -34,6 +34,7 @@ import { registerAttach } from '../commands/attach.js';
 import { registerSession } from '../commands/session.js';
 import { registerSync } from '../commands/sync.js';
 import { registerLocalInit } from '../commands/local-init.js';
+import { registerDashboard } from '../commands/dashboard.js';
 
 registerInit(program);
 registerCreate(program);
@@ -55,6 +56,7 @@ registerAttach(program);
 registerSession(program);
 registerSync(program);
 registerLocalInit(program);
+registerDashboard(program);
 
 // Show help when no subcommand given
 program.action(() => program.help());

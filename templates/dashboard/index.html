@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bobby Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">●</span>
+      <span class="brand-name">Bobby</span>
+      <span class="brand-sub">workspaces</span>
+    </div>
+    <div class="topbar-actions">
+      <button id="btn-new" class="btn btn-primary">+ New Workspace</button>
+      <button id="btn-stop-all" class="btn btn-ghost">Stop All</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>Workspaces</h2>
+        <span id="ws-count" class="badge">0</span>
+      </div>
+      <ul id="ws-list" class="ws-list"></ul>
+      <div class="sidebar-header">
+        <h2>Agents</h2>
+      </div>
+      <div id="agent-list" class="agent-list"></div>
+    </aside>
+
+    <section class="detail">
+      <div id="detail-empty" class="empty">
+        <p>Pick a workspace or create a new one to get started.</p>
+      </div>
+      <div id="detail-pane" class="detail-pane" hidden>
+        <div class="detail-header">
+          <div>
+            <h1 id="d-title">—</h1>
+            <div class="detail-sub">
+              <span id="d-ticket" class="chip"></span>
+              <span id="d-agent" class="chip"></span>
+              <span id="d-stage" class="chip"></span>
+              <span id="d-status" class="chip status"></span>
+            </div>
+            <div class="detail-meta">
+              <span>Branch: <code id="d-branch"></code></span>
+              <span>Worktree: <code id="d-worktree"></code></span>
+            </div>
+          </div>
+          <div class="detail-actions">
+            <button id="btn-run" class="btn btn-primary">Run</button>
+            <button id="btn-stop" class="btn btn-ghost">Stop</button>
+            <button id="btn-approve" class="btn btn-ok">Approve →</button>
+            <button id="btn-reject" class="btn btn-warn">Reject</button>
+            <button id="btn-merge" class="btn btn-ok">Merge</button>
+            <button id="btn-discard" class="btn btn-danger">Discard</button>
+          </div>
+        </div>
+
+        <nav class="tabs">
+          <button data-tab="logs" class="tab active">Logs</button>
+          <button data-tab="diff" class="tab">Diff</button>
+          <button data-tab="files" class="tab">Files</button>
+          <button data-tab="runs" class="tab">Runs</button>
+        </nav>
+
+        <div class="tab-body">
+          <div id="tab-logs" class="tab-pane active">
+            <div id="logs" class="logs"></div>
+          </div>
+          <div id="tab-diff" class="tab-pane">
+            <div id="diff" class="diff">Loading diff…</div>
+          </div>
+          <div id="tab-files" class="tab-pane">
+            <ul id="files" class="files"></ul>
+          </div>
+          <div id="tab-runs" class="tab-pane">
+            <ul id="runs" class="runs"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- New Workspace modal -->
+  <div id="modal" class="modal" hidden>
+    <div class="modal-content">
+      <h2>New Workspace</h2>
+      <label>
+        <span>Ticket</span>
+        <select id="new-ticket"></select>
+      </label>
+      <label>
+        <span>Agent</span>
+        <select id="new-agent"></select>
+      </label>
+      <div class="modal-actions">
+        <button id="btn-create" class="btn btn-primary">Create</button>
+        <button id="btn-cancel" class="btn btn-ghost">Cancel</button>
+      </div>
+      <p id="new-error" class="error-message"></p>
+    </div>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
