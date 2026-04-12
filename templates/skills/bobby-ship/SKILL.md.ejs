@@ -38,11 +38,21 @@ Then **abort the ship process**. The pipeline will re-run build → review → t
 
 **Ignore non-source artifacts** (screenshots, CSVs, mockups, `.skill` files) — these are not blockers.
 
-### 3. Branch Check
+### 3. Git Author Email Check
+
+Run `git config user.email`. If the result:
+- Is empty, ends with `.local`, ends with `.internal`, or doesn't contain `@`
+
+**STOP — do not ship.** The commit author email is invalid and will be rejected by deploy platforms (Vercel, GitHub Actions, etc.).
+
+Tell the user:
+> "Your git email is set to `{email}` which will block deployments. Run `git config user.email 'you@example.com'` with your GitHub email, then re-run ship."
+
+### 4. Branch Check
 
 Verify you're on a feature branch (not main/master). If on main, STOP — there's nothing to PR.
 
-### 4. Rebase onto Main
+### 5. Rebase onto Main
 
 Before pushing, rebase each repo's feature branch onto the latest main — so the PR contains only the feature's changes and CI tests against the latest code:
 
@@ -66,8 +76,8 @@ This is a multi-repo project. Ship each repo separately:
 3. Check commits ahead: `git log --oneline origin/main..HEAD | wc -l`
 4. If 0 commits ahead, skip this repo (nothing to ship)
 5. Rebase: `git fetch origin && git rebase origin/main` — resolve any conflicts
-6. Run tests: `<%= commands && commands.test ? commands.test : 'npm test' %>`
-7. Run lint: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+6. Run tests: `<%= commands.test || 'your test command' %>`
+7. Run lint: `<%= commands.lint || 'your lint command' %>`
 8. Push: `git push -u origin HEAD`
 9. Create PR: `gh pr create --title "..." --body "..."`
 10. Wait for CI to pass
@@ -88,8 +98,8 @@ Run tests and lint for each service that has changes on this branch:
 - **<%= name %>**: `cd <%= svc.path %> && <%= svc.commands.test %>` / `cd <%= svc.path %> && <%= svc.commands.lint %>`
 <% }); %>
 <% } else { %>
-1. All tests pass: `<%= commands && commands.test ? commands.test : 'npm test' %>`
-2. Lint clean: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+1. All tests pass: `<%= commands.test || 'your test command' %>`
+2. Lint clean: `<%= commands.lint || 'your lint command' %>`
 <% } %>
 
 ### Rebase & Create Pull Request

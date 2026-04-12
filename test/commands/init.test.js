@@ -267,6 +267,10 @@ describe('registerInit (interactive flow)', () => {
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-init-cli-'));
+    // Pre-configure git so detectGitIdentity doesn't inject extra prompts
+    execSync('git init', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git config user.email "test@example.com"', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git config user.name "Test User"', { cwd: tmpDir, stdio: 'pipe' });
     origCwd = process.cwd();
     process.chdir(tmpDir);
     logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});

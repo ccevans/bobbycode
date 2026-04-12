@@ -8,7 +8,7 @@ import { success, warn, error, bold } from '../lib/colors.js';
 import { getTarget, TARGETS } from '../lib/targets/index.js';
 import { detectServices, aggregateAreas, aggregateHealthChecks } from '../lib/services.js';
 import { runLocalProfileWizard, saveLocalProfile } from './local-init.js';
-import { detectProjectContext } from '../lib/detect.js';
+import { detectProjectContext, detectGitIdentity } from '../lib/detect.js';
 import { mergeRulesContent, isBobbyGenerated } from '../lib/rules-merge.js';
 import { execSync } from 'child_process';
 
@@ -117,9 +117,11 @@ export function scaffoldProject(rootDir, config) {
     fs.writeFileSync(rulesPath, rulesContent, 'utf8');
   }
 
-  // Render and write conductor.json for Conductor.build users
-  const conductorJson = renderTemplate('conductor.json.ejs', templateData);
-  fs.writeFileSync(path.join(rootDir, 'conductor.json'), conductorJson, 'utf8');
+  // Render and write conductor.json for Conductor.build users (skip if disabled)
+  if (config.conductor !== false) {
+    const conductorJson = renderTemplate('conductor.json.ejs', templateData);
+    fs.writeFileSync(path.join(rootDir, 'conductor.json'), conductorJson, 'utf8');
+  }
 
   // Render and write WORKFLOW.md
   const workflowMd = renderTemplate('WORKFLOW.md.ejs', templateData);
@@ -272,6 +274,41 @@ export function registerInit(program) {
         console.log(`  Welcome to ${bold('Bobby')} — your pair programmer.`);
         console.log('');
 
+        // Check git identity before anything else
+        const gitId = detectGitIdentity(rootDir);
+        if (gitId.warnings.length > 0) {
+          console.log('');
+          for (const w of gitId.warnings) {
+            warn(`⚠  ${w}`);
+          }
+          console.log('');
+          const { fixEmail } = await inquirer.prompt([{
+            type: 'confirm',
+            name: 'fixEmail',
+            message: 'Set your git email now? (required for deploys)',
+            default: true,
+          }]);
+          if (fixEmail) {
+            const { email } = await inquirer.prompt([{
+              type: 'input',
+              name: 'email',
+              message: 'Git email (should match your GitHub account):',
+              validate: v => v.includes('@') || 'Enter a valid email',
+            }]);
+            const { name } = await inquirer.prompt([{
+              type: 'input',
+              name: 'name',
+              message: 'Git name:',
+              default: gitId.name || '',
+              validate: v => v.length > 0 || 'Required',
+            }]);
+            execSync(`git config user.email "${email}"`, { cwd: rootDir });
+            execSync(`git config user.name "${name}"`, { cwd: rootDir });
+            success('Git identity configured for this repo');
+            console.log('');
+          }
+        }
+
         // Detect project context
         const detected = detectProjectContext(rootDir);
 
@@ -323,11 +360,14 @@ export function registerInit(program) {
         const customStacks = detectCustomStacks(rootDir, existingBobbyDir);
         const stackChoices = [
           ...customStacks,
-          { name: 'Next.js — npm commands, single health check on :3000', value: 'nextjs' },
-          { name: 'Rails + React — multi-repo, dual health checks (API :3000, UI :3001)', value: 'rails-react' },
-          { name: 'Python / Flask — pytest, flake8, Flask on :5000', value: 'python-flask' },
+          { name: 'Next.js — npm commands, health check on :3000', value: 'nextjs' },
+          { name: 'Rails + React — multi-repo, Docker + npm', value: 'rails-react' },
+          { name: 'Django — manage.py commands, health check on :8000', value: 'django' },
+          { name: 'Python / Flask — pytest, ruff, Flask on :5000', value: 'python-flask' },
+          { name: 'Go — go test, golangci-lint, health check on :8080', value: 'go' },
+          { name: 'Rust — cargo test, cargo clippy, health check on :8080', value: 'rust' },
           { name: 'Polyglot / Multi-Service — auto-detects services, per-service commands', value: 'polyglot' },
-          { name: 'Other — generic defaults, configure manually in .bobbyrc.yml', value: 'generic' },
+          { name: 'Other — empty defaults, configure manually in .bobbyrc.yml', value: 'generic' },
         ];
 
         // Use detected values as smart defaults
@@ -581,11 +621,13 @@ export function registerInit(program) {
         success(`Created ${config.tickets_dir}/ (single directory, frontmatter-based stages)`);
         success(`Created ${config.sessions_dir}/ (session logs)`);
         success('Created .bobbyrc.yml');
-        success(`Created ${tp.skills}/ with 19 workflow skills`);
+        success(`Created ${tp.skills}/ with 21 workflow skills`);
         success(`Created ${tp.agents}/ with 17 agent definitions`);
-        success(`Created ${tp.commands}/ with 19 slash commands`);
+        success(`Created ${tp.commands}/ with 20 slash commands`);
         success(`Created ${tp.rules} with Bobby workflow instructions`);
-        success('Created conductor.json (for Conductor.build parallel workspaces)');
+        if (config.conductor !== false) {
+          success('Created conductor.json (for Conductor.build parallel workspaces)');
+        }
         if ((targetName || 'claude-code') === 'claude-code') {
           success('Created hooks/precompact.sh + hooks/stop.sh (context checkpoint + learning capture)');
           success('Created .claude/settings.json (hooks configured)');
