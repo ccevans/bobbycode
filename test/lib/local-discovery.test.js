@@ -178,27 +178,27 @@ services:
 
   describe('buildProfileFromDiscovery', () => {
     test('builds profile with correct ports', () => {
-      const composeResult = { composeProject: 'robin_robinflow', services: [] };
+      const composeResult = { composeProject: 'myapp_dev', services: [] };
       const classified = {
         api: { name: 'web', ports: [{ host: 3010, container: 3000 }] },
         db: { name: 'db', ports: [{ host: 5433, container: 5432 }] },
         redis: { name: 'redis', ports: [] },
         workers: [],
       };
-      const uiProject = { path: 'listrobin-ui', framework: 'nextjs', devCommand: 'npm run dev' };
+      const uiProject = { path: 'frontend', framework: 'nextjs', devCommand: 'npm run dev' };
 
       const profile = buildProfileFromDiscovery({
         composeResult,
         classified,
         uiProject,
-        profileName: 'robinflow',
+        profileName: 'myapp',
       });
 
-      expect(profile.compose_project).toBe('robin_robinflow');
+      expect(profile.compose_project).toBe('myapp_dev');
       expect(profile.ports.api).toBe(3010);
       expect(profile.ports.postgres).toBe(5433);
       expect(profile.ports.ui).toBe(3001);
-      expect(profile.subdomain).toBe('robinflow');
+      expect(profile.subdomain).toBe('myapp');
     });
 
     test('avoids port conflicts for UI', () => {

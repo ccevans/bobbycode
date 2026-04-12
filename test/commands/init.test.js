@@ -435,8 +435,8 @@ describe('registerInit (interactive flow)', () => {
   });
 
   test('init with rails-react detects multi-repo', async () => {
-    fs.mkdirSync(path.join(tmpDir, 'listrobin_api', '.git'), { recursive: true });
-    fs.mkdirSync(path.join(tmpDir, 'listrobin-ui', '.git'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'myapp_api', '.git'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'myapp-ui', '.git'), { recursive: true });
 
     let promptCall = 0;
     promptSpy = jest.spyOn(inquirer, 'prompt').mockImplementation(async () => {
@@ -458,8 +458,8 @@ describe('registerInit (interactive flow)', () => {
   });
 
   test('init with rails-react declines detected repos', async () => {
-    fs.mkdirSync(path.join(tmpDir, 'listrobin_api', '.git'), { recursive: true });
-    fs.mkdirSync(path.join(tmpDir, 'listrobin-ui', '.git'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'myapp_api', '.git'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'myapp-ui', '.git'), { recursive: true });
 
     let promptCall = 0;
     promptSpy = jest.spyOn(inquirer, 'prompt').mockImplementation(async () => {

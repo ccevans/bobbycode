@@ -123,6 +123,7 @@ export function registerRun(program) {
             maxIterations,
             hasServices,
             epicData,
+            gitConventions: config.git_conventions || {},
           });
         } catch (e) {
           error(e.message);

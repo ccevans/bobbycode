@@ -8,7 +8,7 @@
 
 ## Overview
 
-Bobby is an open-source npm CLI that gives structure to AI-assisted development. It's a genericized, productized version of the robinflow ticketing system — `ticket.sh`, Claude Code skills, role-based workflows, and the feedback loop (retrospectives + learnings) — packaged for anyone to use.
+Bobby is an open-source npm CLI that gives structure to AI-assisted development. It provides a structured ticketing system, AI-powered skills, role-based workflows, and a feedback loop (retrospectives + learnings) — packaged for anyone to use.
 
 **Target audience:** People who aren't developers but want to build with Claude. They currently open Claude Code, describe what they want in one big prompt, and hope for the best. Bobby gives them a structured process: ideas become tickets, tickets get plans, plans get built, builds get tested, tested code gets shipped.
 
@@ -285,36 +285,35 @@ project-root/
 
 ---
 
-## Genericization: What Changes from Robinflow
+## Genericization: What Bobby Makes Configurable
 
-### ticket.sh → Node commands
+### CLI commands (replacing shell scripts)
 
-| Robinflow (hardcoded) | Bobby (configurable) |
+| Hardcoded approach | Bobby (configurable) |
 |----------------------|---------------------|
-| Areas: `onboarding \| dashboard \| leads \| campaigns \| billing \| admin \| agent-portal \| landing-pages \| auth \| email-automation \| public-pages \| cross-tenant-security` | Read from `.bobbyrc.yml` `areas` field |
-| Skill paths: `listrobin-docs/ops/skills/` | Skills live in `.claude/skills/` within the project |
-| Health checks: `localhost:3010` (API), `localhost:3002` (UI) | Read from `.bobbyrc.yml` `health_checks` array |
-| Stack: `Rails + Next.js + Docker` | Read from `.bobbyrc.yml` `stack` field |
-| Sub-repos: `listrobin-ui/`, `listrobin_api/` | Not assumed — single repo by default |
-| `skills_for_area()` mapping | Read from `.bobbyrc.yml` `skill_routing` |
+| Hardcoded area lists | Read from `.bobbyrc.yml` `areas` field |
+| Skills in a fixed project path | Skills live in `.claude/skills/` within the project |
+| Hardcoded health check URLs | Read from `.bobbyrc.yml` `health_checks` array |
+| Assumed tech stack | Read from `.bobbyrc.yml` `stack` field |
+| Assumed sub-repo layout | Not assumed — single repo by default, configurable via `repos` |
+| Hardcoded skill-area mapping | Read from `.bobbyrc.yml` `skill_routing` |
 | Hardcoded `sed` commands | Node `fs` operations (cross-platform) |
-| `docker compose exec web bundle exec rspec` | Read from stack config `commands.test` |
-| Ticket prefix: `TKT-` | Configurable via `ticket_prefix` |
+| Hardcoded test runner | Read from stack config `commands.test` |
+| Fixed ticket prefix | Configurable via `ticket_prefix` |
 
 ### Skills: What Gets Genericized
 
 Each skill template (`.ejs`) replaces hardcoded values with config lookups:
 
-| Hardcoded in robinflow skills | Replaced with |
+| Hardcoded approach | Replaced with |
 |-------------------------------|---------------|
-| `http://localhost:3010/health` | Loop over `health_checks` array — render a check block per entry |
-| `http://localhost:3002` | Same loop — no array indexing, works with 1 or N health checks |
-| `cd listrobin_api && docker compose up -d` | `<%= commands.dev %>` |
-| `cd listrobin-ui && npm test` | `<%= commands.test %>` |
-| `cd listrobin_api && docker compose exec web bundle exec rspec` | `<%= commands.test %>` (single repo) or per-repo commands if `repos` config exists |
-| `npm run lint` | `<%= commands.lint %>` |
-| `listrobin-docs/ops/skills/{path}/SKILL.md` | `.claude/skills/{path}/SKILL.md` |
-| Robinflow-specific area list | `<%= areas.join(' \| ') %>` |
+| Hardcoded health check URLs | Loop over `health_checks` array — render a check block per entry |
+| Hardcoded dev server commands | `<%= commands.dev %>` |
+| Hardcoded test commands | `<%= commands.test %>` |
+| Hardcoded test commands (per-repo) | `<%= commands.test %>` (single repo) or per-repo commands if `repos` config exists |
+| Hardcoded lint commands | `<%= commands.lint %>` |
+| Fixed skill path | `.claude/skills/{path}/SKILL.md` (or target-specific path) |
+| Fixed area list | `<%= areas.join(' \| ') %>` |
 
 ### Skills: What Stays the Same
 

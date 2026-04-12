@@ -21,10 +21,11 @@ const COMMAND_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'commands'
 const HOOKS_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'hooks');
 const BOBBY_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'bobby');
 
-export function loadStack(stackName, projectRoot) {
+export function loadStack(stackName, projectRoot, bobbyDir) {
   // Check project-local stacks first
   if (projectRoot) {
-    const localStackFile = path.join(projectRoot, '.bobby', 'stacks', `${stackName}.json`);
+    const dir = bobbyDir || '.bobby';
+    const localStackFile = path.join(projectRoot, dir, 'stacks', `${stackName}.json`);
     if (fs.existsSync(localStackFile)) {
       return JSON.parse(fs.readFileSync(localStackFile, 'utf8'));
     }
@@ -35,8 +36,8 @@ export function loadStack(stackName, projectRoot) {
   return JSON.parse(fs.readFileSync(stackFile, 'utf8'));
 }
 
-function detectCustomStacks(projectRoot) {
-  const localStacksDir = path.join(projectRoot, '.bobby', 'stacks');
+function detectCustomStacks(projectRoot, bobbyDir) {
+  const localStacksDir = path.join(projectRoot, bobbyDir || '.bobby', 'stacks');
   if (!fs.existsSync(localStacksDir)) return [];
   return fs.readdirSync(localStacksDir)
     .filter(f => f.endsWith('.json'))
@@ -318,7 +319,8 @@ export function registerInit(program) {
         }]);
 
         // Detect custom stacks and prepend to choices
-        const customStacks = detectCustomStacks(rootDir);
+        const existingBobbyDir = existingConfig?.bobby_dir || '.bobby';
+        const customStacks = detectCustomStacks(rootDir, existingBobbyDir);
         const stackChoices = [
           ...customStacks,
           { name: 'Next.js — npm commands, single health check on :3000', value: 'nextjs' },
@@ -341,7 +343,7 @@ export function registerInit(program) {
           },
         ]);
 
-        const stack = loadStack(answers.stack, rootDir) || loadStack('generic', rootDir);
+        const stack = loadStack(answers.stack, rootDir, existingBobbyDir) || loadStack('generic', rootDir, existingBobbyDir);
 
         // Ask for AI target
         const { targetName } = await inquirer.prompt([{
