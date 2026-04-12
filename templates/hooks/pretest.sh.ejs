@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# hooks/pretest.sh
+#
+# Claude Code SubagentStart hook — fires before bobby-test runs.
+# Restarts services defined in the project's local profile so tests
+# hit a clean environment. Generated from .bobbyrc.yml local config.
+#
+# Configured in .claude/settings.json:
+#   "SubagentStart": [{"matcher": "bobby-test", "hooks": [{"type": "command", "command": "hooks/pretest.sh"}]}]
+
+set -euo pipefail
+
+# Read and discard stdin (hook protocol)
+read -r _input 2>/dev/null || true
+
+<%
+// Resolve the default local profile
+var _local = typeof local !== 'undefined' && local ? local : {};
+var profileNames = Object.keys(_local);
+var defaultProfile = profileNames.length === 1 ? profileNames[0] : (typeof default_profile !== 'undefined' ? default_profile : profileNames[0]);
+var profile = _local[defaultProfile];
+
+// Resolve repo paths
+var _repos = typeof repos !== 'undefined' && repos ? repos : [];
+function _findRepo(list, hint) {
+  if (!list || !list.length) return null;
+  return list.find(function(r) { return (r.name || r.path || r) === hint || (r.name || r.path || r).includes(hint); });
+}
+var apiRepo = _findRepo(_repos, 'api');
+var uiRepo = _findRepo(_repos, 'ui');
+var apiPath = apiRepo ? (apiRepo.path || apiRepo.name || apiRepo) : '';
+var uiPath = uiRepo ? (uiRepo.path || uiRepo.name || uiRepo) : '';
+
+// Determine restart commands from profile steps or stack defaults
+var restartSteps = [];
+
+if (profile && profile.steps && profile.steps.daily) {
+  restartSteps = profile.steps.daily;
+} else if (profile) {
+  // Auto-generate from stack + profile config
+  var composePrefix = profile.compose_project ? 'COMPOSE_PROJECT_NAME=' + profile.compose_project + ' ' : '';
+  var uiPort = profile.ports && profile.ports.ui ? profile.ports.ui : 3001;
+  var apiPort = profile.ports && profile.ports.api ? profile.ports.api : 3000;
+  var subdomain = profile.subdomain || defaultProfile;
+
+  if (apiPath) {
+    restartSteps.push({ name: 'Restart backend', command: composePrefix + 'docker compose restart', cwd: apiPath });
+  }
+  if (uiPath) {
+    restartSteps.push({ name: 'Restart frontend', command: 'lsof -ti:' + uiPort + ' | xargs kill -9 2>/dev/null; NEXT_PUBLIC_SUBDOMAIN=' + subdomain + ' NEXT_PUBLIC_API_URL=http://localhost:' + apiPort + ' npx next dev -p ' + uiPort + ' &', cwd: uiPath });
+  }
+}
+%>
+<% if (restartSteps.length > 0) { %>
+echo "pretest: restarting services (<%= defaultProfile %> profile)..."
+
+<% restartSteps.forEach(function(step) { %>
+# <%= step.name %>
+<% if (step.cwd) { %>(cd "<%= step.cwd %>" && <%= step.command %>) 2>/dev/null || true
+<% } else { %><%= step.command %> 2>/dev/null || true
+<% } %>
+<% }); %>
+
+# Give services a moment to come up
+sleep 5
+
+echo "pretest: services restarted"
+<% } else { %>
+# No local profile configured — nothing to restart.
+# Add a local profile to .bobbyrc.yml and re-run bobby init to generate restart commands.
+echo "pretest: no local profile — skipping service restart"
+<% } %>

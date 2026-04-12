@@ -67,6 +67,12 @@ This file accumulates anti-patterns and best practices discovered during peer re
 ### product-data-cache-test-gap
 **Split-query test coverage gap**: When a method is split into two queries (one cached, one per-item), check that both query paths have test coverage. A common gap is testing only the per-item path and omitting the shared cache path.
 
+### http-method-drift-epic-children
+**HTTP method drift on epic children**: When reviewing epic child tickets, always verify frontend `fetch()` HTTP methods against the shipped `routes.rb`, not plan text. Plans frequently restate methods wrong (e.g., PATCH for a POST collection action). Jest mocks that match the wrong method still pass.
+
+### display-helper-field-loss
+**Display helpers strip new API fields**: When a ticket adds a new field to an API response, check whether transform helpers (like `toDisplayListing`) sit between the raw response and the component. These helpers build new object literals and silently drop fields they don't know about. Jest tests that mock the display object directly always pass.
+
 ## Best Practices
 <!-- Document what works well -->
 

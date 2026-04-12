@@ -1,5 +1,19 @@
 {
   "hooks": {
+<% if (typeof local !== 'undefined' && local && Object.keys(local).length > 0) { %>
+    "SubagentStart": [
+      {
+        "matcher": "bobby-test",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "hooks/pretest.sh",
+            "timeout": 30000
+          }
+        ]
+      }
+    ],
+<% } %>
     "PreCompact": [
       {
         "matcher": "",

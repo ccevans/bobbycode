@@ -170,9 +170,14 @@ export function scaffoldProject(rootDir, config) {
     fs.mkdirSync(hooksDir, { recursive: true });
     for (const hookFile of fs.readdirSync(HOOKS_TEMPLATES_DIR)) {
       const src = path.join(HOOKS_TEMPLATES_DIR, hookFile);
-      const dest = path.join(hooksDir, hookFile);
+      const dest = path.join(hooksDir, hookFile.replace('.ejs', ''));
       if (!fs.existsSync(dest)) {
-        fs.copyFileSync(src, dest);
+        if (hookFile.endsWith('.ejs')) {
+          const content = renderTemplate(`hooks/${hookFile}`, templateData);
+          fs.writeFileSync(dest, content, 'utf8');
+        } else {
+          fs.copyFileSync(src, dest);
+        }
         fs.chmodSync(dest, 0o755);
       }
     }

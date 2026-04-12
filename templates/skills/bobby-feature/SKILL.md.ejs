@@ -111,6 +111,16 @@ Update `feature-plan.md` if the later plans revealed better approaches or incons
 
 Now build, review, and test each ticket in order. Every agent should read `<%= tickets_dir %>/{epicId}*/feature-plan.md` for cross-cutting context.
 
+### Pre-Build Integration Audit
+
+Before building the first ticket, run these checks across ALL sibling plans to catch cross-ticket integration bugs early:
+
+1. **HTTP method verification** — For every endpoint referenced in any plan, grep `routes.rb` (or the project's route definitions) and verify the HTTP method matches. Plans frequently restate methods wrong (e.g., PATCH for a POST collection action).
+2. **Transform helper audit** — If any ticket adds new fields to an API response, check whether shared display/transform helpers (e.g., `toDisplayListing`, `formatResponse`) sit between the raw response and components. These helpers build new object literals and silently drop fields they don't know about.
+3. **Test fixture verification** — Verify that test fixtures and factory definitions include any new schema fields added by sibling tickets. Missing fields in fixtures cause false passes.
+
+If any mismatches are found, update the affected `plan.md` files and `feature-plan.md` before proceeding. This audit prevents a full build/review/test rejection cycle per ticket.
+
 For each ticket in the sorted order:
 
 ### 1. Read Ticket State
