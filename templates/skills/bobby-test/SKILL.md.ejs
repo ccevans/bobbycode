@@ -10,7 +10,7 @@ argument-hint: "<ticket ID to test>"
 
 ## Hard Rules
 
-- **NEVER run any spec/test runner** — no `<%= commands && commands.test ? commands.test : 'npm test' %>`, `rspec`, `jest`, `pytest`, `dotnet test`, `go test`, or any unit/integration test command. The build agent writes specs (TDD) and the review agent runs them independently. Running specs here is redundant and wastes the testing budget.
+- **NEVER run any spec/test runner** — no `<%= commands.test || 'your test command' %>`, `rspec`, `jest`, `pytest`, `dotnet test`, `go test`, or any unit/integration test command. The build agent writes specs (TDD) and the review agent runs them independently. Running specs here is redundant and wastes the testing budget.
 - **NEVER verify behavior by reading source code** — you verify by observing the live app.
 - If a test case cannot be verified through the live app, mark it **BLOCKED** — do not fall back to running specs as a substitute.
 
@@ -32,7 +32,7 @@ Verify the dev environment is running before testing:
 - `curl -s -o /dev/null -w "%{http_code}" <%= check.url %>` (<%= check.description || check.name %>)
 <% }); %>
 <% } else { %>
-- `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000` (app)
+- `curl -s -o /dev/null -w "%{http_code}" <your dev server URL>` (app — configure `health_checks` in .bobbyrc.yml)
 <% } %>
 
 ### Required Services
@@ -70,15 +70,15 @@ If there are pending migrations needed for the feature under test, run them. The
 
 ### Process
 
-1. **Read `plan.md` and `test-cases.md`** to understand what data conditions each AC requires (e.g., "a tenant with a daily_recalc followup rule and a list with matching house_requests")
-2. **Query the live DB** to check if those conditions already exist (via API calls, `rails runner`, `node -e`, admin UI)
-3. **If missing, create the data** through the app's own interfaces — API endpoints, `rails runner`, admin UI, or seed scripts. Do NOT write raw SQL.
+1. **Read `plan.md` and `test-cases.md`** to understand what data conditions each AC requires (e.g., "a user with an active subscription and at least one item in their cart")
+2. **Query the live DB** to check if those conditions already exist (via API calls, CLI tools, admin UI)
+3. **If missing, create the data** through the app's own interfaces — API endpoints, CLI tools, admin UI, or seed scripts. Do NOT write raw SQL.
 4. **Document what you seeded** in `results.md` under a "Test Data Created" section so it's clear what was set up for testing
 5. **Clean up after** if the test data would confuse other developers — note in results.md if cleanup was skipped
 
 ### Examples
 
-- AC says "followup emails fire for daily_recalc rules" but no tenant has a daily_recalc rule with matching data → create a followup rule via the API or `rails runner`, add a list with the required records, then run the sweep
+- AC says "notifications fire for scheduled events" but no events exist with the right state → create events via the API or CLI tools, trigger the scheduled job, verify notifications
 - AC says "user sees notification badge after action" but no users exist → create a user through the signup flow or API, perform the action, verify the badge
 - AC says "export handles 1000+ rows" but only 3 rows exist → seed enough rows via API or bulk create script
 
@@ -192,7 +192,7 @@ For endpoints affected by the ticket:
 
 ```bash
 # Example: verify an endpoint
-curl -s -w "\n%{http_code}" http://localhost:3000/api/endpoint
+curl -s -w "\n%{http_code}" <%= (health_checks && health_checks.length > 0) ? health_checks[0].url : 'http://localhost:3000' %>/api/endpoint
 ```
 
 ### What to Check
@@ -295,7 +295,7 @@ Before recording your verdict:
 5. Confirm you tested beyond the happy path — if every AC is PASS with no edge cases explored, you haven't tested hard enough.
 6. Confirm you created test data where the dev DB was missing required conditions — if you soft-passed any AC because "no matching data in dev DB," go back and seed the data, then retest.
 7. Confirm all required services were running during your tests (web, workers, queues) — if a feature depends on a background worker and it wasn't running, your test of that feature is invalid.
-8. For backend features, confirm you traced the result to a UI surface — if you only verified through `rails runner` or `curl` but didn't check the UI where users would see the result, go back and verify there too.
+8. For backend features, confirm you traced the result to a UI surface — if you only verified through CLI tools or `curl` but didn't check the UI where users would see the result, go back and verify there too.
 9. Confirm you did a quick regression check on adjacent features sharing the same page or component.
 10. If a design mockup was referenced in the ticket or feature-plan.md, confirm you compared the live app against it and documented findings in a Design Comparison section of results.md.
 </self_check>

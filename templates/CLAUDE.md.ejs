@@ -53,10 +53,12 @@ This is a multi-service project. Each ticket specifies which service(s) it touch
 ## Commands
 
 <% if (commands) { %>
-- **Dev:** `<%= commands.dev || 'npm run dev' %>`
-- **Test:** `<%= commands.test || 'npm test' %>`
-- **Lint:** `<%= commands.lint || 'npm run lint' %>`
-- **Build:** `<%= commands.build || 'npm run build' %>`
+<% if (commands.dev) { %>- **Dev:** `<%= commands.dev %>`
+<% } %><% if (commands.test) { %>- **Test:** `<%= commands.test %>`
+<% } %><% if (commands.lint) { %>- **Lint:** `<%= commands.lint %>`
+<% } %><% if (commands.build) { %>- **Build:** `<%= commands.build %>`
+<% } %><% if (!commands.dev && !commands.test && !commands.lint && !commands.build) { %>- Configure `commands` in `.bobbyrc.yml` to show dev/test/lint/build commands here.
+<% } %>
 <% } %>
 <% } %>
 
@@ -156,7 +158,7 @@ When told to "ship", load `<%= paths.skills %>/bobby-ship/SKILL.md`.
 
 ### UX Designer (bobby-ux)
 When told to "review design" or "UX audit", load `<%= paths.skills %>/bobby-ux/SKILL.md`.
-- Reviews live app through Chrome browser — never reads source code
+- Reviews live app through the browser — never reads source code
 
 ### Product Manager (bobby-pm)
 When told to "PM review" or "product review", load `<%= paths.skills %>/bobby-pm/SKILL.md`.

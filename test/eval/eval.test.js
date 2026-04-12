@@ -202,16 +202,16 @@ describe('eval: buildBatchStagePrompt', () => {
 // ── Freeform Agent Prompts ────────────────────────────────
 
 describe('eval: freeform agent prompts', () => {
-  test('UX prompt references agent instructions and Chrome', () => {
+  test('UX prompt references agent instructions and browser', () => {
     const prompt = buildUxPrompt();
     expect(prompt).toContain('bobby-ux');
-    expect(prompt).toContain('Chrome');
+    expect(prompt).toContain('browser');
   });
 
-  test('PM prompt references agent instructions and Chrome', () => {
+  test('PM prompt references agent instructions and browser', () => {
     const prompt = buildPmPrompt();
     expect(prompt).toContain('bobby-pm');
-    expect(prompt).toContain('Chrome');
+    expect(prompt).toContain('browser');
   });
 
   test('QE prompt references testing queue', () => {

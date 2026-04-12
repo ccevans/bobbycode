@@ -17,6 +17,7 @@ export function registerCreate(program) {
     .option('--epic', 'Create as an epic (bobby-plan will break it down)')
     .option('--parent <id>', 'Parent epic ticket ID')
     .option('--services <names>', 'Comma-separated service names this ticket touches')
+    .option('--pipeline <name>', 'Named pipeline shorthand (from .bobbyrc.yml pipelines)')
     .action((opts) => {
       try {
         const root = findProjectRoot();
@@ -31,6 +32,7 @@ export function registerCreate(program) {
           area: opts.area || '',
           parent: opts.parent || null,
           services: opts.services ? opts.services.split(',').map(s => s.trim()) : null,
+          pipeline: opts.pipeline || null,
         });
         success(`Created ${result.id} — ${opts.title}`);
         console.log(`  → ${config.tickets_dir}/${result.dirname}/`);

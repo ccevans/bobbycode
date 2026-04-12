@@ -4,7 +4,7 @@ import {
   buildUxPrompt, buildPmPrompt, buildQePrompt, buildShipPrompt, buildFeaturePrompt,
   buildOrchestrationPrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt,
   buildPerformancePrompt, buildWatchdogPrompt, buildVetPrompt, buildStrategyPrompt,
-  resolveNextAgent, DEFAULT_PIPELINE,
+  resolveNextAgent, DEFAULT_PIPELINE, resolvePipeline, listPipelines,
 } from '../../lib/pipeline.js';
 import { createTicket, moveTicket, findTicket, writeTicket } from '../../lib/tickets.js';
 import fs from 'fs';
@@ -119,8 +119,8 @@ describe('pipeline', () => {
     expect(prompt).toContain('parallel');
   });
 
-  test('buildUxPrompt mentions Chrome browser', () => {
-    expect(buildUxPrompt()).toContain('Chrome browser');
+  test('buildUxPrompt mentions browser', () => {
+    expect(buildUxPrompt()).toContain('browser');
   });
 
   test('buildPmPrompt mentions product review', () => {
@@ -131,8 +131,8 @@ describe('pipeline', () => {
     expect(buildShipPrompt()).toContain('PR');
   });
 
-  test('buildQePrompt mentions Chrome browser', () => {
-    expect(buildQePrompt()).toContain('Chrome browser');
+  test('buildQePrompt mentions browser', () => {
+    expect(buildQePrompt()).toContain('browser');
   });
 
   describe('resolveNextAgent', () => {
@@ -578,6 +578,111 @@ describe('pipeline', () => {
       const prompt = buildFeaturePrompt('TKT-001', 'Empty Epic', emptyChildren, DEFAULT_PIPELINE);
       expect(prompt).toContain('already past planning');
       expect(prompt).toContain('Skipping to Phase 2');
+    });
+  });
+
+  describe('resolvePipeline', () => {
+    test('returns DEFAULT_PIPELINE when no config pipelines', () => {
+      const result = resolvePipeline({}, 'default');
+      expect(result).toEqual(DEFAULT_PIPELINE);
+    });
+
+    test('resolves named pipeline from config', () => {
+      const config = { pipelines: { quick: ['build', 'test'] } };
+      const result = resolvePipeline(config, 'quick');
+      expect(result).toEqual([
+        { stage: 'building', agent: 'bobby-build' },
+        { stage: 'testing', agent: 'bobby-test' },
+      ]);
+    });
+
+    test('resolves pipeline with security step', () => {
+      const config = { pipelines: { secure: ['plan', 'build', 'security', 'review', 'test'] } };
+      const result = resolvePipeline(config, 'secure');
+      expect(result).toHaveLength(5);
+      expect(result[2]).toEqual({ stage: 'reviewing', agent: 'bobby-security' });
+    });
+
+    test('throws for unknown pipeline name', () => {
+      const config = { pipelines: { quick: ['build'] } };
+      expect(() => resolvePipeline(config, 'nonexistent')).toThrow("Unknown pipeline 'nonexistent'");
+    });
+
+    test('error message lists available pipelines', () => {
+      const config = { pipelines: { quick: ['build'], hotfix: ['build'] } };
+      expect(() => resolvePipeline(config, 'nope')).toThrow(/quick/);
+      expect(() => resolvePipeline(config, 'nope')).toThrow(/hotfix/);
+    });
+
+    test('ticket pipeline overrides default when flag is default', () => {
+      const config = { pipelines: { quick: ['build', 'test'] } };
+      const result = resolvePipeline(config, 'default', 'quick');
+      expect(result).toEqual([
+        { stage: 'building', agent: 'bobby-build' },
+        { stage: 'testing', agent: 'bobby-test' },
+      ]);
+    });
+
+    test('explicit flag overrides ticket pipeline', () => {
+      const config = { pipelines: { quick: ['build', 'test'], secure: ['plan', 'build', 'security', 'review', 'test'] } };
+      const result = resolvePipeline(config, 'secure', 'quick');
+      expect(result).toHaveLength(5);
+      expect(result[0].agent).toBe('bobby-plan');
+    });
+
+    test('ticket pipeline is ignored when explicit flag is set', () => {
+      const config = { pipelines: { quick: ['build'] } };
+      // Explicit 'quick' flag — ticket pipeline 'nonexistent' should not matter
+      const result = resolvePipeline(config, 'quick', 'nonexistent');
+      expect(result).toEqual([{ stage: 'building', agent: 'bobby-build' }]);
+    });
+
+    test('returns DEFAULT_PIPELINE when ticket pipeline is null and flag is default', () => {
+      const result = resolvePipeline({}, 'default', null);
+      expect(result).toEqual(DEFAULT_PIPELINE);
+    });
+
+    test('config default pipeline overrides built-in default', () => {
+      const config = { pipelines: { default: ['build', 'review'] } };
+      const result = resolvePipeline(config, 'default');
+      expect(result).toEqual([
+        { stage: 'building', agent: 'bobby-build' },
+        { stage: 'reviewing', agent: 'bobby-review' },
+      ]);
+    });
+  });
+
+  describe('listPipelines', () => {
+    test('returns default when no pipelines configured', () => {
+      expect(listPipelines({})).toEqual(['default']);
+    });
+
+    test('includes custom pipeline names plus default', () => {
+      const config = { pipelines: { quick: ['build'], hotfix: ['build'] } };
+      const result = listPipelines(config);
+      expect(result).toContain('default');
+      expect(result).toContain('quick');
+      expect(result).toContain('hotfix');
+    });
+
+    test('does not duplicate default when config defines it', () => {
+      const config = { pipelines: { default: ['build', 'review'], quick: ['build'] } };
+      const result = listPipelines(config);
+      expect(result.filter(n => n === 'default')).toHaveLength(1);
+    });
+  });
+
+  describe('ticket pipeline field', () => {
+    test('createTicket stores pipeline in frontmatter', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Quick fix', author: 'dev', area: '', pipeline: 'quick' });
+      const ticket = findTicket(tmpDir, 'TKT-001');
+      expect(ticket.data.pipeline).toBe('quick');
+    });
+
+    test('createTicket stores null pipeline when not specified', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Normal task', author: 'dev', area: '' });
+      const ticket = findTicket(tmpDir, 'TKT-001');
+      expect(ticket.data.pipeline).toBeNull();
     });
   });
 });

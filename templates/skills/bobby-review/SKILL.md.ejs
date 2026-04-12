@@ -112,8 +112,8 @@ Read the ticket's `services` frontmatter to determine which service(s) were touc
 - **<%= name %>**: `cd <%= svc.path %> && <%= svc.commands.test %>` / `cd <%= svc.path %> && <%= svc.commands.lint %>`
 <% }); %>
 <% } else { %>
-1. Tests: `<%= commands && commands.test ? commands.test : 'npm test' %>`
-2. Lint: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+1. Tests: `<%= commands.test || 'your test command' %>`
+2. Lint: `<%= commands.lint || 'your lint command' %>`
 <% } %>
 
 Show the output as evidence. If tests can't run (missing deps, broken environment), this is a BLOCK, not an approval.

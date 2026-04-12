@@ -1,0 +1,26 @@
+{
+  "name": "go",
+  "display": "Go",
+  "health_checks": [
+    { "name": "app", "url": "http://localhost:8080", "description": "Go dev server" }
+  ],
+  "areas": ["api", "handlers", "middleware", "models"],
+  "skill_routing": {
+    "api": ["dev/backend"],
+    "handlers": ["dev/backend"],
+    "middleware": ["dev/backend"],
+    "models": ["dev/backend"]
+  },
+  "commands": {
+    "dev": "go run .",
+    "test": "go test ./...",
+    "lint": "golangci-lint run",
+    "build": "go build ./..."
+  },
+  "testing_tools": ["curl"],
+  "template_vars": {
+    "test_command": "go test ./...",
+    "lint_command": "golangci-lint run",
+    "spec_dir": ""
+  }
+}

@@ -6,8 +6,8 @@ This file accumulates anti-patterns and best practices discovered during local e
 <!-- New learnings are added below this line by `bobby learn bobby-local "pattern" "description"` -->
 
 ### Destroying database volumes without confirmation (seed)
-**Pattern:** Running `docker compose down -v` or `rails db:reset` without asking the user first, wiping billing plans and tenant data.
-**Fix:** Always confirm destructive database operations with the user. Use `rails db:prepare` (idempotent) instead of `db:reset`.
+**Pattern:** Running `docker compose down -v` or destructive database reset commands without asking the user first, wiping all local data.
+**Fix:** Always confirm destructive database operations with the user. Use safe, idempotent setup commands (e.g., `rails db:prepare`, `prisma migrate deploy`) instead of destructive resets.
 
 ### Skipping health checks after setup (seed)
 **Pattern:** Declaring setup complete without verifying services are actually running and responding.

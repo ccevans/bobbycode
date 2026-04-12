@@ -1,0 +1,26 @@
+{
+  "name": "django",
+  "display": "Django",
+  "health_checks": [
+    { "name": "app", "url": "http://localhost:8000", "description": "Django dev server" }
+  ],
+  "areas": ["auth", "api", "admin", "models"],
+  "skill_routing": {
+    "auth": ["dev/backend"],
+    "api": ["dev/backend"],
+    "admin": ["dev/backend"],
+    "models": ["dev/backend"]
+  },
+  "commands": {
+    "dev": "python manage.py runserver",
+    "test": "python manage.py test",
+    "lint": "ruff check .",
+    "build": ""
+  },
+  "testing_tools": ["curl"],
+  "template_vars": {
+    "test_command": "python manage.py test",
+    "lint_command": "ruff check .",
+    "spec_dir": "tests/"
+  }
+}

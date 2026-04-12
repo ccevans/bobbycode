@@ -12,7 +12,7 @@ This file accumulates anti-patterns and best practices discovered during feature
 ## Integration Checks
 
 ### pre-build-integration-audit
-**Pre-build integration audit for epic children**: After planning all children, before building the first: grep `routes.rb` for every endpoint in sibling plans (verify HTTP methods match), check shared display/transform helpers for new API fields, and verify test fixtures include new schema fields. Catches cross-ticket integration bugs before they cost a full build/review/test rejection cycle.
+**Pre-build integration audit for epic children**: After planning all children, before building the first: grep the backend routes file for every endpoint in sibling plans (verify HTTP methods match), check shared display/transform helpers for new API fields, and verify test fixtures include new schema fields. Catches cross-ticket integration bugs before they cost a full build/review/test rejection cycle.
 
 ## Best Practices
 <!-- Document what works well -->

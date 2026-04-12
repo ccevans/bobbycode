@@ -13,10 +13,10 @@ npx bobbycode init
 This scaffolds your project with:
 - `.bobby/tickets/` — single directory, frontmatter-based stages
 - `.bobby/sessions/` — session logs for pipeline observability
-- `.bobbyrc.yml` config file
-- `.claude/skills/` with 17 workflow skills
-- `.claude/agents/` with 15 agent definitions
-- `.claude/commands/` with 17 slash commands
+- `.bobbyrc.yml` — all configuration in one commented file
+- `.claude/skills/` with 21 workflow skills
+- `.claude/agents/` with 17 agent definitions
+- `.claude/commands/` with 20 slash commands
 - `CLAUDE.md` with Bobby workflow instructions
 
 Then start working:
@@ -29,9 +29,117 @@ bobby run pipeline TKT-001                    # Run the full pipeline
 bobby dashboard                                # Open the workspace dashboard
 ```
 
+## Configuration
+
+All configuration lives in `.bobbyrc.yml`, generated with comments during `bobby init`. Key sections:
+
+```yaml
+# Project identity
+project: my-app
+stack: nextjs                  # nextjs | rails-react | django | python-flask | go | rust | polyglot | generic
+target: claude-code            # claude-code | cline
+
+# Directories
+bobby_dir: .bobby
+tickets_dir: .bobby/tickets
+sessions_dir: .bobby/sessions
+ticket_prefix: TKT             # Prefix for ticket IDs (e.g., TKT-001)
+
+# Dev commands — used by all agents for test/lint/build
+commands:
+  dev: npm run dev
+  test: npm test
+  lint: npm run lint
+  build: npm run build
+
+# Health check URLs — agents verify the app is running before testing
+health_checks:
+  - name: app
+    url: http://localhost:3000
+
+# Feature areas — categorize tickets, route to area-specific skills
+areas: [auth, dashboard, api]
+
+# Testing tools available to the test agent
+testing_tools: [playwright, curl]
+
+# Max retries when review/test rejects (per ticket)
+max_retries: 3
+```
+
+<details>
+<summary>Optional configuration (commented out in generated file)</summary>
+
+```yaml
+# Custom pipelines
+pipelines:
+  default: [plan, build, review, test]
+  secure: [plan, build, security, review, test]
+  fast: [plan, build, test]
+
+# Skill routing — maps areas to project skill directories
+skill_routing:
+  auth: [dev/fullstack]
+  api: [dev/backend]
+
+# Project-specific skills the build agent follows
+build_skills:
+  - api-patterns
+  - component-library
+
+# Multi-repo shipping (PR per repo)
+repos:
+  - name: api
+    path: backend-api
+  - name: ui
+    path: frontend-ui
+
+# Git branch naming conventions
+git_conventions:
+  feature_branch_prefix: feature  # Epic branches: feature/{id}-{slug}
+  ticket_branch_prefix: tkt       # Ticket branches: tkt-{id}
+  worktree_prefix: bobby           # Worktree branches: bobby/{id}-{stage}
+
+# Dashboard configuration
+dashboard:
+  port: 7777
+  worktree_root: ../bobby-wt
+  auto_approve_stages: []
+  auto_merge: false
+
+# Parallel isolation for batch operations
+parallel_isolation: none         # none | worktree
+
+# Backlog management
+backlog_limit: 50
+backlog_stale_days: 30
+
+# Conductor.build integration (set to false to skip)
+conductor: true
+```
+
+</details>
+
+## Stacks
+
+Bobby auto-detects your tech stack during `bobby init` and configures commands, health checks, and areas automatically.
+
+| Stack | Detection | Commands | Health Check |
+|-------|-----------|----------|-------------|
+| **Next.js** | `next` in package.json | `npm run dev/test/lint/build` | `:3000` |
+| **Rails + React** | Gemfile + React subdirectory | Docker Compose + npm | `:3000` (API), `:3001` (UI) |
+| **Django** | `manage.py` or django in requirements.txt | `manage.py runserver/test` + ruff | `:8000` |
+| **Python / Flask** | Flask in requirements.txt | `flask run` + pytest + ruff | `:5000` |
+| **Go** | `go.mod` | `go run/test` + golangci-lint | `:8080` |
+| **Rust** | `Cargo.toml` | `cargo run/test/clippy` | `:8080` |
+| **Polyglot** | 2+ language markers in subdirectories | Per-service (configured during init) | Per-service |
+| **Generic** | Fallback | Empty (you configure in `.bobbyrc.yml`) | None |
+
+**Custom stacks:** Create `.bobby/stacks/<name>.json` with your own commands, areas, and health checks. Custom stacks appear at the top of the `bobby init` selection menu. See [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) for the JSON schema.
+
 ## Dashboard
 
-Bobby ships with a local web dashboard for kicking off agents in parallel, isolated workspaces and watching them work in real time. Inspired by Conductor, Claude Squad, and Augment Intent, but built on bobby's existing ticket + session primitives.
+Bobby ships with a local web dashboard for kicking off agents in parallel, isolated workspaces and watching them work in real time.
 
 ```bash
 bobby dashboard             # Opens http://127.0.0.1:7777 in your browser
@@ -39,7 +147,7 @@ bobby dashboard --port 7778 # Custom port
 bobby dashboard --no-open   # Don't auto-open the browser
 ```
 
-**Workspace model.** Each workspace = one ticket + one git worktree on its own branch + one `claude` subprocess. Multiple workspaces run in parallel without colliding — each agent lives in its own isolated checkout under `../bobby-wt/`.
+**Workspace model.** Each workspace = one ticket + one git worktree on its own branch + one `claude` subprocess. Multiple workspaces run in parallel without colliding — each agent lives in its own isolated checkout.
 
 **What you get:**
 - **Workspace list** on the left — live status dots (running, awaiting approval, ready to merge, failed, stopped)
@@ -47,29 +155,11 @@ bobby dashboard --no-open   # Don't auto-open the browser
 - **Diff viewer** — unified diff of the workspace branch vs main
 - **Files tab** — changed files with added/removed line counts
 - **Runs history** — every agent invocation with exit codes and durations
-- **Actions per workspace:** `Run`, `Stop`, `Approve →` (advance to next pipeline stage), `Reject` (retry build), `Merge` (no-ff into main), `Discard`
+- **Actions per workspace:** `Run`, `Stop`, `Approve` (advance to next pipeline stage), `Reject` (retry build), `Merge` (no-ff into main), `Discard`
 
-**Available agents from the New Workspace modal:**
-- `pipeline` — runs the full `plan → build → review → test` chain in one go
-- `feature` — epic workflow (ticket must be an epic with children)
-- `next` — runs whichever agent matches the ticket's current stage
-- All individual stage and specialist agents (`plan`, `build`, `review`, `test`, `security`, `debug`, `ux`, `pm`, `qe`, `vet`, `strategy`, `arch`, `intake`, `docs`, `performance`, `watchdog`)
+**Crash-safe state.** Workspace state is persisted atomically to `.bobby/workspaces.json`, so `bobby dashboard` survives restarts.
 
-**Crash-safe state.** Workspace state is persisted atomically to `.bobby/workspaces.json`, so `bobby dashboard` survives restarts — workspaces still running when the dashboard went down are surfaced as `unknown` so you can re-run or discard them.
-
-**Configuration** (in `.bobbyrc.yml`, all optional):
-
-```yaml
-dashboard:
-  port: 7777                    # Default port
-  worktree_root: ../bobby-wt    # Where worktrees live (sibling of main repo)
-  auto_approve_stages: []       # e.g. [planning] to auto-advance past plan
-  auto_merge: false             # Require manual merge button
-  sandbox: worktree             # 'worktree' today — 'docker' planned
-  executor: claude              # 'claude' today — 'agent-sdk'/'managed' planned
-```
-
-**Security.** The dashboard binds to `127.0.0.1` only and has no authentication. If you override the host, bobby prints a loud warning — don't expose it to a network you don't trust.
+**Security.** The dashboard binds to `127.0.0.1` only and has no authentication. If you override the host, bobby prints a loud warning.
 
 ## Getting Started: Your First Ticket, End to End
 
@@ -159,7 +249,7 @@ backlog → planning → building → reviewing → testing → shipping → don
 
 Tickets live in `.bobby/tickets/`. Stage is tracked in frontmatter — no physical file moves, clean git diffs.
 
-## Command Reference (17 commands)
+## Command Reference
 
 ### Ticket Management
 
@@ -185,7 +275,7 @@ Tickets live in `.bobby/tickets/`. Stage is tracked in frontmatter — no physic
 | Command | Description |
 |---------|-------------|
 | `bobby run <agent> [ids...]` | Run an agent on ticket(s) — see [Run Modes](#run-modes) below |
-| `bobby dashboard` | Launch the local web dashboard — parallel workspaces, live logs, diffs, approvals (`--port`, `--no-open`, `--pipeline`) |
+| `bobby dashboard` | Launch the local web dashboard — parallel workspaces, live logs, diffs, approvals |
 
 ### Learning & Retrospectives
 
@@ -247,9 +337,9 @@ bobby run next TKT-001
 bobby run ship
 
 # Freeform agents (no ticket required)
-bobby run ux                           # Visual/UX review via Chrome
-bobby run pm                           # Product review via Chrome
-bobby run qe                           # QA testing via Chrome + API
+bobby run ux                           # Visual/UX review via browser
+bobby run pm                           # Product review via browser
+bobby run qe                           # QA testing via browser + API
 bobby run vet                          # Interrogate design before planning
 bobby run strategy                     # Strategic validation gate
 bobby run docs                         # Update documentation
@@ -261,7 +351,7 @@ bobby run security TKT-001            # OWASP + STRIDE audit
 bobby run debug TKT-001               # Root-cause investigation
 ```
 
-## Agents (15)
+## Agents (17)
 
 ### Core Pipeline
 
@@ -281,9 +371,9 @@ Freeform agents that review the live application and create tickets for issues f
 
 | Agent | Role |
 |-------|------|
-| **bobby-ux** | UX design review via Chrome browser — never reads source code |
+| **bobby-ux** | UX design review via browser automation — never reads source code |
 | **bobby-pm** | Product review — identifies UX gaps and feature opportunities, shapes into tickets |
-| **bobby-qe** | QE testing via Chrome + API calls — never reads source code |
+| **bobby-qe** | QE testing via browser + API calls — never reads source code |
 | **bobby-vet** | Interrogates designs before planning — probes assumptions, explores alternatives |
 | **bobby-strategy** | Strategic validation gate — assesses demand, scope, ROI before tickets enter planning |
 
@@ -298,30 +388,12 @@ Focused agents for specific concerns:
 | **bobby-docs** | Updates README, CLAUDE.md, and docs to stay in sync with code changes |
 | **bobby-performance** | Benchmarking — measures page load, resource sizes, Core Web Vitals |
 | **bobby-watchdog** | Post-deploy verification — smoke tests, uptime, console errors |
+| **bobby-arch** | Architecture discovery — documents codebase structure and decisions |
+| **bobby-ticket-intake** | Converts PM specs into structured Bobby tickets |
 
-## Skills (17)
+## Skills (21)
 
 Each agent is backed by a **skill** — a detailed instruction set in `.claude/skills/bobby-{name}/SKILL.md`. Skills also accumulate learnings over time in `learnings.md`, so agents get smarter as your project evolves.
-
-| Skill | Purpose |
-|-------|---------|
-| bobby-plan | Planning methodology (epic breakdown + ticket refinement) |
-| bobby-build | TDD build process and commit discipline |
-| bobby-review | Code review criteria and rejection standards |
-| bobby-test | Test execution and acceptance verification |
-| bobby-ship | PR creation, CI checks, and merge workflow |
-| bobby-ux | Visual review protocol and design heuristics |
-| bobby-pm | Product analysis and feature opportunity assessment |
-| bobby-qe | QA test methodology (browser + API) |
-| bobby-vet | Design interrogation framework |
-| bobby-strategy | Strategic scoring and prioritization criteria |
-| bobby-security | Security audit checklist (OWASP + STRIDE) |
-| bobby-debug | Debugging methodology (reproduce → trace → fix) |
-| bobby-docs | Documentation update protocol |
-| bobby-performance | Benchmarking and regression detection |
-| bobby-watchdog | Post-deploy smoke test protocol |
-| bobby-pipeline | Pipeline orchestration (auto-chains agents with retry) |
-| bobby-feature | Feature workflow (holistic planning + sequential execution) |
 
 ### Teaching Bobby
 
@@ -334,7 +406,7 @@ bobby learn bobby-review "missing error handling" "Check all async calls have tr
 
 Learnings are stored in `.claude/skills/bobby-{name}/learnings.md` and loaded by agents before every run.
 
-## Slash Commands (17)
+## Slash Commands (20)
 
 Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can invoke agents directly from Claude:
 
@@ -344,19 +416,9 @@ Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can inv
 /bobby-feature       /bobby-ux            /bobby-pm
 /bobby-qe            /bobby-vet           /bobby-strategy
 /bobby-security      /bobby-debug         /bobby-docs
-/bobby-performance   /bobby-watchdog
+/bobby-performance   /bobby-watchdog      /bobby-arch
+/bobby-ticket-intake /bobby-local
 ```
-
-## Stacks
-
-Bobby comes with pre-configured defaults for:
-- **Next.js** — `npm` commands, single health check on :3000
-- **Rails + React** — multi-repo support, dual health checks (API :3000, UI :3001)
-- **Python / Flask** — `pytest`, `flake8`, Flask defaults on :5000
-- **Polyglot / Multi-Service** — auto-detects services, per-service commands
-- **Generic** — sensible defaults, configure manually in `.bobbyrc.yml`
-
-You can also create **custom stacks** by placing a JSON file in `.bobby/stacks/<name>.json`. See [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) for the stack JSON schema.
 
 ## Custom Pipelines
 
@@ -374,6 +436,18 @@ Run a named pipeline:
 ```bash
 bobby run pipeline TKT-001 --pipeline secure
 ```
+
+## Contributing
+
+Contributions are welcome! To get started:
+
+1. Fork the repo and create a feature branch from `main`
+2. Install dependencies: `npm install`
+3. Make your changes
+4. Run tests: `npm test`
+5. Open a pull request against `main`
+
+Please keep PRs focused on a single change. If you're planning something large, open an issue first to discuss the approach.
 
 ## License
 

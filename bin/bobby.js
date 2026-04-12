@@ -13,7 +13,7 @@ program
   .description('Bobby — your pair programmer. AI-native SDLC framework.')
   .version(pkg.version);
 
-// Commands (16 total)
+// Commands (17 total)
 import { registerInit } from '../commands/init.js';
 import { registerCreate } from '../commands/create.js';
 import { registerUpdate } from '../commands/update.js';
@@ -35,6 +35,7 @@ import { registerSession } from '../commands/session.js';
 import { registerSync } from '../commands/sync.js';
 import { registerLocalInit } from '../commands/local-init.js';
 import { registerDashboard } from '../commands/dashboard.js';
+import { registerPipeline } from '../commands/pipeline.js';
 
 registerInit(program);
 registerCreate(program);
@@ -57,6 +58,7 @@ registerSession(program);
 registerSync(program);
 registerLocalInit(program);
 registerDashboard(program);
+registerPipeline(program);
 
 // Show help when no subcommand given
 program.action(() => program.help());

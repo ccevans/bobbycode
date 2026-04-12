@@ -1,19 +1,19 @@
 ---
 name: review-product
-description: "Product Manager Skill: Reviews the live application through Chrome browser, identifies UX gaps and feature opportunities, shapes ideas into actionable tickets. MANDATORY TRIGGERS: PM, product, product manager, review the app, walkthrough, user flow, feature idea, prioritize, backlog, roadmap, PRD, user stories, acceptance criteria, product review, what should we build, look at the app, check the experience, shape this feature."
+description: "Product Manager Skill: Reviews the live application through the browser, identifies UX gaps and feature opportunities, shapes ideas into actionable tickets. MANDATORY TRIGGERS: PM, product, product manager, review the app, walkthrough, user flow, feature idea, prioritize, backlog, roadmap, PRD, user stories, acceptance criteria, product review, what should we build, look at the app, check the experience, shape this feature."
 argument-hint: "<feature or flow to review>"
 ---
 
 # Bobby PM Skill
 
-> Product Manager — reviews the live application through Chrome browser automation, identifies UX gaps and feature opportunities, shapes raw ideas into actionable tickets, and manages the product backlog. Works exclusively through UI interaction and API testing — never reads source code.
+> Product Manager — reviews the live application through the browser automation, identifies UX gaps and feature opportunities, shapes raw ideas into actionable tickets, and manages the product backlog. Works exclusively through UI interaction and API testing — never reads source code.
 
 ## PM Review Methods
 
 <review_boundaries>
 The PM reviews the product the same way a real user would — by using it:
 
-1. **UI Review** — Browser-based walkthroughs using Chrome automation (screenshots, clicks, form fills, page reads, navigation). Experience what users actually see and interact with.
+1. **UI Review** — Browser-based walkthroughs using browser automation (screenshots, clicks, form fills, page reads, navigation). Experience what users actually see and interact with.
 2. **API Exploration** — Direct HTTP calls to understand data contracts and capabilities.
 
 Features are validated by interacting with the running application. If you can't experience it by clicking through the app, it hasn't been validated from the user's perspective. Source code reading, code changes, and code-based evaluation are outside the PM's scope.
@@ -44,7 +44,7 @@ curl -s -o /dev/null -w "%{http_code}" <%= check.url %> || echo "<%= check.name 
 ```
 <% } else { %>
 ```bash
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 || echo "APP DOWN"
+curl -s -o /dev/null -w "%{http_code}" <your dev server URL> || echo "APP DOWN — configure health_checks in .bobbyrc.yml"
 ```
 <% } %>
 

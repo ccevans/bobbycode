@@ -100,35 +100,35 @@ During `bobby init` (full mode), Bobby auto-detects non-bobby skills in `.claude
 
 ## Creating a Custom Stack
 
-Bobby ships with 5 built-in stacks (nextjs, rails-react, python-flask, polyglot, generic). You can create project-local stacks:
+Bobby ships with 8 built-in stacks: `nextjs`, `rails-react`, `django`, `python-flask`, `go`, `rust`, `polyglot`, and `generic`. You can also create project-local stacks for frameworks Bobby doesn't ship with:
 
 1. Create `.bobby/stacks/<name>.json`:
 
 ```json
 {
-  "name": "django",
-  "display": "Django + HTMX",
+  "name": "phoenix",
+  "display": "Elixir / Phoenix",
   "health_checks": [
-    { "name": "app", "url": "http://localhost:8000", "description": "Django dev server" }
+    { "name": "app", "url": "http://localhost:4000", "description": "Phoenix dev server" }
   ],
-  "areas": ["auth", "api", "dashboard", "admin"],
+  "areas": ["auth", "api", "live-views", "admin"],
   "skill_routing": {
     "auth": ["dev/backend"],
     "api": ["dev/backend"],
-    "dashboard": ["dev/fullstack"],
+    "live-views": ["dev/fullstack"],
     "admin": ["dev/backend"]
   },
   "commands": {
-    "dev": "python manage.py runserver",
-    "test": "python manage.py test",
-    "lint": "ruff check .",
-    "build": "python manage.py collectstatic --noinput"
+    "dev": "mix phx.server",
+    "test": "mix test",
+    "lint": "mix credo",
+    "build": "mix compile"
   },
   "testing_tools": ["curl"],
   "template_vars": {
-    "test_command": "python manage.py test",
-    "lint_command": "ruff check .",
-    "spec_dir": "tests/"
+    "test_command": "mix test",
+    "lint_command": "mix credo",
+    "spec_dir": "test/"
   }
 }
 ```

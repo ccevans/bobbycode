@@ -49,8 +49,8 @@ Follow this process strictly. Do not skip steps or jump to fixes.
 ### Step 5: Fix
 - Write the minimal fix that addresses the root cause
 - Write or update a test that would catch this regression
-- Run the full test suite: `<%= commands && commands.test ? commands.test : 'npm test' %>`
-- Run lint: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+- Run the full test suite: `<%= commands.test || 'your test command' %>`
+- Run lint: `<%= commands.lint || 'your lint command' %>`
 </investigation_rules>
 
 ## Scope Lock

@@ -2,7 +2,8 @@
 import inquirer from 'inquirer';
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir } from '../lib/config.js';
 import { getFeatureTickets, listEpics } from '../lib/tickets.js';
-import { DEFAULT_PIPELINE, buildPromptFor } from '../lib/pipeline.js';
+import { DEFAULT_PIPELINE, buildPromptFor, resolvePipeline, listPipelines } from '../lib/pipeline.js';
+import { findTicket } from '../lib/tickets.js';
 import { VALID_AGENTS } from '../lib/agent-registry.js';
 import { bold, dim, error } from '../lib/colors.js';
 import { getTarget } from '../lib/targets/index.js';
@@ -15,27 +16,8 @@ function withSession(prompt, sessionId) {
   return `**Session tracking:** Before running any bobby commands, set the session env var:\n\`export BOBBY_SESSION_ID=${sessionId}\`\n\n${prompt}`;
 }
 
-/**
- * Resolve the pipeline config, either a named one from .bobbyrc.yml or the default.
- * Throws if a named pipeline is requested but not defined.
- */
-export function resolvePipeline(config, pipelineName = 'default') {
-  if (config.pipelines && config.pipelines[pipelineName]) {
-    const pipelineConfig = config.pipelines[pipelineName];
-    return Array.isArray(pipelineConfig) ? pipelineConfig.map(step => {
-      if (typeof step === 'string') {
-        const STAGE_MAP = { plan: 'planning', build: 'building', review: 'reviewing', test: 'testing', security: 'reviewing', debug: 'building', strategy: 'backlog' };
-        return { stage: STAGE_MAP[step] || step, agent: `bobby-${step}` };
-      }
-      return step;
-    }) : DEFAULT_PIPELINE;
-  }
-  if (pipelineName !== 'default') {
-    const available = config.pipelines ? Object.keys(config.pipelines).join(', ') : 'default';
-    throw new Error(`Unknown pipeline '${pipelineName}'. Available: ${available}`);
-  }
-  return DEFAULT_PIPELINE;
-}
+// Re-export for backwards compatibility (dashboard.js imports from here)
+export { resolvePipeline } from '../lib/pipeline.js';
 
 export function registerRun(program) {
   program
@@ -51,20 +33,32 @@ export function registerRun(program) {
       '  Strategy:   bobby run strategy [id]  — strategic validation gate\n' +
       '  Security:   bobby run security <id>  — OWASP + STRIDE audit\n' +
       '  Debug:      bobby run debug <id>     — root-cause investigation\n' +
-      '  Freeform:   bobby run docs|performance|watchdog — no ticket required'
+      '  Freeform:   bobby run docs|performance|watchdog — no ticket required\n' +
+      '  Shorthand:  bobby run <pipeline-name> <id> — run a custom pipeline'
     )
     .option('--max-retries <n>', 'Max retry loops on rejection per ticket', '3')
     .option('--max-iterations <n>', 'Max total agent invocations across all tickets')
     .option('--pipeline <name>', 'Named pipeline to use (from .bobbyrc.yml pipelines config)', 'default')
     .action(async (agent, ticketIds, opts) => {
       try {
+        const root = findProjectRoot();
+        const config = readConfig(root);
+
+        // Pipeline shorthand: if agent name matches a custom pipeline, treat as `pipeline --pipeline <name>`
+        const pipelineNames = listPipelines(config);
+        if (!VALID_AGENTS.includes(agent) && pipelineNames.includes(agent)) {
+          opts.pipeline = agent;
+          agent = 'pipeline';
+        }
+
         if (!VALID_AGENTS.includes(agent)) {
           error(`Unknown agent '${agent}'. Valid: ${VALID_AGENTS.join(', ')}`);
+          if (pipelineNames.length > 1) {
+            console.log(`  Pipeline shorthands: ${pipelineNames.filter(n => n !== 'default').join(', ')}`);
+          }
           process.exit(1);
         }
 
-        const root = findProjectRoot();
-        const config = readConfig(root);
         const target = getTarget(config.target || 'claude-code');
         const agentsPath = target.paths().agents;
         const hint = target.promptHint();
@@ -77,8 +71,17 @@ export function registerRun(program) {
         const sessionsDir = resolveSessionsDir(root, config);
         const sessionId = initSession(sessionsDir, { ticketIds: ticketIds, agent, pipeline: opts.pipeline || 'default' });
 
-        // Resolve pipeline config
-        const pipeline = resolvePipeline(config, opts.pipeline || 'default');
+        // Resolve ticket-level pipeline override (if ticket has a `pipeline` field in frontmatter)
+        let ticketPipeline = null;
+        if (ticketIds.length > 0) {
+          const ticket = findTicket(ticketsDir, ticketIds[0]);
+          if (ticket && ticket.data.pipeline) {
+            ticketPipeline = ticket.data.pipeline;
+          }
+        }
+
+        // Resolve pipeline config: explicit flag > ticket frontmatter > default
+        const pipeline = resolvePipeline(config, opts.pipeline || 'default', ticketPipeline);
 
         // Feature mode: if no epic id provided, let user pick interactively.
         // This is the only interactive step — the dashboard will always pass an explicit epicId.

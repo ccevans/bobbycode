@@ -3,6 +3,6 @@
 ## Anti-Patterns
 <!-- bobby learn bobby-plan "pattern" "description" to add entries -->
 
-## Structure-only test cases (2026-03-23)
+## Structure-only test cases (seed)
 
-In the agent dashboard brand colors epic (TKT-139–143), all test cases verified that CSS variables and classes existed in their default state. No test case changed a value and verified the result. This let a broken save endpoint (double Bearer token) and a non-functional data flow ship to "shipping" across 5 tickets. Always write at least one test case that exercises the write path: change value → save → verify persistence.
+When planning test cases for UI features, don't only test that elements exist in their default state. Always include at least one test case that exercises the write path: change value → save → verify persistence. Structure-only tests (checking CSS variables exist, checking elements render) miss broken save endpoints and non-functional data flows.

@@ -1,0 +1,25 @@
+{
+  "name": "rust",
+  "display": "Rust",
+  "health_checks": [
+    { "name": "app", "url": "http://localhost:8080", "description": "Rust dev server" }
+  ],
+  "areas": ["api", "handlers", "models"],
+  "skill_routing": {
+    "api": ["dev/backend"],
+    "handlers": ["dev/backend"],
+    "models": ["dev/backend"]
+  },
+  "commands": {
+    "dev": "cargo run",
+    "test": "cargo test",
+    "lint": "cargo clippy",
+    "build": "cargo build"
+  },
+  "testing_tools": ["curl"],
+  "template_vars": {
+    "test_command": "cargo test",
+    "lint_command": "cargo clippy",
+    "spec_dir": ""
+  }
+}

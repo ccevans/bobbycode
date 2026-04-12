@@ -196,7 +196,7 @@ services:
 
       expect(profile.compose_project).toBe('myapp_dev');
       expect(profile.ports.api).toBe(3010);
-      expect(profile.ports.postgres).toBe(5433);
+      expect(profile.ports.db).toBe(5433);
       expect(profile.ports.ui).toBe(3001);
       expect(profile.subdomain).toBe('myapp');
     });

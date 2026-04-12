@@ -102,12 +102,12 @@ If the ticket's `services` field is empty, resolve from the ticket's `area` by m
 4. Repeat for each acceptance criterion
 <% } else { %>
 1. **RED** — Write a failing test first
-   - Run: `<%= commands && commands.test ? commands.test : 'npm test' %>`
+   - Run: `<%= commands && commands.test || 'your test command (configure commands.test in .bobbyrc.yml)' %>`
    - Confirm the test fails for the right reason
 2. **GREEN** — Write the minimum code to make the test pass
    - Run tests again — should pass
 3. **REFACTOR** — Clean up while tests stay green
-   - Run: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+   - Run: `<%= commands && commands.lint || 'your lint command (configure commands.lint in .bobbyrc.yml)' %>`
 4. Repeat for each acceptance criterion
 <% } %>
 
@@ -147,8 +147,8 @@ If the ticket's `services` field is empty, resolve from the ticket's `area` by m
 <% if (typeof services !== 'undefined' && services && Object.keys(services).length > 0) { %>
 1. Run the test and lint commands for each affected service (see Service-Aware Commands above)
 <% } else { %>
-1. Run the full test suite: `<%= commands && commands.test ? commands.test : 'npm test' %>`
-2. Run the linter: `<%= commands && commands.lint ? commands.lint : 'npm run lint' %>`
+1. Run the full test suite: `<%= commands && commands.test || 'your test command (configure commands.test in .bobbyrc.yml)' %>`
+2. Run the linter: `<%= commands && commands.lint || 'your lint command (configure commands.lint in .bobbyrc.yml)' %>`
 <% } %>
 3. **Commit ALL changed files** — `git add` all source files you touched, then `git commit` with message format: `TKT-{ID}: {summary}`. Do NOT leave uncommitted changes behind.
 4. Add comment: `bobby comment {ID} --by bobby-build "Built: {summary}"`

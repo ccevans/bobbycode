@@ -22,7 +22,7 @@ argument-hint: "<profile> [fresh|daily|reset|check]"
 <safety_rules>
 - Never delete `.env` files or credentials — they contain secrets that cannot be regenerated.
 - Never run `docker compose down -v` without explicit user confirmation — it destroys database volumes.
-- Never run `rails db:reset` or `rails db:drop` — these destroy billing plans and tenant data. Use `rails db:prepare` for safe setup.
+- Never run destructive database commands (`rails db:reset`, `rails db:drop`, `DROP TABLE`, etc.) — these destroy data. Use safe alternatives like `rails db:prepare` or migrations.
 - Do not modify CI configs, production env vars, or deploy scripts.
 - Do not install global packages or modify system-level configuration.
 </safety_rules>
@@ -159,11 +159,19 @@ var uiPath = uiRepo ? (uiRepo.path || uiRepo.name || uiRepo) : '';
 <% } else { %>
 <%   /* ── Auto-generated: Generic / unknown stack ── */ %>
 #### Setup (`fresh`)
-1. Install dependencies: `<%= commands && commands.install ? commands.install : 'npm install' %>`
-2. Start dev server: `<%= commands && commands.dev ? commands.dev : 'npm run dev' %>`
+<% if (commands && commands.dev) { %>
+1. Install dependencies and start dev server: `<%= commands.dev %>`
+<% } else { %>
+1. Install dependencies for your project
+2. Start the dev server (configure `commands.dev` in `.bobbyrc.yml` for automatic setup)
+<% } %>
 
 #### Daily Startup (`daily`)
-1. Start: `<%= commands && commands.dev ? commands.dev : 'npm run dev' %>`
+<% if (commands && commands.dev) { %>
+1. Start: `<%= commands.dev %>`
+<% } else { %>
+1. Start the dev server (configure `commands.dev` in `.bobbyrc.yml`)
+<% } %>
 
 #### Full Reset (`reset`)
 > **DESTRUCTIVE** — Always confirm with the user before proceeding.
@@ -214,7 +222,7 @@ local:
 ### Falling Back to Default Commands
 
 ```bash
-<%= commands && commands.dev ? commands.dev : 'npm run dev' %>
+<%= commands && commands.dev ? commands.dev : '# configure commands.dev in .bobbyrc.yml' %>
 ```
 <% } %>
 <% } %>

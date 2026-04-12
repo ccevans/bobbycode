@@ -47,7 +47,8 @@ if (profile && profile.steps && profile.steps.daily) {
     restartSteps.push({ name: 'Restart backend', command: composePrefix + 'docker compose restart', cwd: apiPath });
   }
   if (uiPath) {
-    restartSteps.push({ name: 'Restart frontend', command: 'lsof -ti:' + uiPort + ' | xargs kill -9 2>/dev/null; NEXT_PUBLIC_SUBDOMAIN=' + subdomain + ' NEXT_PUBLIC_API_URL=http://localhost:' + apiPort + ' npx next dev -p ' + uiPort + ' &', cwd: uiPath });
+    var devCmd = (typeof commands !== 'undefined' && commands && commands.dev) ? commands.dev : 'npm run dev -- -p ' + uiPort;
+    restartSteps.push({ name: 'Restart frontend', command: 'lsof -ti:' + uiPort + ' | xargs kill 2>/dev/null; sleep 1; ' + devCmd + ' &', cwd: uiPath });
   }
 }
 %>

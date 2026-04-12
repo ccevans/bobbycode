@@ -1,26 +1,19 @@
 {
   "name": "generic",
   "display": "Generic",
-  "health_checks": [
-    { "name": "app", "url": "http://localhost:3000", "description": "Dev server" }
-  ],
-  "areas": ["frontend", "backend", "api", "infra"],
-  "skill_routing": {
-    "frontend": ["dev/frontend"],
-    "backend": ["dev/backend"],
-    "api": ["dev/backend"],
-    "infra": ["dev/ops"]
-  },
+  "health_checks": [],
+  "areas": [],
+  "skill_routing": {},
   "commands": {
-    "dev": "npm run dev",
-    "test": "npm test",
-    "lint": "npm run lint",
-    "build": "npm run build"
+    "dev": "",
+    "test": "",
+    "lint": "",
+    "build": ""
   },
   "testing_tools": ["curl"],
   "template_vars": {
-    "test_command": "npm test",
-    "lint_command": "npm run lint",
+    "test_command": "",
+    "lint_command": "",
     "spec_dir": "test/"
   }
 }

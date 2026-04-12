@@ -1,19 +1,19 @@
 ---
 name: test-app
-description: "QE Testing Skill: Tests the live application through Chrome browser automation and API calls. Never reads source code. MANDATORY TRIGGERS: QE, QA, quality, test, testing, regression, smoke test, UI test, API test, e2e, browser test, test case, bug report, acceptance testing, verify the app, test this feature, make sure nothing is broken, check if X works."
+description: "QE Testing Skill: Tests the live application through the browser automation and API calls. Never reads source code. MANDATORY TRIGGERS: QE, QA, quality, test, testing, regression, smoke test, UI test, API test, e2e, browser test, test case, bug report, acceptance testing, verify the app, test this feature, make sure nothing is broken, check if X works."
 argument-hint: "<ticket ID or feature to test>"
 ---
 
 # Bobby QE Skill
 
-> Comprehensive quality engineering for web applications. Tests exclusively through Chrome browser automation and API calls — never reads source code. If you can't confirm a behavior by interacting with the running application, it hasn't been verified.
+> Comprehensive quality engineering for web applications. Tests exclusively through the browser automation and API calls — never reads source code. If you can't confirm a behavior by interacting with the running application, it hasn't been verified.
 
 ## Testing Methods
 
 <testing_boundaries>
 QE verifies behavior exclusively through what users can observe:
 
-1. **UI Testing** — Browser-based testing using Chrome automation (screenshots, clicks, form fills, page reads, navigation). Test what users actually see.
+1. **UI Testing** — Browser-based testing using browser automation (screenshots, clicks, form fills, page reads, navigation). Test what users actually see.
 2. **API Testing** — Direct HTTP endpoint testing via curl/bash scripts. Test data contracts, error handling, auth flows, and edge cases.
 3. **Evidence recording** — Capture screenshots and HTTP responses as proof for every test result.
 
@@ -43,7 +43,7 @@ curl -s -o /dev/null -w "%{http_code}" <%= check.url %> || echo "<%= check.name 
 ```
 <% } else { %>
 ```bash
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 || echo "APP DOWN"
+curl -s -o /dev/null -w "%{http_code}" <your dev server URL> || echo "APP DOWN — configure health_checks in .bobbyrc.yml"
 ```
 <% } %>
 
@@ -83,7 +83,7 @@ For each ticket in testing:
 ## UI Testing Procedure
 
 ### Before You Start
-1. Get Chrome tab context
+1. Get browser tab context
 2. Create a new tab or use an existing one
 3. Check if the app is running (navigate and screenshot). If not, run Service Recovery.
 4. Verify authentication state — log in if needed
@@ -155,7 +155,7 @@ document.body.appendChild(iframe);
 ### API Test Script Template
 ```bash
 #!/bin/bash
-BASE_URL="${1:-http://localhost:3000}"
+BASE_URL="${1:-<%= (health_checks && health_checks.length > 0) ? health_checks[0].url : 'http://localhost:3000' %>}"
 TOKEN="${2}"
 PASS=0; FAIL=0; TOTAL=0
 
