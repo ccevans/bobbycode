@@ -78,7 +78,7 @@ export function scaffoldProject(rootDir, config) {
   fs.mkdirSync(sessionsDir, { recursive: true });
 
   // Ensure the project directory is a git repo
-  ensureGitRepo(rootDir);
+  const gitInitialized = ensureGitRepo(rootDir);
 
   // Write config (commented version for init, plain for programmatic updates)
   writeConfigCommented(rootDir, config);
@@ -219,6 +219,8 @@ export function scaffoldProject(rootDir, config) {
 
   // Target-specific extras (e.g., .clineignore for Cline)
   target.scaffoldExtras(rootDir);
+
+  return { gitInitialized };
 }
 
 export function registerInit(program) {
@@ -275,6 +277,7 @@ export function registerInit(program) {
         console.log('');
 
         // Check git identity before anything else
+        let gitInitializedEarly = false;
         const gitId = detectGitIdentity(rootDir);
         if (gitId.warnings.length > 0) {
           console.log('');
@@ -285,10 +288,21 @@ export function registerInit(program) {
           const { fixEmail } = await inquirer.prompt([{
             type: 'confirm',
             name: 'fixEmail',
-            message: 'Set your git email now? (required for deploys)',
+            message: 'Set your git identity now?',
             default: true,
           }]);
           if (fixEmail) {
+            const hasGitDir = fs.existsSync(path.join(rootDir, '.git'));
+            const { scope } = await inquirer.prompt([{
+              type: 'list',
+              name: 'scope',
+              message: 'Apply to:',
+              choices: [
+                { name: 'Globally (all projects on this machine)', value: 'global' },
+                { name: 'This project only', value: 'local' },
+              ],
+              default: hasGitDir ? 'local' : 'global',
+            }]);
             const { email } = await inquirer.prompt([{
               type: 'input',
               name: 'email',
@@ -302,9 +316,19 @@ export function registerInit(program) {
               default: gitId.name || '',
               validate: v => v.length > 0 || 'Required',
             }]);
-            execSync(`git config user.email "${email}"`, { cwd: rootDir });
-            execSync(`git config user.name "${name}"`, { cwd: rootDir });
-            success('Git identity configured for this repo');
+            try {
+              const scopeFlag = scope === 'global' ? '--global ' : '';
+              if (scope === 'local' && !hasGitDir) {
+                execSync('git init', { cwd: rootDir, stdio: 'pipe' });
+                gitInitializedEarly = true;
+              }
+              execSync(`git config ${scopeFlag}user.email "${email}"`, { cwd: rootDir, stdio: 'pipe' });
+              execSync(`git config ${scopeFlag}user.name "${name}"`, { cwd: rootDir, stdio: 'pipe' });
+              success(scope === 'global' ? 'Git identity configured globally' : 'Git identity configured for this repo');
+            } catch (e) {
+              warn(`Could not set git identity: ${e.message.split('\n')[0]}`);
+              warn('Continuing — you can set it later with: git config user.email "..."');
+            }
             console.log('');
           }
         }
@@ -597,12 +621,23 @@ export function registerInit(program) {
           health_checks: aggregateHealthChecks(configBase),
         };
 
-        scaffoldProject(rootDir, config);
+        const scaffoldResult = scaffoldProject(rootDir, config);
+        const gitInitialized = gitInitializedEarly || scaffoldResult?.gitInitialized;
 
         // Generate .gitignore for new projects (or if none exists)
         if (projectType === 'new' && !detected.hasGitignore) {
           const gitignoreContent = renderTemplate('gitignore.ejs', { stack: answers.stack });
           fs.writeFileSync(path.join(rootDir, '.gitignore'), gitignoreContent, 'utf8');
+        }
+
+        // Stub a README.md for new projects (only if none exists)
+        let readmeCreated = false;
+        if (projectType === 'new') {
+          const readmePath = path.join(rootDir, 'README.md');
+          if (!fs.existsSync(readmePath)) {
+            fs.writeFileSync(readmePath, `# ${answers.project}\n`, 'utf8');
+            readmeCreated = true;
+          }
         }
 
         const tp = targetAdapter.paths();
@@ -615,8 +650,14 @@ export function registerInit(program) {
             warn(`Existing ${detected.hasExistingRules} backed up to ${detected.hasExistingRules}.pre-bobby`);
           }
         }
+        if (gitInitialized) {
+          success('Initialized git repo');
+        }
         if (projectType === 'new') {
           success('Created .gitignore');
+        }
+        if (readmeCreated) {
+          success('Created README.md');
         }
         success(`Created ${config.tickets_dir}/ (single directory, frontmatter-based stages)`);
         success(`Created ${config.sessions_dir}/ (session logs)`);
@@ -641,6 +682,27 @@ export function registerInit(program) {
         if (localResult) {
           saveLocalProfile(rootDir, config, localResult.profileName, localResult.profile);
           success(`Local profile "${localResult.profileName}" added to .bobbyrc.yml`);
+        }
+
+        // Offer an initial commit for new projects
+        if (projectType === 'new' && fs.existsSync(path.join(rootDir, '.git'))) {
+          const { makeCommit } = await inquirer.prompt([{
+            type: 'confirm',
+            name: 'makeCommit',
+            message: 'Make an initial commit?',
+            default: true,
+          }]);
+          if (makeCommit) {
+            try {
+              execSync('git add -A', { cwd: rootDir, stdio: 'pipe' });
+              execSync('git commit -m "Initial commit: scaffold project with Bobby"', { cwd: rootDir, stdio: 'pipe' });
+              success('Created initial commit');
+              console.log('');
+            } catch (e) {
+              warn(`Could not create initial commit: ${e.message.split('\n')[0]}`);
+              console.log('');
+            }
+          }
         }
 
         console.log("  You're ready! Here's how to get started:");

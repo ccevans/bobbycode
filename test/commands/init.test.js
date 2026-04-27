@@ -541,6 +541,7 @@ describe('registerInit (interactive flow)', () => {
       if (promptCall === 1) return { setupMode: 'quick' };
       if (promptCall === 2) return { project: 'quick-proj', stack: 'nextjs' };
       if (promptCall === 3) return { targetName: 'claude-code' };
+      if (promptCall === 4) return { makeCommit: false };
       return {};
     });
 
@@ -550,8 +551,8 @@ describe('registerInit (interactive flow)', () => {
 
     expect(fs.existsSync(path.join(tmpDir, '.bobbyrc.yml'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'CLAUDE.md'))).toBe(true);
-    // Only 3 prompt calls needed (setupMode, project+stack, target)
-    expect(promptCall).toBe(3);
+    // 4 prompt calls in quick mode for a new project (setupMode, project+stack, target, makeCommit)
+    expect(promptCall).toBe(4);
   });
 
   test('init in quick mode uses stack defaults', async () => {
