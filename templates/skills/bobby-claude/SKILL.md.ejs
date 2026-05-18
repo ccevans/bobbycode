@@ -1,0 +1,179 @@
+---
+name: bobby-claude
+description: "CLAUDE.md Analyst Skill: Reads the full source tree of a repo, detects canonical patterns and contradictions (with file counts), then rewrites or creates CLAUDE.md with accurate commands, architecture notes, code quality rules, and pitfalls. MANDATORY TRIGGERS: claude, CLAUDE.md, improve CLAUDE.md, audit CLAUDE.md, CLAUDE.md is thin, CLAUDE.md is missing, CLAUDE.md is stale, agent keeps making mistakes."
+---
+
+# Bobby Claude Skill
+
+Analyzes a repo's full source tree to detect canonical patterns and contradictions (with file counts), then rewrites or creates CLAUDE.md with accurate commands, architecture notes, code quality rules, and pitfalls.
+
+## Step 1: Determine Target Repo
+
+If a repo name or path was given as an argument, use it. If this is a single-repo project, analyze the current directory. For multi-repo projects, read `.bobbyrc.yml` for the `repos` list and ask which one to analyze.
+
+## Step 2: Autonomous Discovery
+
+Read everything in the target repo in **parallel** — do not ask questions yet.
+
+Start with orientation files:
+- Existing `CLAUDE.md` — note every section present; flag gaps; flag anything that might be stale
+- Top-level directory listing
+- `bin/` scripts — read every one; they define canonical commands
+- `docker-compose*.yml` / `docker-compose.*.yml` — understand service topology and named targets
+- `Makefile` (if present)
+- Dependency manifest: `Gemfile`, `package.json`, `*.csproj`, `pyproject.toml`, `requirements.txt`
+- Routes / entry point: `config/routes.rb`, `Program.cs`, `app.rb`, `swagger.yml`
+- Any `secrets.env.example`, `.env.example`, `secrets.env.template`
+- `README.md` (only if it adds information absent from CLAUDE.md)
+
+Then read **all** source files by layer. The workflow is:
+1. Glob to get the file list for a layer
+2. Read every file in that list — one by one or in parallel batches
+
+```
+# Ruby/Rails
+app/controllers/**/*.rb        # every controller
+app/models/**/*.rb             # every model
+app/services/**/*.rb           # every service
+app/jobs/**/*.rb               # every job
+app/clients/**/*.rb            # every client/integration
+spec/**/*_spec.rb              # every spec
+spec/support/**/*.rb           # shared contexts, examples, helpers
+
+# .NET
+**/*Controller.cs              # every controller
+**/*Service.cs / **/*Repository.cs
+**/*Tests.cs / **/*Test.cs
+
+# Sinatra/Ruby
+lib/**/*.rb
+workers/**/*.rb
+spec/**/*_spec.rb
+
+# Python
+**/*.py (excluding __pycache__, venv)
+tests/**/*.py
+
+# JavaScript/TypeScript
+src/**/*.{ts,tsx,js,jsx}
+tests/**/*.{ts,tsx,js,jsx}
+```
+
+**Listing is not reading.** After each Glob, count the files returned. Before moving to Step 3, verify: "I listed N files across all layers. I have read the content of M files. M must equal N before I proceed." A Glob result sitting unread contributes nothing to pattern analysis. If the file count is large, read in parallel batches (use a single message with multiple Read tool calls).
+
+## Step 3: Pattern Analysis
+
+For each dimension below, tally the pattern usage across **all** files read in Step 2. Record:
+- The canonical pattern (majority usage) — this goes in CLAUDE.md
+- Any contradicting pattern (minority usage) with exact file count and file names — this becomes a question
+
+**Do not make judgment calls about whether a contradiction is "intentional."** If the code is inconsistent, surface it. The human knows the history; you don't. The only safe exception is when a lint-disable comment or inline annotation explicitly says the inconsistency is deliberate.
+
+**Dimensions to analyze:**
+
+| Dimension | What to look for |
+|-----------|-----------------|
+| Commands | test, lint, setup, dev server — do bin/ scripts match what CLAUDE.md says? |
+| Auth | middleware, authentication hooks, header bypass for local dev |
+| Error handling | rescue/catch patterns with logging vs bare rescue vs no rescue; which logger |
+| Test patterns | factory/fixture usage; spec file organization; Docker requirement |
+| DB access | ORM vs raw SQL; transaction usage; N+1 risk patterns |
+| Response format | JSON serialization approach; error response shape |
+| Specific gotchas | empty collection guards, unqualified column names, cross-service risk, etc. |
+
+## Step 4: Identify Gaps vs Existing CLAUDE.md
+
+Compare findings against the existing CLAUDE.md. Flag:
+- **Missing sections** — e.g., no Code Quality Rules despite repeated pitfalls in the code
+- **Stale commands** — e.g., CLAUDE.md says `bin/test` but the script now uses a different target
+- **Undocumented pitfalls** — patterns in the code that would trip up an agent
+- **Missing architecture facts** — e.g., proxy notes, credential requirements, service dependencies not mentioned
+
+## Step 5: Ask Targeted Questions
+
+If you found contradicting patterns or genuine ambiguities you cannot resolve from the code alone, ask them **all at once** in a single numbered list.
+
+Every question **must** include:
+1. The exact count: "X of Y files use pattern A; Z use pattern B"
+2. The names of the outlier files (the minority set)
+3. A specific resolution request: "Which is canonical?" or "Should the outliers be updated?"
+
+Example:
+> 1. **Error handling**: 8 of 11 controllers rescue with `rescue StandardError => e; logger.warn(...)`. 3 do not rescue at all: `health_controller.rb`, `ping_controller.rb`, `status_controller.rb`. Is no-rescue intentional for these endpoints?
+
+Do not ask about things that are consistent across all files. Wait for answers before proceeding.
+
+## Step 6: Write Improved CLAUDE.md
+
+Using your findings from Steps 2–4 and any answers from Step 5, write a complete CLAUDE.md for the repo.
+
+Include only sections that have real content — do not pad with placeholders or generic text.
+
+```markdown
+# <repo-name> — Agent Rules
+
+## Overview
+[What this service does, its stack, and how it fits the broader project — 2-3 sentences.]
+
+## Project Structure
+[Annotated directory listing or table of key dirs/files. Focus on what's non-obvious.]
+
+## Commands
+[Every command an agent might need. Include Docker prefix where required.]
+
+## Local Dev Setup
+[Prerequisites, secrets files with key descriptions, credential or proxy gotchas.]
+
+## API Endpoints
+[Route table: Method | Path | Description. Only for HTTP APIs.]
+
+## Key Environment Variables
+[Table: Variable | Purpose.]
+
+## Architecture Notes
+[Non-obvious design decisions. Auth pattern, background jobs, key integrations,
+framework-specific gotchas.]
+
+## Code Quality Rules
+[Only rules backed by evidence from the code. Each rule:
+**Rule Name** — wrong pattern, correct pattern, why it matters.]
+
+## Testing
+[Test framework, how to run a single file, any Docker requirement.]
+```
+
+**Code Quality Rules** must be derived from actual patterns found in the code — not generic advice. A rule is worth writing if:
+- It's a real pitfall visible in the source
+- The correct pattern is already used somewhere and the wrong pattern appears elsewhere
+- A test reveals a past failure mode
+
+Do not add rules that are pure speculation or standard language advice with no codebase evidence.
+
+## Step 7: Record Decisions
+
+If the user resolved contradictions in Step 5, add entries to `.bobby/decisions.yaml`:
+
+```yaml
+- id: kebab-case-id
+  fact: "The canonical pattern chosen, stated as a rule"
+  decided: "YYYY-MM-DD"
+  source: bobby-claude
+  why: "User's reasoning — e.g., minority files are health checks intentionally excluded"
+  supersedes: null
+  invalidated: null
+```
+
+Preserve all existing entries. Only add new ones.
+
+## Step 8: Finalize
+
+Write the CLAUDE.md. Print:
+
+> "CLAUDE.md updated for `<repo-name>`:
+> - Sections: [list what was added or changed]
+> - Contradictions resolved: N → recorded in .bobby/decisions.yaml
+> - Pitfalls newly documented: [list them]
+>
+> Re-run `/bobby-claude` after major refactors."
+
+<!-- bobby learn bobby-claude adds entries below this line -->
