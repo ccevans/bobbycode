@@ -14,9 +14,9 @@ This scaffolds your project with:
 - `.bobby/tickets/` — single directory, frontmatter-based stages
 - `.bobby/sessions/` — session logs for pipeline observability
 - `.bobbyrc.yml` — all configuration in one commented file
-- `.claude/skills/` with 21 workflow skills
-- `.claude/agents/` with 17 agent definitions
-- `.claude/commands/` with 20 slash commands
+- `.claude/skills/` with 23 workflow skills
+- `.claude/agents/` with 19 agent definitions
+- `.claude/commands/` with 22 slash commands
 - `CLAUDE.md` with Bobby workflow instructions
 
 Then start working:
@@ -223,6 +223,8 @@ Creates a PR, waits for CI, and merges.
 | I need a security audit | `bobby run security TKT-001` |
 | I want to ship what's ready | `bobby run ship` |
 | I want to step through one agent at a time | `bobby run next TKT-001` |
+| CLAUDE.md is stale or wrong | `bobby run claude` |
+| I want a retrospective on a feature or week | `bobby run retro TKT-001` or `bobby run retro --weekly` |
 
 ## How It Works
 
@@ -345,13 +347,15 @@ bobby run strategy                     # Strategic validation gate
 bobby run docs                         # Update documentation
 bobby run performance                  # Benchmark and detect regressions
 bobby run watchdog                     # Post-deploy smoke tests
+bobby run claude                       # Analyze and improve CLAUDE.md
+bobby run retro                        # Generate a retrospective
 
 # Specialist agents (ticket required)
 bobby run security TKT-001            # OWASP + STRIDE audit
 bobby run debug TKT-001               # Root-cause investigation
 ```
 
-## Agents (17)
+## Agents (19)
 
 ### Core Pipeline
 
@@ -390,8 +394,10 @@ Focused agents for specific concerns:
 | **bobby-watchdog** | Post-deploy verification — smoke tests, uptime, console errors |
 | **bobby-arch** | Architecture discovery — documents codebase structure and decisions |
 | **bobby-ticket-intake** | Converts PM specs into structured Bobby tickets |
+| **bobby-claude** | CLAUDE.md analyst — reads the full source tree, detects patterns and contradictions (with file counts), rewrites CLAUDE.md with accurate commands and pitfalls |
+| **bobby-retro** | Retrospective analysis — mines ticket history, plan files, and learnings to surface pipeline patterns and candidate learnings |
 
-## Skills (21)
+## Skills (23)
 
 Each agent is backed by a **skill** — a detailed instruction set in `.claude/skills/bobby-{name}/SKILL.md`. Skills also accumulate learnings over time in `learnings.md`, so agents get smarter as your project evolves.
 
@@ -406,7 +412,7 @@ bobby learn bobby-review "missing error handling" "Check all async calls have tr
 
 Learnings are stored in `.claude/skills/bobby-{name}/learnings.md` and loaded by agents before every run.
 
-## Slash Commands (20)
+## Slash Commands (22)
 
 Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can invoke agents directly from Claude:
 
@@ -417,7 +423,8 @@ Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can inv
 /bobby-qe            /bobby-vet           /bobby-strategy
 /bobby-security      /bobby-debug         /bobby-docs
 /bobby-performance   /bobby-watchdog      /bobby-arch
-/bobby-ticket-intake /bobby-local
+/bobby-ticket-intake /bobby-local         /bobby-claude
+/bobby-retro
 ```
 
 ## Custom Pipelines
