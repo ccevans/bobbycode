@@ -4,6 +4,7 @@ import {
   buildUxPrompt, buildPmPrompt, buildQePrompt, buildShipPrompt, buildFeaturePrompt,
   buildOrchestrationPrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt,
   buildPerformancePrompt, buildWatchdogPrompt, buildVetPrompt, buildStrategyPrompt,
+  buildSprintPrompt,
   resolveNextAgent, DEFAULT_PIPELINE, resolvePipeline, listPipelines,
 } from '../../lib/pipeline.js';
 import { createTicket, moveTicket, findTicket, writeTicket } from '../../lib/tickets.js';
@@ -243,6 +244,32 @@ describe('pipeline', () => {
       expect(prompt).toContain('Pre-gate');
       expect(prompt).toContain('health check');
       expect(prompt).toContain('live app, not run specs');
+    });
+
+    test('includes pre-flight stage gates for backlog/done/blocked', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      expect(prompt).toContain('Pre-flight stage gates');
+      expect(prompt).toContain('"done"');
+      expect(prompt).toContain('"blocked"');
+      expect(prompt).toContain('"backlog"');
+      // Backlog gate advances to the first pipeline stage (planning, by default)
+      expect(prompt).toContain('bobby move {TICKET_ID} planning');
+    });
+
+    test('backlog gate uses the first stage of a custom pipeline', () => {
+      const customPipeline = [
+        { stage: 'building', agent: 'bobby-build' },
+        { stage: 'testing', agent: 'bobby-test' },
+      ];
+      const prompt = buildOrchestrationPrompt('TKT-001', customPipeline);
+      expect(prompt).toContain('bobby move {TICKET_ID} building');
+      expect(prompt).not.toContain('bobby move {TICKET_ID} planning');
+    });
+
+    test('catch-all instructs warn-not-skip for unhandled stages', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      expect(prompt).toContain('log a warning');
+      expect(prompt).toMatch(/do not silently skip|do not silently move on/);
     });
   });
 
@@ -537,6 +564,13 @@ describe('pipeline', () => {
       expect(prompt).toContain('error');
     });
 
+    test('Phase 2 pre-flight gate covers "done" tickets entering the loop', () => {
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      expect(prompt).toContain('Pre-flight stage gates');
+      expect(prompt).toContain('"done"');
+      expect(prompt).toContain('already complete on entry');
+    });
+
     test('skips Phase 1 when all tickets past planning', () => {
       const builtChildren = [
         { id: 'TKT-002', title: 'Auth login', priority: 'high', stage: 'building' },
@@ -683,6 +717,76 @@ describe('pipeline', () => {
       createTicket(tmpDir, { prefix: 'TKT', title: 'Normal task', author: 'dev', area: '' });
       const ticket = findTicket(tmpDir, 'TKT-001');
       expect(ticket.data.pipeline).toBeNull();
+    });
+  });
+
+  describe('buildSprintPrompt', () => {
+    const sprint = {
+      id: 'SPR-001',
+      name: 'Auth overhaul',
+      goal: 'Passwordless login',
+      branch: 'feature/spr-001-auth-overhaul',
+    };
+    const tickets = [
+      { id: 'TKT-001', title: 'Login page', stage: 'backlog', priority: 'high' },
+      { id: 'TKT-002', title: 'Session store', stage: 'building', priority: 'medium' },
+    ];
+
+    test('includes the sprint id, branch, goal, and tickets', () => {
+      const p = buildSprintPrompt(sprint, tickets, DEFAULT_PIPELINE);
+      expect(p).toContain('SPR-001');
+      expect(p).toContain('feature/spr-001-auth-overhaul');
+      expect(p).toContain('Passwordless login');
+      expect(p).toContain('TKT-001');
+      expect(p).toContain('TKT-002');
+    });
+
+    test('includes the branch guard and the sprint-done step', () => {
+      const p = buildSprintPrompt(sprint, tickets, DEFAULT_PIPELINE);
+      expect(p).toContain('git checkout -b feature/spr-001-auth-overhaul');
+      expect(p).toContain('bobby sprint status SPR-001 done');
+    });
+
+    test('references the sprint plan when a path is given', () => {
+      const p = buildSprintPrompt(sprint, tickets, DEFAULT_PIPELINE, {
+        sprintPlanPath: '.bobby/sprints/SPR-001--auth/sprint-plan.md',
+      });
+      expect(p).toContain('sprint-plan.md');
+    });
+
+    test('omits the plan read when no path is given', () => {
+      const p = buildSprintPrompt(sprint, tickets, DEFAULT_PIPELINE);
+      expect(p).not.toContain('sprint-plan.md');
+    });
+
+    test('includes a multi-service hint when hasServices is true', () => {
+      const p = buildSprintPrompt(sprint, tickets, DEFAULT_PIPELINE, { hasServices: true });
+      expect(p).toContain('Multi-service project');
+    });
+
+    test('includes pre-flight stage gates for backlog/done/blocked', () => {
+      const p = buildSprintPrompt(sprint, tickets, DEFAULT_PIPELINE);
+      expect(p).toContain('Pre-flight stage gates');
+      expect(p).toContain('"done"');
+      expect(p).toContain('"blocked"');
+      expect(p).toContain('"backlog"');
+      expect(p).toContain('bobby move {TICKET_ID} planning');
+    });
+
+    test('backlog gate uses the first stage of a custom pipeline', () => {
+      const customPipeline = [
+        { stage: 'building', agent: 'bobby-build' },
+        { stage: 'testing', agent: 'bobby-test' },
+      ];
+      const p = buildSprintPrompt(sprint, tickets, customPipeline);
+      expect(p).toContain('bobby move {TICKET_ID} building');
+      expect(p).not.toContain('bobby move {TICKET_ID} planning');
+    });
+
+    test('catch-all instructs warn-not-skip for unhandled stages', () => {
+      const p = buildSprintPrompt(sprint, tickets, DEFAULT_PIPELINE);
+      expect(p).toContain('log a warning');
+      expect(p).toMatch(/do not silently skip|do not silently move on/);
     });
   });
 });
