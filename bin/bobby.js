@@ -36,6 +36,7 @@ import { registerSync } from '../commands/sync.js';
 import { registerLocalInit } from '../commands/local-init.js';
 import { registerDashboard } from '../commands/dashboard.js';
 import { registerPipeline } from '../commands/pipeline.js';
+import { registerSprint } from '../commands/sprint.js';
 
 registerInit(program);
 registerCreate(program);
@@ -59,6 +60,7 @@ registerSync(program);
 registerLocalInit(program);
 registerDashboard(program);
 registerPipeline(program);
+registerSprint(program);
 
 // Show help when no subcommand given
 program.action(() => program.help());
