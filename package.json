@@ -6,10 +6,20 @@
   "bin": {
     "bobby": "./bin/bobby.js"
   },
-  "main": "lib/index.js",
   "scripts": {
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "lint": "eslint ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ccevans/bobbycode.git"
+  },
+  "homepage": "https://github.com/ccevans/bobbycode#readme",
+  "bugs": {
+    "url": "https://github.com/ccevans/bobbycode/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "cli",
@@ -43,6 +53,9 @@
     "stacks/",
     "docs/CUSTOMIZING.md",
     "docs/MIGRATING.md",
+    "docs/POSITIONING.md",
+    "docs/ROADMAP.md",
+    "CHANGELOG.md",
     "LICENSE",
     "README.md"
   ],

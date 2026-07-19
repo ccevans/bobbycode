@@ -40,7 +40,7 @@ describe('worktree manager', () => {
   });
 
   afterEach(() => {
-    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best-effort cleanup */ }
   });
 
   test('isGitRepo true for git repo, false otherwise', () => {

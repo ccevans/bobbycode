@@ -1,0 +1,48 @@
+name: Publish to npm
+
+# Publishes bobbycode to the public npm registry when a version tag is pushed.
+# Release flow:
+#   1. Bump the version:  npm version patch   (or minor / major)
+#   2. Push with tags:    git push --follow-tags
+#   3. This workflow runs tests, then publishes if they pass.
+#
+# One-time setup: add an npm automation token as the NPM_TOKEN repo secret
+#   (npmjs.com -> Access Tokens -> Generate -> "Automation").
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Verify tag matches package.json version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $PKG_VERSION" >&2
+            exit 1
+          fi
+
+      - name: Publish
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
