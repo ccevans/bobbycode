@@ -21,30 +21,34 @@ bobby init
 
 Requires Node.js 18+ (you already have it if you use Claude Code).
 
-## Quick Start
+## Quick Start — Three Verbs
 
 ```bash
-npx bobbycode init
+npx bobbycode init      # Zero questions — detects your stack, scaffolds everything
 ```
 
-This scaffolds your project with:
-- `.bobby/tickets/` — single directory, frontmatter-based stages
-- `.bobby/sessions/` — session logs for pipeline observability
-- `.bobbyrc.yml` — all configuration in one commented file
-- `.claude/skills/` with 21 workflow skills
-- `.claude/agents/` with 17 agent definitions
-- `.claude/commands/` with 20 slash commands
-- `CLAUDE.md` with Bobby workflow instructions
-
-Then start working:
+Then the whole workflow is three verbs:
 
 ```bash
-bobby ticket create -t "Build login page" -p high    # Create a ticket
-bobby ticket create -t "User auth" --epic             # Create an epic (breaks down)
-bobby ticket list                                     # See your board
-bobby run pipeline TKT-001                    # Run the full pipeline
-bobby dashboard                                # Open the workspace dashboard
+bobby go "build the login page"    # Creates the ticket AND runs the full pipeline on it
+bobby idea "dark mode someday"     # Capture a thought in 5 seconds, without touching the board
+bobby brief                        # Where was I? What's in flight, what's blocked, what's next
 ```
+
+`bobby go` on its own always does the most valuable next thing — finishes what's
+closest to done, unblocks what's stuck, or starts the top of the backlog. When you
+want more control, everything underneath is addressable:
+
+```bash
+bobby ticket create -t "User auth" --epic   # An epic (gets broken down by planning)
+bobby ticket list                           # See the full board
+bobby run pipeline TKT-001                  # Run the pipeline on a specific ticket
+bobby dashboard                             # Watch agents work in parallel worktrees
+```
+
+`bobby init` scaffolds: `.bobby/` (tickets, sessions, config), `.claude/` (21 skills,
+17 agents, 20 slash commands), and `CLAUDE.md` — everything auto-detected from your
+repo. Prefer to choose? `bobby init --custom` runs the full wizard.
 
 ## Configuration
 
@@ -284,6 +288,9 @@ Everything that touches a ticket lives under one namespace:
 
 | Command | Description |
 |---------|-------------|
+| `bobby go` | Do the most valuable next thing (finish in-flight → unblock → start backlog) |
+| `bobby go "title"` | Create a ticket and run the full pipeline on it, one step (`-p <priority>`) |
+| `bobby go <id>` | Run the pipeline on a specific ticket |
 | `bobby idea "..."` | Capture an idea in five seconds, without touching the board |
 | `bobby idea list` | List open ideas (`--all` includes promoted, `--inbox` for the global inbox) |
 | `bobby idea promote <n>` | Turn an idea into a backlog ticket (`-p`, `--area`, `--epic`, `--inbox`) |

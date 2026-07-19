@@ -16,6 +16,14 @@ All notable changes to Bobby are documented here. The format is based on
   re-run `bobby init` in existing projects to refresh scaffolded skills.
 
 ### Added
+- **`bobby go` — the golden path.** No args: runs the most valuable next action
+  (finish in-flight → unblock → start top of backlog). With text: creates the
+  ticket AND runs the full pipeline in one step. With an ID: runs that ticket.
+- **Zero-question `bobby init`.** Everything auto-detected (name, stack, target);
+  `--custom` keeps the full wizard. New-project initial commit is automatic.
+- **Progressive help.** `bobby --help` shows the eight founder-facing commands;
+  power tools (pipeline, retro, learn, projects, session, sync, export, upgrade)
+  stay fully functional and are listed in a one-line footer.
 - **Studio: one machine, many projects.**
   - Projects auto-register in `~/.bobby/projects.yml` whenever a bobby command
     runs inside them (opt out with `BOBBY_NO_REGISTRY=1`).
