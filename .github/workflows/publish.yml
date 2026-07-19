@@ -53,5 +53,16 @@ jobs:
             exit 1
           fi
 
+      - name: Skip if this version is already on npm
+        id: published
+        run: |
+          if npm view "bobbycode@${GITHUB_REF_NAME#v}" version >/dev/null 2>&1; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "bobbycode@${GITHUB_REF_NAME#v} is already published — skipping."
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish (OIDC — no token)
+        if: steps.published.outputs.already == 'false'
         run: npm publish
