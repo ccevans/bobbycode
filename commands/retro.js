@@ -4,7 +4,7 @@ import path from 'path';
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir } from '../lib/config.js';
 import { findTicket, listTickets, slugify } from '../lib/tickets.js';
 import { success, error, bold, dim } from '../lib/colors.js';
-import { listSessions, readSession } from '../lib/session.js';
+import { listSessions, readSession, stageTimingsFromMoves } from '../lib/session.js';
 import { getTarget } from '../lib/targets/index.js';
 import { autoSync } from '../lib/auto-sync.js';
 
@@ -53,17 +53,11 @@ function parseSessionLogs(sessionsDir, sinceDays = 7) {
       }
     }
 
-    // Track stage durations
-    const lastMoveByTicket = {};
-    for (const move of moves) {
-      if (lastMoveByTicket[move.ticket]) {
-        const prev = lastMoveByTicket[move.ticket];
-        const stage = prev.to;
-        const elapsed = new Date(move.ts) - new Date(prev.ts);
-        if (!stageDurations[stage]) stageDurations[stage] = [];
-        stageDurations[stage].push(elapsed);
-      }
-      lastMoveByTicket[move.ticket] = move;
+    // Track stage durations (shared walk with sessionSummary)
+    const timings = stageTimingsFromMoves(moves);
+    for (const [stage, elapsedList] of Object.entries(timings)) {
+      if (!stageDurations[stage]) stageDurations[stage] = [];
+      stageDurations[stage].push(...elapsedList);
     }
   }
 
