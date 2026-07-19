@@ -28,7 +28,7 @@ describe('bobby ticket attach', () => {
     fs.rmSync(tmpDir, { recursive: true });
   });
 
-  test('attaches a file to a ticket', () => {
+  test('attaches a file to a ticket (copies — original kept)', () => {
     const file = path.join(tmpDir, 'screenshot.png');
     fs.writeFileSync(file, 'fake-png-data');
 
@@ -37,7 +37,18 @@ describe('bobby ticket attach', () => {
     const dest = path.join(tmpDir, '.bobby', 'tickets', 'TKT-001--fix-login', 'test-evidence', 'screenshots', 'screenshot.png');
     expect(fs.existsSync(dest)).toBe(true);
     expect(fs.readFileSync(dest, 'utf8')).toBe('fake-png-data');
-    // Original removed
+    // Original preserved — copy is the default
+    expect(fs.existsSync(file)).toBe(true);
+  });
+
+  test('--move removes the original', () => {
+    const file = path.join(tmpDir, 'moveme.png');
+    fs.writeFileSync(file, 'data');
+
+    execSync(`node ${bobby} ticket attach TKT-001 moveme.png --move`, { cwd: tmpDir });
+
+    const dest = path.join(tmpDir, '.bobby', 'tickets', 'TKT-001--fix-login', 'test-evidence', 'screenshots', 'moveme.png');
+    expect(fs.existsSync(dest)).toBe(true);
     expect(fs.existsSync(file)).toBe(false);
   });
 

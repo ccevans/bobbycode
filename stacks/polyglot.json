@@ -3,7 +3,6 @@
   "display": "Polyglot / Multi-Service",
   "health_checks": [],
   "areas": [],
-  "skill_routing": {},
   "commands": {
     "dev": "docker compose up -d",
     "test": "echo 'Per-service: see .bobbyrc.yml services'",
@@ -11,7 +10,9 @@
     "build": "echo 'Per-service: see .bobbyrc.yml services'"
   },
   "services": true,
-  "testing_tools": ["curl"],
+  "testing_tools": [
+    "curl"
+  ],
   "template_vars": {
     "test_command": "per-service (see .bobbyrc.yml)",
     "lint_command": "per-service (see .bobbyrc.yml)"

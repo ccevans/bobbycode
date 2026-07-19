@@ -10,7 +10,7 @@ export function registerUpdate(program) {
     .description('Update fields on an existing ticket')
     .option('--parent <id>', 'Set parent epic ticket ID')
     .option('-p, --priority <priority>', 'Set priority (critical, high, medium, low)')
-    .option('-a, --assigned <name>', 'Set assignee')
+    .option('--assigned <name>', 'Set assignee')
     .option('--title <title>', 'Set title')
     .option('--area <area>', 'Set feature area')
     .option('--type <type>', 'Set ticket type')

@@ -23,7 +23,6 @@
 
 ## Later
 
-- **Multi-project awareness.** Freelancers and indie hackers juggle several small codebases. A cross-project `bobby brief` — every project's in-flight work in one view — without any server or account.
 - **Deeper `assign` = agent routing.** Evolve `bobby assign` away from person-assignment semantics toward routing: pin a ticket to a specific agent or pipeline so batch runs pick the right specialist automatically.
 
 ## Reframed

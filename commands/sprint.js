@@ -163,8 +163,8 @@ export function registerSprint(program) {
     });
 
   cmd
-    .command('remove <id> <ticketIds...>')
-    .alias('rm')
+    .command('rm <id> <ticketIds...>')
+    .alias('remove')
     .description('Remove ticket(s) from a sprint')
     .action((id, ticketIds) => {
       try {
@@ -235,7 +235,7 @@ export function registerSprint(program) {
           });
         }
         if (missing.length > 0) {
-          throw new Error(`Sprint ${d.id} references missing ticket(s): ${missing.join(', ')}. Remove them: bobby sprint remove ${d.id} ${missing.join(' ')}`);
+          throw new Error(`Sprint ${d.id} references missing ticket(s): ${missing.join(', ')}. Remove them: bobby sprint rm ${d.id} ${missing.join(' ')}`);
         }
 
         const pipeline = resolvePipeline(config, d.pipeline || 'default');

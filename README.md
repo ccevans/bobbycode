@@ -94,11 +94,6 @@ pipelines:
   secure: [plan, build, security, review, test]
   fast: [plan, build, test]
 
-# Skill routing — maps areas to project skill directories
-skill_routing:
-  auth: [dev/fullstack]
-  api: [dev/backend]
-
 # Project-specific skills the build agent follows
 build_skills:
   - api-patterns
@@ -122,7 +117,6 @@ dashboard:
   port: 7777
   worktree_root: ../bobby-wt
   auto_approve_stages: []
-  auto_merge: false
 
 # Parallel isolation for batch operations
 parallel_isolation: none         # none | worktree

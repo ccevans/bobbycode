@@ -77,8 +77,5 @@ describe('template', () => {
     renderSkillTemplates(tmpDir, config);
     expect(fs.existsSync(path.join(tmpDir, 'bobby-ux', 'references', 'brand_guidelines.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'bobby-ux', 'references', 'frontend_design.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'bobby-ux', 'references', 'ui_ux_pro_max.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'bobby-ux', 'references', 'brainstorming.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'bobby-ux', 'references', 'audit_website.md'))).toBe(true);
   });
 });

@@ -172,7 +172,6 @@ describe('config', () => {
     writeConfigCommented(tmpDir, config);
     const content = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
     expect(content).toContain('# pipelines:');
-    expect(content).toContain('# skill_routing:');
     expect(content).toContain('# build_skills:');
     expect(content).toContain('# repos:');
     expect(content).toContain('# parallel_isolation:');

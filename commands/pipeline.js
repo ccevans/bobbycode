@@ -4,7 +4,7 @@ import { success, error, bold, dim } from '../lib/colors.js';
 
 const STAGE_MAP = {
   plan: 'planning', build: 'building', review: 'reviewing',
-  test: 'testing', security: 'reviewing', debug: 'building', strategy: 'backlog',
+  test: 'testing', ship: 'shipping', security: 'reviewing', debug: 'building',
 };
 
 const VALID_STEPS = Object.keys(STAGE_MAP);
@@ -85,8 +85,8 @@ export function registerPipeline(program) {
     });
 
   cmd
-    .command('remove <name>')
-    .alias('rm')
+    .command('rm <name>')
+    .alias('remove')
     .description('Remove a named pipeline')
     .action((name) => {
       try {

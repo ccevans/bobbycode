@@ -117,6 +117,7 @@ function renderBoard(ticketsDir, filterStages, opts, config) {
 export function registerList(program) {
   program
     .command('list [stages...]')
+    .alias('ls')
     .description('Show ticket board (optionally filter by stages)')
     .option('--blocked', 'Show only blocked tickets')
     .option('--epic <id>', 'Show children of an epic')
