@@ -112,12 +112,6 @@ Bobby ships with 8 built-in stacks: `nextjs`, `rails-react`, `django`, `python-f
     { "name": "app", "url": "http://localhost:4000", "description": "Phoenix dev server" }
   ],
   "areas": ["auth", "api", "live-views", "admin"],
-  "skill_routing": {
-    "auth": ["dev/backend"],
-    "api": ["dev/backend"],
-    "live-views": ["dev/fullstack"],
-    "admin": ["dev/backend"]
-  },
   "commands": {
     "dev": "mix phx.server",
     "test": "mix test",
@@ -143,7 +137,6 @@ Bobby ships with 8 built-in stacks: `nextjs`, `rails-react`, `django`, `python-f
 | `display` | string | Display name shown during init |
 | `health_checks` | array | `[{ name, url, description }]` — dev server URLs to verify |
 | `areas` | array | Feature areas for ticket categorization |
-| `skill_routing` | object | Maps areas to skill directories |
 | `commands` | object | `{ dev, test, lint, build }` — shell commands |
 | `testing_tools` | array | Tools for the test agent (e.g., `["playwright", "curl"]`) |
 | `template_vars` | object | Variables injected into skill templates |
@@ -163,16 +156,7 @@ areas:
   - admin
 ```
 
-Use areas when creating tickets: `bobby create -t "Fix login" --area auth`
-
-**Skill routing** maps areas to project skill directories, so the build agent loads area-specific conventions:
-
-```yaml
-skill_routing:
-  auth: [dev/fullstack]
-  api: [dev/backend]
-  dashboard: [dev/frontend]
-```
+Use areas when creating tickets: `bobby ticket create -t "Fix login" --area auth`
 
 This means when building a ticket with `area: api`, the build agent will also read `.claude/skills/dev/backend/SKILL.md`.
 

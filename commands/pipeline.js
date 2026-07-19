@@ -4,7 +4,7 @@ import { success, error, bold, dim } from '../lib/colors.js';
 
 const STAGE_MAP = {
   plan: 'planning', build: 'building', review: 'reviewing',
-  test: 'testing', security: 'reviewing', debug: 'building', strategy: 'backlog',
+  test: 'testing', ship: 'shipping', security: 'reviewing', debug: 'building',
 };
 
 const VALID_STEPS = Object.keys(STAGE_MAP);
@@ -77,7 +77,7 @@ export function registerPipeline(program) {
         success(`${existed ? 'Updated' : 'Created'} pipeline "${name}": ${steps.join(' → ')}`);
         console.log(`  Use: bobby run pipeline <ticket> --pipeline ${name}`);
         console.log(`   or: bobby run ${name} <ticket>`);
-        console.log(`   or: bobby create -t "..." --pipeline ${name}`);
+        console.log(`   or: bobby ticket create -t "..." --pipeline ${name}`);
       } catch (e) {
         error(e.message);
         process.exit(1);
@@ -85,8 +85,8 @@ export function registerPipeline(program) {
     });
 
   cmd
-    .command('remove <name>')
-    .alias('rm')
+    .command('rm <name>')
+    .alias('remove')
     .description('Remove a named pipeline')
     .action((name) => {
       try {

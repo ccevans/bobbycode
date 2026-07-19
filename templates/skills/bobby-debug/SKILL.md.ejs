@@ -61,9 +61,9 @@ The debug agent has a strict scope:
 - Do NOT refactor surrounding code, even if it's messy
 - Do NOT add features or enhancements
 - Do NOT change unrelated tests
-- If you discover other issues, file them: `bobby create -t "Found during debug: {issue}" --type bug`
+- If you discover other issues, file them: `bobby ticket create -t "Found during debug: {issue}" --type bug`
 - Maximum 3 fix attempts. If you cannot fix after 3 tries, escalate:
-  `bobby move {ID} block "Debug: tried 3 approaches, none resolved the issue. Root cause analysis: {what you found}"`
+  `bobby ticket move {ID} block "Debug: tried 3 approaches, none resolved the issue. Root cause analysis: {what you found}"`
 </scope_lock>
 
 ## Attempt Tracking
@@ -94,9 +94,9 @@ If all 3 attempts fail, block the ticket with your analysis.
 1. Commit the fix: `git add` changed files, `git commit` with `TKT-{ID}: fix — {root cause summary}`
 2. Remove any debug logging (console.log, print statements) added during investigation
 3. Run full test suite and lint — show output as evidence
-4. Add comment: `bobby comment {ID} --by bobby-debug "Root cause: {explanation}. Fix: {what was changed}"`
+4. Add comment: `bobby ticket comment {ID} --by bobby-debug "Root cause: {explanation}. Fix: {what was changed}"`
 5. If pattern is worth remembering: `bobby learn bobby-debug "pattern" "description"` and `bobby retro {ID} "pattern"`
-6. Move to review: `bobby move {ID} review`
+6. Move to review: `bobby ticket move {ID} review`
 
 ## Self-Check Before Completing
 
@@ -111,6 +111,6 @@ Before committing:
 
 ## If Something Goes Wrong
 
-- Cannot reproduce: `bobby move {ID} block "Cannot reproduce: {steps tried}"`
-- Fix requires architectural change: `bobby move {ID} block "Root cause identified but fix requires {scope description}. Recommend new ticket."`
-- 3 attempts exhausted: `bobby move {ID} block "Debug: 3 attempts failed. Analysis: {summary of hypotheses and results}"`
+- Cannot reproduce: `bobby ticket move {ID} block "Cannot reproduce: {steps tried}"`
+- Fix requires architectural change: `bobby ticket move {ID} block "Root cause identified but fix requires {scope description}. Recommend new ticket."`
+- 3 attempts exhausted: `bobby ticket move {ID} block "Debug: 3 attempts failed. Analysis: {summary of hypotheses and results}"`

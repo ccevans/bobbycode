@@ -1,15 +1,25 @@
 {
   "name": "bobbycode",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "type": "module",
-  "description": "Bobby — your pair programmer. AI-native SDLC framework for Claude Code.",
+  "description": "Bobby — a full SDLC workflow for a solo developer. Tickets, agents, sprints, and shipping for Claude Code, headcount of one.",
   "bin": {
     "bobby": "./bin/bobby.js"
   },
-  "main": "lib/index.js",
   "scripts": {
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "lint": "eslint ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ccevans/bobbycode.git"
+  },
+  "homepage": "https://github.com/ccevans/bobbycode#readme",
+  "bugs": {
+    "url": "https://github.com/ccevans/bobbycode/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "cli",
@@ -43,6 +53,9 @@
     "stacks/",
     "docs/CUSTOMIZING.md",
     "docs/MIGRATING.md",
+    "docs/POSITIONING.md",
+    "docs/ROADMAP.md",
+    "CHANGELOG.md",
     "LICENSE",
     "README.md"
   ],

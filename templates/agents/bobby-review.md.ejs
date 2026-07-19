@@ -22,7 +22,7 @@ Then follow the skill's pre-flight and review process.
 - Write `review.md` in the ticket directory with your full review artifact (see skill for format)
 - If you made any changes (lint fixes, debug cleanup, minor corrections): `git add` and `git commit` with `TKT-{ID}: review fixes`
 - If you discovered anything non-obvious or a pattern future reviews should catch: `bobby learn bobby-review "pattern" "description"`
-- If approved: `bobby move {ID} test` then output `<bobby:done ticket="{ID}" stage="testing" />`
-- If approved with notes: `bobby move {ID} test` then output `<bobby:done ticket="{ID}" stage="testing" />`
-- If rejected: `bobby move {ID} reject "specific feedback"` then output `<bobby:done ticket="{ID}" stage="building" />`
-- If blocked: `bobby move {ID} block "reason"` then output `<bobby:done ticket="{ID}" stage="blocked" />`
+- If approved: `bobby ticket move {ID} test` then output `<bobby:done ticket="{ID}" stage="testing" />`
+- If approved with notes: `bobby ticket move {ID} test` then output `<bobby:done ticket="{ID}" stage="testing" />`
+- If rejected: `bobby ticket move {ID} reject "specific feedback"` then output `<bobby:done ticket="{ID}" stage="building" />`
+- If blocked: `bobby ticket move {ID} block "reason"` then output `<bobby:done ticket="{ID}" stage="blocked" />`

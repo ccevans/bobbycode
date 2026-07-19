@@ -5,7 +5,7 @@ import path from 'path';
 import os from 'os';
 import YAML from 'yaml';
 
-describe('bobby attach', () => {
+describe('bobby ticket attach', () => {
   let tmpDir;
   const bobby = path.resolve('bin/bobby.js');
 
@@ -28,16 +28,27 @@ describe('bobby attach', () => {
     fs.rmSync(tmpDir, { recursive: true });
   });
 
-  test('attaches a file to a ticket', () => {
+  test('attaches a file to a ticket (copies — original kept)', () => {
     const file = path.join(tmpDir, 'screenshot.png');
     fs.writeFileSync(file, 'fake-png-data');
 
-    execSync(`node ${bobby} attach TKT-001 screenshot.png`, { cwd: tmpDir });
+    execSync(`node ${bobby} ticket attach TKT-001 screenshot.png`, { cwd: tmpDir });
 
     const dest = path.join(tmpDir, '.bobby', 'tickets', 'TKT-001--fix-login', 'test-evidence', 'screenshots', 'screenshot.png');
     expect(fs.existsSync(dest)).toBe(true);
     expect(fs.readFileSync(dest, 'utf8')).toBe('fake-png-data');
-    // Original removed
+    // Original preserved — copy is the default
+    expect(fs.existsSync(file)).toBe(true);
+  });
+
+  test('--move removes the original', () => {
+    const file = path.join(tmpDir, 'moveme.png');
+    fs.writeFileSync(file, 'data');
+
+    execSync(`node ${bobby} ticket attach TKT-001 moveme.png --move`, { cwd: tmpDir });
+
+    const dest = path.join(tmpDir, '.bobby', 'tickets', 'TKT-001--fix-login', 'test-evidence', 'screenshots', 'moveme.png');
+    expect(fs.existsSync(dest)).toBe(true);
     expect(fs.existsSync(file)).toBe(false);
   });
 
@@ -45,7 +56,7 @@ describe('bobby attach', () => {
     fs.writeFileSync(path.join(tmpDir, 'a.png'), 'aaa');
     fs.writeFileSync(path.join(tmpDir, 'b.png'), 'bbb');
 
-    execSync(`node ${bobby} attach TKT-001 a.png b.png`, { cwd: tmpDir });
+    execSync(`node ${bobby} ticket attach TKT-001 a.png b.png`, { cwd: tmpDir });
 
     const evidenceDir = path.join(tmpDir, '.bobby', 'tickets', 'TKT-001--fix-login', 'test-evidence', 'screenshots');
     expect(fs.existsSync(path.join(evidenceDir, 'a.png'))).toBe(true);
@@ -55,7 +66,7 @@ describe('bobby attach', () => {
   test('supports custom --dir option', () => {
     fs.writeFileSync(path.join(tmpDir, 'app.log'), 'log data');
 
-    execSync(`node ${bobby} attach TKT-001 app.log --dir logs`, { cwd: tmpDir });
+    execSync(`node ${bobby} ticket attach TKT-001 app.log --dir logs`, { cwd: tmpDir });
 
     const dest = path.join(tmpDir, '.bobby', 'tickets', 'TKT-001--fix-login', 'test-evidence', 'logs', 'app.log');
     expect(fs.existsSync(dest)).toBe(true);
@@ -65,14 +76,14 @@ describe('bobby attach', () => {
     fs.writeFileSync(path.join(tmpDir, 'file.png'), 'data');
 
     expect(() => {
-      execSync(`node ${bobby} attach TKT-999 file.png`, { cwd: tmpDir, stdio: 'pipe' });
+      execSync(`node ${bobby} ticket attach TKT-999 file.png`, { cwd: tmpDir, stdio: 'pipe' });
     }).toThrow();
   });
 
   test('warns for missing files and skips them', () => {
     fs.writeFileSync(path.join(tmpDir, 'real.png'), 'data');
 
-    const output = execSync(`node ${bobby} attach TKT-001 missing.png real.png`, { cwd: tmpDir, encoding: 'utf8' });
+    const output = execSync(`node ${bobby} ticket attach TKT-001 missing.png real.png`, { cwd: tmpDir, encoding: 'utf8' });
 
     const evidenceDir = path.join(tmpDir, '.bobby', 'tickets', 'TKT-001--fix-login', 'test-evidence', 'screenshots');
     expect(fs.existsSync(path.join(evidenceDir, 'real.png'))).toBe(true);
@@ -80,7 +91,7 @@ describe('bobby attach', () => {
 
   test('fails when all files are missing', () => {
     expect(() => {
-      execSync(`node ${bobby} attach TKT-001 missing.png`, { cwd: tmpDir, stdio: 'pipe' });
+      execSync(`node ${bobby} ticket attach TKT-001 missing.png`, { cwd: tmpDir, stdio: 'pipe' });
     }).toThrow();
   });
 });

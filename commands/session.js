@@ -74,6 +74,7 @@ export function registerSession(program) {
   // bobby session list
   cmd
     .command('list')
+    .alias('ls')
     .description('List recent sessions')
     .option('-n, --limit <n>', 'Number of sessions to show', '20')
     .action((opts) => {

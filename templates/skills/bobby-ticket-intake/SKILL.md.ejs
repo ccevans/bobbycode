@@ -42,7 +42,7 @@ You do not need to ask about anything else (title, type, description — extract
 ### 4. Create the ticket via Bobby CLI
 
 ```bash
-bobby create -t "<title>" --type <type> -p <priority> --area <area>
+bobby ticket create -t "<title>" --type <type> -p <priority> --area <area>
 # use --epic flag for epics
 ```
 
@@ -50,7 +50,7 @@ This claims the directory and ID atomically. Do not create the directory manuall
 
 ### 5. Overwrite ticket.md with real content
 
-After `bobby create`, the ticket.md contains placeholder text. Replace the entire body with real content:
+After `bobby ticket create`, the ticket.md contains placeholder text. Replace the entire body with real content:
 
 ```markdown
 ## Description

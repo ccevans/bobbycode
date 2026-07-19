@@ -172,7 +172,6 @@ describe('config', () => {
     writeConfigCommented(tmpDir, config);
     const content = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
     expect(content).toContain('# pipelines:');
-    expect(content).toContain('# skill_routing:');
     expect(content).toContain('# build_skills:');
     expect(content).toContain('# repos:');
     expect(content).toContain('# parallel_isolation:');
@@ -205,6 +204,9 @@ describe('worktree resolution', () => {
     worktreeDir = path.join(os.tmpdir(), `bobby-wt-${Date.now()}`);
     // Set up a real git repo and worktree
     execSync('git init', { cwd: mainDir, stdio: 'pipe' });
+    // Repo-local identity so `git commit` works on bare CI runners (no global config)
+    execSync('git config user.email "test@bobby.dev"', { cwd: mainDir, stdio: 'pipe' });
+    execSync('git config user.name "Bobby Test"', { cwd: mainDir, stdio: 'pipe' });
     execSync('git commit --allow-empty -m "init"', { cwd: mainDir, stdio: 'pipe' });
     execSync(`git worktree add "${worktreeDir}" -b test-wt`, { cwd: mainDir, stdio: 'pipe' });
   });

@@ -96,8 +96,8 @@ All pages loaded within 5s.
 ### Issues Found
 1. File bug tickets for each issue:
    ```bash
-   bobby create -t "WATCHDOG: {page} returns {status}" --type bug -p critical
-   bobby create -t "WATCHDOG: JS error on {page}: {error message}" --type bug -p high
+   bobby ticket create -t "WATCHDOG: {page} returns {status}" --type bug -p critical
+   bobby ticket create -t "WATCHDOG: JS error on {page}: {error message}" --type bug -p high
    ```
 2. Output:
 ```
@@ -112,5 +112,5 @@ Tickets filed: {ticket IDs}
 ## If Something Goes Wrong
 
 - Production URL not configured: Ask user to add `production_url` to `.bobbyrc.yml`
-- Production is completely down: `bobby create -t "WATCHDOG: Production is DOWN — {url} unreachable" --type bug -p critical`
+- Production is completely down: `bobby ticket create -t "WATCHDOG: Production is DOWN — {url} unreachable" --type bug -p critical`
 - If you discovered a deployment pattern: `bobby learn bobby-watchdog "pattern" "description"`

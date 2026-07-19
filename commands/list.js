@@ -107,7 +107,7 @@ function renderBoard(ticketsDir, filterStages, opts, config) {
 
       const cap = config.backlog_limit;
       if (cap && health.total > cap) {
-        warn(`Backlog exceeds limit (${health.total}/${cap}). Run: bobby triage`);
+        warn(`Backlog exceeds limit (${health.total}/${cap}). Run: bobby ticket triage`);
       }
       console.log('');
     }
@@ -117,6 +117,7 @@ function renderBoard(ticketsDir, filterStages, opts, config) {
 export function registerList(program) {
   program
     .command('list [stages...]')
+    .alias('ls')
     .description('Show ticket board (optionally filter by stages)')
     .option('--blocked', 'Show only blocked tickets')
     .option('--epic <id>', 'Show children of an epic')

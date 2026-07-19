@@ -151,9 +151,9 @@ If the ticket's `services` field is empty, resolve from the ticket's `area` by m
 2. Run the linter: `<%= commands && commands.lint || 'your lint command (configure commands.lint in .bobbyrc.yml)' %>`
 <% } %>
 3. **Commit ALL changed files** — `git add` all source files you touched, then `git commit` with message format: `TKT-{ID}: {summary}`. Do NOT leave uncommitted changes behind.
-4. Add comment: `bobby comment {ID} --by bobby-build "Built: {summary}"`
+4. Add comment: `bobby ticket comment {ID} --by bobby-build "Built: {summary}"`
 5. If you discovered anything non-obvious or a pattern future builds should avoid: `bobby learn bobby-build "pattern" "description"`
-6. Move to review: `bobby move {ID} review`
+6. Move to review: `bobby ticket move {ID} review`
 
 ## Self-Check Before Completing
 
@@ -186,10 +186,10 @@ If you are interrupted or context limits are approaching during a multi-step imp
 **Blockers:** [anything unexpected]
 ```
 
-On resume, read `progress.md` first and pick up from the last completed step. Delete it after `bobby move {ID} review`.
+On resume, read `progress.md` first and pick up from the last completed step. Delete it after `bobby ticket move {ID} review`.
 
 ## If Something Goes Wrong
 
 - If tests fail: fix them before moving on
-- If the ticket is unclear: `bobby move {ID} block "Need clarification"`
+- If the ticket is unclear: `bobby ticket move {ID} block "Need clarification"`
 - If you discover a systemic issue: `bobby retro {ID} "pattern"` and `bobby learn bobby-build "pattern" "description"`

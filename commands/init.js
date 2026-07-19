@@ -4,7 +4,7 @@ import path from 'path';
 import inquirer from 'inquirer';
 import { writeConfig, writeConfigCommented, readConfig, configExists } from '../lib/config.js';
 import { renderTemplate, renderSkillTemplates } from '../lib/template.js';
-import { success, warn, error, bold } from '../lib/colors.js';
+import { success, warn, error, bold, dim } from '../lib/colors.js';
 import { getTarget, TARGETS } from '../lib/targets/index.js';
 import { detectServices, aggregateAreas, aggregateHealthChecks } from '../lib/services.js';
 import { runLocalProfileWizard, saveLocalProfile } from './local-init.js';
@@ -130,7 +130,7 @@ export function scaffoldProject(rootDir, config) {
   // Create tickets/README.md
   const readmePath = path.join(ticketsDir, 'README.md');
   if (!fs.existsSync(readmePath)) {
-    fs.writeFileSync(readmePath, `# ${config.project} — Tickets\n\nManaged by [Bobby](https://github.com/ccevans/bobby). Run \`bobby list\` to see the board.\n`, 'utf8');
+    fs.writeFileSync(readmePath, `# ${config.project} — Tickets\n\nManaged by [Bobby](https://github.com/ccevans/bobby). Run \`bobby ticket list\` to see the board.\n`, 'utf8');
   }
 
   // Initialize counter (only if it doesn't exist)
@@ -224,12 +224,15 @@ export function scaffoldProject(rootDir, config) {
 }
 
 export function registerInit(program) {
-  program
+  // Returned so bin can attach subcommands (e.g. `bobby init local`).
+  return program
     .command('init')
-    .description('Initialize a new Bobby project')
-    .action(async () => {
+    .description('Initialize a new Bobby project (zero questions — everything auto-detected; --custom for the wizard)')
+    .option('--custom', 'Interactive setup wizard: choose stack, target, health checks, services, and more')
+    .action(async (opts = {}) => {
       try {
         const rootDir = process.cwd();
+        const custom = !!opts.custom;
 
         // Check for existing project
         let existingConfig = null;
@@ -273,7 +276,7 @@ export function registerInit(program) {
         }
 
         console.log('');
-        console.log(`  Welcome to ${bold('Bobby')} — your pair programmer.`);
+        console.log(`  Welcome to ${bold('Bobby')} — a full SDLC workflow for a solo developer.`);
         console.log('');
 
         // Check git identity before anything else
@@ -340,8 +343,8 @@ export function registerInit(program) {
         let projectType = 'existing';
         if (detected.isEmpty) {
           projectType = 'new';
-        } else if (!existingConfig) {
-          // Has files but no Bobby config — ask to confirm
+        } else if (!existingConfig && custom) {
+          // Has files but no Bobby config — ask to confirm (wizard only; default path assumes existing)
           const { initType } = await inquirer.prompt([{
             type: 'list',
             name: 'initType',
@@ -367,17 +370,20 @@ export function registerInit(program) {
           }
         }
 
-        // Setup mode: quick or full
-        const { setupMode } = await inquirer.prompt([{
-          type: 'list',
-          name: 'setupMode',
-          message: 'Setup mode:',
-          choices: [
-            { name: 'Quick — project name + stack, sensible defaults for everything else', value: 'quick' },
-            { name: 'Full — configure health checks, areas, services, and more', value: 'full' },
-          ],
-          default: 'quick',
-        }]);
+        // Setup mode: quick or full (default path is always quick — zero questions)
+        let setupMode = 'quick';
+        if (custom) {
+          ({ setupMode } = await inquirer.prompt([{
+            type: 'list',
+            name: 'setupMode',
+            message: 'Setup mode:',
+            choices: [
+              { name: 'Quick — project name + stack, sensible defaults for everything else', value: 'quick' },
+              { name: 'Full — configure health checks, areas, services, and more', value: 'full' },
+            ],
+            default: 'quick',
+          }]));
+        }
 
         // Detect custom stacks and prepend to choices
         const existingBobbyDir = existingConfig?.bobby_dir || '.bobby';
@@ -398,28 +404,40 @@ export function registerInit(program) {
         const defaultProject = existingConfig?.project || detected.name;
         const defaultStack = existingConfig?.stack || detected.stack;
 
-        const answers = await inquirer.prompt([
-          { type: 'input', name: 'project', message: 'Project name:', default: defaultProject, validate: v => v.length > 0 || 'Required' },
-          {
-            type: 'list', name: 'stack', message: 'Stack:',
-            choices: stackChoices,
-            default: defaultStack,
-          },
-        ]);
+        let answers;
+        if (custom) {
+          answers = await inquirer.prompt([
+            { type: 'input', name: 'project', message: 'Project name:', default: defaultProject, validate: v => v.length > 0 || 'Required' },
+            {
+              type: 'list', name: 'stack', message: 'Stack:',
+              choices: stackChoices,
+              default: defaultStack,
+            },
+          ]);
+        } else {
+          // Zero-question path: everything from detection, generic as the safe fallback.
+          answers = { project: defaultProject, stack: defaultStack || 'generic' };
+          console.log(`  ${bold('Project:')} ${answers.project}  ${bold('Stack:')} ${answers.stack}${defaultStack ? ' (detected)' : ' (no stack detected — configure later in .bobbyrc.yml)'}`);
+          console.log(`  ${dim('Want to choose these yourself? Re-run with: bobby init --custom')}`);
+          console.log('');
+        }
 
         const stack = loadStack(answers.stack, rootDir, existingBobbyDir) || loadStack('generic', rootDir, existingBobbyDir);
 
-        // Ask for AI target
-        const { targetName } = await inquirer.prompt([{
-          type: 'list',
-          name: 'targetName',
-          message: 'AI target:',
-          choices: [
-            { name: 'Claude Code — scaffolds to .claude/ (agents, skills, commands, CLAUDE.md)', value: 'claude-code' },
-            { name: 'Cline (VS Code) — scaffolds to .clinerules/ (agents, skills, workflows)', value: 'cline' },
-          ],
-          default: existingConfig?.target || 'claude-code',
-        }]);
+        // AI target: claude-code unless the wizard says otherwise
+        let targetName = existingConfig?.target || 'claude-code';
+        if (custom) {
+          ({ targetName } = await inquirer.prompt([{
+            type: 'list',
+            name: 'targetName',
+            message: 'AI target:',
+            choices: [
+              { name: 'Claude Code — scaffolds to .claude/ (agents, skills, commands, CLAUDE.md)', value: 'claude-code' },
+              { name: 'Cline (VS Code) — scaffolds to .clinerules/ (agents, skills, workflows)', value: 'cline' },
+            ],
+            default: existingConfig?.target || 'claude-code',
+          }]));
+        }
 
         let devUrl;
         let bobbyDir;
@@ -677,21 +695,24 @@ export function registerInit(program) {
         success(`Created ${bobbyDir || '.bobby'}/decisions.yaml (architectural decision log)`);
         success(`Created ${bobbyDir || '.bobby'}/architecture-wakeup.md (run \`bobby run arch\` to populate)`);
         console.log('');
-        // Offer local dev profile setup
-        const localResult = await runLocalProfileWizard(rootDir, config);
+        // Offer local dev profile setup (wizard only — always available later via `bobby init local`)
+        const localResult = custom ? await runLocalProfileWizard(rootDir, config) : null;
         if (localResult) {
           saveLocalProfile(rootDir, config, localResult.profileName, localResult.profile);
           success(`Local profile "${localResult.profileName}" added to .bobbyrc.yml`);
         }
 
-        // Offer an initial commit for new projects
+        // Initial commit for new projects (auto on the zero-question path)
         if (projectType === 'new' && fs.existsSync(path.join(rootDir, '.git'))) {
-          const { makeCommit } = await inquirer.prompt([{
-            type: 'confirm',
-            name: 'makeCommit',
-            message: 'Make an initial commit?',
-            default: true,
-          }]);
+          let makeCommit = true;
+          if (custom) {
+            ({ makeCommit } = await inquirer.prompt([{
+              type: 'confirm',
+              name: 'makeCommit',
+              message: 'Make an initial commit?',
+              default: true,
+            }]));
+          }
           if (makeCommit) {
             try {
               execSync('git add -A', { cwd: rootDir, stdio: 'pipe' });
@@ -705,12 +726,11 @@ export function registerInit(program) {
           }
         }
 
-        console.log("  You're ready! Here's how to get started:");
+        console.log("  You're ready! Three verbs run everything:");
         console.log('');
-        console.log('    bobby create -t "Build login"          # Create a ticket');
-        console.log('    bobby create -t "Big feature" --epic   # Create an epic');
-        console.log('    bobby list                             # See your board');
-        console.log('    bobby run pipeline TKT-001             # Run the full pipeline');
+        console.log('    bobby go "build the login page"   # Create + run it, one step');
+        console.log('    bobby idea "a passing thought"    # Capture without breaking flow');
+        console.log('    bobby brief                        # Where was I? What\'s next?');
         console.log('');
         console.log('  Tell Claude: "work tickets" and it\'ll pick up from the queue.');
         console.log('');

@@ -22,20 +22,20 @@ export { resolvePipeline } from '../lib/pipeline.js';
 export function registerRun(program) {
   program
     .command('run <agent> [ticketIds...]')
-    .description(
-      'Run an agent on ticket(s).\n' +
-      '  Fast mode:  bobby run pipeline <id>   — auto-chains all agents\n' +
-      '  Feature:    bobby run feature [epic]   — full epic workflow on one branch\n' +
-      '  Slow mode:  bobby run next <id>       — runs next agent for current stage\n' +
-      '  Batch:      bobby run plan            — runs agent on all tickets in matching stage\n' +
-      '  Direct:     bobby run plan|build|review|test|ship|ux|pm|qe <id>\n' +
-      '  Vet:        bobby run vet [id]       — interrogate design before planning\n' +
-      '  Strategy:   bobby run strategy [id]  — strategic validation gate\n' +
-      '  Security:   bobby run security <id>  — OWASP + STRIDE audit\n' +
-      '  Debug:      bobby run debug <id>     — root-cause investigation\n' +
-      '  Freeform:   bobby run docs|performance|watchdog — no ticket required\n' +
-      '  Shorthand:  bobby run <pipeline-name> <id> — run a custom pipeline'
-    )
+    .description('Run an agent on ticket(s) — pipeline, feature, next, plan, build, review, test, ship, and more')
+    .addHelpText('after', `
+Modes:
+  Fast mode:  bobby run pipeline <id>    — auto-chains all agents
+  Feature:    bobby run feature [epic]   — full epic workflow on one branch
+  Slow mode:  bobby run next <id>        — runs next agent for current stage
+  Batch:      bobby run plan             — runs agent on all tickets in matching stage
+  Direct:     bobby run plan|build|review|test|ship|ux|pm|qe <id>
+  Vet:        bobby run vet [id]         — interrogate design before planning
+  Strategy:   bobby run strategy [id]    — strategic validation gate
+  Security:   bobby run security <id>    — OWASP + STRIDE audit
+  Debug:      bobby run debug <id>       — root-cause investigation
+  Freeform:   bobby run docs|performance|watchdog — no ticket required
+  Shorthand:  bobby run <pipeline-name> <id> — run a custom pipeline`)
     .option('--max-retries <n>', 'Max retry loops on rejection per ticket', '3')
     .option('--max-iterations <n>', 'Max total agent invocations across all tickets')
     .option('--pipeline <name>', 'Named pipeline to use (from .bobbyrc.yml pipelines config)', 'default')
@@ -91,7 +91,7 @@ export function registerRun(program) {
           if (!epicId) {
             const epics = listEpics(ticketsDir);
             if (epics.length === 0) {
-              error('No epics found. Create one with: bobby create -t "Feature name" --epic');
+              error('No epics found. Create one with: bobby ticket create -t "Feature name" --epic');
               process.exit(1);
             }
             const { selected } = await inquirer.prompt([{
@@ -107,7 +107,7 @@ export function registerRun(program) {
           }
           const { epic, children } = getFeatureTickets(ticketsDir, epicId);
           if (children.length === 0) {
-            error(`Epic ${epicId} has no child tickets. Create children with: bobby create -t "..." --parent ${epicId}`);
+            error(`Epic ${epicId} has no child tickets. Create children with: bobby ticket create -t "..." --parent ${epicId}`);
             process.exit(1);
           }
           epicData = { epicId, epic, children };

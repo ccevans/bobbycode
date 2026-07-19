@@ -10,6 +10,7 @@ export function registerAttach(program) {
     .command('attach <id> <files...>')
     .description('Attach files (screenshots, logs, etc.) to a ticket')
     .option('--dir <subdir>', 'Subdirectory inside test-evidence', 'screenshots')
+    .option('--move', 'Move the file instead of copying (removes the original)')
     .action((id, files, opts) => {
       try {
         const root = findProjectRoot();
@@ -25,7 +26,7 @@ export function registerAttach(program) {
         const destDir = path.join(found.path, 'test-evidence', opts.dir);
         fs.mkdirSync(destDir, { recursive: true });
 
-        let moved = 0;
+        let attached = 0;
         for (const file of files) {
           const resolved = path.resolve(file);
           if (!fs.existsSync(resolved)) {
@@ -35,16 +36,16 @@ export function registerAttach(program) {
           const basename = path.basename(resolved);
           const dest = path.join(destDir, basename);
           fs.copyFileSync(resolved, dest);
-          fs.unlinkSync(resolved);
-          moved++;
+          if (opts.move) fs.unlinkSync(resolved); // copy is the default — never destroy the original silently
+          attached++;
         }
 
-        if (moved === 0) {
+        if (attached === 0) {
           error('No files were attached');
           process.exit(1);
         }
 
-        success(`Attached ${moved} file${moved === 1 ? '' : 's'} to ${id} in test-evidence/${opts.dir}/`);
+        success(`Attached ${attached} file${attached === 1 ? '' : 's'} to ${id} in test-evidence/${opts.dir}/`);
       } catch (e) {
         error(e.message);
         process.exit(1);

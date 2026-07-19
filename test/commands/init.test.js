@@ -291,6 +291,7 @@ describe('registerInit (interactive flow)', () => {
     let actionFn;
     const cmd = {
       description: () => cmd,
+      option: () => cmd,
       action: (fn) => { actionFn = fn; return cmd; },
     };
     const program = {
@@ -314,12 +315,30 @@ describe('registerInit (interactive flow)', () => {
 
     const program = mockProgram();
     registerInit(program);
-    await program.getAction()();
+    await program.getAction()({ custom: true });
 
     expect(fs.existsSync(path.join(tmpDir, '.bobbyrc.yml'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'CLAUDE.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, '.claude', 'agents'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, '.claude', 'skills'))).toBe(true);
+  });
+
+  test('default init asks ZERO questions and scaffolds from detection', async () => {
+    promptSpy = jest.spyOn(inquirer, 'prompt').mockImplementation(async () => {
+      throw new Error('init prompted — the zero-question path must not prompt');
+    });
+
+    const program = mockProgram();
+    registerInit(program);
+    await program.getAction()({}); // no --custom
+
+    expect(promptSpy).not.toHaveBeenCalled();
+    expect(fs.existsSync(path.join(tmpDir, '.bobbyrc.yml'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'CLAUDE.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'skills'))).toBe(true);
+    // Falls back to generic stack when nothing is detectable, name from dir
+    const rc = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
+    expect(rc).toContain('stack: generic');
   });
 
   test('re-init with cancel exits', async () => {
@@ -335,7 +354,7 @@ describe('registerInit (interactive flow)', () => {
 
     const program = mockProgram();
     registerInit(program);
-    await program.getAction()();
+    await program.getAction()({ custom: true });
 
     expect(logSpy).toHaveBeenCalledWith('Cancelled.');
   });
@@ -356,7 +375,7 @@ describe('registerInit (interactive flow)', () => {
 
     const program = mockProgram();
     registerInit(program);
-    await program.getAction()();
+    await program.getAction()({ custom: true });
 
     // Only 1 prompt (the reinitMode choice)
     expect(promptCall).toBe(1);
@@ -388,7 +407,7 @@ describe('registerInit (interactive flow)', () => {
 
     const program = mockProgram();
     registerInit(program);
-    await program.getAction()();
+    await program.getAction()({ custom: true });
 
     const config = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
     expect(config).toContain('updated-proj');
@@ -408,7 +427,7 @@ describe('registerInit (interactive flow)', () => {
 
     const program = mockProgram();
     registerInit(program);
-    await program.getAction()();
+    await program.getAction()({ custom: true });
 
     expect(fs.existsSync(path.join(tmpDir, '.bobbyrc.yml'))).toBe(true);
   });
@@ -432,7 +451,7 @@ describe('registerInit (interactive flow)', () => {
 
     const program = mockProgram();
     registerInit(program);
-    await program.getAction()();
+    await program.getAction()({ custom: true });
 
     const config = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
     expect(config).toContain('api-patterns');
@@ -456,7 +475,7 @@ describe('registerInit (interactive flow)', () => {
 
     const program = mockProgram();
     registerInit(program);
-    await program.getAction()();
+    await program.getAction()({ custom: true });
 
     expect(fs.existsSync(path.join(tmpDir, '.bobbyrc.yml'))).toBe(true);
   });
@@ -479,7 +498,7 @@ describe('registerInit (interactive flow)', () => {
 
     const program = mockProgram();
     registerInit(program);
-    await program.getAction()();
+    await program.getAction()({ custom: true });
 
     const config = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
     // repos should only appear as a comment, not as active config
@@ -500,7 +519,7 @@ describe('registerInit (interactive flow)', () => {
 
     const program = mockProgram();
     registerInit(program);
-    await program.getAction()();
+    await program.getAction()({ custom: true });
 
     expect(fs.existsSync(path.join(tmpDir, '.bobbyrc.yml'))).toBe(true);
   });
@@ -527,7 +546,7 @@ describe('registerInit (interactive flow)', () => {
 
     const program = mockProgram();
     registerInit(program);
-    await program.getAction()();
+    await program.getAction()({ custom: true });
 
     const config = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
     // build_skills should only appear as a comment, not as active config
@@ -547,7 +566,7 @@ describe('registerInit (interactive flow)', () => {
 
     const program = mockProgram();
     registerInit(program);
-    await program.getAction()();
+    await program.getAction()({ custom: true });
 
     expect(fs.existsSync(path.join(tmpDir, '.bobbyrc.yml'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'CLAUDE.md'))).toBe(true);
@@ -567,7 +586,7 @@ describe('registerInit (interactive flow)', () => {
 
     const program = mockProgram();
     registerInit(program);
-    await program.getAction()();
+    await program.getAction()({ custom: true });
 
     const config = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
     // Stack defaults should be present
@@ -587,7 +606,7 @@ describe('registerInit (interactive flow)', () => {
 
     const program = mockProgram();
     registerInit(program);
-    await program.getAction()();
+    await program.getAction()({ custom: true });
 
     const config = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
     expect(config).toContain('# Bobby Configuration');
@@ -600,7 +619,7 @@ describe('registerInit (interactive flow)', () => {
 
     const program = mockProgram();
     registerInit(program);
-    await program.getAction()();
+    await program.getAction()({ custom: true });
 
     expect(exitSpy).toHaveBeenCalledWith(1);
   });

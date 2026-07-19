@@ -18,19 +18,19 @@ import { success, error, warn, bold, dim } from '../lib/colors.js';
 function assertTicketsExist(ticketsDir, ids) {
   const missing = ids.filter(id => !findTicket(ticketsDir, id));
   if (missing.length > 0) {
-    throw new Error(`Ticket(s) not found: ${missing.join(', ')}. Create them first with \`bobby create\`.`);
+    throw new Error(`Ticket(s) not found: ${missing.join(', ')}. Create them first with \`bobby ticket create\`.`);
   }
 }
 
 export function registerSprint(program) {
   const cmd = program
     .command('sprint')
-    .description('Group tickets into a sprint and run them one-by-one on a shared feature branch');
+    .description('Batch related tickets onto one branch and work them one-by-one — bigger-than-one-ticket changes without dirtying main');
 
   cmd
     .command('new <name> [ticketIds...]')
     .description('Create a sprint (e.g., bobby sprint new "Auth overhaul" TKT-004 TKT-007)')
-    .option('--goal <goal>', 'Sprint goal — what the sprint delivers')
+    .option('--goal <goal>', 'What finishing this batch delivers')
     .option('--pipeline <name>', 'Pipeline each ticket runs through', 'default')
     .action((name, ticketIds, opts) => {
       try {
@@ -163,8 +163,8 @@ export function registerSprint(program) {
     });
 
   cmd
-    .command('remove <id> <ticketIds...>')
-    .alias('rm')
+    .command('rm <id> <ticketIds...>')
+    .alias('remove')
     .description('Remove ticket(s) from a sprint')
     .action((id, ticketIds) => {
       try {
@@ -235,7 +235,7 @@ export function registerSprint(program) {
           });
         }
         if (missing.length > 0) {
-          throw new Error(`Sprint ${d.id} references missing ticket(s): ${missing.join(', ')}. Remove them: bobby sprint remove ${d.id} ${missing.join(' ')}`);
+          throw new Error(`Sprint ${d.id} references missing ticket(s): ${missing.join(', ')}. Remove them: bobby sprint rm ${d.id} ${missing.join(' ')}`);
         }
 
         const pipeline = resolvePipeline(config, d.pipeline || 'default');

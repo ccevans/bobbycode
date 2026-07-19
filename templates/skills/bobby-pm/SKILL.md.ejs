@@ -108,19 +108,19 @@ When asked to come up with ideas, shape a feature, or review for opportunities:
 
 1. **Browse the app** — walk through key flows, take screenshots
 2. **Identify gaps** — what's missing? What would a competitor have? What would delight users?
-3. **Check existing backlog** — `bobby list backlog` to avoid duplicates
+3. **Check existing backlog** — `bobby ticket list backlog` to avoid duplicates
 4. **Shape each idea** with:
    - Who is this for?
    - What problem does this solve?
    - What does success look like?
 5. **File lightweight ideas:**
    ```bash
-   bobby create -t "Bulk lead import from CSV" --type feature --area leads
+   bobby ticket create -t "Bulk lead import from CSV" --type feature --area leads
    ```
 6. **Break down complex ideas** into multiple tickets:
    - Present a user flow diagram
    - Present a ticket breakdown table
-   - Wait for approval, then create tickets via `bobby create`
+   - Wait for approval, then create tickets via `bobby ticket create`
 
 ### 3. Backlog Triage
 
@@ -128,11 +128,11 @@ When asked to prioritize or triage:
 
 1. **Review the backlog:**
    ```bash
-   bobby list backlog
+   bobby ticket list backlog
    ```
 2. **Review all tickets:**
    ```bash
-   bobby list
+   bobby ticket list
    ```
 3. **Prioritize using RICE scoring:**
    - **Reach** — users affected per quarter
@@ -142,7 +142,7 @@ When asked to prioritize or triage:
    - Score = (Reach x Impact x Confidence) / Effort
 4. **Move priority tickets to planning:**
    ```bash
-   bobby move TKT-XXX plan
+   bobby ticket move TKT-XXX plan
    ```
 
 ### 4. PRD Writing
@@ -192,13 +192,13 @@ backlog -> planning -> building -> reviewing -> testing -> shipping -> done
 
 ```bash
 # File feature ideas
-bobby create -t "Title" --type feature --area dashboard
+bobby ticket create -t "Title" --type feature --area dashboard
 
 # File bugs
-bobby create -t "Title" --type bug -p high --area auth
+bobby ticket create -t "Title" --type bug -p high --area auth
 
 # File improvements
-bobby create -t "Title" --type improvement --area onboarding
+bobby ticket create -t "Title" --type improvement --area onboarding
 ```
 
 ### After a Review
@@ -212,18 +212,18 @@ Always produce:
 
 ```bash
 # View board
-bobby list
+bobby ticket list
 
 # View specific stage
-bobby list backlog
-bobby list building
+bobby ticket list backlog
+bobby ticket list building
 
 # Move tickets
-bobby move TKT-XXX plan       # backlog -> planning
-bobby move TKT-XXX block "Needs product decision"
+bobby ticket move TKT-XXX plan       # backlog -> planning
+bobby ticket move TKT-XXX block "Needs product decision"
 
 # Comment on ticket
-bobby comment TKT-XXX --by bobby-pm "PM review: summary"
+bobby ticket comment TKT-XXX --by bobby-pm "PM review: summary"
 ```
 
 ---
@@ -249,7 +249,7 @@ bobby comment TKT-XXX --by bobby-pm "PM review: summary"
 5. **Adoption > capability** — simple features used by 80% beat powerful features used by 10%
 6. **Data is the moat** — favor features that make user data more valuable over time
 7. **Trust what you see** — evaluate the product by using it, not by reading code
-8. **File it or lose it** — every idea goes into `bobby create`. Don't let insights die in chat.
+8. **File it or lose it** — every idea goes into `bobby ticket create`. Don't let insights die in chat.
 
 ---
 
@@ -261,4 +261,4 @@ bobby comment TKT-XXX --by bobby-pm "PM review: summary"
 - **Test as different user types** — new user, experienced user, admin, unauthenticated visitor
 - **Try the sad paths** — empty states, error states, first-time-user states, permission denied
 - **Think in workflows, not pages** — can a user complete an entire job-to-be-done without confusion?
-- **Capture ideas immediately** — `bobby create -t "..." --type feature --area X` before you forget
+- **Capture ideas immediately** — `bobby ticket create -t "..." --type feature --area X` before you forget

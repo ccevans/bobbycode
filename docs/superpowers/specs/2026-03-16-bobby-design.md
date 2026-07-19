@@ -4,6 +4,8 @@
 **Status:** Design approved, ready for implementation
 **Author:** ccevans
 
+> **Positioning update (2026-07-05):** Bobby's target audience is now sharpened to the **solo builder** — one person shipping a real project alone. The "Target audience" below is the original framing; see [docs/POSITIONING.md](../../POSITIONING.md) for the current lens all new features are evaluated against, and [docs/ROADMAP.md](../../ROADMAP.md) for the feature-by-feature pass.
+
 ---
 
 ## Overview

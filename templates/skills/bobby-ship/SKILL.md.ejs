@@ -11,13 +11,13 @@ argument-hint: "<ticket IDs to ship>"
 ## Before Starting
 
 1. **Check learnings** — Read `<%= paths.skills %>/bobby-ship/learnings.md`
-2. **Check the queue** — Run `bobby list shipping` to see what's ready
+2. **Check the queue** — Run `bobby ticket list shipping` to see what's ready
 
 ## Pre-Flight Checks
 
 ### 1. Shipping Count Sanity Check
 
-Run `bobby list shipping` and count the tickets.
+Run `bobby ticket list shipping` and count the tickets.
 
 **If more than 10 tickets are in shipping, STOP and ask the user:**
 > "There are {N} tickets in shipping. Is this a batch release or were these bulk-migrated? Should I proceed with all of them?"
@@ -31,8 +31,8 @@ Run `git status --short` in each repo. If there are uncommitted source code chan
 **STOP — do not ship.** Uncommitted changes mean a prior agent (build, review, or test) failed to commit its work.
 
 For each affected ticket:
-1. `bobby move {ID} build`
-2. `bobby comment {ID} --by bobby-ship "Returned to build: uncommitted changes detected. Files: {list}. Build agent must commit all work before shipping."`
+1. `bobby ticket move {ID} build`
+2. `bobby ticket comment {ID} --by bobby-ship "Returned to build: uncommitted changes detected. Files: {list}. Build agent must commit all work before shipping."`
 
 Then **abort the ship process**. The pipeline will re-run build → review → test → ship with proper commits.
 
@@ -117,7 +117,7 @@ Run tests and lint for each service that has changes on this branch:
 ## After PR Creation
 
 For each ticket in `shipping` stage:
-1. `bobby comment {ID} --by bobby-ship "PR created: #{url}. Awaiting manual merge."`
+1. `bobby ticket comment {ID} --by bobby-ship "PR created: #{url}. Awaiting manual merge."`
 
 Report all PR URLs to the user so they can review and merge manually.
 
@@ -128,7 +128,7 @@ Report all PR URLs to the user so they can review and merge manually.
 Once all PRs are created and CI is passing:
 
 1. For each ticket in `shipping` stage:
-   - `bobby move {ID} done`
+   - `bobby ticket move {ID} done`
    - Output `<bobby:done ticket="{ID}" stage="done" />`
 2. Report all PR URLs to the user so they can review and merge at their discretion
 

@@ -2,22 +2,27 @@
   "name": "python-flask",
   "display": "Python / Flask",
   "health_checks": [
-    { "name": "app", "url": "http://localhost:5000", "description": "Flask dev server" }
+    {
+      "name": "app",
+      "url": "http://localhost:5000",
+      "description": "Flask dev server"
+    }
   ],
-  "areas": ["auth", "api", "dashboard", "admin"],
-  "skill_routing": {
-    "auth": ["dev/fullstack"],
-    "api": ["dev/backend"],
-    "dashboard": ["dev/frontend"],
-    "admin": ["dev/fullstack"]
-  },
+  "areas": [
+    "auth",
+    "api",
+    "dashboard",
+    "admin"
+  ],
   "commands": {
     "dev": "flask run",
     "test": "pytest",
     "lint": "ruff check .",
     "build": ""
   },
-  "testing_tools": ["curl"],
+  "testing_tools": [
+    "curl"
+  ],
   "template_vars": {
     "test_command": "pytest",
     "lint_command": "ruff check .",

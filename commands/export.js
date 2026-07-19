@@ -81,8 +81,12 @@ function copyAgentsWithInlining(agentsDir, skillsDir, destDir) {
 }
 
 export function registerExport(program) {
-  program
-    .command('export-plugin')
+  const cmd = program
+    .command('export')
+    .description('Export Bobby assets');
+
+  cmd
+    .command('plugin')
     .description('Export Bobby skills and agents as a Cowork plugin (.zip)')
     .option('-o, --output <path>', 'Output directory', '.')
     .action((opts) => {

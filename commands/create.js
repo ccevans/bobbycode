@@ -45,7 +45,7 @@ export function registerCreate(program) {
         if (config.backlog_limit) {
           const backlogCount = listTickets(ticketsDir, { stage: 'backlog' }).length;
           if (backlogCount > config.backlog_limit) {
-            warn(`Backlog has ${backlogCount} items (limit: ${config.backlog_limit}). Run: bobby triage`);
+            warn(`Backlog has ${backlogCount} items (limit: ${config.backlog_limit}). Run: bobby ticket triage`);
           }
         }
       } catch (e) {

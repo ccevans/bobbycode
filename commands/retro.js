@@ -4,7 +4,8 @@ import path from 'path';
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir } from '../lib/config.js';
 import { findTicket, listTickets, slugify } from '../lib/tickets.js';
 import { success, error, bold, dim } from '../lib/colors.js';
-import { listSessions, readSession } from '../lib/session.js';
+import { listSessions, readSession, stageTimingsFromMoves } from '../lib/session.js';
+import { getTarget } from '../lib/targets/index.js';
 import { autoSync } from '../lib/auto-sync.js';
 
 /**
@@ -52,17 +53,11 @@ function parseSessionLogs(sessionsDir, sinceDays = 7) {
       }
     }
 
-    // Track stage durations
-    const lastMoveByTicket = {};
-    for (const move of moves) {
-      if (lastMoveByTicket[move.ticket]) {
-        const prev = lastMoveByTicket[move.ticket];
-        const stage = prev.to;
-        const elapsed = new Date(move.ts) - new Date(prev.ts);
-        if (!stageDurations[stage]) stageDurations[stage] = [];
-        stageDurations[stage].push(elapsed);
-      }
-      lastMoveByTicket[move.ticket] = move;
+    // Track stage durations (shared walk with sessionSummary)
+    const timings = stageTimingsFromMoves(moves);
+    for (const [stage, elapsedList] of Object.entries(timings)) {
+      if (!stageDurations[stage]) stageDurations[stage] = [];
+      stageDurations[stage].push(...elapsedList);
     }
   }
 
@@ -105,8 +100,9 @@ function generateWeeklyRetro(config, root) {
     t.stage === 'done' && t.updated && daysSince(t.updated) <= 7
   );
 
-  // Count learnings added this week
-  const learningsDir = path.join(root, '.claude', 'skills');
+  // Count learnings added this week (target-aware: .claude/skills or .clinerules/skills)
+  const skillsRelPath = getTarget(config.target || 'claude-code').paths().skills;
+  const learningsDir = path.join(root, skillsRelPath);
   let learningsCount = 0;
   if (fs.existsSync(learningsDir)) {
     const skills = fs.readdirSync(learningsDir).filter(d => {
@@ -172,7 +168,7 @@ ${sessionResultsTable}` : '_No sessions this week._'}
 ## Rejection Hotspots
 
 ${totalRejections > 0
-  ? `Total rejections: ${totalRejections}. Consider adding learnings to \`.claude/skills/bobby-build/learnings.md\` to prevent repeat issues.`
+  ? `Total rejections: ${totalRejections}. Consider adding learnings to \`${skillsRelPath}/bobby-build/learnings.md\` to prevent repeat issues.`
   : '_No rejections this week._'}
 ${Object.keys(sessionData.rejectionReasons).length > 0 ? `
 ### Top Rejection Reasons
@@ -238,7 +234,7 @@ function daysSince(dateStr) {
 export function registerRetro(program) {
   program
     .command('retro [id] [pattern]')
-    .description('Create a retrospective from a ticket, or generate a weekly summary')
+    .description('Weekly summary (--weekly), or a ticket retrospective (requires BOTH <id> and <pattern>)')
     .option('--weekly', 'Generate a weekly retrospective with aggregated metrics')
     .action((id, pattern, opts) => {
       try {

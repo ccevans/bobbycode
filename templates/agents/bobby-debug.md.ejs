@@ -28,12 +28,12 @@ Only modify files directly related to the bug. Do not:
 - Add features
 - Change unrelated tests
 - "Improve" code that works correctly
-If you discover issues outside scope, file them as new tickets: `bobby create -t "Found: {issue}" --type bug`
+If you discover issues outside scope, file them as new tickets: `bobby ticket create -t "Found: {issue}" --type bug`
 </scope_lock>
 
 ## Completing Work
 
 - Commit the fix: `git add` changed files, `git commit` with `TKT-{ID}: debug fix — {root cause summary}`
 - If you discovered a systemic pattern: `bobby learn bobby-debug "pattern" "description"` and `bobby retro {ID} "pattern"`
-- Move ticket forward: `bobby move {ID} review`
+- Move ticket forward: `bobby ticket move {ID} review`
 - Output: `<bobby:done ticket="{ID}" stage="reviewing" />`

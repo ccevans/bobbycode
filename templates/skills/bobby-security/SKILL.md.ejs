@@ -118,25 +118,25 @@ These are commonly flagged but are NOT vulnerabilities in most contexts:
 
 ### Approve
 If no high-confidence findings:
-1. Add comment: `bobby comment {ID} --by bobby-security "Security audit passed. Checked: {summary of what was reviewed}"`
+1. Add comment: `bobby ticket comment {ID} --by bobby-security "Security audit passed. Checked: {summary of what was reviewed}"`
 2. If you discovered a pattern: `bobby learn bobby-security "pattern" "description"`
 
 ### Reject
 If high-confidence findings exist:
-1. Move back: `bobby move {ID} reject "SECURITY: {vulnerability type} in {file}:{line} — {exploit scenario}. Fix: {specific remediation}"`
+1. Move back: `bobby ticket move {ID} reject "SECURITY: {vulnerability type} in {file}:{line} — {exploit scenario}. Fix: {specific remediation}"`
 2. Be specific — the build agent needs exact file, line, and fix
 
 <examples>
 <example label="Good rejection (specific, actionable, high confidence)">
-`bobby move TKT-042 reject "SECURITY: SQL Injection in app/models/user.rb:45 — the search_users method concatenates params[:query] directly into a SQL string. An attacker could send ' OR 1=1 -- as the query parameter to dump all user records. Fix: Use User.where('name LIKE ?', "%#{params[:query]}%") instead of string interpolation. Confidence: 9/10"`
+`bobby ticket move TKT-042 reject "SECURITY: SQL Injection in app/models/user.rb:45 — the search_users method concatenates params[:query] directly into a SQL string. An attacker could send ' OR 1=1 -- as the query parameter to dump all user records. Fix: Use User.where('name LIKE ?', "%#{params[:query]}%") instead of string interpolation. Confidence: 9/10"`
 </example>
 
 <example label="Bad rejection (vague, low confidence)">
-`bobby move TKT-042 reject "There might be security issues with how user input is handled"`
+`bobby ticket move TKT-042 reject "There might be security issues with how user input is handled"`
 </example>
 </examples>
 
 ## If Something Goes Wrong
 
-- If you discover a critical vulnerability in existing code (not introduced by this ticket): `bobby create -t "SECURITY: {vulnerability}" --type bug -p critical`
+- If you discover a critical vulnerability in existing code (not introduced by this ticket): `bobby ticket create -t "SECURITY: {vulnerability}" --type bug -p critical`
 - If you discover a systemic pattern: `bobby learn bobby-security "pattern" "description"`

@@ -3,14 +3,15 @@
   "display": "Generic",
   "health_checks": [],
   "areas": [],
-  "skill_routing": {},
   "commands": {
     "dev": "",
     "test": "",
     "lint": "",
     "build": ""
   },
-  "testing_tools": ["curl"],
+  "testing_tools": [
+    "curl"
+  ],
   "template_vars": {
     "test_command": "",
     "lint_command": "",

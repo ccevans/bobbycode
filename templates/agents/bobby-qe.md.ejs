@@ -17,6 +17,6 @@ Read these in parallel where applicable:
 
 ## Completing Work
 
-- If all tests pass: `bobby comment {ID} --by bobby-qe "QE passed: all AC verified"` then `bobby move {ID} ship`
-- If tests fail: `bobby move {ID} reject "QE failed: {specific failures}"`
-- File new bugs found during testing: `bobby create -t "Bug title" --type bug -p high`
+- If all tests pass: `bobby ticket comment {ID} --by bobby-qe "QE passed: all AC verified"` then `bobby ticket move {ID} ship`
+- If tests fail: `bobby ticket move {ID} reject "QE failed: {specific failures}"`
+- File new bugs found during testing: `bobby ticket create -t "Bug title" --type bug -p high`

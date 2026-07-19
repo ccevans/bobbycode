@@ -36,11 +36,11 @@ build_skills:
 Run `bobby init` — everything scaffolds, but you only use what you need:
 
 ```bash
-bobby create -t "Fix login bug" -p high      # Create tickets
-bobby create -t "User dashboard" --epic       # Create epics
-bobby list                                    # See your board
-bobby move TKT-001 build                     # Move tickets manually
-bobby comment TKT-001 "Found the root cause" # Add notes
+bobby ticket create -t "Fix login bug" -p high      # Create tickets
+bobby ticket create -t "User dashboard" --epic       # Create epics
+bobby ticket list                                    # See your board
+bobby ticket move TKT-001 build                     # Move tickets manually
+bobby ticket comment TKT-001 "Found the root cause" # Add notes
 ```
 
 Ignore `bobby run pipeline` entirely. The agents are there when you're ready for them.
@@ -51,11 +51,11 @@ If you have work in progress that you want to run through Bobby's pipeline:
 
 ```bash
 # Create tickets for existing work
-bobby create -t "Refactor auth middleware"
+bobby ticket create -t "Refactor auth middleware"
 
 # Set the stage to wherever you are
-bobby move TKT-001 build    # Already planned, ready to build
-bobby move TKT-002 review   # Already built, needs review
+bobby ticket move TKT-001 build    # Already planned, ready to build
+bobby ticket move TKT-002 review   # Already built, needs review
 
 # Pick up from the current stage
 bobby run next TKT-001      # Runs bobby-build (next stage after building)
@@ -67,8 +67,8 @@ bobby run next TKT-002      # Runs bobby-review
 A recommended progression for teams trying Bobby for the first time:
 
 **Week 1: Ticket tracking only**
-- `bobby create` and `bobby list` for task management
-- `bobby move` to manually track progress
+- `bobby ticket create` and `bobby ticket list` for task management
+- `bobby ticket move` to manually track progress
 - Get comfortable with the ticket lifecycle
 
 **Week 2: Try a single agent**

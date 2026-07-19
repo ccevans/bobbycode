@@ -31,7 +31,7 @@ export function registerDashboard(program) {
   program
     .command('dashboard')
     .description('Start the Bobby workspace dashboard (local web UI)')
-    .option('-p, --port <n>', 'Port to bind (default: from config or 7777)')
+    .option('--port <n>', 'Port to bind (default: from config or 7777)')
     .option('--host <host>', 'Host to bind (default: 127.0.0.1)', '127.0.0.1')
     .option('--no-open', 'Do not auto-open the browser')
     .option('--pipeline <name>', 'Pipeline to use for agent chaining', 'default')
