@@ -7,6 +7,7 @@ All notable changes to Bobby are documented here. The format is based on
 ## [Unreleased]
 
 ### Changed — BREAKING
+- `bobby local-init` → `bobby init local`; `bobby export-plugin` → `bobby export plugin`.
 - **All ticket operations moved under `bobby ticket` (alias `bobby tkt`).**
   `bobby create` → `bobby ticket create`, and likewise for `list`, `view`,
   `move`, `comment`, `update`, `assign`, `attach`, `archive`, `triage`.

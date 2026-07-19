@@ -318,7 +318,8 @@ Everything that touches a ticket lives under one namespace:
 | Command | Description |
 |---------|-------------|
 | `bobby init` | Initialize a new Bobby project (or re-initialize to update skills/agents) |
-| `bobby export-plugin` | Export Bobby skills and agents as a Cowork plugin (.zip) |
+| `bobby init local` | Discover and configure a local dev profile |
+| `bobby export plugin` | Export Bobby skills and agents as a Cowork plugin (.zip) |
 | `bobby upgrade` | Upgrade Bobby to the latest version (`--check` to preview) |
 
 ### Move Aliases

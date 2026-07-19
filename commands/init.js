@@ -224,7 +224,8 @@ export function scaffoldProject(rootDir, config) {
 }
 
 export function registerInit(program) {
-  program
+  // Returned so bin can attach subcommands (e.g. `bobby init local`).
+  return program
     .command('init')
     .description('Initialize a new Bobby project')
     .action(async () => {

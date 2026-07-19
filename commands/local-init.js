@@ -158,8 +158,9 @@ export function saveLocalProfile(rootDir, config, profileName, profile) {
 }
 
 export function registerLocalInit(program) {
+  // Registered as a subcommand of `bobby init` (bobby init local).
   program
-    .command('local-init')
+    .command('local')
     .description('Discover and configure a local dev profile')
     .action(async () => {
       try {

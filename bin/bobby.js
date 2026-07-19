@@ -33,7 +33,8 @@ import { registerBrief } from '../commands/brief.js';
 import { registerProjects } from '../commands/projects.js';
 import { touchProject } from '../lib/studio.js';
 
-registerInit(program);
+const initCmd = registerInit(program);
+registerLocalInit(initCmd); // bobby init local
 registerBrief(program);
 registerIdea(program);
 registerTicket(program);
@@ -46,7 +47,6 @@ registerProjects(program);
 registerSession(program);
 registerSync(program);
 registerDashboard(program);
-registerLocalInit(program);
 registerExport(program);
 registerUpgrade(program);
 
