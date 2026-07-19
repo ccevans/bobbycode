@@ -1,13 +1,20 @@
 name: Publish to npm
 
-# Publishes bobbycode to the public npm registry when a version tag is pushed.
+# Publishes bobbycode to the public npm registry when a version tag is pushed,
+# using npm Trusted Publishing (OIDC) — no long-lived tokens, and provenance
+# attestations are generated automatically.
+#
 # Release flow:
 #   1. Bump the version:  npm version patch   (or minor / major)
 #   2. Push with tags:    git push --follow-tags
 #   3. This workflow runs tests, then publishes if they pass.
 #
-# One-time setup: add an npm automation token as the NPM_TOKEN repo secret
-#   (npmjs.com -> Access Tokens -> Generate -> "Automation").
+# One-time setup (see README "Releasing"):
+#   - Publish v1.0.0 once manually from your machine (a new package name can't
+#     have a trusted publisher configured until it exists).
+#   - Then on npmjs.com → the bobbycode package → Settings → Trusted Publisher,
+#     add this GitHub repo + workflow (ccevans/bobbycode, publish.yml).
+# After that, every tagged release publishes with zero secrets.
 
 on:
   push:
@@ -19,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write   # required for OIDC Trusted Publishing + provenance
     steps:
       - uses: actions/checkout@v4
 
@@ -26,6 +34,9 @@ jobs:
         with:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Upgrade npm (Trusted Publishing needs npm >= 11.5.1)
+        run: npm install -g npm@latest
 
       - name: Install dependencies
         run: npm ci
@@ -42,7 +53,5 @@ jobs:
             exit 1
           fi
 
-      - name: Publish
+      - name: Publish (OIDC — no token)
         run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

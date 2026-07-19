@@ -564,14 +564,27 @@ Please keep PRs focused on a single change. If you're planning something large, 
 
 ### Releasing (maintainers)
 
-Bobby publishes to npm automatically via [`.github/workflows/publish.yml`](.github/workflows/publish.yml) when a version tag is pushed:
+Bobby publishes to npm via [`.github/workflows/publish.yml`](.github/workflows/publish.yml) using
+**Trusted Publishing (OIDC)** — no long-lived tokens, and each release gets a provenance attestation.
+
+**One-time setup** (a brand-new package name can't have a trusted publisher until it exists):
+
+1. Publish the first version manually from your machine:
+   ```bash
+   npm login          # interactive, with your 2FA
+   npm publish        # publishes bobbycode@1.0.0 and creates the package
+   ```
+2. On npmjs.com → the `bobbycode` package → **Settings → Trusted Publisher**, add a GitHub
+   Actions publisher: organization `ccevans`, repository `bobbycode`, workflow `publish.yml`.
+
+**Every release after that** is fully automated — no secrets:
 
 ```bash
-npm version patch          # bumps package.json + creates a v0.9.1 tag (use minor / major as needed)
+npm version patch          # bumps package.json + creates a vX.Y.Z tag (minor / major as needed)
 git push --follow-tags     # pushes the commit and the tag
 ```
 
-The workflow runs the test suite, verifies the tag matches `package.json`, then publishes. One-time setup: add an npm **automation** token as the `NPM_TOKEN` repository secret (npmjs.com → Access Tokens → Generate → Automation).
+The workflow runs the test suite, verifies the tag matches `package.json`, then publishes via OIDC.
 
 ## License
 
