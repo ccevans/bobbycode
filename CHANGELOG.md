@@ -6,6 +6,11 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-07-19
+
+First public release. Bobby is a full SDLC workflow for a solo developer — one
+person, a whole team of Claude Code agents.
+
 ### Changed — BREAKING
 - `bobby local-init` → `bobby init local`; `bobby export-plugin` → `bobby export plugin`.
 - **All ticket operations moved under `bobby ticket` (alias `bobby tkt`).**

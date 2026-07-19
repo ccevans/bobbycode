@@ -1,6 +1,6 @@
 {
   "name": "bobbycode",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "Bobby — a full SDLC workflow for a solo developer. Tickets, agents, sprints, and shipping for Claude Code, headcount of one.",
   "bin": {

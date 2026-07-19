@@ -1,5 +1,10 @@
 # Bobby — A Full SDLC Workflow for a Solo Developer
 
+[![npm version](https://img.shields.io/npm/v/bobbycode.svg)](https://www.npmjs.com/package/bobbycode)
+[![CI](https://github.com/ccevans/bobbycode/actions/workflows/ci.yml/badge.svg)](https://github.com/ccevans/bobbycode/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/node/v/bobbycode.svg)](https://nodejs.org)
+
 Bobby is an open-source npm CLI that gives one person a **whole engineering team**. You're the only human; Bobby staffs the rest — a planner, a builder, a peer reviewer, testers, a security auditor, QE — as Claude Code agents that run a full software development lifecycle end to end. Tickets, TDD, code review, automated testing, security audits, shipping: the process discipline of an entire org, with a headcount of one.
 
 **Who it's for:** solo devs, indie hackers, freelancers, and non-developers building with Claude Code who want a structured process instead of "one big prompt and hope for the best."
