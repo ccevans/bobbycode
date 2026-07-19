@@ -13,7 +13,7 @@ program
   .description('Bobby — your pair programmer. AI-native SDLC framework.')
   .version(pkg.version);
 
-// Commands (17 total)
+// Commands
 import { registerInit } from '../commands/init.js';
 import { registerCreate } from '../commands/create.js';
 import { registerUpdate } from '../commands/update.js';
@@ -25,7 +25,6 @@ import { registerComment } from '../commands/comment.js';
 import { registerRetro } from '../commands/retro.js';
 import { registerLearn } from '../commands/learn.js';
 import { registerRun } from '../commands/run.js';
-import { registerActivate } from '../commands/activate.js';
 import { registerExport } from '../commands/export.js';
 import { registerArchive } from '../commands/archive.js';
 import { registerTriage } from '../commands/triage.js';
@@ -37,6 +36,8 @@ import { registerLocalInit } from '../commands/local-init.js';
 import { registerDashboard } from '../commands/dashboard.js';
 import { registerPipeline } from '../commands/pipeline.js';
 import { registerSprint } from '../commands/sprint.js';
+import { registerIdea } from '../commands/idea.js';
+import { registerBrief } from '../commands/brief.js';
 
 registerInit(program);
 registerCreate(program);
@@ -49,7 +50,6 @@ registerComment(program);
 registerRetro(program);
 registerLearn(program);
 registerRun(program);
-registerActivate(program);
 registerExport(program);
 registerArchive(program);
 registerTriage(program);
@@ -61,6 +61,8 @@ registerLocalInit(program);
 registerDashboard(program);
 registerPipeline(program);
 registerSprint(program);
+registerIdea(program);
+registerBrief(program);
 
 // Show help when no subcommand given
 program.action(() => program.help());

@@ -25,12 +25,12 @@ function assertTicketsExist(ticketsDir, ids) {
 export function registerSprint(program) {
   const cmd = program
     .command('sprint')
-    .description('Group tickets into a sprint and run them one-by-one on a shared feature branch');
+    .description('Batch related tickets onto one branch and work them one-by-one — bigger-than-one-ticket changes without dirtying main');
 
   cmd
     .command('new <name> [ticketIds...]')
     .description('Create a sprint (e.g., bobby sprint new "Auth overhaul" TKT-004 TKT-007)')
-    .option('--goal <goal>', 'Sprint goal — what the sprint delivers')
+    .option('--goal <goal>', 'What finishing this batch delivers')
     .option('--pipeline <name>', 'Pipeline each ticket runs through', 'default')
     .action((name, ticketIds, opts) => {
       try {

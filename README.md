@@ -1,8 +1,25 @@
-# Bobby — Your Pair Programmer
+# Bobby — A Full SDLC Workflow for a Solo Developer
 
-Bobby is an open-source npm CLI that gives structure to AI-assisted development. It turns Claude Code into a disciplined engineering partner with tickets, TDD, peer review, automated testing, and agent chaining that runs a full pipeline end-to-end.
+Bobby is an open-source npm CLI that gives one person a **whole engineering team**. You're the only human; Bobby staffs the rest — a planner, a builder, a peer reviewer, testers, a security auditor, QE — as Claude Code agents that run a full software development lifecycle end to end. Tickets, TDD, code review, automated testing, security audits, shipping: the process discipline of an entire org, with a headcount of one.
 
-**Target audience:** People who use Claude Code and want a structured process instead of "one big prompt and hope for the best."
+**Who it's for:** solo devs, indie hackers, freelancers, and non-developers building with Claude Code who want a structured process instead of "one big prompt and hope for the best."
+
+**The idea:** working alone means no reviewer, no standup, and no one to remind you where you left off. So Bobby *is* your team — its agents are your reviewer, its sessions carry your context between stolen hours, and every command pays for itself in shipped work. Read the full philosophy in [docs/POSITIONING.md](docs/POSITIONING.md) and where it's headed in [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## Install
+
+Bobby is published to the public npm registry — no account or auth required.
+
+```bash
+# Run without installing (always the latest version)
+npx bobbycode init
+
+# ...or install globally to get the `bobby` command everywhere
+npm install -g bobbycode
+bobby init
+```
+
+Requires Node.js 18+ (you already have it if you use Claude Code).
 
 ## Quick Start
 
@@ -217,6 +234,7 @@ Creates a PR, waits for CI, and merges.
 |-----------|---------|
 | I have a clear task to build | `bobby run pipeline TKT-001` |
 | I have a big feature idea | `bobby create -t "Feature" --epic` then `bobby run feature TKT-001` |
+| I have a batch of related tickets | `bobby sprint new "Auth overhaul" TKT-004 TKT-007` then `bobby sprint run SPR-001` |
 | I want to review the live app | `bobby run ux` / `bobby run pm` / `bobby run qe` |
 | I want to validate before building | `bobby run vet TKT-001` or `bobby run strategy` |
 | Something broke | `bobby run debug TKT-001` |
@@ -260,8 +278,18 @@ Tickets live in `.bobby/tickets/`. Stage is tracked in frontmatter — no physic
 | `bobby view <id>` | View ticket details (`--plan`, `--files`) |
 | `bobby move <id> <alias>` | Move ticket stage (see aliases below) |
 | `bobby update <id>` | Update ticket fields (`--priority`, `--area`, `--title`, `--parent`) |
-| `bobby assign <id> <name>` | Assign ticket to a person or agent |
+| `bobby assign <id> <name>` | Route a ticket to an agent |
 | `bobby comment <id> <note>` | Add a note to a ticket |
+
+### Capture & Orientation
+
+| Command | Description |
+|---------|-------------|
+| `bobby idea "..."` | Capture an idea in five seconds, without touching the board |
+| `bobby idea list` | List open ideas (`--all` includes promoted) |
+| `bobby idea promote <n>` | Turn an idea into a backlog ticket (`-p`, `--area`, `--epic`) |
+| `bobby idea rm <n>` | Delete an idea |
+| `bobby brief` | "Where was I?" — in-flight work, blockers, and the single next action |
 
 ### Backlog Management
 
@@ -275,6 +303,7 @@ Tickets live in `.bobby/tickets/`. Stage is tracked in frontmatter — no physic
 | Command | Description |
 |---------|-------------|
 | `bobby run <agent> [ids...]` | Run an agent on ticket(s) — see [Run Modes](#run-modes) below |
+| `bobby sprint <subcommand>` | Batch related tickets onto one branch — see [Sprints](#sprints) below |
 | `bobby dashboard` | Launch the local web dashboard — parallel workspaces, live logs, diffs, approvals |
 
 ### Learning & Retrospectives
@@ -290,7 +319,6 @@ Tickets live in `.bobby/tickets/`. Stage is tracked in frontmatter — no physic
 |---------|-------------|
 | `bobby init` | Initialize a new Bobby project (or re-initialize to update skills/agents) |
 | `bobby export-plugin` | Export Bobby skills and agents as a Cowork plugin (.zip) |
-| `bobby activate <key>` | Activate pro license |
 | `bobby upgrade` | Upgrade Bobby to the latest version (`--check` to preview) |
 
 ### Move Aliases
@@ -349,6 +377,59 @@ bobby run watchdog                     # Post-deploy smoke tests
 # Specialist agents (ticket required)
 bobby run security TKT-001            # OWASP + STRIDE audit
 bobby run debug TKT-001               # Root-cause investigation
+```
+
+## Sprints
+
+A sprint is a **batch of related tickets riding one branch** — how a solo builder tackles work bigger than one ticket without dirtying `main` while it comes together. No scrum, no velocity, no ceremony: just an ordered list of tickets, a shared feature branch, and one runner that works through them.
+
+```bash
+bobby sprint new "Auth overhaul" TKT-004 TKT-007 --goal "Passwordless login"
+bobby sprint add SPR-001 TKT-009       # Add tickets (order preserved)
+bobby sprint view SPR-001              # See the batch and each ticket's stage
+bobby sprint run SPR-001               # Work each ticket through its pipeline on the shared branch
+bobby sprint status SPR-001 done       # planned | active | done | abandoned
+bobby sprint list                      # All sprints with progress
+```
+
+Each sprint gets a directory under `.bobby/sprints/` with:
+- `sprint.yml` — the manifest: goal, branch, pipeline, and the authoritative ordered ticket list
+- `sprint-plan.md` — your cross-ticket context: sequencing rationale, shared decisions, what's out of scope
+
+The runner works tickets one at a time through the sprint's pipeline (default: plan → build → review → test), committing to the shared branch. Rejections retry per ticket (`--max-retries`, default 3). When everything lands, ship the branch as one PR.
+
+**When to reach for a sprint vs. an epic:** an epic (`bobby run feature`) plans and breaks down one big idea; a sprint batches tickets you already have onto one branch. They compose — break an epic down, then sprint its children.
+
+## Working Solo: Capture and Orientation
+
+Two commands exist because working alone has no standup and no one to remind you of anything.
+
+**Capture ideas without breaking flow.** Ideas arrive mid-task; a full ticket is too much friction in the moment. `bobby idea` jots one in five seconds, kept off the board until you decide it's real:
+
+```bash
+bobby idea "passwordless login would kill the password-reset support load"
+bobby idea list                 # Review open ideas when you have a moment
+bobby idea promote 1 -p high    # Turn idea #1 into a prioritized backlog ticket
+```
+
+**Pick up where you left off.** When you come back after a day (or a week), `bobby brief` reconstructs the state you'd otherwise hold in your head — what's in flight, what's blocked, and the one thing to do next:
+
+```bash
+bobby brief
+```
+
+```
+  my-app — where you left off
+
+  In flight
+    [BUILDING]  TKT-001  add passwordless login  high
+
+  Backlog  (2 total)
+    · TKT-002  Fix logout bug  critical
+    · TKT-003  Polish onboarding  low
+
+  Next  — TKT-001 is in building — closest to done
+    bobby run review TKT-001
 ```
 
 ## Agents (17)
@@ -448,6 +529,17 @@ Contributions are welcome! To get started:
 5. Open a pull request against `main`
 
 Please keep PRs focused on a single change. If you're planning something large, open an issue first to discuss the approach.
+
+### Releasing (maintainers)
+
+Bobby publishes to npm automatically via [`.github/workflows/publish.yml`](.github/workflows/publish.yml) when a version tag is pushed:
+
+```bash
+npm version patch          # bumps package.json + creates a v0.9.1 tag (use minor / major as needed)
+git push --follow-tags     # pushes the commit and the tag
+```
+
+The workflow runs the test suite, verifies the tag matches `package.json`, then publishes. One-time setup: add an npm **automation** token as the `NPM_TOKEN` repository secret (npmjs.com → Access Tokens → Generate → Automation).
 
 ## License
 
