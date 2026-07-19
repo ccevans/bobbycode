@@ -18,7 +18,7 @@ import { success, error, warn, bold, dim } from '../lib/colors.js';
 function assertTicketsExist(ticketsDir, ids) {
   const missing = ids.filter(id => !findTicket(ticketsDir, id));
   if (missing.length > 0) {
-    throw new Error(`Ticket(s) not found: ${missing.join(', ')}. Create them first with \`bobby create\`.`);
+    throw new Error(`Ticket(s) not found: ${missing.join(', ')}. Create them first with \`bobby ticket create\`.`);
   }
 }
 

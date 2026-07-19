@@ -11,7 +11,7 @@ argument-hint: "<epic ticket ID>"
 ## Before Starting
 
 1. **Epic selection** — If an epic ID was provided as an argument, use it. Otherwise, discover and present epics:
-   a) Run `bobby list` and identify tickets with `type: epic`
+   a) Run `bobby ticket list` and identify tickets with `type: epic`
    b) For each epic, count children and summarize their stages
    c) Present the results:
 
@@ -25,7 +25,7 @@ argument-hint: "<epic ticket ID>"
 
 2. **Validate epic** — Read `<%= tickets_dir %>/{ID}*/ticket.md` and confirm `type: epic`. If not an epic, tell the user.
 
-3. **Gather children** — Run `bobby list --epic {ID}` to find all child tickets. If no children exist, tell the user: `Create children with: bobby create -t "..." --parent {ID}`
+3. **Gather children** — Run `bobby ticket list --epic {ID}` to find all child tickets. If no children exist, tell the user: `Create children with: bobby ticket create -t "..." --parent {ID}`
 
 4. **Order tickets** — Sort children for processing:
    - **In-progress first**: Tickets further along (testing > reviewing > building > planning > backlog) go first — finish what's started
@@ -72,13 +72,13 @@ For each ticket in the sorted order that is in `backlog` or `planning` stage:
 Read `<%= tickets_dir %>/{ID}*/ticket.md` frontmatter to determine the current stage.
 
 ### 2. Move to Planning
-If stage is `backlog`, move to planning: `bobby move {ID} plan`
+If stage is `backlog`, move to planning: `bobby ticket move {ID} plan`
 
 ### 3. Run Bobby-Plan (Feature-Aware)
-1. Claim the ticket: `bobby assign {ID} bobby-plan`
+1. Claim the ticket: `bobby ticket assign {ID} bobby-plan`
 2. Read `<%= tickets_dir %>/{ID}*/ticket.md` for context
 3. Follow the instructions in `<%= paths.agents %>/bobby-plan.md` — the bobby-plan skill will automatically detect **Feature-Aware Refine Mode** when it sees the ticket has a `parent` field. This mode reads sibling plans and the feature-plan.md for cross-ticket context.
-4. When complete, the agent moves the ticket to building via `bobby move`
+4. When complete, the agent moves the ticket to building via `bobby ticket move`
 
 ### 4. Verify Planning Complete
 1. Re-read `ticket.md` frontmatter to confirm the ticket moved to `building`
@@ -136,11 +136,11 @@ Based on the current stage, launch the corresponding agent:
 - If stage is `backlog` or `planning`: ERROR — this should have been handled in Phase 1. Stop and report.
 
 For each agent:
-1. Claim the ticket: `bobby assign {ID} {agent-name}`
+1. Claim the ticket: `bobby ticket assign {ID} {agent-name}`
 2. Read `<%= tickets_dir %>/{ID}*/ticket.md` for context
 3. Read `<%= tickets_dir %>/{epicId}*/feature-plan.md` for cross-cutting feature context
 4. Follow the instructions in `<%= paths.agents %>/{agent-name}.md`
-5. When complete, the agent updates the ticket stage via `bobby move`
+5. When complete, the agent updates the ticket stage via `bobby ticket move`
 
 ### 3. Check Result
 After each agent completes:
@@ -157,7 +157,7 @@ After each agent completes:
 ### 5. Integration Check (Between Tickets)
 After each ticket reaches shipping:
 1. Run the project's full test suite<% if (commands && commands.test) { %> (`<%= commands.test %>`)<% } %>. If the full test command fails because a service is unavailable (e.g., Docker not running, database not reachable), fall back to the frontend tests only<% if (commands && commands.build) { %> (`<%= commands.build %>`)<% } %>.
-2. If tests fail, the most recent ticket's changes likely caused it. Move that ticket back to building (`bobby move {ID} build "Integration test failure: {details}"`) and retry.
+2. If tests fail, the most recent ticket's changes likely caused it. Move that ticket back to building (`bobby ticket move {ID} build "Integration test failure: {details}"`) and retry.
 3. If tests pass, proceed to the next ticket.
 
 ### 6. Next Ticket
@@ -169,7 +169,7 @@ Repeat for each ticket in the queue.
 
 1. **Final verification** — Run the full test suite one final time<% if (commands && commands.test) { %> (`<%= commands.test %>`)<% } %>
 2. **Run lint** if configured<% if (commands && commands.lint) { %> (`<%= commands.lint %>`)<% } %>
-3. **If everything passes** — Move the epic to shipping: `bobby move {epicId} ship`
+3. **If everything passes** — Move the epic to shipping: `bobby ticket move {epicId} ship`
 4. **Report** — Show the final status of each ticket and the epic
 5. **Sync** — Run `bobby sync` to commit ticket state changes to the umbrella repo
 6. **Remind** — Tell the user: `Run bobby run ship to create a PR and merge.`

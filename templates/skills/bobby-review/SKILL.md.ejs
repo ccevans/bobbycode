@@ -156,30 +156,30 @@ Write `review.md` in the ticket directory with this structure:
 All checks pass, no concerns:
 1. Write `review.md` in the ticket directory
 2. **Commit any changes** you made (lint fixes, debug cleanup): `TKT-{ID}: review fixes`
-3. Add comment: `bobby comment {ID} --by bobby-review "Approved: {summary}"`
+3. Add comment: `bobby ticket comment {ID} --by bobby-review "Approved: {summary}"`
 4. If you discovered a pattern future reviews should catch: `bobby learn bobby-review "pattern" "description"`
-5. Move to testing: `bobby move {ID} test`
+5. Move to testing: `bobby ticket move {ID} test`
 
 ### Approve with Notes
 Code works and ACs are met, but you have observations worth recording — minor style drift, a pattern that could become a problem, a suggestion for future work. These do NOT block the ticket:
 1. Write `review.md` with notes in the "Code Concerns" and "Notes" sections
 2. **Commit any changes** you made: `TKT-{ID}: review fixes`
-3. Add comment: `bobby comment {ID} --by bobby-review "Approved with notes: {summary}. Notes: {observations}"`
-4. Move to testing: `bobby move {ID} test`
+3. Add comment: `bobby ticket comment {ID} --by bobby-review "Approved with notes: {summary}. Notes: {observations}"`
+4. Move to testing: `bobby ticket move {ID} test`
 
 ### Reject
 Broken code, missing ACs, or serious quality issues:
 1. Write `review.md` documenting every issue found
-2. Move back with specific feedback: `bobby move {ID} reject "Specific issue description"`
+2. Move back with specific feedback: `bobby ticket move {ID} reject "Specific issue description"`
 3. Be specific — the build agent needs to know exactly what to fix
 
 <examples>
 <example label="Good rejection (specific and actionable)">
-`bobby move TKT-042 reject "AC #3 not met: 'Filter persists after page refresh' — tested by refreshing /leads?status=active and the filter dropdown resets to 'All'. The filterByStatus function reads URL params but doesn't call setFilter on mount. Also: getLeadsByStatus() in leads-service.js is called by DashboardWidget (line 47) which expects an array return type, but the new implementation returns an object. Fix both."`
+`bobby ticket move TKT-042 reject "AC #3 not met: 'Filter persists after page refresh' — tested by refreshing /leads?status=active and the filter dropdown resets to 'All'. The filterByStatus function reads URL params but doesn't call setFilter on mount. Also: getLeadsByStatus() in leads-service.js is called by DashboardWidget (line 47) which expects an array return type, but the new implementation returns an object. Fix both."`
 </example>
 
 <example label="Bad rejection (vague)">
-`bobby move TKT-042 reject "Filtering doesn't work properly"`
+`bobby ticket move TKT-042 reject "Filtering doesn't work properly"`
 Why this fails: The build agent won't know what specifically to fix or which AC failed.
 </example>
 </examples>
@@ -187,7 +187,7 @@ Why this fails: The build agent won't know what specifically to fix or which AC 
 ### Block
 Can't complete review — tests won't run, environment broken, missing context:
 1. Write `review.md` documenting what you were able to check and what blocked you
-2. `bobby move {ID} block "reason"`
+2. `bobby ticket move {ID} block "reason"`
 
 ## If Something Goes Wrong
 

@@ -107,7 +107,7 @@ function renderBoard(ticketsDir, filterStages, opts, config) {
 
       const cap = config.backlog_limit;
       if (cap && health.total > cap) {
-        warn(`Backlog exceeds limit (${health.total}/${cap}). Run: bobby triage`);
+        warn(`Backlog exceeds limit (${health.total}/${cap}). Run: bobby ticket triage`);
       }
       console.log('');
     }

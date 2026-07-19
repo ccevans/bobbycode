@@ -14,15 +14,15 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-strategy/SK
 Read these in parallel:
 1. `<%= paths.skills %>/bobby-strategy/learnings.md` and `<%= paths.skills %>/bobby-shared/learnings.md` — patterns and anti-patterns
 2. The ticket's `ticket.md` from `<%= tickets_dir %>/`
-3. Run `bobby list backlog --sort priority` — understand the full backlog for relative prioritization
+3. Run `bobby ticket list backlog --sort priority` — understand the full backlog for relative prioritization
 
 Then:
 4. If the ticket has a `parent` field, read the parent epic's `ticket.md` for broader context
-5. Scan for related tickets in other stages: `bobby list` to see what's already in-flight
+5. Scan for related tickets in other stages: `bobby ticket list` to see what's already in-flight
 
 ## Completing Work
 
-- If approved: `bobby move {ID} plan` then `bobby comment {ID} --by bobby-strategy "STRATEGY APPROVED: {strategy brief}"` then output `<bobby:done ticket="{ID}" stage="planning" />`
-- If deferred: `bobby comment {ID} --by bobby-strategy "STRATEGY DEFERRED: {reasoning}. Revisit: {suggested date or condition}"` then output `<bobby:done ticket="{ID}" stage="backlog" />`
-- If killed: `bobby archive {ID}` then output `<bobby:done ticket="{ID}" stage="done" />`
+- If approved: `bobby ticket move {ID} plan` then `bobby ticket comment {ID} --by bobby-strategy "STRATEGY APPROVED: {strategy brief}"` then output `<bobby:done ticket="{ID}" stage="planning" />`
+- If deferred: `bobby ticket comment {ID} --by bobby-strategy "STRATEGY DEFERRED: {reasoning}. Revisit: {suggested date or condition}"` then output `<bobby:done ticket="{ID}" stage="backlog" />`
+- If killed: `bobby ticket archive {ID}` then output `<bobby:done ticket="{ID}" stage="done" />`
 - If you discovered a strategic pattern: `bobby learn bobby-strategy "pattern" "description"`

@@ -91,7 +91,7 @@ export function registerRun(program) {
           if (!epicId) {
             const epics = listEpics(ticketsDir);
             if (epics.length === 0) {
-              error('No epics found. Create one with: bobby create -t "Feature name" --epic');
+              error('No epics found. Create one with: bobby ticket create -t "Feature name" --epic');
               process.exit(1);
             }
             const { selected } = await inquirer.prompt([{
@@ -107,7 +107,7 @@ export function registerRun(program) {
           }
           const { epic, children } = getFeatureTickets(ticketsDir, epicId);
           if (children.length === 0) {
-            error(`Epic ${epicId} has no child tickets. Create children with: bobby create -t "..." --parent ${epicId}`);
+            error(`Epic ${epicId} has no child tickets. Create children with: bobby ticket create -t "..." --parent ${epicId}`);
             process.exit(1);
           }
           epicData = { epicId, epic, children };

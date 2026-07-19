@@ -33,12 +33,12 @@ describe('buildBrief', () => {
     const b = buildBrief(ticketsDir(), sprintsDir());
     expect(b.inFlight).toHaveLength(0);
     expect(b.backlogCount).toBe(0);
-    expect(b.nextAction.command).toMatch(/bobby create|bobby idea/);
+    expect(b.nextAction.command).toMatch(/bobby ticket create|bobby idea/);
   });
 
   test('lists backlog tickets and picks the top-priority one to start', () => {
-    run('create -t "Low thing" -p low');
-    run('create -t "Critical thing" -p critical');
+    run('ticket create -t "Low thing" -p low');
+    run('ticket create -t "Critical thing" -p critical');
     const b = buildBrief(ticketsDir(), sprintsDir());
     expect(b.backlogCount).toBe(2);
     // Nothing in flight → next action starts the critical ticket
@@ -47,8 +47,8 @@ describe('buildBrief', () => {
   });
 
   test('surfaces in-flight work and recommends the next agent', () => {
-    run('create -t "Ship me"');
-    run('move TKT-001 build');
+    run('ticket create -t "Ship me"');
+    run('ticket move TKT-001 build');
     const b = buildBrief(ticketsDir(), sprintsDir());
     expect(b.inFlight.map(t => t.id)).toContain('TKT-001');
     // A ticket in "building" advances to review next
@@ -56,10 +56,10 @@ describe('buildBrief', () => {
   });
 
   test('the furthest-along in-flight ticket wins the next action', () => {
-    run('create -t "Earlier"');   // TKT-001
-    run('create -t "Later"');     // TKT-002
-    run('move TKT-001 build');    // building
-    run('move TKT-002 test');     // testing (further along)
+    run('ticket create -t "Earlier"');   // TKT-001
+    run('ticket create -t "Later"');     // TKT-002
+    run('ticket move TKT-001 build');    // building
+    run('ticket move TKT-002 test');     // testing (further along)
     const b = buildBrief(ticketsDir(), sprintsDir());
     // testing outranks building → TKT-002 is closest to done
     expect(b.nextAction.command).toBe('bobby run ship TKT-002');
@@ -67,17 +67,17 @@ describe('buildBrief', () => {
   });
 
   test('blocked tickets are separated from in-flight', () => {
-    run('create -t "Stuck"');
-    run('move TKT-001 build');
-    run('move TKT-001 block "waiting on API"');
+    run('ticket create -t "Stuck"');
+    run('ticket move TKT-001 build');
+    run('ticket move TKT-001 block "waiting on API"');
     const b = buildBrief(ticketsDir(), sprintsDir());
     expect(b.inFlight).toHaveLength(0);
     expect(b.blocked.map(t => t.id)).toContain('TKT-001');
   });
 
   test('includes active sprints with progress', () => {
-    run('create -t "A"');
-    run('create -t "B"');
+    run('ticket create -t "A"');
+    run('ticket create -t "B"');
     run('sprint new "Batch" TKT-001 TKT-002');
     const b = buildBrief(ticketsDir(), sprintsDir());
     expect(b.sprints).toHaveLength(1);

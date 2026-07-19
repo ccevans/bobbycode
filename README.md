@@ -39,9 +39,9 @@ This scaffolds your project with:
 Then start working:
 
 ```bash
-bobby create -t "Build login page" -p high    # Create a ticket
-bobby create -t "User auth" --epic             # Create an epic (breaks down)
-bobby list                                     # See your board
+bobby ticket create -t "Build login page" -p high    # Create a ticket
+bobby ticket create -t "User auth" --epic             # Create an epic (breaks down)
+bobby ticket list                                     # See your board
 bobby run pipeline TKT-001                    # Run the full pipeline
 bobby dashboard                                # Open the workspace dashboard
 ```
@@ -185,13 +185,13 @@ After `npx bobbycode init`, here's a complete walkthrough:
 ### 1. Create a ticket
 
 ```bash
-bobby create -t "Add health check endpoint" -p medium --area api
+bobby ticket create -t "Add health check endpoint" -p medium --area api
 ```
 
 ### 2. See your board
 
 ```bash
-bobby list
+bobby ticket list
 ```
 
 ```
@@ -233,7 +233,7 @@ Creates a PR, waits for CI, and merges.
 | Situation | Command |
 |-----------|---------|
 | I have a clear task to build | `bobby run pipeline TKT-001` |
-| I have a big feature idea | `bobby create -t "Feature" --epic` then `bobby run feature TKT-001` |
+| I have a big feature idea | `bobby ticket create -t "Feature" --epic` then `bobby run feature TKT-001` |
 | I have a batch of related tickets | `bobby sprint new "Auth overhaul" TKT-004 TKT-007` then `bobby sprint run SPR-001` |
 | I want to review the live app | `bobby run ux` / `bobby run pm` / `bobby run qe` |
 | I want to validate before building | `bobby run vet TKT-001` or `bobby run strategy` |
@@ -269,34 +269,34 @@ Tickets live in `.bobby/tickets/`. Stage is tracked in frontmatter — no physic
 
 ## Command Reference
 
-### Ticket Management
+### Tickets — `bobby ticket` (alias: `bobby tkt`)
+
+Everything that touches a ticket lives under one namespace:
 
 | Command | Description |
 |---------|-------------|
-| `bobby create -t "Title"` | Create a ticket (`--epic`, `--parent <id>`, `-p <priority>`) |
-| `bobby list [stage]` | Show the ticket board (`--blocked`, `--epic <id>`, `--area <area>`) |
-| `bobby view <id>` | View ticket details (`--plan`, `--files`) |
-| `bobby move <id> <alias>` | Move ticket stage (see aliases below) |
-| `bobby update <id>` | Update ticket fields (`--priority`, `--area`, `--title`, `--parent`) |
-| `bobby assign <id> <name>` | Route a ticket to an agent |
-| `bobby comment <id> <note>` | Add a note to a ticket |
+| `bobby ticket create -t "Title"` | Create a ticket (`--epic`, `--parent <id>`, `-p <priority>`) |
+| `bobby ticket list [stage]` | Show the ticket board (`--blocked`, `--epic <id>`, `--area <area>`) |
+| `bobby ticket view <id>` | View ticket details (`--plan`, `--files`) |
+| `bobby ticket move <id> <alias>` | Move ticket stage (see aliases below) |
+| `bobby ticket comment <id> <note>` | Add a note to a ticket |
+| `bobby ticket update <id>` | Update ticket fields (`--priority`, `--area`, `--title`, `--parent`) |
+| `bobby ticket assign <id> <name>` | Route a ticket to an agent |
+| `bobby ticket attach <id> <files>` | Attach screenshots, logs, etc. to a ticket |
+| `bobby ticket triage` | Interactive backlog curation — keep, prioritize, plan, archive, or skip |
+| `bobby ticket archive [ids...]` | Archive stale backlog tickets (`--stale <days>`, `--dry-run`) |
 
 ### Capture & Orientation
 
 | Command | Description |
 |---------|-------------|
 | `bobby idea "..."` | Capture an idea in five seconds, without touching the board |
-| `bobby idea list` | List open ideas (`--all` includes promoted) |
-| `bobby idea promote <n>` | Turn an idea into a backlog ticket (`-p`, `--area`, `--epic`) |
+| `bobby idea list` | List open ideas (`--all` includes promoted, `--inbox` for the global inbox) |
+| `bobby idea promote <n>` | Turn an idea into a backlog ticket (`-p`, `--area`, `--epic`, `--inbox`) |
 | `bobby idea rm <n>` | Delete an idea |
 | `bobby brief` | "Where was I?" — in-flight work, blockers, and the single next action |
-
-### Backlog Management
-
-| Command | Description |
-|---------|-------------|
-| `bobby triage` | Interactive backlog curation — keep, prioritize, plan, archive, or skip each ticket |
-| `bobby archive [ids...]` | Archive stale backlog tickets (`--stale <days>`, `--dry-run`) |
+| `bobby brief --all` | The same, across **every** project on this machine |
+| `bobby projects` | All your Bobby projects, with what each has in flight |
 
 ### Agent Orchestration
 
@@ -324,15 +324,15 @@ Tickets live in `.bobby/tickets/`. Stage is tracked in frontmatter — no physic
 ### Move Aliases
 
 ```
-bobby move TKT-001 plan        # → planning
-bobby move TKT-001 build       # → building
-bobby move TKT-001 review      # → reviewing
-bobby move TKT-001 test        # → testing
-bobby move TKT-001 ship        # → shipping
-bobby move TKT-001 done        # → done
-bobby move TKT-001 reject "reason"   # → building + rejection comment
-bobby move TKT-001 block "reason"    # → blocked (remembers previous stage)
-bobby move TKT-001 unblock           # → back to previous stage
+bobby ticket move TKT-001 plan        # → planning
+bobby ticket move TKT-001 build       # → building
+bobby ticket move TKT-001 review      # → reviewing
+bobby ticket move TKT-001 test        # → testing
+bobby ticket move TKT-001 ship        # → shipping
+bobby ticket move TKT-001 done        # → done
+bobby ticket move TKT-001 reject "reason"   # → building + rejection comment
+bobby ticket move TKT-001 block "reason"    # → blocked (remembers previous stage)
+bobby ticket move TKT-001 unblock           # → back to previous stage
 ```
 
 ## Run Modes
@@ -431,6 +431,31 @@ bobby brief
   Next  — TKT-001 is in building — closest to done
     bobby run review TKT-001
 ```
+
+## Your Studio: Every Project on One Machine
+
+Solo builders rarely have just one project. Bobby treats your whole machine as one studio — all your projects, zero setup:
+
+- **Auto-registration.** Any bobby command run inside a project records it in `~/.bobby/projects.yml`. No setup command, no config.
+- **`bobby projects`** — every project, with in-flight/blocked/backlog counts and when you last touched it.
+- **`bobby brief --all`** — the cross-project standup-of-one: each project's status and its single next action. Running `bobby brief` *outside* any project does this automatically.
+- **Global idea inbox.** `bobby idea "..."` works even outside a project — the idea lands in `~/.bobby/inbox.yml`. Later, from inside whichever project it belongs to: `bobby idea promote <n> --inbox`.
+
+```
+$ bobby brief --all
+
+  All projects — where you left off
+
+  my-app  1 in flight · 3 backlog
+    next: TKT-001 is in building — closest to done
+    bobby run review TKT-001  (in ~/Repos/my-app)
+
+  side-hustle  2 backlog
+    next: Nothing in flight — start the top backlog item (high)
+    bobby run pipeline TKT-014  (in ~/Repos/side-hustle)
+```
+
+Set `BOBBY_NO_REGISTRY=1` to opt out of auto-registration (e.g. in CI).
 
 ## Agents (17)
 

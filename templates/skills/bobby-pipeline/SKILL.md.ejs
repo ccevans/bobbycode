@@ -11,8 +11,8 @@ argument-hint: "<ticket ID(s) to pipeline>"
 ## Before Starting
 
 1. **Ticket selection** — If ticket IDs were provided as arguments, use those. Otherwise, discover and present tickets:
-   a) Run `bobby list planning` and `bobby list backlog` to find tickets ready to start
-   b) Run `bobby list building`, `bobby list reviewing`, `bobby list testing` to find in-progress tickets that can be resumed
+   a) Run `bobby ticket list planning` and `bobby ticket list backlog` to find tickets ready to start
+   b) Run `bobby ticket list building`, `bobby ticket list reviewing`, `bobby ticket list testing` to find in-progress tickets that can be resumed
    c) Present the results to the user in two groups:
 
    **Ready to start:**
@@ -56,7 +56,7 @@ Read `<%= tickets_dir %>/{ID}*/ticket.md` frontmatter to determine the current s
 ### 2. Run the Right Agent
 Based on the current stage, launch the corresponding agent:
 
-- If stage is `backlog`: move to planning first (`bobby move {ID} plan`), then run bobby-plan
+- If stage is `backlog`: move to planning first (`bobby ticket move {ID} plan`), then run bobby-plan
 - If stage is `planning`: run bobby-plan agent
 - If stage is `building`: run bobby-build agent
 - If stage is `reviewing`: run bobby-review agent
@@ -64,10 +64,10 @@ Based on the current stage, launch the corresponding agent:
 - If stage is `shipping`: this ticket is complete — skip to the next ticket
 
 For each agent:
-1. Claim the ticket: `bobby assign {ID} {agent-name}`
+1. Claim the ticket: `bobby ticket assign {ID} {agent-name}`
 2. Read `<%= tickets_dir %>/{ID}*/ticket.md` for context
 3. CRITICAL: Read and follow `<%= paths.agents %>/{agent-name}.md` end-to-end — this file IS the agent's workflow. Do not improvise.
-4. When complete, the agent updates the ticket stage via `bobby move`
+4. When complete, the agent updates the ticket stage via `bobby ticket move`
 
 ### 3. Check Result
 After each agent completes:

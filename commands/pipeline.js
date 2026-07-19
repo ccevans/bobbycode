@@ -77,7 +77,7 @@ export function registerPipeline(program) {
         success(`${existed ? 'Updated' : 'Created'} pipeline "${name}": ${steps.join(' → ')}`);
         console.log(`  Use: bobby run pipeline <ticket> --pipeline ${name}`);
         console.log(`   or: bobby run ${name} <ticket>`);
-        console.log(`   or: bobby create -t "..." --pipeline ${name}`);
+        console.log(`   or: bobby ticket create -t "..." --pipeline ${name}`);
       } catch (e) {
         error(e.message);
         process.exit(1);

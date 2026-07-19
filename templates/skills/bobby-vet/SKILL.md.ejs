@@ -13,7 +13,7 @@ argument-hint: "<ticket ID or idea description>"
 1. **Check learnings** — Read `<%= paths.skills %>/bobby-vet/learnings.md`
 2. **Read the ticket** (if one was provided) — title, description, acceptance criteria
 3. **Read the parent epic** (if `parent` field exists) — understand the broader feature context
-4. **Scan the backlog** — `bobby list backlog` to check for related or duplicate tickets
+4. **Scan the backlog** — `bobby ticket list backlog` to check for related or duplicate tickets
 
 ## Core Methodology: Sequential Interrogation
 
@@ -147,13 +147,13 @@ Use these named techniques to surface hidden complexity. Pick the 3-4 most relev
 cat <%= tickets_dir %>/{ID}*/ticket.md
 
 # View backlog for context
-bobby list backlog
+bobby ticket list backlog
 
 # Add vet comment
-bobby comment {ID} --by bobby-vet "Vet: {summary}"
+bobby ticket comment {ID} --by bobby-vet "Vet: {summary}"
 
 # Create prerequisite ticket
-bobby create -t "Prerequisite: {title}" --type task -p high
+bobby ticket create -t "Prerequisite: {title}" --type task -p high
 
 # Record learning
 bobby learn bobby-vet "pattern" "description"

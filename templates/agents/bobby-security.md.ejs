@@ -22,6 +22,6 @@ Then:
 
 ## Completing Work
 
-- If approved: `bobby comment {ID} --by bobby-security "Security review passed: {summary}"` then output `<bobby:done ticket="{ID}" stage="approved" />`
-- If rejected: `bobby move {ID} reject "SECURITY: {specific vulnerability with exploit scenario}"` then output `<bobby:done ticket="{ID}" stage="building" />`
+- If approved: `bobby ticket comment {ID} --by bobby-security "Security review passed: {summary}"` then output `<bobby:done ticket="{ID}" stage="approved" />`
+- If rejected: `bobby ticket move {ID} reject "SECURITY: {specific vulnerability with exploit scenario}"` then output `<bobby:done ticket="{ID}" stage="building" />`
 - If you discovered a pattern future security reviews should check: `bobby learn bobby-security "pattern" "description"`

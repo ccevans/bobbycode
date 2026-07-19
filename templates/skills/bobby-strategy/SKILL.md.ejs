@@ -12,8 +12,8 @@ argument-hint: "<ticket ID to evaluate, or omit for batch backlog evaluation>"
 
 1. **Check learnings** — Read `<%= paths.skills %>/bobby-strategy/learnings.md`
 2. **Read the ticket** — title, description, acceptance criteria, priority, type, area
-3. **Survey the backlog** — `bobby list backlog --sort priority` to understand relative positioning
-4. **Check in-flight work** — `bobby list planning`, `bobby list building` to see current capacity
+3. **Survey the backlog** — `bobby ticket list backlog --sort priority` to understand relative positioning
+4. **Check in-flight work** — `bobby ticket list planning`, `bobby ticket list building` to see current capacity
 
 ## Investigation First
 
@@ -197,7 +197,7 @@ Do NOT:
 
 When evaluating multiple backlog tickets (no specific ID provided):
 
-1. Run `bobby list backlog --sort priority` to get all backlog tickets
+1. Run `bobby ticket list backlog --sort priority` to get all backlog tickets
 2. Evaluate each ticket through the full framework above
 3. Rank all tickets by total score
 4. Apply decisions based on thresholds
@@ -227,20 +227,20 @@ When evaluating multiple backlog tickets (no specific ID provided):
 cat <%= tickets_dir %>/{ID}*/ticket.md
 
 # View backlog
-bobby list backlog --sort priority
+bobby ticket list backlog --sort priority
 
 # View in-flight work
-bobby list planning
-bobby list building
+bobby ticket list planning
+bobby ticket list building
 
 # Approve to planning
-bobby move {ID} plan
+bobby ticket move {ID} plan
 
 # Add strategy comment
-bobby comment {ID} --by bobby-strategy "STRATEGY: {brief}"
+bobby ticket comment {ID} --by bobby-strategy "STRATEGY: {brief}"
 
 # Archive (kill)
-bobby archive {ID}
+bobby ticket archive {ID}
 
 # Record learning
 bobby learn bobby-strategy "pattern" "description"

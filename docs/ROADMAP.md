@@ -4,6 +4,9 @@
 
 ## Shipped
 
+- **The studio: one machine, many projects.** Auto-registering project registry, `bobby projects`, cross-project `bobby brief --all`, and a global idea inbox capturable from anywhere. Solo builders juggle several projects; Bobby now follows them across the whole studio.
+- **`bobby ticket` namespace.** All ten ticket operations consolidated under one command (alias `tkt`) — the CLI surface reads as a system, not a pile.
+
 - **`bobby idea` / promote.** Five-second idea capture that lives outside the board until promoted to a ticket. Was in the original design spec (2026-03-16); now built.
 - **`bobby brief` — the "where was I?" command.** Reads ticket stages and open sprints and answers: what's in flight, what's blocked, what's the one next action. Positioning principle 2 (the tool carries the context) made into a command.
 - **Sprint language pass.** Help text and the generated `sprint-plan.md` now frame a sprint as *a batch of related tickets riding one branch so main stays clean while a bigger change comes together* — no scrum, no velocity, no ceremony.

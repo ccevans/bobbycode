@@ -22,8 +22,8 @@ describe('bobby sprint', () => {
     fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), YAML.stringify(config));
     fs.mkdirSync(path.join(tmpDir, '.bobby', 'tickets'), { recursive: true });
     fs.writeFileSync(path.join(tmpDir, '.bobby', 'tickets', '.counter'), '0');
-    run('create -t "First ticket"');
-    run('create -t "Second ticket"');
+    run('ticket create -t "First ticket"');
+    run('ticket create -t "Second ticket"');
   });
 
   afterEach(() => { fs.rmSync(tmpDir, { recursive: true }); });

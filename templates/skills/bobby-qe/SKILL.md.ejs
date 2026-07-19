@@ -59,7 +59,7 @@ curl -s -o /dev/null -w "%{http_code}" <your dev server URL> || echo "APP DOWN �
 When acting as QE, check for tickets in the `testing` stage:
 
 ```bash
-bobby list testing
+bobby ticket list testing
 ```
 
 Pick up tickets automatically in priority order (critical > high > medium > low). Don't ask which ticket — just start testing.
@@ -68,14 +68,14 @@ Pick up tickets automatically in priority order (critical > high > medium > low)
 
 For each ticket in testing:
 
-1. **Read the ticket** — `bobby view {ID}` to understand description, acceptance criteria, and dev notes
+1. **Read the ticket** — `bobby ticket view {ID}` to understand description, acceptance criteria, and dev notes
 2. **Read test cases** — check for `test-cases.md` in the ticket folder
 3. **Test against every AC item** — use UI testing, API testing, or both
 4. **Screenshot every AC** — evidence for each, pass or fail
 5. **Write structured test results** — save to `qe/test-results/{date}-{ticket-id}/results.json`
 6. **Move the ticket:**
-   - **All AC pass:** `bobby comment {ID} --by bobby-qe "QE passed"` then `bobby move {ID} ship`
-   - **Any AC fails:** `bobby move {ID} reject "QE failed: {specific failures}"`
+   - **All AC pass:** `bobby ticket comment {ID} --by bobby-qe "QE passed"` then `bobby ticket move {ID} ship`
+   - **Any AC fails:** `bobby ticket move {ID} reject "QE failed: {specific failures}"`
 7. **Proceed to next ticket** — keep going until the testing queue is empty
 
 ---
@@ -222,20 +222,20 @@ backlog -> planning -> building -> reviewing -> testing -> shipping -> done
 
 ```bash
 # View testing queue
-bobby list testing
+bobby ticket list testing
 
 # Pass a ticket
-bobby comment TKT-XXX --by bobby-qe "QE passed: all AC verified"
-bobby move TKT-XXX ship
+bobby ticket comment TKT-XXX --by bobby-qe "QE passed: all AC verified"
+bobby ticket move TKT-XXX ship
 
 # Fail a ticket
-bobby move TKT-XXX reject "QE failed: login form shows no error on invalid password"
+bobby ticket move TKT-XXX reject "QE failed: login form shows no error on invalid password"
 
 # File new bugs found during testing
-bobby create -t "Bug title" --type bug -p high --area auth
+bobby ticket create -t "Bug title" --type bug -p high --area auth
 
 # View board
-bobby list
+bobby ticket list
 ```
 
 ---

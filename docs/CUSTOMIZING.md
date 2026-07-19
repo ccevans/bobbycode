@@ -163,7 +163,7 @@ areas:
   - admin
 ```
 
-Use areas when creating tickets: `bobby create -t "Fix login" --area auth`
+Use areas when creating tickets: `bobby ticket create -t "Fix login" --area auth`
 
 **Skill routing** maps areas to project skill directories, so the build agent loads area-specific conventions:
 

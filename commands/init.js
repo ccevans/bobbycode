@@ -130,7 +130,7 @@ export function scaffoldProject(rootDir, config) {
   // Create tickets/README.md
   const readmePath = path.join(ticketsDir, 'README.md');
   if (!fs.existsSync(readmePath)) {
-    fs.writeFileSync(readmePath, `# ${config.project} — Tickets\n\nManaged by [Bobby](https://github.com/ccevans/bobby). Run \`bobby list\` to see the board.\n`, 'utf8');
+    fs.writeFileSync(readmePath, `# ${config.project} — Tickets\n\nManaged by [Bobby](https://github.com/ccevans/bobby). Run \`bobby ticket list\` to see the board.\n`, 'utf8');
   }
 
   // Initialize counter (only if it doesn't exist)
@@ -707,9 +707,9 @@ export function registerInit(program) {
 
         console.log("  You're ready! Here's how to get started:");
         console.log('');
-        console.log('    bobby create -t "Build login"          # Create a ticket');
-        console.log('    bobby create -t "Big feature" --epic   # Create an epic');
-        console.log('    bobby list                             # See your board');
+        console.log('    bobby ticket create -t "Build login"          # Create a ticket');
+        console.log('    bobby ticket create -t "Big feature" --epic   # Create an epic');
+        console.log('    bobby ticket list                             # See your board');
         console.log('    bobby run pipeline TKT-001             # Run the full pipeline');
         console.log('');
         console.log('  Tell Claude: "work tickets" and it\'ll pick up from the queue.');

@@ -6,7 +6,7 @@ import os from 'os';
 import YAML from 'yaml';
 import matter from 'gray-matter';
 
-describe('bobby create', () => {
+describe('bobby ticket create', () => {
   let tmpDir;
   const bobby = path.resolve('bin/bobby.js');
 
@@ -29,7 +29,7 @@ describe('bobby create', () => {
   });
 
   test('creates a ticket in the tickets directory', () => {
-    execSync(`node ${bobby} create -t "Fix login" --type bug -p high`, { cwd: tmpDir });
+    execSync(`node ${bobby} ticket create -t "Fix login" --type bug -p high`, { cwd: tmpDir });
     const entries = fs.readdirSync(path.join(tmpDir, '.bobby', 'tickets'))
       .filter(e => e.startsWith('TKT-'));
     expect(entries.length).toBe(1);
@@ -44,7 +44,7 @@ describe('bobby create', () => {
   });
 
   test('creates an epic with --epic flag', () => {
-    execSync(`node ${bobby} create -t "Big feature" --epic`, { cwd: tmpDir });
+    execSync(`node ${bobby} ticket create -t "Big feature" --epic`, { cwd: tmpDir });
     const entries = fs.readdirSync(path.join(tmpDir, '.bobby', 'tickets'))
       .filter(e => e.startsWith('TKT-'));
     expect(entries.length).toBe(1);
@@ -55,7 +55,7 @@ describe('bobby create', () => {
   });
 
   test('creates a ticket with --parent flag', () => {
-    execSync(`node ${bobby} create -t "Sub task" --parent TKT-001`, { cwd: tmpDir });
+    execSync(`node ${bobby} ticket create -t "Sub task" --parent TKT-001`, { cwd: tmpDir });
     const entries = fs.readdirSync(path.join(tmpDir, '.bobby', 'tickets'))
       .filter(e => e.startsWith('TKT-'));
 
@@ -66,7 +66,7 @@ describe('bobby create', () => {
 
   test('fails without title', () => {
     expect(() => {
-      execSync(`node ${bobby} create`, { cwd: tmpDir, stdio: 'pipe' });
+      execSync(`node ${bobby} ticket create`, { cwd: tmpDir, stdio: 'pipe' });
     }).toThrow();
   });
 });

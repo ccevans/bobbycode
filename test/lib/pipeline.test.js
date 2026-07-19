@@ -24,8 +24,8 @@ describe('pipeline', () => {
 
   test('buildSingleAgentPrompt includes claim step', () => {
     const prompt = buildSingleAgentPrompt('bobby-plan', 'TKT-001');
-    expect(prompt).toContain('bobby assign TKT-001 bobby-plan');
-    expect(prompt).toContain('bobby move');
+    expect(prompt).toContain('bobby ticket assign TKT-001 bobby-plan');
+    expect(prompt).toContain('bobby ticket move');
   });
 
   test('buildSingleAgentPrompt includes service hint when hasServices is true', () => {
@@ -61,7 +61,7 @@ describe('pipeline', () => {
 
     const prompt = buildNextStepPrompt('TKT-001', DEFAULT_PIPELINE, tmpDir);
     expect(prompt).toContain('in backlog');
-    expect(prompt).toContain('bobby move TKT-001 plan');
+    expect(prompt).toContain('bobby ticket move TKT-001 plan');
   });
 
   test('buildNextStepPrompt handles blocked', () => {
@@ -221,9 +221,9 @@ describe('pipeline', () => {
       expect(prompt).not.toMatch(/^\s*c\) Follow the instructions in/m);
     });
 
-    test('includes bobby create guardrail', () => {
+    test('includes bobby ticket create guardrail', () => {
       const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
-      expect(prompt).toContain('bobby create');
+      expect(prompt).toContain('bobby ticket create');
       expect(prompt).toContain('Never write ticket files manually');
     });
 
@@ -253,7 +253,7 @@ describe('pipeline', () => {
       expect(prompt).toContain('"blocked"');
       expect(prompt).toContain('"backlog"');
       // Backlog gate advances to the first pipeline stage (planning, by default)
-      expect(prompt).toContain('bobby move {TICKET_ID} planning');
+      expect(prompt).toContain('bobby ticket move {TICKET_ID} planning');
     });
 
     test('backlog gate uses the first stage of a custom pipeline', () => {
@@ -262,8 +262,8 @@ describe('pipeline', () => {
         { stage: 'testing', agent: 'bobby-test' },
       ];
       const prompt = buildOrchestrationPrompt('TKT-001', customPipeline);
-      expect(prompt).toContain('bobby move {TICKET_ID} building');
-      expect(prompt).not.toContain('bobby move {TICKET_ID} planning');
+      expect(prompt).toContain('bobby ticket move {TICKET_ID} building');
+      expect(prompt).not.toContain('bobby ticket move {TICKET_ID} planning');
     });
 
     test('catch-all instructs warn-not-skip for unhandled stages', () => {
@@ -288,7 +288,7 @@ describe('pipeline', () => {
 
     test('includes claim step', () => {
       const prompt = buildSecurityPrompt('TKT-001');
-      expect(prompt).toContain('bobby assign TKT-001 bobby-security');
+      expect(prompt).toContain('bobby ticket assign TKT-001 bobby-security');
     });
 
     test('uses custom ticketsDir', () => {
@@ -321,7 +321,7 @@ describe('pipeline', () => {
 
     test('includes claim step', () => {
       const prompt = buildDebugPrompt('TKT-001');
-      expect(prompt).toContain('bobby assign TKT-001 bobby-debug');
+      expect(prompt).toContain('bobby ticket assign TKT-001 bobby-debug');
     });
   });
 
@@ -495,7 +495,7 @@ describe('pipeline', () => {
     test('includes holistic verification step', () => {
       const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
       expect(prompt).toContain('full test suite one final time');
-      expect(prompt).toContain('bobby move TKT-001 ship');
+      expect(prompt).toContain('bobby ticket move TKT-001 ship');
     });
 
     test('includes inter-ticket test instructions', () => {
@@ -770,7 +770,7 @@ describe('pipeline', () => {
       expect(p).toContain('"done"');
       expect(p).toContain('"blocked"');
       expect(p).toContain('"backlog"');
-      expect(p).toContain('bobby move {TICKET_ID} planning');
+      expect(p).toContain('bobby ticket move {TICKET_ID} planning');
     });
 
     test('backlog gate uses the first stage of a custom pipeline', () => {
@@ -779,8 +779,8 @@ describe('pipeline', () => {
         { stage: 'testing', agent: 'bobby-test' },
       ];
       const p = buildSprintPrompt(sprint, tickets, customPipeline);
-      expect(p).toContain('bobby move {TICKET_ID} building');
-      expect(p).not.toContain('bobby move {TICKET_ID} planning');
+      expect(p).toContain('bobby ticket move {TICKET_ID} building');
+      expect(p).not.toContain('bobby ticket move {TICKET_ID} planning');
     });
 
     test('catch-all instructs warn-not-skip for unhandled stages', () => {

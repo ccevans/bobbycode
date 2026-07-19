@@ -30,27 +30,27 @@ Stage is tracked in `ticket.md` frontmatter — no physical file moves.
 
 | Action | Command |
 |--------|---------|
-| Create ticket | `bobby create -t "Title" --type feature -p medium` |
-| Create epic | `bobby create -t "Big feature" --epic` |
-| View board | `bobby list` |
-| View stage | `bobby list building` |
-| View blocked | `bobby list --blocked` |
-| View epic children | `bobby list --epic TKT-001` |
-| View ticket | `bobby view TKT-001` |
-| View plan | `bobby view TKT-001 --plan` |
-| View files | `bobby view TKT-001 --files` |
-| Move to stage | `bobby move TKT-001 build` |
-| Reject (back to building) | `bobby move TKT-001 reject "reason"` |
-| Block | `bobby move TKT-001 block "reason"` |
-| Unblock | `bobby move TKT-001 unblock` |
+| Create ticket | `bobby ticket create -t "Title" --type feature -p medium` |
+| Create epic | `bobby ticket create -t "Big feature" --epic` |
+| View board | `bobby ticket list` |
+| View stage | `bobby ticket list building` |
+| View blocked | `bobby ticket list --blocked` |
+| View epic children | `bobby ticket list --epic TKT-001` |
+| View ticket | `bobby ticket view TKT-001` |
+| View plan | `bobby ticket view TKT-001 --plan` |
+| View files | `bobby ticket view TKT-001 --files` |
+| Move to stage | `bobby ticket move TKT-001 build` |
+| Reject (back to building) | `bobby ticket move TKT-001 reject "reason"` |
+| Block | `bobby ticket move TKT-001 block "reason"` |
+| Unblock | `bobby ticket move TKT-001 unblock` |
 | Step through stages (slow) | `bobby run next TKT-001` |
 | Auto-chain all agents (fast) | `bobby run pipeline TKT-001` |
 | Run agent on all in stage | `bobby run plan` (no ticket ID) |
 | Ship | `bobby run ship` |
 | UX design review | `bobby run ux` |
 | PM product review | `bobby run pm` |
-| Add comment | `bobby comment TKT-001 "note"` |
-| Assign | `bobby assign TKT-001 name` |
+| Add comment | `bobby ticket comment TKT-001 "note"` |
+| Assign | `bobby ticket assign TKT-001 name` |
 
 ## Running Agents
 

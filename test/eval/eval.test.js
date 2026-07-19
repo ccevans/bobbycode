@@ -67,7 +67,7 @@ describe('eval: buildSingleAgentPrompt', () => {
   const prompt = buildSingleAgentPrompt('bobby-build', 'TKT-042', '.bobby/tickets');
 
   test('includes claim step', () => {
-    expect(prompt).toContain('bobby assign TKT-042 bobby-build');
+    expect(prompt).toContain('bobby ticket assign TKT-042 bobby-build');
   });
 
   test('includes read ticket step', () => {
@@ -174,7 +174,7 @@ describe('eval: buildShipPrompt', () => {
 
   test('includes shipping list check', () => {
     const prompt = buildShipPrompt('.bobby/tickets', []);
-    expect(prompt).toContain('bobby list shipping');
+    expect(prompt).toContain('bobby ticket list shipping');
   });
 });
 
@@ -217,7 +217,7 @@ describe('eval: freeform agent prompts', () => {
   test('QE prompt references testing queue', () => {
     const prompt = buildQePrompt();
     expect(prompt).toContain('bobby-qe');
-    expect(prompt).toContain('bobby list testing');
+    expect(prompt).toContain('bobby ticket list testing');
   });
 });
 

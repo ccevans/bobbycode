@@ -6,7 +6,24 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed — BREAKING
+- **All ticket operations moved under `bobby ticket` (alias `bobby tkt`).**
+  `bobby create` → `bobby ticket create`, and likewise for `list`, `view`,
+  `move`, `comment`, `update`, `assign`, `attach`, `archive`, `triage`.
+  The old top-level commands are removed (pre-1.0, pre-publication break).
+  All skills, agent prompts, and templates have been updated to the new paths —
+  re-run `bobby init` in existing projects to refresh scaffolded skills.
+
 ### Added
+- **Studio: one machine, many projects.**
+  - Projects auto-register in `~/.bobby/projects.yml` whenever a bobby command
+    runs inside them (opt out with `BOBBY_NO_REGISTRY=1`).
+  - `bobby projects` — every project with in-flight/blocked/backlog counts.
+  - `bobby brief --all` — the cross-project standup-of-one; bare `bobby brief`
+    outside any project does this automatically.
+  - Global idea inbox: `bobby idea` outside a project captures to
+    `~/.bobby/inbox.yml`; promote into a project with
+    `bobby idea promote <n> --inbox`.
 - `bobby idea` / `bobby idea promote` — five-second capture for ideas that arrive
   mid-task, kept out of the ticket board until you promote them.
 - `bobby brief` — the "where was I?" command: summarizes in-flight tickets, open

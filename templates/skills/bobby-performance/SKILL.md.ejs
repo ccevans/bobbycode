@@ -106,5 +106,5 @@ Branch: {branch}
 | /settings | 200ms (+40%) | ... | ... | ... | ... | ⚠ TTFB regression |
 ```
 
-4. If regressions found: `bobby create -t "PERF: {page} load time regressed {%}" --type bug -p high`
+4. If regressions found: `bobby ticket create -t "PERF: {page} load time regressed {%}" --type bug -p high`
 5. If you discovered a pattern: `bobby learn bobby-performance "pattern" "description"`

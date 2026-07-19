@@ -51,7 +51,7 @@ Generate 3 approaches, then score each on these dimensions (1-5 scale) — scori
 ### Step 2: Auto-Select or Escalate
 
 - **Auto-select**: Pick the highest-scoring approach. Bias toward minimal fix.
-- **Escalate** (`bobby move {ID} block "Approach decision needed"`) ONLY if:
+- **Escalate** (`bobby ticket move {ID} block "Approach decision needed"`) ONLY if:
   - Top two scores are within 5 points of each other, OR
   - A lower-effort option scores 10+ points below a long-term option on Maintainability alone
 
@@ -71,13 +71,13 @@ Save a spec in the epic ticket's `plan.md`:
 Break the spec into tickets:
 - Each ticket is independently deliverable
 - Order by dependency
-- Use: `bobby create -t "Title" --type feature -p medium --parent {EPIC_ID}`
+- Use: `bobby ticket create -t "Title" --type feature -p medium --parent {EPIC_ID}`
 
 ### Completing Epic Mode
 
 - `plan.md` saved in epic ticket folder
 - Child tickets created in backlog with `parent` field set
-- Add comment: `bobby comment {EPIC_ID} --by bobby-plan "Broke down into {N} tickets"`
+- Add comment: `bobby ticket comment {EPIC_ID} --by bobby-plan "Broke down into {N} tickets"`
 
 ---
 
@@ -91,7 +91,7 @@ Before planning this ticket, build a picture of the whole feature:
 
 1. **Read the parent epic** — Read `<%= tickets_dir %>/{parent}*/ticket.md` and `<%= tickets_dir %>/{parent}*/plan.md` to understand the overall feature goal
 2. **Read the feature plan** — Read `<%= tickets_dir %>/{parent}*/feature-plan.md` if it exists. This captures cross-cutting decisions from previously planned sibling tickets.
-3. **Read sibling plans** — Run `bobby list --epic {parent}` to discover sibling tickets. For each sibling, read `<%= tickets_dir %>/{sibling}*/plan.md` if it exists.
+3. **Read sibling plans** — Run `bobby ticket list --epic {parent}` to discover sibling tickets. For each sibling, read `<%= tickets_dir %>/{sibling}*/plan.md` if it exists.
 4. **Summarize context** — Before generating approaches, note:
    - What shared utilities or components already exist or are planned
    - Naming conventions and patterns established by siblings
@@ -116,7 +116,7 @@ Generate 2-3 possible approaches. Score each on these dimensions (1-5 scale):
 | Maintainability | 2x | Long-term code health, readability |
 | Impact | 1x | User-facing value delivered |
 
-**Auto-select** the highest-scoring approach. When scoring, consider **consistency with sibling plans** — an approach that reuses patterns from siblings scores higher on Maintainability. Only escalate (`bobby move {ID} block "Approach decision needed"`) if the top two are within 5 points or a long-term option dominates Maintainability by 10+.
+**Auto-select** the highest-scoring approach. When scoring, consider **consistency with sibling plans** — an approach that reuses patterns from siblings scores higher on Maintainability. Only escalate (`bobby ticket move {ID} block "Approach decision needed"`) if the top two are within 5 points or a long-term option dominates Maintainability by 10+.
 
 Create `plan.md` in the ticket folder:
 
@@ -214,7 +214,7 @@ Add to ticket frontmatter or comment:
 2. Verify `test-cases.md` has coverage
 3. Verify `feature-plan.md` was created or updated
 4. If you discovered anything non-obvious or a pattern future planning should avoid: `bobby learn bobby-plan "pattern" "description"`
-5. Move ticket: `bobby move {ID} build`
+5. Move ticket: `bobby ticket move {ID} build`
 
 ---
 
@@ -237,7 +237,7 @@ Generate 2-3 possible approaches. Score each on these dimensions (1-5 scale):
 | Maintainability | 2x | Long-term code health, readability |
 | Impact | 1x | User-facing value delivered |
 
-**Auto-select** the highest-scoring approach. Only escalate (`bobby move {ID} block "Approach decision needed"`) if the top two are within 5 points or a long-term option dominates Maintainability by 10+.
+**Auto-select** the highest-scoring approach. Only escalate (`bobby ticket move {ID} block "Approach decision needed"`) if the top two are within 5 points or a long-term option dominates Maintainability by 10+.
 
 Create `plan.md` in the ticket folder:
 
@@ -304,7 +304,7 @@ Add to ticket frontmatter or comment:
 1. Verify `plan.md` exists and is complete
 2. Verify `test-cases.md` has coverage
 3. If you discovered anything non-obvious or a pattern future planning should avoid: `bobby learn bobby-plan "pattern" "description"`
-4. Move ticket: `bobby move {ID} build`
+4. Move ticket: `bobby ticket move {ID} build`
 
 ## Feature Areas
 

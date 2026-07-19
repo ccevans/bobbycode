@@ -253,8 +253,8 @@ File findings into the ticket system so improvements get tracked and built.
 For small improvements — spacing tweaks, color fixes, missing hover states:
 
 ```bash
-bobby create -t "Dashboard cards missing hover state feedback" --type improvement --area dashboard
-bobby create -t "Login page uses white background instead of brand color" --type improvement --area auth
+bobby ticket create -t "Dashboard cards missing hover state feedback" --type improvement --area dashboard
+bobby ticket create -t "Login page uses white background instead of brand color" --type improvement --area auth
 ```
 
 ### Significant Issues
@@ -262,7 +262,7 @@ bobby create -t "Login page uses white background instead of brand color" --type
 For significant design issues that need planning:
 
 ```bash
-bobby create -t "Onboarding stepper lacks progress feedback and mobile layout" --type improvement -p high --area onboarding
+bobby ticket create -t "Onboarding stepper lacks progress feedback and mobile layout" --type improvement -p high --area onboarding
 ```
 
 Then open the ticket and fill in description, acceptance criteria, and attach screenshots.
@@ -282,16 +282,16 @@ Always produce:
 
 ```bash
 # File findings
-bobby create -t "Title" --type improvement --area dashboard
+bobby ticket create -t "Title" --type improvement --area dashboard
 
 # Create critical bugs
-bobby create -t "Title" --type bug -p critical --area auth
+bobby ticket create -t "Title" --type bug -p critical --area auth
 
 # View board
-bobby list
+bobby ticket list
 
 # View backlog
-bobby list backlog
+bobby ticket list backlog
 ```
 
 ---
@@ -339,6 +339,6 @@ Whenever the designer proposes or approves design changes that affect brand toke
 - **Compare pages side-by-side** — open two tabs and screenshot both to spot inconsistencies.
 - **Look for the details** — shadow consistency, border radius, spacing between elements, icon sizing. These separate polished from amateur.
 - **Think in flows, not pages** — walk a complete user journey. Transitions between pages should feel cohesive.
-- **File it or lose it** — every finding goes into `bobby create`. Don't let insights die in chat.
+- **File it or lose it** — every finding goes into `bobby ticket create`. Don't let insights die in chat.
 - **Trust what you see** — if it looks wrong in the browser, it IS wrong. The rendered output is the truth.
 - **Reference the brand guide** — when in doubt, check `references/brand_guidelines.md` for the canonical token values.

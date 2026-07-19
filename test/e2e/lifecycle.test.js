@@ -26,53 +26,53 @@ describe('E2E: full ticket lifecycle', () => {
 
   test('create → move through stages → done', () => {
     // Create a ticket
-    run('create -t "Add login page" --area auth');
+    run('ticket create -t "Add login page" --area auth');
 
     // TKT-001 should be in backlog
-    let output = run('list backlog');
+    let output = run('ticket list backlog');
     expect(output).toContain('TKT-001');
 
     // Move through the lifecycle using aliases
-    run('move TKT-001 plan');
-    run('move TKT-001 build');
-    run('comment TKT-001 "Implemented login form" --by dev');
-    run('move TKT-001 review');
-    run('move TKT-001 test');
-    run('move TKT-001 ship');
-    run('move TKT-001 done');
+    run('ticket move TKT-001 plan');
+    run('ticket move TKT-001 build');
+    run('ticket comment TKT-001 "Implemented login form" --by dev');
+    run('ticket move TKT-001 review');
+    run('ticket move TKT-001 test');
+    run('ticket move TKT-001 ship');
+    run('ticket move TKT-001 done');
 
     // Should be in done
-    output = run('list done');
+    output = run('ticket list done');
     expect(output).toContain('TKT-001');
 
     // View should show the ticket
-    output = run('view TKT-001');
+    output = run('ticket view TKT-001');
     expect(output).toContain('done');
   });
 
   test('create → build → reject → rebuild → review lifecycle', () => {
-    run('create -t "Fix bug" --type bug -p high');
-    run('move TKT-001 plan');
-    run('move TKT-001 build');
-    run('move TKT-001 review');
-    run('move TKT-001 reject "Still broken"');
+    run('ticket create -t "Fix bug" --type bug -p high');
+    run('ticket move TKT-001 plan');
+    run('ticket move TKT-001 build');
+    run('ticket move TKT-001 review');
+    run('ticket move TKT-001 reject "Still broken"');
 
     // Reject moves back to building
-    let output = run('list building');
+    let output = run('ticket list building');
     expect(output).toContain('TKT-001');
 
     // Can move back to review
-    run('move TKT-001 review');
-    output = run('list reviewing');
+    run('ticket move TKT-001 review');
+    output = run('ticket list reviewing');
     expect(output).toContain('TKT-001');
   });
 
   test('block and unblock', () => {
-    run('create -t "Blocked ticket" --type feature');
-    run('move TKT-001 build');
-    run('move TKT-001 block "Waiting on API access"');
+    run('ticket create -t "Blocked ticket" --type feature');
+    run('ticket move TKT-001 build');
+    run('ticket move TKT-001 block "Waiting on API access"');
 
-    let output = run('list blocked');
+    let output = run('ticket list blocked');
     expect(output).toContain('TKT-001');
 
     // Verify blocked metadata via frontmatter
@@ -85,13 +85,13 @@ describe('E2E: full ticket lifecycle', () => {
     expect(data.previous_stage).toBe('building');
 
     // Unblock restores to previous stage
-    run('move TKT-001 unblock');
-    output = run('list building');
+    run('ticket move TKT-001 unblock');
+    output = run('ticket list building');
     expect(output).toContain('TKT-001');
   });
 
   test('retro and learn', () => {
-    run('create -t "Retro test" --type bug -p high');
+    run('ticket create -t "Retro test" --type bug -p high');
     run('retro TKT-001 "missing-validation"');
 
     const retroDir = path.join(tmpDir, '.bobby', 'tickets', 'retrospectives');
@@ -107,24 +107,24 @@ describe('E2E: full ticket lifecycle', () => {
   });
 
   test('run next shows stage-aware prompt', () => {
-    run('create -t "Next test"');
+    run('ticket create -t "Next test"');
 
     // Backlog → tells you to move to planning
     let output = run('run next TKT-001');
     expect(output).toContain('in backlog');
-    expect(output).toContain('bobby move TKT-001 plan');
+    expect(output).toContain('bobby ticket move TKT-001 plan');
 
     // Move to planning → shows bobby-plan prompt
-    run('move TKT-001 plan');
+    run('ticket move TKT-001 plan');
     output = run('run next TKT-001');
     expect(output).toContain('bobby-plan');
   });
 
   test('run batch finds tickets in stage', () => {
-    run('create -t "Batch A"');
-    run('create -t "Batch B"');
-    run('move TKT-001 plan');
-    run('move TKT-002 plan');
+    run('ticket create -t "Batch A"');
+    run('ticket create -t "Batch B"');
+    run('ticket move TKT-001 plan');
+    run('ticket move TKT-002 plan');
 
     const output = run('run plan');
     expect(output).toContain('2 ticket(s) in planning');
@@ -133,11 +133,11 @@ describe('E2E: full ticket lifecycle', () => {
   });
 
   test('run batch skips assigned tickets', () => {
-    run('create -t "Assigned"');
-    run('create -t "Available"');
-    run('move TKT-001 plan');
-    run('move TKT-002 plan');
-    run('assign TKT-001 bobby-plan');
+    run('ticket create -t "Assigned"');
+    run('ticket create -t "Available"');
+    run('ticket move TKT-001 plan');
+    run('ticket move TKT-002 plan');
+    run('ticket assign TKT-001 bobby-plan');
 
     const output = run('run plan');
     expect(output).toContain('1 ticket(s) in planning');
@@ -146,12 +146,12 @@ describe('E2E: full ticket lifecycle', () => {
   });
 
   test('move clears assignment', () => {
-    run('create -t "Clear assign"');
-    run('assign TKT-001 bobby-plan');
-    run('move TKT-001 plan');
+    run('ticket create -t "Clear assign"');
+    run('ticket assign TKT-001 bobby-plan');
+    run('ticket move TKT-001 plan');
 
     // After move, assignment should be cleared
-    const output = run('view TKT-001');
+    const output = run('ticket view TKT-001');
     // assigned should be empty/null after move
     expect(output).not.toContain('bobby-plan');
   });
@@ -175,9 +175,9 @@ describe('E2E: full ticket lifecycle', () => {
   });
 
   test('run feature with epic and children produces prompt', () => {
-    run('create -t "Auth system" --epic');
-    run('create -t "Login page" --parent TKT-001 -p high');
-    run('create -t "Signup page" --parent TKT-001 -p medium');
+    run('ticket create -t "Auth system" --epic');
+    run('ticket create -t "Login page" --parent TKT-001 -p high');
+    run('ticket create -t "Signup page" --parent TKT-001 -p medium');
 
     const output = run('run feature TKT-001');
     expect(output).toContain('Bobby Feature');
@@ -190,20 +190,20 @@ describe('E2E: full ticket lifecycle', () => {
   });
 
   test('run feature errors on non-epic ticket', () => {
-    run('create -t "Not an epic"');
+    run('ticket create -t "Not an epic"');
     expect(() => run('run feature TKT-001')).toThrow();
   });
 
   test('run feature errors on epic with no children', () => {
-    run('create -t "Empty epic" --epic');
+    run('ticket create -t "Empty epic" --epic');
     expect(() => run('run feature TKT-001')).toThrow();
   });
 
   test('run feature orders in-progress tickets first', () => {
-    run('create -t "My feature" --epic');
-    run('create -t "Backlog task" --parent TKT-001 -p high');
-    run('create -t "Building task" --parent TKT-001 -p low');
-    run('move TKT-003 build');
+    run('ticket create -t "My feature" --epic');
+    run('ticket create -t "Backlog task" --parent TKT-001 -p high');
+    run('ticket create -t "Building task" --parent TKT-001 -p low');
+    run('ticket move TKT-003 build');
 
     const output = run('run feature TKT-001');
     // TKT-003 (building) should appear before TKT-002 (backlog)
@@ -213,7 +213,7 @@ describe('E2E: full ticket lifecycle', () => {
   });
 
   test('create epic and child tickets', () => {
-    run('create -t "Big feature" --epic');
+    run('ticket create -t "Big feature" --epic');
 
     // Verify epic type in frontmatter
     const ticketsDir = path.join(tmpDir, '.bobby', 'tickets');
@@ -223,7 +223,7 @@ describe('E2E: full ticket lifecycle', () => {
     expect(data.type).toBe('epic');
 
     // Create child ticket
-    run('create -t "Sub task" --parent TKT-001');
+    run('ticket create -t "Sub task" --parent TKT-001');
     const childEntries = fs.readdirSync(ticketsDir).filter(e => e.startsWith('TKT-002'));
     const childFile = path.join(ticketsDir, childEntries[0], 'ticket.md');
     const childData = matter(fs.readFileSync(childFile, 'utf8')).data;
@@ -231,13 +231,13 @@ describe('E2E: full ticket lifecycle', () => {
   });
 
   test('auto-advance epic when all children reach same stage', () => {
-    run('create -t "Auto epic" --epic');
-    run('create -t "Child A" --parent TKT-001');
-    run('create -t "Child B" --parent TKT-001');
+    run('ticket create -t "Auto epic" --epic');
+    run('ticket create -t "Child A" --parent TKT-001');
+    run('ticket create -t "Child B" --parent TKT-001');
 
     // Move both children to shipping
-    run('move TKT-002 shipping');
-    run('move TKT-003 shipping');
+    run('ticket move TKT-002 shipping');
+    run('ticket move TKT-003 shipping');
 
     // Epic should have auto-advanced to shipping
     const ticketsDir = path.join(tmpDir, '.bobby', 'tickets');
