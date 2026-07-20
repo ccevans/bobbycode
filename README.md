@@ -26,6 +26,24 @@ bobby init
 
 Requires Node.js 18+ (you already have it if you use Claude Code).
 
+## Start From an Idea
+
+Got a new idea and nothing built yet? One command turns a sentence into a scaffolded project with an MVP epic ready to build:
+
+```bash
+npx bobbycode new "a habit tracker for runners"
+```
+
+This creates the directory, scaffolds Bobby, captures your idea as the MVP epic, and makes the first commit. Then:
+
+```bash
+cd a-habit-tracker-for-runners
+bobby run plan TKT-001       # break the idea into MVP tickets
+bobby run feature TKT-001    # build them on one branch
+```
+
+Pick a stack with `--stack nextjs` (or `go`, `django`, …) and a name with `--dir`. Already have a project? Use `init` below instead.
+
 ## Quick Start — Three Verbs
 
 ```bash
@@ -293,6 +311,7 @@ Everything that touches a ticket lives under one namespace:
 
 | Command | Description |
 |---------|-------------|
+| `bobby new "idea"` | Spin up a brand-new project from an idea — scaffolds Bobby + an MVP epic (`--dir`, `--stack`) |
 | `bobby go` | Do the most valuable next thing (finish in-flight → unblock → start backlog) |
 | `bobby go "title"` | Create a ticket and run the full pipeline on it, one step (`-p <priority>`) |
 | `bobby go <id>` | Run the pipeline on a specific ticket |

@@ -32,10 +32,12 @@ import { registerIdea } from '../commands/idea.js';
 import { registerBrief } from '../commands/brief.js';
 import { registerProjects } from '../commands/projects.js';
 import { registerGo } from '../commands/go.js';
+import { registerNew } from '../commands/new.js';
 import { touchProject } from '../lib/studio.js';
 
 const initCmd = registerInit(program);
 registerLocalInit(initCmd); // bobby init local
+registerNew(program);
 registerGo(program);
 registerBrief(program);
 registerIdea(program);
@@ -55,7 +57,7 @@ registerUpgrade(program);
 // Progressive help: the default help shows the founder-facing core; power/agent
 // plumbing stays fully functional but appears via `bobby help <cmd>` or the
 // footer below. Everything still tab-completes and errors helpfully.
-const CORE_COMMANDS = ['init', 'go', 'brief', 'idea', 'ticket', 'sprint', 'run', 'dashboard'];
+const CORE_COMMANDS = ['init', 'new', 'go', 'brief', 'idea', 'ticket', 'sprint', 'run', 'dashboard'];
 program.configureHelp({
   visibleCommands: (cmd) =>
     cmd.parent === null // only filter the ROOT help; subcommand help lists everything

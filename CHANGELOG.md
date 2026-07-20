@@ -6,6 +6,12 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **`bobby new "<idea>"`** — the 0→1 on-ramp. Turns a one-line idea into a
+  scaffolded project with an MVP epic (idea baked into its description) and an
+  initial commit, then hands off to `bobby run plan` → `bobby run feature`.
+  Options: `--dir <name>`, `--stack <preset>`.
+
 ## [1.0.0] — 2026-07-19
 
 First public release. Bobby is a full SDLC workflow for a solo developer — one
