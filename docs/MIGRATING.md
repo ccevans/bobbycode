@@ -43,7 +43,7 @@ bobby ticket move TKT-001 build                     # Move tickets manually
 bobby ticket comment TKT-001 "Found the root cause" # Add notes
 ```
 
-Ignore `bobby run pipeline` entirely. The agents are there when you're ready for them.
+Ignore `bobby run workflow` entirely. The agents are there when you're ready for them.
 
 ## I just want the pipeline on existing work
 
@@ -77,7 +77,7 @@ A recommended progression for teams trying Bobby for the first time:
 - Decide if the planning output is useful
 
 **Week 3: Try the full pipeline**
-- Run `bobby run pipeline TKT-001` end-to-end on one ticket
+- Run `bobby run workflow TKT-001` end-to-end on one ticket
 - Watch how agents hand off and what happens on rejection
 - Use `bobby learn` to record any patterns you notice
 
@@ -97,13 +97,13 @@ If you want a shorter pipeline without code review:
 
 ```yaml
 # .bobbyrc.yml
-pipelines:
+workflows:
   default: [plan, build, test]
 ```
 
 Or skip testing too:
 
 ```yaml
-pipelines:
+workflows:
   default: [plan, build]
 ```

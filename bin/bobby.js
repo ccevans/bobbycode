@@ -26,7 +26,7 @@ import { registerSession } from '../commands/session.js';
 import { registerSync } from '../commands/sync.js';
 import { registerLocalInit } from '../commands/local-init.js';
 import { registerDashboard } from '../commands/dashboard.js';
-import { registerPipeline } from '../commands/pipeline.js';
+import { registerWorkflow } from '../commands/workflow.js';
 import { registerSprint } from '../commands/sprint.js';
 import { registerIdea } from '../commands/idea.js';
 import { registerBrief } from '../commands/brief.js';
@@ -48,7 +48,7 @@ registerIdea(program);
 registerTicket(program);
 registerSprint(program);
 registerRun(program);
-registerPipeline(program);
+registerWorkflow(program);
 registerRetro(program);
 registerLearn(program);
 registerProjects(program);
@@ -65,7 +65,7 @@ registerUpgrade(program);
 // else is listed compactly below and still works + has its own --help.
 const ESSENTIAL = ['do', 'new', 'go', 'init'];
 const EVERYDAY = ['vet', 'brief', 'idea', 'ticket', 'sprint', 'run', 'dashboard'];
-const POWER = ['pipeline', 'retro', 'learn', 'projects', 'session', 'sync', 'export', 'upgrade'];
+const POWER = ['workflow', 'retro', 'learn', 'projects', 'session', 'sync', 'export', 'upgrade'];
 program.configureHelp({
   visibleCommands: (cmd) =>
     cmd.parent === null // only filter the ROOT help; subcommand help lists everything

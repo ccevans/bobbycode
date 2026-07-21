@@ -110,25 +110,25 @@ All agents must follow these rules. Violations are treated as critical failures.
 - Implement exactly what the plan specifies. Prefer minimal solutions over overengineered ones.
 - **Always use `bobby ticket create` to make tickets.** Never write ticket files or the `.counter` file manually — the CLI handles frontmatter structure, slug generation, counter atomicity, and starter `test-cases.md`.
 - **Never suppress errors** in bobby commands (no `2>/dev/null`, no `|| true`). If a command fails, investigate the cause.
-- **The ticket stage is the sole progress tracker.** Do not create separate task/todo lists to track pipeline progress — read `ticket.md` frontmatter to know what stage a ticket is in.
+- **The ticket stage is the sole progress tracker.** Do not create separate task/todo lists to track workflow progress — read `ticket.md` frontmatter to know what stage a ticket is in.
 
-## Pipeline
+## Workflows
 
-- **Fast mode:** `bobby run pipeline TKT-001` — auto-chains all agents
+A workflow is the ordered set of stages a ticket runs through. Built-in: **default** (plan→build→review→test), **secure** (adds a security stage), **quick** (plan→build→test).
+
+- **Run one:** `bobby run workflow TKT-001` — auto-chains the default workflow
+- **Named workflow:** `bobby run secure TKT-001` (or `--workflow secure`) — built-in or your own
 - **Slow mode:** `bobby run next TKT-001` — runs next agent for current stage
 - **Batch mode:** `bobby run plan` (no ticket ID) — runs agent on all tickets in stage
 - **Ship:** `bobby run ship` — creates PR, merges, moves to done
-- **Named pipeline:** `bobby run pipeline TKT-001 --pipeline thorough` — uses a named pipeline from `.bobbyrc.yml`
 
-### Custom Pipelines
+### Custom Workflows
 
-Define named pipelines in `.bobbyrc.yml`:
+Define named workflows in `.bobbyrc.yml` (they extend/override the built-ins):
 
 ```yaml
-pipelines:
-  default: [plan, build, review, test]
+workflows:
   thorough: [plan, build, review, security, test]
-  quick: [plan, build, test]
 ```
 
 ## Routing: just do what the user asks
@@ -139,7 +139,7 @@ it to the right capability below and run it; don't make them name the command.
 
 | The user says (in any words)… | Do this |
 |---|---|
-| add / fix / change / build a specific thing | `bobby go "<the task>"` (creates a ticket + builds it) |
+| add / fix / change / build a specific thing | **Create a ticket and build it:** `bobby go "<the task>"`. Pick the workflow — add `--workflow secure` for anything touching auth/payments/secrets/user-data, `--workflow quick` for a tiny low-risk change, else default. |
 | just keep going / what's next | `bobby go` |
 | start a new project / new app from an idea | `bobby new "<idea>"` |
 | is this a good idea / should I build this / pressure-test it | `bobby vet "<idea>"` |
@@ -265,7 +265,7 @@ bobby ticket move TKT-001 reject "reason"          # Reject back to building
 bobby ticket move TKT-001 block "reason"           # Block ticket
 bobby ticket move TKT-001 unblock                  # Unblock ticket
 bobby run next TKT-001                      # Slow mode: next agent for stage
-bobby run pipeline TKT-001                  # Fast mode: auto-chain all agents
+bobby run workflow TKT-001                  # Fast mode: auto-chain all agents
 bobby run plan                              # Batch: plan all tickets in planning
 bobby run ship                              # Ship all ready tickets
 bobby run arch                              # Discover + document architecture (wakeup + decisions)

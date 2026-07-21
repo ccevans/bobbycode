@@ -621,6 +621,22 @@ describe('pipeline', () => {
       expect(result).toEqual(DEFAULT_PIPELINE);
     });
 
+    test('resolves the built-in secure workflow without any config', () => {
+      const result = resolvePipeline({}, 'secure');
+      expect(result).toHaveLength(5);
+      expect(result.map(s => s.agent)).toContain('bobby-security');
+    });
+
+    test('resolves the built-in quick workflow without any config', () => {
+      const result = resolvePipeline({}, 'quick');
+      expect(result.map(s => s.agent)).toEqual(['bobby-plan', 'bobby-build', 'bobby-test']);
+    });
+
+    test('config can override a built-in workflow by name', () => {
+      const result = resolvePipeline({ workflows: { quick: ['build'] } }, 'quick');
+      expect(result).toEqual([{ stage: 'building', agent: 'bobby-build' }]);
+    });
+
     test('resolves named pipeline from config', () => {
       const config = { pipelines: { quick: ['build', 'test'] } };
       const result = resolvePipeline(config, 'quick');
@@ -637,9 +653,9 @@ describe('pipeline', () => {
       expect(result[2]).toEqual({ stage: 'reviewing', agent: 'bobby-security' });
     });
 
-    test('throws for unknown pipeline name', () => {
+    test('throws for unknown workflow name', () => {
       const config = { pipelines: { quick: ['build'] } };
-      expect(() => resolvePipeline(config, 'nonexistent')).toThrow("Unknown pipeline 'nonexistent'");
+      expect(() => resolvePipeline(config, 'nonexistent')).toThrow("Unknown workflow 'nonexistent'");
     });
 
     test('error message lists available pipelines', () => {
@@ -687,8 +703,8 @@ describe('pipeline', () => {
   });
 
   describe('listPipelines', () => {
-    test('returns default when no pipelines configured', () => {
-      expect(listPipelines({})).toEqual(['default']);
+    test('returns the built-in workflows when none configured', () => {
+      expect(listPipelines({})).toEqual(['default', 'secure', 'quick']);
     });
 
     test('includes custom pipeline names plus default', () => {
@@ -706,17 +722,17 @@ describe('pipeline', () => {
     });
   });
 
-  describe('ticket pipeline field', () => {
-    test('createTicket stores pipeline in frontmatter', () => {
-      createTicket(tmpDir, { prefix: 'TKT', title: 'Quick fix', author: 'dev', area: '', pipeline: 'quick' });
+  describe('ticket workflow field', () => {
+    test('createTicket stores workflow in frontmatter', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Quick fix', author: 'dev', area: '', workflow: 'quick' });
       const ticket = findTicket(tmpDir, 'TKT-001');
-      expect(ticket.data.pipeline).toBe('quick');
+      expect(ticket.data.workflow).toBe('quick');
     });
 
-    test('createTicket stores null pipeline when not specified', () => {
+    test('createTicket stores null workflow when not specified', () => {
       createTicket(tmpDir, { prefix: 'TKT', title: 'Normal task', author: 'dev', area: '' });
       const ticket = findTicket(tmpDir, 'TKT-001');
-      expect(ticket.data.pipeline).toBeNull();
+      expect(ticket.data.workflow).toBeNull();
     });
   });
 

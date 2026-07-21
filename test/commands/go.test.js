@@ -45,6 +45,13 @@ describe('bobby go', () => {
     expect(ticket).toContain('priority: high');
   });
 
+  test('go --workflow tags the new ticket with that workflow', () => {
+    run('go "add payment processing" --workflow secure');
+    const dir = fs.readdirSync(path.join(tmpDir, '.bobby', 'tickets')).find(e => e.startsWith('TKT-001'));
+    const ticket = fs.readFileSync(path.join(tmpDir, '.bobby', 'tickets', dir, 'ticket.md'), 'utf8');
+    expect(ticket).toContain('workflow: secure');
+  });
+
   test('go with a ticket id runs the pipeline on that ticket', () => {
     run('ticket create -t "Existing work"');
     const out = run('go TKT-001');

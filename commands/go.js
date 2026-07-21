@@ -27,6 +27,7 @@ export function registerGo(program) {
     .description('Make progress: no args runs the next best action; text creates a ticket and runs it; an ID runs that ticket')
     .argument('[what...]', 'Nothing, a ticket ID, or a ticket title')
     .option('-p, --priority <priority>', 'Priority when creating a ticket (critical, high, medium, low)', 'medium')
+    .option('--workflow <name>', 'Workflow to run a new ticket through (default, secure, quick, or your own)')
     .action((what, opts) => {
       try {
         // Outside any project, `go` points you at the one command that starts things.
@@ -59,9 +60,10 @@ export function registerGo(program) {
             title,
             priority: opts.priority,
             author: 'go',
+            workflow: opts.workflow || null, // run reads this off the ticket
           });
-          success(`Created ${result.id} — ${title}`);
-          console.log(`  ${dim('Now running the pipeline on it…')}`);
+          success(`Created ${result.id} — ${title}${opts.workflow ? `  (${opts.workflow} workflow)` : ''}`);
+          console.log(`  ${dim('Now running it…')}`);
           exec(['run', 'pipeline', result.id]);
           return;
         }

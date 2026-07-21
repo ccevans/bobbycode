@@ -6,7 +6,21 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed — BREAKING
+- **"Pipelines" are now "workflows"** throughout the user-facing surface:
+  `bobby pipeline` → `bobby workflow`, `--pipeline` → `--workflow`, the
+  `pipelines:` config key → `workflows:`, the ticket `pipeline:` field →
+  `workflow:`, and `bobby run pipeline` → `bobby run workflow`. The old
+  `pipelines:` config and ticket field are still read as a fallback.
+
 ### Added
+- **Built-in workflows** — `default`, `secure` (adds a security stage), and
+  `quick` (plan→build→test) are available everywhere with no config; your
+  `workflows:` entries extend or override them. `bobby workflow list` shows them.
+- **Ticket-by-default + workflow selection.** Asking for a feature/change creates
+  a ticket and runs it; `bobby go` takes `--workflow <name>`, and the router /
+  `CLAUDE.md` now pick the fitting workflow (secure for auth/payments/secrets,
+  quick for tiny changes, else default).
 - **`bobby do "<request>"`** — the natural-language front door. Say what you want
   in plain words; Bobby routes it to the right skill/command (build, vet, debug,
   review, ship, …) and runs it. Driven by a capability catalog in `lib/router.js`;

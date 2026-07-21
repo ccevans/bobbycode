@@ -13,7 +13,7 @@
 
 ## Now — sharpen what exists around the solo builder
 
-- **Interruption-safety audit.** Verify every long-running flow (`bobby run pipeline`, `bobby sprint run`, feature workflow) survives being killed mid-run and resumes cleanly from `progress.md` / session state. Bursty time is the solo constraint; resumability is the feature.
+- **Interruption-safety audit.** Verify every long-running flow (`bobby run workflow`, `bobby sprint run`, feature workflow) survives being killed mid-run and resumes cleanly from `progress.md` / session state. Bursty time is the solo constraint; resumability is the feature.
 - **`bobby brief` follow-ups.** Fold in recent session activity ("last touched TKT-003, 2 days ago") and surface stale-ticket nudges, so the brief reflects time as well as state.
 
 ## Next

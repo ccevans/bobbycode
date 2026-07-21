@@ -43,7 +43,7 @@ The default pipeline chains: plan -> build -> review -> test.
 Define named pipelines in `.bobbyrc.yml`:
 
 ```yaml
-pipelines:
+workflows:
   default: [plan, build, review, test]
   secure: [plan, build, security, review, test]
   fast: [plan, build, test]
@@ -53,7 +53,7 @@ pipelines:
 Run a named pipeline:
 
 ```bash
-bobby run pipeline TKT-001 --pipeline secure
+bobby run workflow TKT-001 --workflow secure
 ```
 
 ## Modifying Skill Behavior
