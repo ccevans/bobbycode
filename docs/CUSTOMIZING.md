@@ -32,15 +32,15 @@ To add a custom agent:
    Before starting, read `.claude/skills/my-linter/learnings.md`.
    ```
 
-3. Optionally add it to a custom pipeline (see below).
+3. Optionally add it to a custom workflow (see below).
 
 Bobby prefixes its own agents with `bobby-`. Your custom agents can use any name that doesn't start with `bobby-` to avoid collisions on re-init.
 
-## Defining Custom Pipelines
+## Defining Custom Workflows
 
-The default pipeline chains: plan -> build -> review -> test.
+The default workflow chains: plan -> build -> review -> test.
 
-Define named pipelines in `.bobbyrc.yml`:
+Define named workflows in `.bobbyrc.yml`:
 
 ```yaml
 workflows:
@@ -50,7 +50,7 @@ workflows:
   thorough: [plan, build, review, security, test, docs]
 ```
 
-Run a named pipeline:
+Run a named workflow:
 
 ```bash
 bobby run workflow TKT-001 --workflow secure

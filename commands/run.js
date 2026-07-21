@@ -2,7 +2,7 @@
 import inquirer from 'inquirer';
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir } from '../lib/config.js';
 import { getFeatureTickets, listEpics } from '../lib/tickets.js';
-import { DEFAULT_PIPELINE, buildPromptFor, resolvePipeline, listPipelines } from '../lib/pipeline.js';
+import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, listWorkflows } from '../lib/workflow.js';
 import { findTicket } from '../lib/tickets.js';
 import { VALID_AGENTS } from '../lib/agent-registry.js';
 import { bold, dim, error } from '../lib/colors.js';
@@ -17,7 +17,7 @@ function withSession(prompt, sessionId) {
 }
 
 // Re-export for backwards compatibility (dashboard.js imports from here)
-export { resolvePipeline } from '../lib/pipeline.js';
+export { resolveWorkflow } from '../lib/workflow.js';
 
 export function registerRun(program) {
   program
@@ -44,14 +44,12 @@ Modes:
         const root = findProjectRoot();
         const config = readConfig(root);
 
-        // `bobby run workflow <id>` is an alias for the built-in orchestrator.
-        if (agent === 'workflow') agent = 'pipeline';
-
-        // Workflow shorthand: `bobby run <workflow-name> <id>` runs that workflow.
-        const workflowNames = listPipelines(config);
+        // Workflow shorthand: `bobby run <workflow-name> <id>` runs that named
+        // workflow through the orchestrator (the 'workflow' agent).
+        const workflowNames = listWorkflows(config);
         if (!VALID_AGENTS.includes(agent) && workflowNames.includes(agent)) {
           opts.workflow = agent;
-          agent = 'pipeline';
+          agent = 'workflow';
         }
 
         if (!VALID_AGENTS.includes(agent)) {
@@ -84,7 +82,7 @@ Modes:
         }
 
         // Resolve workflow: explicit flag > ticket frontmatter > default
-        const pipeline = resolvePipeline(config, opts.workflow || 'default', ticketPipeline);
+        const pipeline = resolveWorkflow(config, opts.workflow || 'default', ticketPipeline);
 
         // Feature mode: if no epic id provided, let user pick interactively.
         // This is the only interactive step — the dashboard will always pass an explicit epicId.
@@ -124,7 +122,7 @@ Modes:
             ticketsDir,
             ticketsRelDir: config.tickets_dir,
             agentsPath,
-            pipeline,
+            workflow: pipeline,
             maxRetries,
             maxIterations,
             hasServices,

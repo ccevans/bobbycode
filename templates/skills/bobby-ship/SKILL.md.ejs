@@ -34,7 +34,7 @@ For each affected ticket:
 1. `bobby ticket move {ID} build`
 2. `bobby ticket comment {ID} --by bobby-ship "Returned to build: uncommitted changes detected. Files: {list}. Build agent must commit all work before shipping."`
 
-Then **abort the ship process**. The pipeline will re-run build → review → test → ship with proper commits.
+Then **abort the ship process**. The workflow will re-run build → review → test → ship with proper commits.
 
 **Ignore non-source artifacts** (screenshots, CSVs, mockups, `.skill` files) — these are not blockers.
 

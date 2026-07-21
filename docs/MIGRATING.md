@@ -31,7 +31,7 @@ build_skills:
   - component-library
 ```
 
-## I just want tickets, not the full pipeline
+## I just want tickets, not the full workflow
 
 Run `bobby init` — everything scaffolds, but you only use what you need:
 
@@ -45,9 +45,9 @@ bobby ticket comment TKT-001 "Found the root cause" # Add notes
 
 Ignore `bobby run workflow` entirely. The agents are there when you're ready for them.
 
-## I just want the pipeline on existing work
+## I just want the workflow on existing work
 
-If you have work in progress that you want to run through Bobby's pipeline:
+If you have work in progress that you want to run through Bobby's workflow:
 
 ```bash
 # Create tickets for existing work
@@ -76,7 +76,7 @@ A recommended progression for teams trying Bobby for the first time:
 - Review the generated `plan.md` and `test-cases.md`
 - Decide if the planning output is useful
 
-**Week 3: Try the full pipeline**
+**Week 3: Try the full workflow**
 - Run `bobby run workflow TKT-001` end-to-end on one ticket
 - Watch how agents hand off and what happens on rejection
 - Use `bobby learn` to record any patterns you notice
@@ -84,16 +84,16 @@ A recommended progression for teams trying Bobby for the first time:
 **Week 4: Expand usage**
 - Try `bobby run feature` for an epic
 - Try `bobby run ux` or `bobby run pm` for product review
-- Define a custom pipeline if the default doesn't fit
+- Define a custom workflow if the default doesn't fit
 
 **Ongoing:**
 - Use `bobby learn` to teach Bobby your patterns
 - Run `bobby retro` to review agent performance
 - Customize skills as needed (see [CUSTOMIZING.md](CUSTOMIZING.md))
 
-## Minimal pipeline
+## Minimal workflow
 
-If you want a shorter pipeline without code review:
+If you want a shorter workflow without code review:
 
 ```yaml
 # .bobbyrc.yml

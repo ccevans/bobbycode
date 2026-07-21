@@ -52,7 +52,7 @@ describe('template', () => {
     expect(fs.existsSync(path.join(tmpDir, 'bobby-ux', 'SKILL.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'bobby-pm', 'SKILL.md'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'bobby-qe', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'bobby-pipeline', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'bobby-workflow', 'SKILL.md'))).toBe(true);
   });
 
   test('copyStaticTemplate copies file to destination', () => {

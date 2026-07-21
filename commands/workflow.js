@@ -1,6 +1,6 @@
 // commands/workflow.js
 import { readConfig, writeConfig, findProjectRoot } from '../lib/config.js';
-import { BUILT_IN_WORKFLOWS } from '../lib/pipeline.js';
+import { BUILT_IN_WORKFLOWS } from '../lib/workflow.js';
 import { success, error, bold, dim } from '../lib/colors.js';
 
 const STAGE_MAP = {

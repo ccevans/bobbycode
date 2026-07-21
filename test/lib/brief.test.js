@@ -42,7 +42,7 @@ describe('buildBrief', () => {
     const b = buildBrief(ticketsDir(), sprintsDir());
     expect(b.backlogCount).toBe(2);
     // Nothing in flight → next action starts the critical ticket
-    expect(b.nextAction.command).toContain('bobby run pipeline');
+    expect(b.nextAction.command).toContain('bobby run workflow');
     expect(b.backlogTop[0].priority).toBe('critical');
   });
 

@@ -13,7 +13,7 @@ import { SSEHub } from '../lib/dashboard/sse.js';
 import { Orchestrator } from '../lib/dashboard/orchestrator.js';
 import { buildServer } from '../lib/dashboard/server.js';
 import { isGitRepo } from '../lib/dashboard/worktree.js';
-import { resolvePipeline } from './run.js';
+import { resolveWorkflow } from './run.js';
 import { bold, dim, success, error, warn } from '../lib/colors.js';
 
 function openInBrowser(url) {
@@ -49,7 +49,7 @@ export function registerDashboard(program) {
         const agentsPath = target.paths().agents;
         const ticketsDir = resolveTicketsDir(root, config);
         const sessionsDir = resolveSessionsDir(root, config);
-        const pipeline = resolvePipeline(config, opts.workflow || 'default');
+        const pipeline = resolveWorkflow(config, opts.workflow || 'default');
 
         const port = parseInt(opts.port || config?.dashboard?.port || 7777, 10);
         const host = opts.host || '127.0.0.1';

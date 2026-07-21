@@ -19,11 +19,11 @@
 ## Next
 
 - **Retro that feeds forward.** `bobby retro` summarizes the week; make its output actionable — propose `bobby learn` entries from the session logs so the retro automatically makes next week's agents smarter. The learnings loop is the solo builder's institutional memory.
-- **Notify on human-needed.** The only human in the loop steps away. When a pipeline hits an approval gate, fails its retry budget, or a sprint finishes, Bobby should be able to ping you (OS notification first; anything fancier later). Complements the dashboard for the away-from-keyboard hours.
+- **Notify on human-needed.** The only human in the loop steps away. When a workflow hits an approval gate, fails its retry budget, or a sprint finishes, Bobby should be able to ping you (OS notification first; anything fancier later). Complements the dashboard for the away-from-keyboard hours.
 
 ## Later
 
-- **Deeper `assign` = agent routing.** Evolve `bobby assign` away from person-assignment semantics toward routing: pin a ticket to a specific agent or pipeline so batch runs pick the right specialist automatically.
+- **Deeper `assign` = agent routing.** Evolve `bobby assign` away from person-assignment semantics toward routing: pin a ticket to a specific agent or workflow so batch runs pick the right specialist automatically.
 
 ## Reframed
 

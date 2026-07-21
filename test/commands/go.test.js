@@ -29,7 +29,7 @@ describe('bobby go', () => {
   test('go with text creates a ticket and runs the pipeline on it', () => {
     const out = run('go "add a landing page"');
     expect(out).toContain('Created TKT-001');
-    expect(out).toContain('Bobby Pipeline');
+    expect(out).toContain('Bobby Workflow');
     expect(out).toContain('TKT-001');
     // Ticket really exists
     const dirs = fs.readdirSync(path.join(tmpDir, '.bobby', 'tickets')).filter(e => e.startsWith('TKT-001'));
@@ -56,7 +56,7 @@ describe('bobby go', () => {
     run('ticket create -t "Existing work"');
     const out = run('go TKT-001');
     expect(out).not.toContain('Created'); // no new ticket
-    expect(out).toContain('Bobby Pipeline');
+    expect(out).toContain('Bobby Workflow');
     expect(out).toContain('TKT-001');
   });
 
@@ -69,8 +69,8 @@ describe('bobby go', () => {
   test('bare go picks the next action (backlog -> pipeline)', () => {
     run('ticket create -t "Top priority" -p critical');
     const out = run('go');
-    expect(out).toContain('bobby run pipeline TKT-001');
-    expect(out).toContain('Bobby Pipeline');
+    expect(out).toContain('bobby run workflow TKT-001');
+    expect(out).toContain('Bobby Workflow');
   });
 
   test('bare go pushes the furthest-along in-flight ticket', () => {

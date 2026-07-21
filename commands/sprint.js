@@ -4,7 +4,7 @@ import {
   readConfig, findProjectRoot, resolveTicketsDir, resolveSprintsDir, resolveSessionsDir,
 } from '../lib/config.js';
 import { findTicket } from '../lib/tickets.js';
-import { resolvePipeline, listPipelines, buildSprintPrompt } from '../lib/pipeline.js';
+import { resolveWorkflow, listWorkflows, buildSprintPrompt } from '../lib/workflow.js';
 import {
   createSprint, findSprint, listSprints, addTicketsToSprint,
   removeTicketsFromSprint, setSprintStatus, SPRINT_STATUSES,
@@ -40,8 +40,8 @@ export function registerSprint(program) {
         const sprintsDir = resolveSprintsDir(root, config);
 
         const pipelineName = opts.workflow || 'default';
-        if (pipelineName !== 'default' && !listPipelines(config).includes(pipelineName)) {
-          throw new Error(`Unknown workflow '${pipelineName}'. Available: ${listPipelines(config).join(', ')}`);
+        if (pipelineName !== 'default' && !listWorkflows(config).includes(pipelineName)) {
+          throw new Error(`Unknown workflow '${pipelineName}'. Available: ${listWorkflows(config).join(', ')}`);
         }
         assertTicketsExist(ticketsDir, ticketIds || []);
 
@@ -238,7 +238,7 @@ export function registerSprint(program) {
           throw new Error(`Sprint ${d.id} references missing ticket(s): ${missing.join(', ')}. Remove them: bobby sprint rm ${d.id} ${missing.join(' ')}`);
         }
 
-        const pipeline = resolvePipeline(config, (d.workflow || d.pipeline) || 'default');
+        const pipeline = resolveWorkflow(config, (d.workflow || d.pipeline) || 'default');
         const target = getTarget(config.target || 'claude-code');
         const agentsPath = target.paths().agents;
         const hasServices = !!(config.services && Object.keys(config.services).length > 0);

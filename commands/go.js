@@ -1,8 +1,8 @@
 // commands/go.js
 // The golden path. One verb that answers "just make progress":
 //   bobby go                → run the most valuable next action (from brief's logic)
-//   bobby go "build login"  → create a ticket AND run the full pipeline on it
-//   bobby go TKT-007        → run the full pipeline on that ticket
+//   bobby go "build login"  → create a ticket AND run the full workflow on it
+//   bobby go TKT-007        → run the full workflow on that ticket
 // Delegates execution by re-invoking the CLI (`bobby run …`), so go adds no
 // second orchestration path — it only decides WHAT to run.
 import { spawnSync } from 'child_process';
@@ -44,11 +44,11 @@ export function registerGo(program) {
         const config = readConfig(root);
         const ticketsDir = resolveTicketsDir(root, config);
 
-        // bobby go TKT-007 — run the pipeline on a specific ticket
+        // bobby go TKT-007 — run the workflow on a specific ticket
         if (what.length === 1 && looksLikeTicketId(what[0])) {
           const id = what[0].toUpperCase();
-          console.log(`  ${dim(`Running the pipeline on ${id}…`)}`);
-          exec(['run', 'pipeline', id]);
+          console.log(`  ${dim(`Running the workflow on ${id}…`)}`);
+          exec(['run', 'workflow', id]);
           return;
         }
 
@@ -64,7 +64,7 @@ export function registerGo(program) {
           });
           success(`Created ${result.id} — ${title}${opts.workflow ? `  (${opts.workflow} workflow)` : ''}`);
           console.log(`  ${dim('Now running it…')}`);
-          exec(['run', 'pipeline', result.id]);
+          exec(['run', 'workflow', result.id]);
           return;
         }
 

@@ -567,7 +567,7 @@ Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can inv
 
 ```
 /bobby-plan          /bobby-build         /bobby-review
-/bobby-test          /bobby-ship          /bobby-pipeline
+/bobby-test          /bobby-ship          /bobby-workflow
 /bobby-feature       /bobby-ux            /bobby-pm
 /bobby-qe            /bobby-vet           /bobby-strategy
 /bobby-security      /bobby-debug         /bobby-docs
@@ -575,14 +575,12 @@ Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can inv
 /bobby-ticket-intake /bobby-local
 ```
 
-## Custom Pipelines
+## Custom Workflows
 
-Define named pipelines in `.bobbyrc.yml` to customize the agent chain:
+Bobby ships three built-in workflows — `default`, `secure`, `quick`. Define your own (or override a built-in) in `.bobbyrc.yml`:
 
 ```yaml
 workflows:
-  default: [plan, build, review, test]
-  secure: [plan, build, security, review, test]
   thorough: [plan, build, review, security, test]
 ```
 

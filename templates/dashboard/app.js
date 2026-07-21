@@ -231,11 +231,11 @@ async function loadAgents() {
   renderAgentList();
   const sel = document.getElementById('new-agent');
   sel.innerHTML = '';
-  // Orchestration agents first (pipeline / next), then stage agents, then
+  // Orchestration agents first (workflow / next), then stage agents, then
   // specialists. Skip 'ship' — it's a cross-workspace action.
-  const order = ['pipeline', 'feature', 'next', 'plan', 'build', 'review', 'test'];
+  const order = ['workflow', 'feature', 'next', 'plan', 'build', 'review', 'test'];
   const labels = {
-    pipeline: 'pipeline — run plan → build → review → test in one go',
+    workflow: 'workflow — run plan → build → review → test in one go',
     feature: 'feature — epic workflow (ticket must be an epic)',
     next: 'next — run the agent for current stage',
   };
