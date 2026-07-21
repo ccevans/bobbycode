@@ -78,6 +78,42 @@ describe('bobby new', () => {
     expect(cfg.stack).toBe('nextjs');
   });
 
+  test('default node starter scaffolds a runnable app that passes its own tests', () => {
+    const out = run('new "a url shortener" --dir short');
+    const dir = path.join(tmpDir, 'short');
+    // Skeleton files present
+    expect(fs.existsSync(path.join(dir, 'server.js'))).toBe(true);
+    expect(fs.existsSync(path.join(dir, 'package.json'))).toBe(true);
+    expect(fs.existsSync(path.join(dir, 'test', 'health.test.js'))).toBe(true);
+    // package.json rendered with the project name
+    const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+    expect(pkg.name).toBe('short');
+    // The starter's OWN tests pass with zero install
+    const testOut = execSync('node --test', { cwd: dir, encoding: 'utf8' });
+    expect(testOut).toMatch(/# pass 3/);
+    expect(testOut).toMatch(/# fail 0/);
+    // Handoff mentions running it
+    expect(out).toContain('run it now');
+  });
+
+  test('web starter scaffolds a static site rendered with the idea', () => {
+    run('new "my portfolio" --dir folio --stack web');
+    const dir = path.join(tmpDir, 'folio');
+    expect(fs.existsSync(path.join(dir, 'public', 'index.html'))).toBe(true);
+    const html = fs.readFileSync(path.join(dir, 'public', 'index.html'), 'utf8');
+    expect(html).toContain('folio');
+    expect(html).toContain('my portfolio');
+    const testOut = execSync('node --test', { cwd: dir, encoding: 'utf8' });
+    expect(testOut).toMatch(/# fail 0/);
+  });
+
+  test('framework stack without a built-in starter scaffolds Bobby only (no server.js)', () => {
+    run('new "a thing" --dir plain --stack generic');
+    const dir = path.join(tmpDir, 'plain');
+    expect(fs.existsSync(path.join(dir, '.bobbyrc.yml'))).toBe(true);
+    expect(fs.existsSync(path.join(dir, 'server.js'))).toBe(false);
+  });
+
   test('handoff points at run plan then run feature', () => {
     const out = run('new "a habit tracker for runners"');
     expect(out).toContain('bobby run plan TKT-001');

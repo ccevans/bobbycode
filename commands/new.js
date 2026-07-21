@@ -9,9 +9,12 @@ import { scaffoldProject, loadStack } from './init.js';
 import { aggregateAreas, aggregateHealthChecks } from '../lib/services.js';
 import { renderTemplate } from '../lib/template.js';
 import { createTicket, slugify, readTicket, writeTicket } from '../lib/tickets.js';
+import { applyStarter } from '../lib/starters.js';
 import { success, warn, error, bold, dim } from '../lib/colors.js';
 
-const STACKS = ['nextjs', 'rails-react', 'django', 'python-flask', 'go', 'rust', 'polyglot', 'generic'];
+// Stacks with a built-in runnable starter come first (they're the point of `new`);
+// framework stacks scaffold Bobby only until they get a starter.
+const STACKS = ['node', 'web', 'nextjs', 'rails-react', 'django', 'python-flask', 'go', 'rust', 'polyglot', 'generic'];
 
 // Bake the idea into the epic's description so the plan/build agents know the goal.
 function injectIdea(ticketDir, idea) {
@@ -30,7 +33,7 @@ export function registerNew(program) {
     .command('new <idea...>')
     .description('Spin up a brand-new project from an idea — scaffolds Bobby, creates the MVP epic, hands off to build')
     .option('--dir <name>', 'Directory to create (default: a slug of the idea)')
-    .option('--stack <stack>', `Stack preset: ${STACKS.join(' | ')}`, 'generic')
+    .option('--stack <stack>', `Stack preset: ${STACKS.join(' | ')}`, 'node')
     .action((ideaWords, opts) => {
       try {
         const idea = ideaWords.join(' ').trim();
@@ -72,6 +75,9 @@ export function registerNew(program) {
         // Scaffold Bobby (identical to `bobby init`): .bobby/, .claude/, config, git init.
         scaffoldProject(root, config);
 
+        // Lay down a runnable app skeleton if this stack has a built-in starter.
+        const starter = applyStarter(opts.stack, root, { project: dirName, idea });
+
         // New-project niceties: .gitignore + README seeded with the idea.
         try {
           fs.writeFileSync(path.join(root, '.gitignore'), renderTemplate('gitignore.ejs', { stack: opts.stack }), 'utf8');
@@ -102,9 +108,15 @@ export function registerNew(program) {
 
         console.log('');
         success(`New project ready in ./${dirName}/`);
-        console.log(`  ${dim(`Epic ${epic.id} captures your idea — the MVP starts here.`)}`);
+        if (starter) {
+          console.log(`  ${dim(`${starter.label} skeleton scaffolded — it runs right now.`)}`);
+        }
+        console.log(`  ${dim(`Epic ${epic.id} captures your idea — the MVP grows from here.`)}`);
         console.log('');
         console.log(`    ${bold(`cd ${dirName}`)}`);
+        if (starter) {
+          console.log(`    ${bold(starter.dev)}   ${dim(`# run it now → ${starter.url}`)}`);
+        }
         console.log(`    ${bold(`bobby run plan ${epic.id}`)}      ${dim('# break the idea into MVP tickets')}`);
         console.log(`    ${bold(`bobby run feature ${epic.id}`)}   ${dim('# then build them on one branch')}`);
         console.log('');
