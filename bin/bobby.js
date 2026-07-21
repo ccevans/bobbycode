@@ -74,7 +74,7 @@ program.configureHelp({
 });
 program.addHelpText('afterAll', ({ command }) =>
   command.parent === null
-    ? `\nOr just say what you want — Bobby picks the skill:\n  bobby do "add a health check endpoint"\n\n` +
+    ? `\nOr just say what you want — Bobby picks the skill:\n  bobby "add a health check endpoint"\n\n` +
       `The core loop:\n  bobby new "your idea"   →   bobby go   (run it again and again)\n\n` +
       `More when you want it (each has --help):\n  ${EVERYDAY.join(' · ')}\n  ${POWER.join(' · ')}\n`
     : ''
@@ -88,8 +88,21 @@ program.hook('preAction', () => {
   try { touchProject(); } catch { /* never block a command on registry writes */ }
 });
 
-// No subcommand → help. Unknown subcommand → commander errors with a suggestion
-// (important after the 1.0 rename: `bobby create` should say "unknown command").
+// Natural-language front door: `bobby "add a health endpoint"` (or unquoted words)
+// with a first token that isn't a command/flag is treated as `bobby do <request>`,
+// so you can just say what you want without remembering "do". Real commands,
+// aliases, and flags parse normally.
+const KNOWN = new Set(['help']);
+for (const c of program.commands) {
+  KNOWN.add(c.name());
+  for (const a of c.aliases()) KNOWN.add(a);
+}
+const first = process.argv[2];
+if (first && !first.startsWith('-') && !KNOWN.has(first)) {
+  process.argv.splice(2, 0, 'do');
+}
+
+// No subcommand → help.
 program.showSuggestionAfterError();
 if (process.argv.length <= 2) {
   program.help();

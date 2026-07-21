@@ -47,4 +47,23 @@ describe('bobby do', () => {
   test('requires a request', () => {
     expect(() => run('do')).toThrow(); // commander: missing required arg
   });
+
+  // The bare form: `bobby "<request>"` with no "do" routes to dispatch too.
+  test('bare `bobby "<request>"` (no do) routes to the dispatcher', () => {
+    const out = run('"add a health check endpoint"');
+    expect(out).toContain('add a health check endpoint');
+    expect(out).toContain('What Bobby can do');
+  });
+
+  test('bare unquoted words route to the dispatcher', () => {
+    const out = run('fix the login button');
+    expect(out).toContain('fix the login button');
+  });
+
+  test('a real command is NOT treated as a request', () => {
+    // `go` is a known command; outside a project it guides, it does not dispatch.
+    const out = run('go');
+    expect(out).not.toContain('What Bobby can do');
+    expect(out).toContain('bobby new');
+  });
 });
