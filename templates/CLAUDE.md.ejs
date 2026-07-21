@@ -131,6 +131,37 @@ pipelines:
   quick: [plan, build, test]
 ```
 
+## Routing: just do what the user asks
+
+The user should be able to say what they want in plain language — you figure out
+which Bobby skill or command fits. When the user asks you to do something, match
+it to the right capability below and run it; don't make them name the command.
+
+| The user says (in any words)… | Do this |
+|---|---|
+| add / fix / change / build a specific thing | `bobby go "<the task>"` (creates a ticket + builds it) |
+| just keep going / what's next | `bobby go` |
+| start a new project / new app from an idea | `bobby new "<idea>"` |
+| is this a good idea / should I build this / pressure-test it | `bobby vet "<idea>"` |
+| remember this / note it / idea for later | `bobby idea "<text>"` |
+| where am I / status / what's blocked | `bobby brief` |
+| plan / break down / refine | bobby-plan |
+| review the code | bobby-review |
+| test it / does it work in the app | bobby-test |
+| security audit / is it safe | bobby-security |
+| debug / why is this broken | bobby-debug |
+| review the design / UX | bobby-ux |
+| product review / what's missing | bobby-pm |
+| ship it / open a PR | bobby-ship |
+| update the docs | bobby-docs |
+| is it slow / benchmark | bobby-performance |
+| map / understand the architecture | bobby-arch |
+
+Pick the single best match. If it's a concrete change to this project and nothing
+more specific fits, treat it as build work (`bobby go "…"`). Ask one clarifying
+question only when genuinely ambiguous. `bobby do "<request>"` prints this same
+routing if you ever want it explicitly.
+
 ## Agents
 
 ### Planner (bobby-plan)

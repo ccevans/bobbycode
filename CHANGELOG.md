@@ -6,6 +6,13 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **`bobby do "<request>"`** — the natural-language front door. Say what you want
+  in plain words; Bobby routes it to the right skill/command (build, vet, debug,
+  review, ship, …) and runs it. Driven by a capability catalog in `lib/router.js`;
+  the generated `CLAUDE.md` now carries the same intent-routing table so talking
+  to Bobby inside a Claude Code session routes the same way.
+
 ### Changed
 - **`bobby go` is now the single guided loop** — the whole process is two verbs:
   `bobby new "<idea>"` to start, then `bobby go` again and again. From any state

@@ -34,10 +34,12 @@ import { registerProjects } from '../commands/projects.js';
 import { registerGo } from '../commands/go.js';
 import { registerNew } from '../commands/new.js';
 import { registerVet } from '../commands/vet.js';
+import { registerDo } from '../commands/do.js';
 import { touchProject } from '../lib/studio.js';
 
 const initCmd = registerInit(program);
 registerLocalInit(initCmd); // bobby init local
+registerDo(program);
 registerVet(program);
 registerNew(program);
 registerGo(program);
@@ -61,7 +63,7 @@ registerUpgrade(program);
 // footer below. Everything still tab-completes and errors helpfully.
 // The whole process is two verbs. Default help shows just the loop; everything
 // else is listed compactly below and still works + has its own --help.
-const ESSENTIAL = ['new', 'go', 'init'];
+const ESSENTIAL = ['do', 'new', 'go', 'init'];
 const EVERYDAY = ['vet', 'brief', 'idea', 'ticket', 'sprint', 'run', 'dashboard'];
 const POWER = ['pipeline', 'retro', 'learn', 'projects', 'session', 'sync', 'export', 'upgrade'];
 program.configureHelp({
@@ -72,7 +74,8 @@ program.configureHelp({
 });
 program.addHelpText('afterAll', ({ command }) =>
   command.parent === null
-    ? `\nThe whole flow is two verbs:\n  bobby new "your idea"   →   bobby go   (run it again and again)\n\n` +
+    ? `\nOr just say what you want — Bobby picks the skill:\n  bobby do "add a health check endpoint"\n\n` +
+      `The core loop:\n  bobby new "your idea"   →   bobby go   (run it again and again)\n\n` +
       `More when you want it (each has --help):\n  ${EVERYDAY.join(' · ')}\n  ${POWER.join(' · ')}\n`
     : ''
 );

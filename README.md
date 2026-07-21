@@ -54,7 +54,19 @@ bobby go       # break the idea down, build it, ship it — run it again and aga
 
 **Starters** (`--stack`): `node` (HTTP API, default) and `web` (static page) ship a runnable skeleton. Framework presets (`nextjs`, `go`, `django`, …) scaffold Bobby only for now. Name the directory with `--dir`. Already have a project? Use `init` below instead.
 
-## The Whole Process Is Two Verbs
+## Just Say What You Want
+
+The simplest way to use Bobby is to not learn commands at all — say what you want, and Bobby routes to the right skill:
+
+```bash
+bobby do "add a health check endpoint"
+bobby do "is a Slack standup bot worth building"
+bobby do "the login button does nothing when clicked"
+```
+
+`bobby do` matches your request to the right capability (build it, vet it, debug it, review it, ship it…) and runs it. Inside a Claude Code session it's even more seamless — the generated `CLAUDE.md` teaches Claude Code the same routing, so you can just talk to it.
+
+## The Core Loop Is Two Verbs
 
 ```bash
 npx bobbycode new "your idea"   # start a project (or `init` in an existing one)
