@@ -7,6 +7,11 @@ All notable changes to Bobby are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **`bobby vet "<idea>"`** — pressure-test an idea before building it. Emits a
+  self-contained interrogation (works with no project): asks one question at a
+  time — users, problem, alternatives, riskiest assumption, cheapest test —
+  then a PURSUE/REFINE/PARK verdict and a sharpened one-liner to hand to
+  `bobby new`. `bobby vet <n>` vets a captured idea (project or global inbox).
 - **`bobby new "<idea>"`** — the 0→1 on-ramp. Turns a one-line idea into a
   **running** project: a dependency-free starter skeleton, Bobby scaffolding, an
   MVP epic (idea baked into its description), and an initial commit — then hands

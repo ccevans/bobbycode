@@ -26,6 +26,16 @@ bobby init
 
 Requires Node.js 18+ (you already have it if you use Claude Code).
 
+## Vet the Idea First
+
+Before you build anything, pressure-test the idea — solo, there's no cofounder to poke holes:
+
+```bash
+bobby vet "a habit tracker for runners"
+```
+
+This asks you the right questions **one at a time** — who feels the pain, what they use today, the riskiest assumption, the cheapest way to test it — then gives an honest **PURSUE / REFINE / PARK** read and a sharpened one-liner. Works from anywhere, no project needed. Vet a captured idea by number with `bobby vet 3`. If it survives, hand the sharpened idea to `bobby new`.
+
 ## Start From an Idea
 
 Got a new idea and nothing built yet? One command turns a sentence into a **running project** with an MVP epic ready to build:
@@ -312,7 +322,8 @@ Everything that touches a ticket lives under one namespace:
 
 | Command | Description |
 |---------|-------------|
-| `bobby new "idea"` | Spin up a brand-new project from an idea — scaffolds Bobby + an MVP epic (`--dir`, `--stack`) |
+| `bobby vet "idea"` | Pressure-test an idea — asks the right questions one at a time, then a PURSUE/REFINE/PARK read (`bobby vet <n>` for a captured idea) |
+| `bobby new "idea"` | Spin up a brand-new project from an idea — scaffolds a running skeleton + an MVP epic (`--dir`, `--stack`) |
 | `bobby go` | Do the most valuable next thing (finish in-flight → unblock → start backlog) |
 | `bobby go "title"` | Create a ticket and run the full pipeline on it, one step (`-p <priority>`) |
 | `bobby go <id>` | Run the pipeline on a specific ticket |
