@@ -75,7 +75,40 @@ describe('bobby go', () => {
 
   test('bare go on an empty board gives starting guidance', () => {
     const out = run('go');
-    expect(out).toContain('Board is empty');
+    expect(out).toContain('Nothing to do yet');
     expect(out).toContain('bobby go "');
+  });
+
+  test('bare go guides a fresh epic to break down (run plan)', () => {
+    run('ticket create -t "A product idea" --epic');
+    const out = run('go');
+    expect(out).toMatch(/fresh idea/);
+    expect(out).toContain('bobby run plan TKT-001');
+  });
+
+  test('bare go guides a planned epic to build (run feature)', () => {
+    run('ticket create -t "A product idea" --epic');
+    run('ticket create -t "child" --parent TKT-001');
+    const out = run('go');
+    expect(out).toMatch(/build the MVP/);
+    expect(out).toContain('bobby run feature TKT-001');
+  });
+});
+
+describe('bobby go outside a project', () => {
+  let tmpDir;
+  const bobby = path.resolve('bin/bobby.js');
+
+  beforeEach(() => { tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-go-out-')); });
+  afterEach(() => { fs.rmSync(tmpDir, { recursive: true }); });
+
+  test('points you at bobby new instead of erroring', () => {
+    // No .bobbyrc.yml here — go must not crash, it should guide.
+    const out = execSync(`node ${bobby} go`, {
+      cwd: tmpDir, encoding: 'utf8',
+      env: { ...process.env, HOME: path.join(tmpDir, '.home') },
+    });
+    expect(out).toContain("not in a Bobby project");
+    expect(out).toContain('bobby new "your idea"');
   });
 });

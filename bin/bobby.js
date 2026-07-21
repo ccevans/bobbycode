@@ -59,16 +59,21 @@ registerUpgrade(program);
 // Progressive help: the default help shows the founder-facing core; power/agent
 // plumbing stays fully functional but appears via `bobby help <cmd>` or the
 // footer below. Everything still tab-completes and errors helpfully.
-const CORE_COMMANDS = ['init', 'new', 'vet', 'go', 'brief', 'idea', 'ticket', 'sprint', 'run', 'dashboard'];
+// The whole process is two verbs. Default help shows just the loop; everything
+// else is listed compactly below and still works + has its own --help.
+const ESSENTIAL = ['new', 'go', 'init'];
+const EVERYDAY = ['vet', 'brief', 'idea', 'ticket', 'sprint', 'run', 'dashboard'];
+const POWER = ['pipeline', 'retro', 'learn', 'projects', 'session', 'sync', 'export', 'upgrade'];
 program.configureHelp({
   visibleCommands: (cmd) =>
     cmd.parent === null // only filter the ROOT help; subcommand help lists everything
-      ? cmd.commands.filter(c => CORE_COMMANDS.includes(c.name()))
+      ? cmd.commands.filter(c => ESSENTIAL.includes(c.name()))
       : cmd.commands.filter(c => c.name() !== 'help'),
 });
 program.addHelpText('afterAll', ({ command }) =>
   command.parent === null
-    ? '\nPower tools (run with --help for details):\n  pipeline · retro · learn · projects · session · sync · export · upgrade\n'
+    ? `\nThe whole flow is two verbs:\n  bobby new "your idea"   →   bobby go   (run it again and again)\n\n` +
+      `More when you want it (each has --help):\n  ${EVERYDAY.join(' · ')}\n  ${POWER.join(' · ')}\n`
     : ''
 );
 

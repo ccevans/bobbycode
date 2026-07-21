@@ -44,41 +44,40 @@ Got a new idea and nothing built yet? One command turns a sentence into a **runn
 npx bobbycode new "a habit tracker for runners"
 ```
 
-This creates the directory, drops a **dependency-free runnable skeleton** (a Node HTTP server with `/health`, plus passing tests — no `npm install` needed), scaffolds Bobby, captures your idea as the MVP epic, and makes the first commit. Then:
+This creates the directory, drops a **dependency-free runnable skeleton** (a Node HTTP server with `/health`, plus passing tests — no `npm install` needed), scaffolds Bobby, captures your idea as the MVP epic, and makes the first commit. Then you only need **one verb**:
 
 ```bash
 cd a-habit-tracker-for-runners
-npm run dev                  # it already runs → http://localhost:3000
-bobby run plan TKT-001       # break the idea into MVP tickets
-bobby run feature TKT-001    # build them on one branch
+npm run dev    # it already runs → http://localhost:3000
+bobby go       # break the idea down, build it, ship it — run it again and again
 ```
 
 **Starters** (`--stack`): `node` (HTTP API, default) and `web` (static page) ship a runnable skeleton. Framework presets (`nextjs`, `go`, `django`, …) scaffold Bobby only for now. Name the directory with `--dir`. Already have a project? Use `init` below instead.
 
-## Quick Start — Three Verbs
+## The Whole Process Is Two Verbs
 
 ```bash
-npx bobbycode init      # Zero questions — detects your stack, scaffolds everything
+npx bobbycode new "your idea"   # start a project (or `init` in an existing one)
+bobby go                        # do the next thing — run it again and again
 ```
 
-Then the whole workflow is three verbs:
+`bobby go` is the only command you run day to day. From any state it figures out and runs the single most useful next step — break a fresh idea into tickets, build the MVP, push in-flight work forward, or ship what's ready — and tells you what it did. You never have to learn the rest.
+
+Everything below (`vet`, `idea`, `brief`, `ticket`, `sprint`, `run`, `dashboard`, …) is optional — reach for it when you want to, but `new` + `go` is the whole loop.
+
+<details>
+<summary>The optional verbs, when you want them</summary>
 
 ```bash
-bobby go "build the login page"    # Creates the ticket AND runs the full pipeline on it
+bobby vet "a risky idea"           # Pressure-test an idea before building it
+bobby go "build the login page"    # Create a specific ticket AND build it now
 bobby idea "dark mode someday"     # Capture a thought in 5 seconds, without touching the board
 bobby brief                        # Where was I? What's in flight, what's blocked, what's next
+bobby ticket list                  # See the full board
+bobby dashboard                    # Watch agents work in parallel worktrees
 ```
 
-`bobby go` on its own always does the most valuable next thing — finishes what's
-closest to done, unblocks what's stuck, or starts the top of the backlog. When you
-want more control, everything underneath is addressable:
-
-```bash
-bobby ticket create -t "User auth" --epic   # An epic (gets broken down by planning)
-bobby ticket list                           # See the full board
-bobby run pipeline TKT-001                  # Run the pipeline on a specific ticket
-bobby dashboard                             # Watch agents work in parallel worktrees
-```
+</details>
 
 `bobby init` scaffolds: `.bobby/` (tickets, sessions, config), `.claude/` (21 skills,
 17 agents, 20 slash commands), and `CLAUDE.md` — everything auto-detected from your

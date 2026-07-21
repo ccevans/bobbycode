@@ -29,7 +29,17 @@ export function registerGo(program) {
     .option('-p, --priority <priority>', 'Priority when creating a ticket (critical, high, medium, low)', 'medium')
     .action((what, opts) => {
       try {
-        const root = findProjectRoot();
+        // Outside any project, `go` points you at the one command that starts things.
+        let root;
+        try {
+          root = findProjectRoot();
+        } catch {
+          console.log('');
+          console.log(`  ${bold("You're not in a Bobby project yet.")} Start one:`);
+          console.log(`    ${bold('bobby new "your idea"')}   ${dim('# scaffolds a running project, then just run: bobby go')}`);
+          console.log('');
+          return;
+        }
         const config = readConfig(root);
         const ticketsDir = resolveTicketsDir(root, config);
 
@@ -62,13 +72,14 @@ export function registerGo(program) {
         const next = b.nextAction;
         if (!next.argv) {
           console.log('');
-          console.log(`  ${bold('Board is empty.')} Start with:`);
-          console.log(`    bobby go "describe your first task"`);
-          console.log(`    ${dim('or capture thoughts first:')} bobby idea "a thought"`);
+          console.log(`  ${bold('Nothing to do yet.')} Kick something off:`);
+          console.log(`    ${bold('bobby go "describe a task"')}   ${dim('# create it and start building')}`);
+          console.log(`    ${dim('or capture a thought for later:')} bobby idea "..."`);
           console.log('');
           return;
         }
-        console.log(`  ${dim(`${next.reason} → ${next.command}`)}`);
+        console.log(`  ${dim(`Next: ${next.reason}`)}`);
+        console.log(`  ${dim(`→ ${next.command}`)}`);
         exec(next.argv);
       } catch (e) {
         error(e.message);

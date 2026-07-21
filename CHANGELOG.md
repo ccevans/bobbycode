@@ -6,6 +6,14 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+- **`bobby go` is now the single guided loop** — the whole process is two verbs:
+  `bobby new "<idea>"` to start, then `bobby go` again and again. From any state
+  `go` names and runs the next step: a fresh idea → break it down, a planned epic
+  → build the MVP, in-flight work → push it forward, and outside a project it
+  points you at `bobby new`. Default `bobby --help` now shows just the loop
+  (new / go / init); everything else is listed compactly and still has `--help`.
+
 ### Added
 - **`bobby vet "<idea>"`** — pressure-test an idea before building it. Emits a
   self-contained interrogation (works with no project): asks one question at a
