@@ -28,21 +28,22 @@ Requires Node.js 18+ (you already have it if you use Claude Code).
 
 ## Start From an Idea
 
-Got a new idea and nothing built yet? One command turns a sentence into a scaffolded project with an MVP epic ready to build:
+Got a new idea and nothing built yet? One command turns a sentence into a **running project** with an MVP epic ready to build:
 
 ```bash
 npx bobbycode new "a habit tracker for runners"
 ```
 
-This creates the directory, scaffolds Bobby, captures your idea as the MVP epic, and makes the first commit. Then:
+This creates the directory, drops a **dependency-free runnable skeleton** (a Node HTTP server with `/health`, plus passing tests — no `npm install` needed), scaffolds Bobby, captures your idea as the MVP epic, and makes the first commit. Then:
 
 ```bash
 cd a-habit-tracker-for-runners
+npm run dev                  # it already runs → http://localhost:3000
 bobby run plan TKT-001       # break the idea into MVP tickets
 bobby run feature TKT-001    # build them on one branch
 ```
 
-Pick a stack with `--stack nextjs` (or `go`, `django`, …) and a name with `--dir`. Already have a project? Use `init` below instead.
+**Starters** (`--stack`): `node` (HTTP API, default) and `web` (static page) ship a runnable skeleton. Framework presets (`nextjs`, `go`, `django`, …) scaffold Bobby only for now. Name the directory with `--dir`. Already have a project? Use `init` below instead.
 
 ## Quick Start — Three Verbs
 

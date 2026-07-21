@@ -8,9 +8,13 @@ All notable changes to Bobby are documented here. The format is based on
 
 ### Added
 - **`bobby new "<idea>"`** — the 0→1 on-ramp. Turns a one-line idea into a
-  scaffolded project with an MVP epic (idea baked into its description) and an
-  initial commit, then hands off to `bobby run plan` → `bobby run feature`.
-  Options: `--dir <name>`, `--stack <preset>`.
+  **running** project: a dependency-free starter skeleton, Bobby scaffolding, an
+  MVP epic (idea baked into its description), and an initial commit — then hands
+  off to `bobby run plan` → `bobby run feature`. Options: `--dir`, `--stack`.
+- **Built-in scaffolding system** — `templates/starters/<name>/` + `lib/starters.js`.
+  Starters ship a runnable app (Node built-ins + `node:test`, zero install):
+  `node` (HTTP API with `/health`, default) and `web` (static page). Extensible:
+  add a starter dir + a `stacks/<name>.json` preset.
 
 ## [1.0.0] — 2026-07-19
 
