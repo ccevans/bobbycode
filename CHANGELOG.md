@@ -67,11 +67,11 @@ person, a whole team of Claude Code agents.
 ### Added
 - **`bobby go` — the golden path.** No args: runs the most valuable next action
   (finish in-flight → unblock → start top of backlog). With text: creates the
-  ticket AND runs the full pipeline in one step. With an ID: runs that ticket.
+  ticket AND runs the full workflow in one step. With an ID: runs that ticket.
 - **Zero-question `bobby init`.** Everything auto-detected (name, stack, target);
   `--custom` keeps the full wizard. New-project initial commit is automatic.
 - **Progressive help.** `bobby --help` shows the eight founder-facing commands;
-  power tools (pipeline, retro, learn, projects, session, sync, export, upgrade)
+  power tools (workflow, retro, learn, projects, session, sync, export, upgrade)
   stay fully functional and are listed in a one-line footer.
 - **Studio: one machine, many projects.**
   - Projects auto-register in `~/.bobby/projects.yml` whenever a bobby command
@@ -112,6 +112,6 @@ person, a whole team of Claude Code agents.
 
 ## [0.9.0]
 
-Initial public baseline: ticketing, the plan → build → review → test pipeline,
+Initial public baseline: ticketing, the plan → build → review → test workflow,
 17 agents, 21 skills, sprints, the local dashboard, learnings/retros, and
 multi-stack init.
