@@ -1,0 +1,11 @@
+{
+  "name": "notes-api",
+  "version": "0.1.0",
+  "description": "Small in-memory notes API — the base app Bobby's agents build features on during evals",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node --test"
+  }
+}
