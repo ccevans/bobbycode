@@ -1,5 +1,14 @@
 # Bobby Full Audit — 2026-07-19
 
+> **Historical snapshot.** This records the audit as run on 2026-07-19; most
+> findings have since been addressed. Two things it references were renamed
+> afterward: **"pipeline" → "workflow"** throughout the user-facing surface, and
+> the files `lib/pipeline.js` → `lib/workflow.js`, `commands/pipeline.js` →
+> `commands/workflow.js`, `templates/skills/bobby-pipeline/` →
+> `bobby-workflow/`. Finding **C4** (the word "pipeline" being overloaded) is
+> what motivated that rename. The finding text below is left as-written to
+> preserve the record.
+
 Four-dimension audit (CLI surface, onboarding/config, docs accuracy, skills/concepts)
 run against the question: **how simple can Bobby be for a solo founder who only uses
 the tool?** Verdicts: `FIX` (bug), `BUILD` (simplification work), `MERGE`, `HIDE`,

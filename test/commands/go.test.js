@@ -29,7 +29,7 @@ describe('bobby go', () => {
   test('go with text creates a ticket and runs the pipeline on it', () => {
     const out = run('go "add a landing page"');
     expect(out).toContain('Created TKT-001');
-    expect(out).toContain('Bobby Pipeline');
+    expect(out).toContain('Bobby Workflow');
     expect(out).toContain('TKT-001');
     // Ticket really exists
     const dirs = fs.readdirSync(path.join(tmpDir, '.bobby', 'tickets')).filter(e => e.startsWith('TKT-001'));
@@ -45,11 +45,18 @@ describe('bobby go', () => {
     expect(ticket).toContain('priority: high');
   });
 
+  test('go --workflow tags the new ticket with that workflow', () => {
+    run('go "add payment processing" --workflow secure');
+    const dir = fs.readdirSync(path.join(tmpDir, '.bobby', 'tickets')).find(e => e.startsWith('TKT-001'));
+    const ticket = fs.readFileSync(path.join(tmpDir, '.bobby', 'tickets', dir, 'ticket.md'), 'utf8');
+    expect(ticket).toContain('workflow: secure');
+  });
+
   test('go with a ticket id runs the pipeline on that ticket', () => {
     run('ticket create -t "Existing work"');
     const out = run('go TKT-001');
     expect(out).not.toContain('Created'); // no new ticket
-    expect(out).toContain('Bobby Pipeline');
+    expect(out).toContain('Bobby Workflow');
     expect(out).toContain('TKT-001');
   });
 
@@ -62,8 +69,8 @@ describe('bobby go', () => {
   test('bare go picks the next action (backlog -> pipeline)', () => {
     run('ticket create -t "Top priority" -p critical');
     const out = run('go');
-    expect(out).toContain('bobby run pipeline TKT-001');
-    expect(out).toContain('Bobby Pipeline');
+    expect(out).toContain('bobby run workflow TKT-001');
+    expect(out).toContain('Bobby Workflow');
   });
 
   test('bare go pushes the furthest-along in-flight ticket', () => {
@@ -75,7 +82,40 @@ describe('bobby go', () => {
 
   test('bare go on an empty board gives starting guidance', () => {
     const out = run('go');
-    expect(out).toContain('Board is empty');
+    expect(out).toContain('Nothing to do yet');
     expect(out).toContain('bobby go "');
+  });
+
+  test('bare go guides a fresh epic to break down (run plan)', () => {
+    run('ticket create -t "A product idea" --epic');
+    const out = run('go');
+    expect(out).toMatch(/fresh idea/);
+    expect(out).toContain('bobby run plan TKT-001');
+  });
+
+  test('bare go guides a planned epic to build (run feature)', () => {
+    run('ticket create -t "A product idea" --epic');
+    run('ticket create -t "child" --parent TKT-001');
+    const out = run('go');
+    expect(out).toMatch(/build the MVP/);
+    expect(out).toContain('bobby run feature TKT-001');
+  });
+});
+
+describe('bobby go outside a project', () => {
+  let tmpDir;
+  const bobby = path.resolve('bin/bobby.js');
+
+  beforeEach(() => { tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-go-out-')); });
+  afterEach(() => { fs.rmSync(tmpDir, { recursive: true }); });
+
+  test('points you at bobby new instead of erroring', () => {
+    // No .bobbyrc.yml here — go must not crash, it should guide.
+    const out = execSync(`node ${bobby} go`, {
+      cwd: tmpDir, encoding: 'utf8',
+      env: { ...process.env, HOME: path.join(tmpDir, '.home') },
+    });
+    expect(out).toContain("not in a Bobby project");
+    expect(out).toContain('bobby new "your idea"');
   });
 });

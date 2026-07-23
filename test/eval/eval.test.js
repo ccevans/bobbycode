@@ -11,8 +11,8 @@ import {
   buildUxPrompt,
   buildPmPrompt,
   buildQePrompt,
-  DEFAULT_PIPELINE,
-} from '../../lib/pipeline.js';
+  DEFAULT_WORKFLOW,
+} from '../../lib/workflow.js';
 import { renderTemplate, renderSkillTemplates } from '../../lib/template.js';
 import fs from 'fs';
 import path from 'path';
@@ -21,7 +21,7 @@ import os from 'os';
 // ── Orchestration Prompt ──────────────────────────────────
 
 describe('eval: buildOrchestrationPrompt', () => {
-  const prompt = buildOrchestrationPrompt(['TKT-001', 'TKT-002'], DEFAULT_PIPELINE, 3, '.bobby/tickets', 20);
+  const prompt = buildOrchestrationPrompt(['TKT-001', 'TKT-002'], DEFAULT_WORKFLOW, 3, '.bobby/tickets', 20);
 
   test('includes branch guard', () => {
     expect(prompt).toContain('git branch --show-current');
@@ -35,7 +35,7 @@ describe('eval: buildOrchestrationPrompt', () => {
   });
 
   test('maps every pipeline stage to an agent', () => {
-    for (const step of DEFAULT_PIPELINE) {
+    for (const step of DEFAULT_WORKFLOW) {
       expect(prompt).toContain(step.agent);
       expect(prompt).toContain(step.stage);
     }
@@ -93,7 +93,7 @@ describe('eval: buildFeaturePrompt', () => {
   ];
   const prompt = buildFeaturePrompt(
     'TKT-010', 'User onboarding flow', childTickets,
-    DEFAULT_PIPELINE, 3, '.bobby/tickets', undefined
+    DEFAULT_WORKFLOW, 3, '.bobby/tickets', undefined
   );
 
   test('includes Phase 1 holistic planning', () => {
@@ -225,7 +225,7 @@ describe('eval: freeform agent prompts', () => {
 
 describe('eval: cross-cutting quality', () => {
   const allPrompts = [
-    { name: 'orchestration', prompt: buildOrchestrationPrompt(['TKT-001'], DEFAULT_PIPELINE) },
+    { name: 'orchestration', prompt: buildOrchestrationPrompt(['TKT-001'], DEFAULT_WORKFLOW) },
     { name: 'single', prompt: buildSingleAgentPrompt('bobby-build', 'TKT-001') },
     { name: 'ship', prompt: buildShipPrompt() },
     { name: 'ux', prompt: buildUxPrompt() },
@@ -238,12 +238,12 @@ describe('eval: cross-cutting quality', () => {
   });
 
   test('orchestration and feature prompts include git status check', () => {
-    const orch = buildOrchestrationPrompt(['TKT-001'], DEFAULT_PIPELINE);
+    const orch = buildOrchestrationPrompt(['TKT-001'], DEFAULT_WORKFLOW);
     expect(orch).toContain('git status');
 
     const feat = buildFeaturePrompt('TKT-010', 'Test', [
       { id: 'TKT-011', title: 'Child', priority: 'medium', stage: 'planning' },
-    ], DEFAULT_PIPELINE, 3, '.bobby/tickets', undefined);
+    ], DEFAULT_WORKFLOW, 3, '.bobby/tickets', undefined);
     expect(feat).toContain('git status');
     expect(feat).toContain('worktree');
   });

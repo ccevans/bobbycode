@@ -13,7 +13,7 @@ import { SSEHub } from '../lib/dashboard/sse.js';
 import { Orchestrator } from '../lib/dashboard/orchestrator.js';
 import { buildServer } from '../lib/dashboard/server.js';
 import { isGitRepo } from '../lib/dashboard/worktree.js';
-import { resolvePipeline } from './run.js';
+import { resolveWorkflow } from './run.js';
 import { bold, dim, success, error, warn } from '../lib/colors.js';
 
 function openInBrowser(url) {
@@ -34,7 +34,7 @@ export function registerDashboard(program) {
     .option('--port <n>', 'Port to bind (default: from config or 7777)')
     .option('--host <host>', 'Host to bind (default: 127.0.0.1)', '127.0.0.1')
     .option('--no-open', 'Do not auto-open the browser')
-    .option('--pipeline <name>', 'Pipeline to use for agent chaining', 'default')
+    .option('--workflow <name>', 'Workflow to use for agent chaining', 'default')
     .action(async (opts) => {
       try {
         const root = findProjectRoot();
@@ -49,7 +49,7 @@ export function registerDashboard(program) {
         const agentsPath = target.paths().agents;
         const ticketsDir = resolveTicketsDir(root, config);
         const sessionsDir = resolveSessionsDir(root, config);
-        const pipeline = resolvePipeline(config, opts.pipeline || 'default');
+        const pipeline = resolveWorkflow(config, opts.workflow || 'default');
 
         const port = parseInt(opts.port || config?.dashboard?.port || 7777, 10);
         const host = opts.host || '127.0.0.1';
@@ -76,7 +76,7 @@ export function registerDashboard(program) {
           store,
           sseHub,
           pipeline,
-          pipelineName: opts.pipeline || 'default',
+          pipelineName: opts.workflow || 'default',
         });
 
         // Wire store → SSE global broadcasts so clients see state updates
@@ -92,7 +92,7 @@ export function registerDashboard(program) {
           const url = `http://${host}:${port}`;
           console.log('');
           console.log(`  ${bold('Bobby Dashboard')}`);
-          console.log(`  ${dim(`Pipeline: ${opts.pipeline || 'default'}`)}`);
+          console.log(`  ${dim(`Workflow: ${opts.workflow || 'default'}`)}`);
           console.log(`  ${dim(`State:    ${stateFile}`)}`);
           console.log('');
           success(`  Running at ${url}`);

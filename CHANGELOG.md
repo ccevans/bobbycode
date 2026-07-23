@@ -6,6 +6,50 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed — BREAKING
+- **"Pipelines" are now "workflows"** throughout the user-facing surface:
+  `bobby pipeline` → `bobby workflow`, `--pipeline` → `--workflow`, the
+  `pipelines:` config key → `workflows:`, the ticket `pipeline:` field →
+  `workflow:`, and `bobby run pipeline` → `bobby run workflow`. The old
+  `pipelines:` config and ticket field are still read as a fallback.
+
+### Added
+- **Built-in workflows** — `default`, `secure` (adds a security stage), and
+  `quick` (plan→build→test) are available everywhere with no config; your
+  `workflows:` entries extend or override them. `bobby workflow list` shows them.
+- **Ticket-by-default + workflow selection.** Asking for a feature/change creates
+  a ticket and runs it; `bobby go` takes `--workflow <name>`, and the router /
+  `CLAUDE.md` now pick the fitting workflow (secure for auth/payments/secrets,
+  quick for tiny changes, else default).
+- **`bobby do "<request>"`** — the natural-language front door. Say what you want
+  in plain words; Bobby routes it to the right skill/command (build, vet, debug,
+  review, ship, …) and runs it. Driven by a capability catalog in `lib/router.js`;
+  the generated `CLAUDE.md` now carries the same intent-routing table so talking
+  to Bobby inside a Claude Code session routes the same way.
+
+### Changed
+- **`bobby go` is now the single guided loop** — the whole process is two verbs:
+  `bobby new "<idea>"` to start, then `bobby go` again and again. From any state
+  `go` names and runs the next step: a fresh idea → break it down, a planned epic
+  → build the MVP, in-flight work → push it forward, and outside a project it
+  points you at `bobby new`. Default `bobby --help` now shows just the loop
+  (new / go / init); everything else is listed compactly and still has `--help`.
+
+### Added
+- **`bobby vet "<idea>"`** — pressure-test an idea before building it. Emits a
+  self-contained interrogation (works with no project): asks one question at a
+  time — users, problem, alternatives, riskiest assumption, cheapest test —
+  then a PURSUE/REFINE/PARK verdict and a sharpened one-liner to hand to
+  `bobby new`. `bobby vet <n>` vets a captured idea (project or global inbox).
+- **`bobby new "<idea>"`** — the 0→1 on-ramp. Turns a one-line idea into a
+  **running** project: a dependency-free starter skeleton, Bobby scaffolding, an
+  MVP epic (idea baked into its description), and an initial commit — then hands
+  off to `bobby run plan` → `bobby run feature`. Options: `--dir`, `--stack`.
+- **Built-in scaffolding system** — `templates/starters/<name>/` + `lib/starters.js`.
+  Starters ship a runnable app (Node built-ins + `node:test`, zero install):
+  `node` (HTTP API with `/health`, default) and `web` (static page). Extensible:
+  add a starter dir + a `stacks/<name>.json` preset.
+
 ## [1.0.0] — 2026-07-19
 
 First public release. Bobby is a full SDLC workflow for a solo developer — one
@@ -23,11 +67,11 @@ person, a whole team of Claude Code agents.
 ### Added
 - **`bobby go` — the golden path.** No args: runs the most valuable next action
   (finish in-flight → unblock → start top of backlog). With text: creates the
-  ticket AND runs the full pipeline in one step. With an ID: runs that ticket.
+  ticket AND runs the full workflow in one step. With an ID: runs that ticket.
 - **Zero-question `bobby init`.** Everything auto-detected (name, stack, target);
   `--custom` keeps the full wizard. New-project initial commit is automatic.
 - **Progressive help.** `bobby --help` shows the eight founder-facing commands;
-  power tools (pipeline, retro, learn, projects, session, sync, export, upgrade)
+  power tools (workflow, retro, learn, projects, session, sync, export, upgrade)
   stay fully functional and are listed in a one-line footer.
 - **Studio: one machine, many projects.**
   - Projects auto-register in `~/.bobby/projects.yml` whenever a bobby command
@@ -68,6 +112,6 @@ person, a whole team of Claude Code agents.
 
 ## [0.9.0]
 
-Initial public baseline: ticketing, the plan → build → review → test pipeline,
+Initial public baseline: ticketing, the plan → build → review → test workflow,
 17 agents, 21 skills, sprints, the local dashboard, learnings/retros, and
 multi-stack init.

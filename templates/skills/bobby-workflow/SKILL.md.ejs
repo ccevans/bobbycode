@@ -1,10 +1,10 @@
 ---
-name: run-pipeline
-description: "Pipeline Skill: Runs the full SDLC pipeline on one or more tickets — planning → building → reviewing → testing. Auto-chains agents with retry on rejection. Stops at shipping (use bobby run ship to create PRs/merge). MANDATORY TRIGGERS: pipeline, run pipeline, work tickets, work the board, auto, full pipeline, end to end."
-argument-hint: "<ticket ID(s) to pipeline>"
+name: run-workflow
+description: "Workflow Skill: Runs the full SDLC workflow on one or more tickets — planning → building → reviewing → testing. Auto-chains agents with retry on rejection. Stops at shipping (use bobby run ship to create PRs/merge). MANDATORY TRIGGERS: workflow, run workflow, work tickets, work the board, auto, full workflow, end to end."
+argument-hint: "<ticket ID(s) to workflow>"
 ---
 
-# Bobby Pipeline Skill
+# Bobby Workflow Skill
 
 > Orchestrates the ticket lifecycle: planning → building → reviewing → testing. Auto-chains agents and retries on rejection. Stops at shipping — use `bobby run ship` separately to create PRs and merge.
 
@@ -25,7 +25,7 @@ argument-hint: "<ticket ID(s) to pipeline>"
    |--------|-------|-------|
    | ... | ... | building/reviewing/testing |
 
-   d) Ask the user which tickets to pipeline (specific IDs or "all")
+   d) Ask the user which tickets to workflow (specific IDs or "all")
    e) **Wait for the user's response before proceeding.** Do not auto-select.
 
 2. **Branch guard** — Run `git branch --show-current`. If on main/master, create a feature branch: `git checkout -b tkt-{first-ticket-ID}`. NEVER commit directly to main/master.
@@ -35,7 +35,7 @@ argument-hint: "<ticket ID(s) to pipeline>"
 - **Max retries per ticket:** <%= typeof max_retries !== 'undefined' && max_retries ? max_retries : 3 %> (when an agent rejects, loop back to building)
 - **Max total agent invocations:** 20 (across all tickets — stop and report if hit)
 
-## Pipeline Stages
+## Workflow Stages
 
 | Stage | Agent | What it does |
 |-------|-------|-------------|
@@ -44,7 +44,7 @@ argument-hint: "<ticket ID(s) to pipeline>"
 | reviewing | bobby-review | Code review — runs tests, lint, checks ACs |
 | testing | bobby-test | Live app verification — browser + API testing |
 
-> **Note:** Shipping is handled separately via `bobby run ship`. The pipeline stops once a ticket reaches the shipping stage.
+> **Note:** Shipping is handled separately via `bobby run ship`. The workflow stops once a ticket reaches the shipping stage.
 
 ## Orchestration Process
 
@@ -78,7 +78,7 @@ After each agent completes:
 ### 4. Advance or Retry
 - **Stage advanced** → continue to the next agent
 - **Stage went back to building** (rejection) → run bobby-build again. The build agent reads rejection comments to understand what to fix. Max retries: <%= typeof max_retries !== 'undefined' && max_retries ? max_retries : 3 %>
-- **Stage is shipping** → this ticket's pipeline is complete. Move to the next ticket. To ship, run `bobby run ship` separately.
+- **Stage is shipping** → this ticket's workflow is complete. Move to the next ticket. To ship, run `bobby run ship` separately.
 - **Stage is blocked** → stop this ticket, report the blocker, move to next ticket
 - **Max retries exceeded** → stop this ticket, report failure, move to next ticket
 
@@ -94,8 +94,8 @@ Repeat for each ticket in the queue.
 ## Key Principles
 
 - **Use agent files, not inline prompts** — always tell subagents to read their `.md` agent file. Never write custom inline instructions that bypass standardized agent behavior.
-- **One ticket at a time** — process sequentially, don't parallelize pipeline stages
+- **One ticket at a time** — process sequentially, don't parallelize workflow stages
 - **Trust agent decisions** — if an agent rejects, don't override it
 - **Clean workspace** — verify `git status` after each agent
 - **Stop on confusion** — if a ticket is in an unexpected state, stop and report rather than guessing
-- **Never auto-ship** — pipeline stops at shipping; user triggers `bobby run ship` when ready
+- **Never auto-ship** — workflow stops at shipping; user triggers `bobby run ship` when ready

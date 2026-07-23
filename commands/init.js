@@ -740,7 +740,7 @@ export function registerInit(program) {
         }
         console.log('  Want to learn more?');
         console.log('    .bobbyrc.yml                           # All config options (with comments)');
-        console.log('    docs/CUSTOMIZING.md                    # Add agents, skills, pipelines');
+        console.log('    docs/CUSTOMIZING.md                    # Add agents, skills, workflows');
         console.log('    docs/MIGRATING.md                      # Adopt Bobby incrementally');
         console.log('');
       } catch (e) {

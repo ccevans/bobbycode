@@ -44,7 +44,7 @@ Stage is tracked in `ticket.md` frontmatter — no physical file moves.
 | Block | `bobby ticket move TKT-001 block "reason"` |
 | Unblock | `bobby ticket move TKT-001 unblock` |
 | Step through stages (slow) | `bobby run next TKT-001` |
-| Auto-chain all agents (fast) | `bobby run pipeline TKT-001` |
+| Auto-chain all agents (fast) | `bobby run workflow TKT-001` |
 | Run agent on all in stage | `bobby run plan` (no ticket ID) |
 | Ship | `bobby run ship` |
 | UX design review | `bobby run ux` |
@@ -55,7 +55,7 @@ Stage is tracked in `ticket.md` frontmatter — no physical file moves.
 ## Running Agents
 
 ### Fast Mode — Auto-Chain
-`bobby run pipeline TKT-001` chains all agents automatically:
+`bobby run workflow TKT-001` chains all agents automatically:
 
 ```
 bobby-plan → bobby-build → bobby-review → bobby-test → shipping
@@ -63,7 +63,7 @@ bobby-plan → bobby-build → bobby-review → bobby-test → shipping
 
 - Fully automated — no pauses
 - Rejections loop back to building (max 3 retries)
-- Pipeline resumes from current stage
+- Workflow resumes from current stage
 - `bobby run ship` creates PR + merges when ready
 
 ### Slow Mode — Step by Step

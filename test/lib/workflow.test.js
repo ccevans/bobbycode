@@ -1,22 +1,22 @@
-// test/lib/pipeline.test.js
+// test/lib/workflow.test.js
 import {
   buildSingleAgentPrompt, buildNextStepPrompt, buildBatchStagePrompt,
   buildUxPrompt, buildPmPrompt, buildQePrompt, buildShipPrompt, buildFeaturePrompt,
   buildOrchestrationPrompt, buildSecurityPrompt, buildDebugPrompt, buildDocsPrompt,
   buildPerformancePrompt, buildWatchdogPrompt, buildVetPrompt, buildStrategyPrompt,
   buildSprintPrompt,
-  resolveNextAgent, DEFAULT_PIPELINE, resolvePipeline, listPipelines,
-} from '../../lib/pipeline.js';
+  resolveNextAgent, DEFAULT_WORKFLOW, resolveWorkflow, listWorkflows,
+} from '../../lib/workflow.js';
 import { createTicket, moveTicket, findTicket, writeTicket } from '../../lib/tickets.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-describe('pipeline', () => {
+describe('workflow', () => {
   let tmpDir;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-pipeline-'));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-workflow-'));
     fs.writeFileSync(path.join(tmpDir, '.counter'), '0');
   });
 
@@ -43,7 +43,7 @@ describe('pipeline', () => {
     createTicket(tmpDir, { prefix: 'TKT', title: 'Test', author: 'dev', area: '' });
     moveTicket(tmpDir, 'TKT-001', 'planning', 'dev');
 
-    const prompt = buildNextStepPrompt('TKT-001', DEFAULT_PIPELINE, tmpDir);
+    const prompt = buildNextStepPrompt('TKT-001', DEFAULT_WORKFLOW, tmpDir);
     expect(prompt).toContain('bobby-plan');
     expect(prompt).toContain('TKT-001');
   });
@@ -52,14 +52,14 @@ describe('pipeline', () => {
     createTicket(tmpDir, { prefix: 'TKT', title: 'Test', author: 'dev', area: '' });
     moveTicket(tmpDir, 'TKT-001', 'building', 'dev');
 
-    const prompt = buildNextStepPrompt('TKT-001', DEFAULT_PIPELINE, tmpDir);
+    const prompt = buildNextStepPrompt('TKT-001', DEFAULT_WORKFLOW, tmpDir);
     expect(prompt).toContain('bobby-build');
   });
 
   test('buildNextStepPrompt handles backlog', () => {
     createTicket(tmpDir, { prefix: 'TKT', title: 'Test', author: 'dev', area: '' });
 
-    const prompt = buildNextStepPrompt('TKT-001', DEFAULT_PIPELINE, tmpDir);
+    const prompt = buildNextStepPrompt('TKT-001', DEFAULT_WORKFLOW, tmpDir);
     expect(prompt).toContain('in backlog');
     expect(prompt).toContain('bobby ticket move TKT-001 plan');
   });
@@ -69,7 +69,7 @@ describe('pipeline', () => {
     moveTicket(tmpDir, 'TKT-001', 'building', 'dev');
     moveTicket(tmpDir, 'TKT-001', 'blocked', 'dev', 'Needs API key');
 
-    const prompt = buildNextStepPrompt('TKT-001', DEFAULT_PIPELINE, tmpDir);
+    const prompt = buildNextStepPrompt('TKT-001', DEFAULT_WORKFLOW, tmpDir);
     expect(prompt).toContain('blocked');
     expect(prompt).toContain('Needs API key');
   });
@@ -78,7 +78,7 @@ describe('pipeline', () => {
     createTicket(tmpDir, { prefix: 'TKT', title: 'Test', author: 'dev', area: '' });
     moveTicket(tmpDir, 'TKT-001', 'done', 'dev');
 
-    const prompt = buildNextStepPrompt('TKT-001', DEFAULT_PIPELINE, tmpDir);
+    const prompt = buildNextStepPrompt('TKT-001', DEFAULT_WORKFLOW, tmpDir);
     expect(prompt).toContain('already done');
   });
 
@@ -86,12 +86,12 @@ describe('pipeline', () => {
     createTicket(tmpDir, { prefix: 'TKT', title: 'Test', author: 'dev', area: '' });
     moveTicket(tmpDir, 'TKT-001', 'shipping', 'dev');
 
-    const prompt = buildNextStepPrompt('TKT-001', DEFAULT_PIPELINE, tmpDir);
+    const prompt = buildNextStepPrompt('TKT-001', DEFAULT_WORKFLOW, tmpDir);
     expect(prompt).toContain('bobby run ship');
   });
 
   test('buildNextStepPrompt throws for missing ticket', () => {
-    expect(() => buildNextStepPrompt('TKT-999', DEFAULT_PIPELINE, tmpDir)).toThrow('not found');
+    expect(() => buildNextStepPrompt('TKT-999', DEFAULT_WORKFLOW, tmpDir)).toThrow('not found');
   });
 
   test('buildBatchStagePrompt lists all ticket IDs', () => {
@@ -138,41 +138,41 @@ describe('pipeline', () => {
 
   describe('resolveNextAgent', () => {
     test('returns agent for matching stage', () => {
-      expect(resolveNextAgent(DEFAULT_PIPELINE, 'planning')).toBe('bobby-plan');
-      expect(resolveNextAgent(DEFAULT_PIPELINE, 'building')).toBe('bobby-build');
-      expect(resolveNextAgent(DEFAULT_PIPELINE, 'reviewing')).toBe('bobby-review');
-      expect(resolveNextAgent(DEFAULT_PIPELINE, 'testing')).toBe('bobby-test');
+      expect(resolveNextAgent(DEFAULT_WORKFLOW, 'planning')).toBe('bobby-plan');
+      expect(resolveNextAgent(DEFAULT_WORKFLOW, 'building')).toBe('bobby-build');
+      expect(resolveNextAgent(DEFAULT_WORKFLOW, 'reviewing')).toBe('bobby-review');
+      expect(resolveNextAgent(DEFAULT_WORKFLOW, 'testing')).toBe('bobby-test');
     });
 
     test('returns null for unmapped stage', () => {
-      expect(resolveNextAgent(DEFAULT_PIPELINE, 'shipping')).toBeNull();
-      expect(resolveNextAgent(DEFAULT_PIPELINE, 'done')).toBeNull();
-      expect(resolveNextAgent(DEFAULT_PIPELINE, 'blocked')).toBeNull();
+      expect(resolveNextAgent(DEFAULT_WORKFLOW, 'shipping')).toBeNull();
+      expect(resolveNextAgent(DEFAULT_WORKFLOW, 'done')).toBeNull();
+      expect(resolveNextAgent(DEFAULT_WORKFLOW, 'blocked')).toBeNull();
     });
   });
 
   describe('buildOrchestrationPrompt', () => {
     test('includes ticket list', () => {
-      const prompt = buildOrchestrationPrompt(['TKT-001', 'TKT-002'], DEFAULT_PIPELINE);
+      const prompt = buildOrchestrationPrompt(['TKT-001', 'TKT-002'], DEFAULT_WORKFLOW);
       expect(prompt).toContain('- TKT-001');
       expect(prompt).toContain('- TKT-002');
     });
 
     test('includes branch guard', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
       expect(prompt).toContain('Branch guard');
       expect(prompt).toContain('git branch --show-current');
       expect(prompt).toContain('tkt-TKT-001');
     });
 
     test('includes safety limits', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE, 5, '.bobby/tickets', 30);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW, 5, '.bobby/tickets', 30);
       expect(prompt).toContain('Max retries per ticket: 5');
       expect(prompt).toContain('Max total agent invocations across all tickets: 30');
     });
 
-    test('includes all pipeline agent references', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+    test('includes all workflow agent references', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
       expect(prompt).toContain('.claude/agents/bobby-plan.md');
       expect(prompt).toContain('.claude/agents/bobby-build.md');
       expect(prompt).toContain('.claude/agents/bobby-review.md');
@@ -180,40 +180,40 @@ describe('pipeline', () => {
     });
 
     test('includes retry and debug logic', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
       expect(prompt).toContain('rejection');
       expect(prompt).toContain('bobby-debug');
       expect(prompt).toContain('.claude/agents/bobby-debug.md');
     });
 
     test('includes final status reporting', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
       expect(prompt).toContain('report the final status');
     });
 
     test('handles single ticket ID (non-array)', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
       expect(prompt).toContain('- TKT-001');
     });
 
     test('uses custom ticketsDir', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE, 3, 'custom/tickets');
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW, 3, 'custom/tickets');
       expect(prompt).toContain('custom/tickets');
     });
 
     test('includes service hint when hasServices is true', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE, 3, '.bobby/tickets', 20, '.claude/agents', true);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW, 3, '.bobby/tickets', 20, '.claude/agents', true);
       expect(prompt).toContain('services');
       expect(prompt).toContain('.bobbyrc.yml');
     });
 
     test('has no service hint when hasServices is false', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE, 3, '.bobby/tickets', 20, '.claude/agents', false);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW, 3, '.bobby/tickets', 20, '.claude/agents', false);
       expect(prompt).not.toContain('.bobbyrc.yml');
     });
 
     test('instructs subagent-per-stage, not inline execution', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
       expect(prompt).toContain('Launch a subagent');
       expect(prompt).toContain('Agent tool');
       expect(prompt).toContain('coordination, not execution');
@@ -222,41 +222,41 @@ describe('pipeline', () => {
     });
 
     test('includes bobby ticket create guardrail', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
       expect(prompt).toContain('bobby ticket create');
       expect(prompt).toContain('Never write ticket files manually');
     });
 
     test('includes no-todo-tracking guardrail', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
       expect(prompt).toContain('sole progress tracker');
       expect(prompt).not.toContain('TodoWrite');
     });
 
     test('includes no-error-suppression guardrail', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
       expect(prompt).toContain('Never suppress errors');
       expect(prompt).toContain('2>/dev/null');
     });
 
     test('includes health check pre-gate for test stage', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
       expect(prompt).toContain('Pre-gate');
       expect(prompt).toContain('health check');
       expect(prompt).toContain('live app, not run specs');
     });
 
     test('includes pre-flight stage gates for backlog/done/blocked', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
       expect(prompt).toContain('Pre-flight stage gates');
       expect(prompt).toContain('"done"');
       expect(prompt).toContain('"blocked"');
       expect(prompt).toContain('"backlog"');
-      // Backlog gate advances to the first pipeline stage (planning, by default)
+      // Backlog gate advances to the first workflow stage (planning, by default)
       expect(prompt).toContain('bobby ticket move {TICKET_ID} planning');
     });
 
-    test('backlog gate uses the first stage of a custom pipeline', () => {
+    test('backlog gate uses the first stage of a custom workflow', () => {
       const customPipeline = [
         { stage: 'building', agent: 'bobby-build' },
         { stage: 'testing', agent: 'bobby-test' },
@@ -267,7 +267,7 @@ describe('pipeline', () => {
     });
 
     test('catch-all instructs warn-not-skip for unhandled stages', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_PIPELINE);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
       expect(prompt).toContain('log a warning');
       expect(prompt).toMatch(/do not silently skip|do not silently move on/);
     });
@@ -446,7 +446,7 @@ describe('pipeline', () => {
     createTicket(tmpDir, { prefix: 'TKT', title: 'Test', author: 'dev', area: '' });
     moveTicket(tmpDir, 'TKT-001', 'reviewing', 'dev');
 
-    // Use a pipeline that has no entry for "reviewing"
+    // Use a workflow that has no entry for "reviewing"
     const customPipeline = [
       { stage: 'planning', agent: 'bobby-plan' },
       { stage: 'building', agent: 'bobby-build' },
@@ -463,7 +463,7 @@ describe('pipeline', () => {
     const found = findTicket(tmpDir, 'TKT-001');
     writeTicket(found.path, { ...found.data, blocked_reason: null }, found.content);
 
-    const prompt = buildNextStepPrompt('TKT-001', DEFAULT_PIPELINE, tmpDir);
+    const prompt = buildNextStepPrompt('TKT-001', DEFAULT_WORKFLOW, tmpDir);
     expect(prompt).toContain('no reason given');
   });
 
@@ -474,18 +474,18 @@ describe('pipeline', () => {
     ];
 
     test('includes epic ID and title', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('TKT-001');
       expect(prompt).toContain('User Auth');
     });
 
     test('includes feature branch name', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('feature/tkt-001-user-auth');
     });
 
     test('lists child tickets in order', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('1. TKT-002');
       expect(prompt).toContain('2. TKT-003');
       expect(prompt).toContain('Auth login');
@@ -493,25 +493,25 @@ describe('pipeline', () => {
     });
 
     test('includes holistic verification step', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('full test suite one final time');
       expect(prompt).toContain('bobby ticket move TKT-001 ship');
     });
 
     test('includes inter-ticket test instructions', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('Between tickets');
       expect(prompt).toContain('integration issues');
     });
 
     test('respects maxRetries and maxIterations', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE, 5, '.bobby/tickets', 30);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW, 5, '.bobby/tickets', 30);
       expect(prompt).toContain('Max retries per ticket: 5');
       expect(prompt).toContain('Max total agent invocations: 30');
     });
 
-    test('includes pipeline agent steps', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+    test('includes workflow agent steps', () => {
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('bobby-plan');
       expect(prompt).toContain('bobby-build');
       expect(prompt).toContain('bobby-review');
@@ -519,13 +519,13 @@ describe('pipeline', () => {
     });
 
     test('includes final status reporting', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('Report');
       expect(prompt).toContain('final status');
     });
 
     test('includes two-phase structure', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('Phase 1');
       expect(prompt).toContain('Phase 2');
       expect(prompt).toContain('Holistic Planning');
@@ -533,39 +533,39 @@ describe('pipeline', () => {
     });
 
     test('Phase 1 lists tickets needing planning', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('Tickets to plan:');
       expect(prompt).toContain('TKT-002');
       expect(prompt).toContain('TKT-003');
     });
 
     test('Phase 1 includes feature-plan.md instructions', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('feature-plan.md');
       expect(prompt).toContain('cross-cutting');
     });
 
     test('Phase 1 includes sibling plan.md reading', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('TKT-002*/plan.md');
       expect(prompt).toContain('TKT-003*/plan.md');
     });
 
     test('Phase 2 includes feature-plan.md context for execution agents', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('Read `');
       expect(prompt).toContain('feature-plan.md` for cross-cutting feature context');
     });
 
     test('Phase 2 flags backlog/planning as error', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('backlog');
       expect(prompt).toContain('planning');
       expect(prompt).toContain('error');
     });
 
     test('Phase 2 pre-flight gate covers "done" tickets entering the loop', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('Pre-flight stage gates');
       expect(prompt).toContain('"done"');
       expect(prompt).toContain('already complete on entry');
@@ -576,7 +576,7 @@ describe('pipeline', () => {
         { id: 'TKT-002', title: 'Auth login', priority: 'high', stage: 'building' },
         { id: 'TKT-003', title: 'Auth signup', priority: 'medium', stage: 'reviewing' },
       ];
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', builtChildren, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', builtChildren, DEFAULT_WORKFLOW);
       expect(prompt).toContain('already past planning');
       expect(prompt).not.toContain('Tickets to plan:');
     });
@@ -586,7 +586,7 @@ describe('pipeline', () => {
         { id: 'TKT-002', title: 'Auth login', priority: 'high', stage: 'building' },
         { id: 'TKT-003', title: 'Auth signup', priority: 'medium', stage: 'backlog' },
       ];
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', mixedChildren, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', mixedChildren, DEFAULT_WORKFLOW);
       expect(prompt).toContain('Tickets to plan:');
       expect(prompt).toContain('TKT-003');
       expect(prompt).toContain('Already past planning');
@@ -594,13 +594,13 @@ describe('pipeline', () => {
     });
 
     test('describes two-phase workflow in intro', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('two phases');
       expect(prompt).toContain('plan all tickets holistically');
     });
 
     test('mentions worktree isolation', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('worktree');
       expect(prompt).toContain('isolated worktree');
     });
@@ -609,76 +609,100 @@ describe('pipeline', () => {
       // All children are in stages past planning but pass an empty array
       // to test the !pastPlanning.length branch
       const emptyChildren = [];
-      const prompt = buildFeaturePrompt('TKT-001', 'Empty Epic', emptyChildren, DEFAULT_PIPELINE);
+      const prompt = buildFeaturePrompt('TKT-001', 'Empty Epic', emptyChildren, DEFAULT_WORKFLOW);
       expect(prompt).toContain('already past planning');
       expect(prompt).toContain('Skipping to Phase 2');
     });
   });
 
-  describe('resolvePipeline', () => {
-    test('returns DEFAULT_PIPELINE when no config pipelines', () => {
-      const result = resolvePipeline({}, 'default');
-      expect(result).toEqual(DEFAULT_PIPELINE);
+  describe('resolveWorkflow', () => {
+    test('returns DEFAULT_WORKFLOW when no config workflows', () => {
+      const result = resolveWorkflow({}, 'default');
+      expect(result).toEqual(DEFAULT_WORKFLOW);
     });
 
-    test('resolves named pipeline from config', () => {
-      const config = { pipelines: { quick: ['build', 'test'] } };
-      const result = resolvePipeline(config, 'quick');
+    test('still reads the legacy `pipelines:` config key (backward compat)', () => {
+      const result = resolveWorkflow({ pipelines: { legacy: ['build', 'test'] } }, 'legacy');
       expect(result).toEqual([
         { stage: 'building', agent: 'bobby-build' },
         { stage: 'testing', agent: 'bobby-test' },
       ]);
     });
 
-    test('resolves pipeline with security step', () => {
-      const config = { pipelines: { secure: ['plan', 'build', 'security', 'review', 'test'] } };
-      const result = resolvePipeline(config, 'secure');
+    test('resolves the built-in secure workflow without any config', () => {
+      const result = resolveWorkflow({}, 'secure');
+      expect(result).toHaveLength(5);
+      expect(result.map(s => s.agent)).toContain('bobby-security');
+    });
+
+    test('resolves the built-in quick workflow without any config', () => {
+      const result = resolveWorkflow({}, 'quick');
+      expect(result.map(s => s.agent)).toEqual(['bobby-plan', 'bobby-build', 'bobby-test']);
+    });
+
+    test('config can override a built-in workflow by name', () => {
+      const result = resolveWorkflow({ workflows: { quick: ['build'] } }, 'quick');
+      expect(result).toEqual([{ stage: 'building', agent: 'bobby-build' }]);
+    });
+
+    test('resolves named workflow from config', () => {
+      const config = { workflows: { quick: ['build', 'test'] } };
+      const result = resolveWorkflow(config, 'quick');
+      expect(result).toEqual([
+        { stage: 'building', agent: 'bobby-build' },
+        { stage: 'testing', agent: 'bobby-test' },
+      ]);
+    });
+
+    test('resolves workflow with security step', () => {
+      const config = { workflows: { secure: ['plan', 'build', 'security', 'review', 'test'] } };
+      const result = resolveWorkflow(config, 'secure');
       expect(result).toHaveLength(5);
       expect(result[2]).toEqual({ stage: 'reviewing', agent: 'bobby-security' });
     });
 
-    test('throws for unknown pipeline name', () => {
-      const config = { pipelines: { quick: ['build'] } };
-      expect(() => resolvePipeline(config, 'nonexistent')).toThrow("Unknown pipeline 'nonexistent'");
+    test('throws for unknown workflow name', () => {
+      const config = { workflows: { quick: ['build'] } };
+      expect(() => resolveWorkflow(config, 'nonexistent')).toThrow("Unknown workflow 'nonexistent'");
     });
 
-    test('error message lists available pipelines', () => {
-      const config = { pipelines: { quick: ['build'], hotfix: ['build'] } };
-      expect(() => resolvePipeline(config, 'nope')).toThrow(/quick/);
-      expect(() => resolvePipeline(config, 'nope')).toThrow(/hotfix/);
+    test('error message lists available workflows', () => {
+      const config = { workflows: { quick: ['build'], hotfix: ['build'] } };
+      expect(() => resolveWorkflow(config, 'nope')).toThrow(/quick/);
+      expect(() => resolveWorkflow(config, 'nope')).toThrow(/hotfix/);
     });
 
-    test('ticket pipeline overrides default when flag is default', () => {
-      const config = { pipelines: { quick: ['build', 'test'] } };
-      const result = resolvePipeline(config, 'default', 'quick');
+    test('ticket workflow overrides default when flag is default', () => {
+      const config = { workflows: { quick: ['build', 'test'] } };
+      const result = resolveWorkflow(config, 'default', 'quick');
       expect(result).toEqual([
         { stage: 'building', agent: 'bobby-build' },
         { stage: 'testing', agent: 'bobby-test' },
       ]);
     });
 
-    test('explicit flag overrides ticket pipeline', () => {
-      const config = { pipelines: { quick: ['build', 'test'], secure: ['plan', 'build', 'security', 'review', 'test'] } };
-      const result = resolvePipeline(config, 'secure', 'quick');
+    test('explicit flag overrides ticket workflow', () => {
+      const config = { workflows: { quick: ['build', 'test'], secure: ['plan', 'build', 'security', 'review', 'test'] } };
+      const result = resolveWorkflow(config, 'secure', 'quick');
       expect(result).toHaveLength(5);
       expect(result[0].agent).toBe('bobby-plan');
     });
 
-    test('ticket pipeline is ignored when explicit flag is set', () => {
-      const config = { pipelines: { quick: ['build'] } };
-      // Explicit 'quick' flag — ticket pipeline 'nonexistent' should not matter
-      const result = resolvePipeline(config, 'quick', 'nonexistent');
+    test('ticket workflow is ignored when explicit flag is set', () => {
+      const config = { workflows: { quick: ['build'] } };
+      // Explicit 'quick' flag — ticket workflow 'nonexistent' should not matter
+      const result = resolveWorkflow(config, 'quick', 'nonexistent');
       expect(result).toEqual([{ stage: 'building', agent: 'bobby-build' }]);
     });
 
-    test('returns DEFAULT_PIPELINE when ticket pipeline is null and flag is default', () => {
-      const result = resolvePipeline({}, 'default', null);
-      expect(result).toEqual(DEFAULT_PIPELINE);
+    test('returns DEFAULT_WORKFLOW when ticket workflow is null and flag is default', () => {
+      const result = resolveWorkflow({}, 'default', null);
+      expect(result).toEqual(DEFAULT_WORKFLOW);
     });
 
-    test('config default pipeline overrides built-in default', () => {
-      const config = { pipelines: { default: ['build', 'review'] } };
-      const result = resolvePipeline(config, 'default');
+    test('config default workflow overrides built-in default', () => {
+      const config = { workflows: { default: ['build', 'review'] } };
+      const result = resolveWorkflow(config, 'default');
       expect(result).toEqual([
         { stage: 'building', agent: 'bobby-build' },
         { stage: 'reviewing', agent: 'bobby-review' },
@@ -686,37 +710,37 @@ describe('pipeline', () => {
     });
   });
 
-  describe('listPipelines', () => {
-    test('returns default when no pipelines configured', () => {
-      expect(listPipelines({})).toEqual(['default']);
+  describe('listWorkflows', () => {
+    test('returns the built-in workflows when none configured', () => {
+      expect(listWorkflows({})).toEqual(['default', 'secure', 'quick']);
     });
 
-    test('includes custom pipeline names plus default', () => {
-      const config = { pipelines: { quick: ['build'], hotfix: ['build'] } };
-      const result = listPipelines(config);
+    test('includes custom workflow names plus default', () => {
+      const config = { workflows: { quick: ['build'], hotfix: ['build'] } };
+      const result = listWorkflows(config);
       expect(result).toContain('default');
       expect(result).toContain('quick');
       expect(result).toContain('hotfix');
     });
 
     test('does not duplicate default when config defines it', () => {
-      const config = { pipelines: { default: ['build', 'review'], quick: ['build'] } };
-      const result = listPipelines(config);
+      const config = { workflows: { default: ['build', 'review'], quick: ['build'] } };
+      const result = listWorkflows(config);
       expect(result.filter(n => n === 'default')).toHaveLength(1);
     });
   });
 
-  describe('ticket pipeline field', () => {
-    test('createTicket stores pipeline in frontmatter', () => {
-      createTicket(tmpDir, { prefix: 'TKT', title: 'Quick fix', author: 'dev', area: '', pipeline: 'quick' });
+  describe('ticket workflow field', () => {
+    test('createTicket stores workflow in frontmatter', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Quick fix', author: 'dev', area: '', workflow: 'quick' });
       const ticket = findTicket(tmpDir, 'TKT-001');
-      expect(ticket.data.pipeline).toBe('quick');
+      expect(ticket.data.workflow).toBe('quick');
     });
 
-    test('createTicket stores null pipeline when not specified', () => {
+    test('createTicket stores null workflow when not specified', () => {
       createTicket(tmpDir, { prefix: 'TKT', title: 'Normal task', author: 'dev', area: '' });
       const ticket = findTicket(tmpDir, 'TKT-001');
-      expect(ticket.data.pipeline).toBeNull();
+      expect(ticket.data.workflow).toBeNull();
     });
   });
 
@@ -733,7 +757,7 @@ describe('pipeline', () => {
     ];
 
     test('includes the sprint id, branch, goal, and tickets', () => {
-      const p = buildSprintPrompt(sprint, tickets, DEFAULT_PIPELINE);
+      const p = buildSprintPrompt(sprint, tickets, DEFAULT_WORKFLOW);
       expect(p).toContain('SPR-001');
       expect(p).toContain('feature/spr-001-auth-overhaul');
       expect(p).toContain('Passwordless login');
@@ -742,30 +766,30 @@ describe('pipeline', () => {
     });
 
     test('includes the branch guard and the sprint-done step', () => {
-      const p = buildSprintPrompt(sprint, tickets, DEFAULT_PIPELINE);
+      const p = buildSprintPrompt(sprint, tickets, DEFAULT_WORKFLOW);
       expect(p).toContain('git checkout -b feature/spr-001-auth-overhaul');
       expect(p).toContain('bobby sprint status SPR-001 done');
     });
 
     test('references the sprint plan when a path is given', () => {
-      const p = buildSprintPrompt(sprint, tickets, DEFAULT_PIPELINE, {
+      const p = buildSprintPrompt(sprint, tickets, DEFAULT_WORKFLOW, {
         sprintPlanPath: '.bobby/sprints/SPR-001--auth/sprint-plan.md',
       });
       expect(p).toContain('sprint-plan.md');
     });
 
     test('omits the plan read when no path is given', () => {
-      const p = buildSprintPrompt(sprint, tickets, DEFAULT_PIPELINE);
+      const p = buildSprintPrompt(sprint, tickets, DEFAULT_WORKFLOW);
       expect(p).not.toContain('sprint-plan.md');
     });
 
     test('includes a multi-service hint when hasServices is true', () => {
-      const p = buildSprintPrompt(sprint, tickets, DEFAULT_PIPELINE, { hasServices: true });
+      const p = buildSprintPrompt(sprint, tickets, DEFAULT_WORKFLOW, { hasServices: true });
       expect(p).toContain('Multi-service project');
     });
 
     test('includes pre-flight stage gates for backlog/done/blocked', () => {
-      const p = buildSprintPrompt(sprint, tickets, DEFAULT_PIPELINE);
+      const p = buildSprintPrompt(sprint, tickets, DEFAULT_WORKFLOW);
       expect(p).toContain('Pre-flight stage gates');
       expect(p).toContain('"done"');
       expect(p).toContain('"blocked"');
@@ -773,7 +797,7 @@ describe('pipeline', () => {
       expect(p).toContain('bobby ticket move {TICKET_ID} planning');
     });
 
-    test('backlog gate uses the first stage of a custom pipeline', () => {
+    test('backlog gate uses the first stage of a custom workflow', () => {
       const customPipeline = [
         { stage: 'building', agent: 'bobby-build' },
         { stage: 'testing', agent: 'bobby-test' },
@@ -784,7 +808,7 @@ describe('pipeline', () => {
     });
 
     test('catch-all instructs warn-not-skip for unhandled stages', () => {
-      const p = buildSprintPrompt(sprint, tickets, DEFAULT_PIPELINE);
+      const p = buildSprintPrompt(sprint, tickets, DEFAULT_WORKFLOW);
       expect(p).toContain('log a warning');
       expect(p).toMatch(/do not silently skip|do not silently move on/);
     });

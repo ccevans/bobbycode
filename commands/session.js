@@ -36,7 +36,7 @@ function formatEntry(entry) {
   let detail = '';
   switch (type) {
     case 'session_start':
-      detail = `pipeline on ${(entry.tickets || []).join(', ') || 'no tickets'}`;
+      detail = `workflow on ${(entry.tickets || []).join(', ') || 'no tickets'}`;
       break;
     case 'move': {
       const arrow = `${entry.from} → ${entry.to}`;

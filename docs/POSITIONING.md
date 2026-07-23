@@ -32,7 +32,7 @@ Every feature decision starts from what's different about working alone:
    Team rituals (estimation, approval chains, status reporting to others) exist to synchronize brains. With one brain there's nothing to synchronize. Every command must pay for itself in shipped work; if a step exists only to inform someone else, it doesn't belong in Bobby.
 
 4. **Bursty time — so everything must be resumable.**
-   Solo work happens in stolen hours. Any pipeline, sprint, or agent run must survive being interrupted and pick up cleanly — no long-lived state that rots between sessions.
+   Solo work happens in stolen hours. Any workflow, sprint, or agent run must survive being interrupted and pick up cleanly — no long-lived state that rots between sessions.
 
 5. **Solo doesn't mean small — so quality is non-negotiable.**
    A one-person project still has production users. TDD, code review, security audits, and post-deploy watchdogs are how a solo builder ships at team-grade quality without a team.
@@ -52,7 +52,7 @@ Two "no"s and it's out of scope.
 
 | Feature | Verdict | Notes |
 |---------|---------|-------|
-| Pipeline (plan → build → review → test) | **Double down** | The automated "team" — principle 1 made concrete |
+| Workflow (plan → build → review → test) | **Double down** | The automated "team" — principle 1 made concrete |
 | Learnings & retros | **Double down** | Bobby's memory is the solo builder's institutional knowledge |
 | Sessions & `progress.md` resume | **Double down** | Principle 2 and 4 made concrete |
 | Backlog triage & archive | **Double down** | One brain needs a curated backlog, not an infinite one |

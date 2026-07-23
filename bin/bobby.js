@@ -26,23 +26,29 @@ import { registerSession } from '../commands/session.js';
 import { registerSync } from '../commands/sync.js';
 import { registerLocalInit } from '../commands/local-init.js';
 import { registerDashboard } from '../commands/dashboard.js';
-import { registerPipeline } from '../commands/pipeline.js';
+import { registerWorkflow } from '../commands/workflow.js';
 import { registerSprint } from '../commands/sprint.js';
 import { registerIdea } from '../commands/idea.js';
 import { registerBrief } from '../commands/brief.js';
 import { registerProjects } from '../commands/projects.js';
 import { registerGo } from '../commands/go.js';
+import { registerNew } from '../commands/new.js';
+import { registerVet } from '../commands/vet.js';
+import { registerDo } from '../commands/do.js';
 import { touchProject } from '../lib/studio.js';
 
 const initCmd = registerInit(program);
 registerLocalInit(initCmd); // bobby init local
+registerDo(program);
+registerVet(program);
+registerNew(program);
 registerGo(program);
 registerBrief(program);
 registerIdea(program);
 registerTicket(program);
 registerSprint(program);
 registerRun(program);
-registerPipeline(program);
+registerWorkflow(program);
 registerRetro(program);
 registerLearn(program);
 registerProjects(program);
@@ -55,16 +61,22 @@ registerUpgrade(program);
 // Progressive help: the default help shows the founder-facing core; power/agent
 // plumbing stays fully functional but appears via `bobby help <cmd>` or the
 // footer below. Everything still tab-completes and errors helpfully.
-const CORE_COMMANDS = ['init', 'go', 'brief', 'idea', 'ticket', 'sprint', 'run', 'dashboard'];
+// The whole process is two verbs. Default help shows just the loop; everything
+// else is listed compactly below and still works + has its own --help.
+const ESSENTIAL = ['do', 'new', 'go', 'init'];
+const EVERYDAY = ['vet', 'brief', 'idea', 'ticket', 'sprint', 'run', 'dashboard'];
+const POWER = ['workflow', 'retro', 'learn', 'projects', 'session', 'sync', 'export', 'upgrade'];
 program.configureHelp({
   visibleCommands: (cmd) =>
     cmd.parent === null // only filter the ROOT help; subcommand help lists everything
-      ? cmd.commands.filter(c => CORE_COMMANDS.includes(c.name()))
+      ? cmd.commands.filter(c => ESSENTIAL.includes(c.name()))
       : cmd.commands.filter(c => c.name() !== 'help'),
 });
 program.addHelpText('afterAll', ({ command }) =>
   command.parent === null
-    ? '\nPower tools (run with --help for details):\n  pipeline · retro · learn · projects · session · sync · export · upgrade\n'
+    ? `\nOr just say what you want — Bobby picks the skill:\n  bobby "add a health check endpoint"\n\n` +
+      `The core loop:\n  bobby new "your idea"   →   bobby go   (run it again and again)\n\n` +
+      `More when you want it (each has --help):\n  ${EVERYDAY.join(' · ')}\n  ${POWER.join(' · ')}\n`
     : ''
 );
 
@@ -76,8 +88,21 @@ program.hook('preAction', () => {
   try { touchProject(); } catch { /* never block a command on registry writes */ }
 });
 
-// No subcommand → help. Unknown subcommand → commander errors with a suggestion
-// (important after the 1.0 rename: `bobby create` should say "unknown command").
+// Natural-language front door: `bobby "add a health endpoint"` (or unquoted words)
+// with a first token that isn't a command/flag is treated as `bobby do <request>`,
+// so you can just say what you want without remembering "do". Real commands,
+// aliases, and flags parse normally.
+const KNOWN = new Set(['help']);
+for (const c of program.commands) {
+  KNOWN.add(c.name());
+  for (const a of c.aliases()) KNOWN.add(a);
+}
+const first = process.argv[2];
+if (first && !first.startsWith('-') && !KNOWN.has(first)) {
+  process.argv.splice(2, 0, 'do');
+}
+
+// No subcommand → help.
 program.showSuggestionAfterError();
 if (process.argv.length <= 2) {
   program.help();

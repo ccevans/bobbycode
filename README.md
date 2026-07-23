@@ -26,30 +26,70 @@ bobby init
 
 Requires Node.js 18+ (you already have it if you use Claude Code).
 
-## Quick Start — Three Verbs
+## Vet the Idea First
+
+Before you build anything, pressure-test the idea — solo, there's no cofounder to poke holes:
 
 ```bash
-npx bobbycode init      # Zero questions — detects your stack, scaffolds everything
+bobby vet "a habit tracker for runners"
 ```
 
-Then the whole workflow is three verbs:
+This asks you the right questions **one at a time** — who feels the pain, what they use today, the riskiest assumption, the cheapest way to test it — then gives an honest **PURSUE / REFINE / PARK** read and a sharpened one-liner. Works from anywhere, no project needed. Vet a captured idea by number with `bobby vet 3`. If it survives, hand the sharpened idea to `bobby new`.
+
+## Start From an Idea
+
+Got a new idea and nothing built yet? One command turns a sentence into a **running project** with an MVP epic ready to build:
 
 ```bash
-bobby go "build the login page"    # Creates the ticket AND runs the full pipeline on it
+npx bobbycode new "a habit tracker for runners"
+```
+
+This creates the directory, drops a **dependency-free runnable skeleton** (a Node HTTP server with `/health`, plus passing tests — no `npm install` needed), scaffolds Bobby, captures your idea as the MVP epic, and makes the first commit. Then you only need **one verb**:
+
+```bash
+cd a-habit-tracker-for-runners
+npm run dev    # it already runs → http://localhost:3000
+bobby go       # break the idea down, build it, ship it — run it again and again
+```
+
+**Starters** (`--stack`): `node` (HTTP API, default) and `web` (static page) ship a runnable skeleton. Framework presets (`nextjs`, `go`, `django`, …) scaffold Bobby only for now. Name the directory with `--dir`. Already have a project? Use `init` below instead.
+
+## Just Say What You Want
+
+The simplest way to use Bobby is to not learn commands at all — just say what you want (the `do` is optional):
+
+```bash
+bobby "add a health check endpoint"
+bobby "is a Slack standup bot worth building"
+bobby "the login button does nothing when clicked"
+```
+
+Anything that isn't a known command is treated as a request: Bobby matches it to the right capability (build it, vet it, debug it, review it, ship it…) and runs it. Inside a Claude Code session it's even more seamless — the generated `CLAUDE.md` teaches Claude Code the same routing, so you **just talk to it**, no `bobby` prefix at all.
+
+## The Core Loop Is Two Verbs
+
+```bash
+npx bobbycode new "your idea"   # start a project (or `init` in an existing one)
+bobby go                        # do the next thing — run it again and again
+```
+
+`bobby go` is the only command you run day to day. From any state it figures out and runs the single most useful next step — break a fresh idea into tickets, build the MVP, push in-flight work forward, or ship what's ready — and tells you what it did. You never have to learn the rest.
+
+Everything below (`vet`, `idea`, `brief`, `ticket`, `sprint`, `run`, `dashboard`, …) is optional — reach for it when you want to, but `new` + `go` is the whole loop.
+
+<details>
+<summary>The optional verbs, when you want them</summary>
+
+```bash
+bobby vet "a risky idea"           # Pressure-test an idea before building it
+bobby go "build the login page"    # Create a specific ticket AND build it now
 bobby idea "dark mode someday"     # Capture a thought in 5 seconds, without touching the board
 bobby brief                        # Where was I? What's in flight, what's blocked, what's next
+bobby ticket list                  # See the full board
+bobby dashboard                    # Watch agents work in parallel worktrees
 ```
 
-`bobby go` on its own always does the most valuable next thing — finishes what's
-closest to done, unblocks what's stuck, or starts the top of the backlog. When you
-want more control, everything underneath is addressable:
-
-```bash
-bobby ticket create -t "User auth" --epic   # An epic (gets broken down by planning)
-bobby ticket list                           # See the full board
-bobby run pipeline TKT-001                  # Run the pipeline on a specific ticket
-bobby dashboard                             # Watch agents work in parallel worktrees
-```
+</details>
 
 `bobby init` scaffolds: `.bobby/` (tickets, sessions, config), `.claude/` (21 skills,
 17 agents, 20 slash commands), and `CLAUDE.md` — everything auto-detected from your
@@ -97,11 +137,11 @@ max_retries: 3
 <summary>Optional configuration (commented out in generated file)</summary>
 
 ```yaml
-# Custom pipelines
-pipelines:
+# Custom + override workflows (built-in: default, secure, quick)
+workflows:
   default: [plan, build, review, test]
   secure: [plan, build, security, review, test]
-  fast: [plan, build, test]
+  thorough: [plan, build, review, security, test]
 
 # Project-specific skills the build agent follows
 build_skills:
@@ -175,7 +215,7 @@ bobby dashboard --no-open   # Don't auto-open the browser
 - **Diff viewer** — unified diff of the workspace branch vs main
 - **Files tab** — changed files with added/removed line counts
 - **Runs history** — every agent invocation with exit codes and durations
-- **Actions per workspace:** `Run`, `Stop`, `Approve` (advance to next pipeline stage), `Reject` (retry build), `Merge` (no-ff into main), `Discard`
+- **Actions per workspace:** `Run`, `Stop`, `Approve` (advance to next workflow stage), `Reject` (retry build), `Merge` (no-ff into main), `Discard`
 
 **Crash-safe state.** Workspace state is persisted atomically to `.bobby/workspaces.json`, so `bobby dashboard` survives restarts.
 
@@ -206,10 +246,10 @@ bobby ticket list
  ■ medium         
 ```
 
-### 3. Run the pipeline
+### 3. Run the workflow
 
 ```bash
-bobby run pipeline TKT-001
+bobby run workflow TKT-001
 ```
 
 Bobby chains four agents automatically:
@@ -235,7 +275,7 @@ Creates a PR, waits for CI, and merges.
 
 | Situation | Command |
 |-----------|---------|
-| I have a clear task to build | `bobby run pipeline TKT-001` |
+| I have a clear task to build | `bobby run workflow TKT-001` |
 | I have a big feature idea | `bobby ticket create -t "Feature" --epic` then `bobby run feature TKT-001` |
 | I have a batch of related tickets | `bobby sprint new "Auth overhaul" TKT-004 TKT-007` then `bobby sprint run SPR-001` |
 | I want to review the live app | `bobby run ux` / `bobby run pm` / `bobby run qe` |
@@ -247,10 +287,10 @@ Creates a PR, waits for CI, and merges.
 
 ## How It Works
 
-Bobby chains Claude Code agents through a pipeline:
+Bobby chains Claude Code agents through a workflow:
 
 ```
-bobby run pipeline TKT-001
+bobby run workflow TKT-001
 
 [bobby-plan]   ✓ planned
 [bobby-build]  ✓ built + committed
@@ -293,9 +333,11 @@ Everything that touches a ticket lives under one namespace:
 
 | Command | Description |
 |---------|-------------|
+| `bobby vet "idea"` | Pressure-test an idea — asks the right questions one at a time, then a PURSUE/REFINE/PARK read (`bobby vet <n>` for a captured idea) |
+| `bobby new "idea"` | Spin up a brand-new project from an idea — scaffolds a running skeleton + an MVP epic (`--dir`, `--stack`) |
 | `bobby go` | Do the most valuable next thing (finish in-flight → unblock → start backlog) |
-| `bobby go "title"` | Create a ticket and run the full pipeline on it, one step (`-p <priority>`) |
-| `bobby go <id>` | Run the pipeline on a specific ticket |
+| `bobby go "title"` | Create a ticket and run the full workflow on it, one step (`-p <priority>`) |
+| `bobby go <id>` | Run the workflow on a specific ticket |
 | `bobby idea "..."` | Capture an idea in five seconds, without touching the board |
 | `bobby idea list` | List open ideas (`--all` includes promoted, `--inbox` for the global inbox) |
 | `bobby idea promote <n>` | Turn an idea into a backlog ticket (`-p`, `--area`, `--epic`, `--inbox`) |
@@ -347,9 +389,9 @@ bobby ticket move TKT-001 unblock           # → back to previous stage
 The `bobby run` command supports multiple orchestration patterns:
 
 ```bash
-# Full pipeline — auto-chains plan → build → review → test
-bobby run pipeline TKT-001
-bobby run pipeline TKT-001 TKT-002    # Multiple tickets sequentially
+# Full workflow — auto-chains plan → build → review → test
+bobby run workflow TKT-001
+bobby run workflow TKT-001 TKT-002    # Multiple tickets sequentially
 
 # Feature workflow — plans all epic children holistically, then executes each
 bobby run feature TKT-001              # Epic ID
@@ -394,16 +436,16 @@ A sprint is a **batch of related tickets riding one branch** — how a solo buil
 bobby sprint new "Auth overhaul" TKT-004 TKT-007 --goal "Passwordless login"
 bobby sprint add SPR-001 TKT-009       # Add tickets (order preserved)
 bobby sprint view SPR-001              # See the batch and each ticket's stage
-bobby sprint run SPR-001               # Work each ticket through its pipeline on the shared branch
+bobby sprint run SPR-001               # Work each ticket through its workflow on the shared branch
 bobby sprint status SPR-001 done       # planned | active | done | abandoned
 bobby sprint list                      # All sprints with progress
 ```
 
 Each sprint gets a directory under `.bobby/sprints/` with:
-- `sprint.yml` — the manifest: goal, branch, pipeline, and the authoritative ordered ticket list
+- `sprint.yml` — the manifest: goal, branch, workflow, and the authoritative ordered ticket list
 - `sprint-plan.md` — your cross-ticket context: sequencing rationale, shared decisions, what's out of scope
 
-The runner works tickets one at a time through the sprint's pipeline (default: plan → build → review → test), committing to the shared branch. Rejections retry per ticket (`--max-retries`, default 3). When everything lands, ship the branch as one PR.
+The runner works tickets one at a time through the sprint's workflow (default: plan → build → review → test), committing to the shared branch. Rejections retry per ticket (`--max-retries`, default 3). When everything lands, ship the branch as one PR.
 
 **When to reach for a sprint vs. an epic:** an epic (`bobby run feature`) plans and breaks down one big idea; a sprint batches tickets you already have onto one branch. They compose — break an epic down, then sprint its children.
 
@@ -459,16 +501,16 @@ $ bobby brief --all
 
   side-hustle  2 backlog
     next: Nothing in flight — start the top backlog item (high)
-    bobby run pipeline TKT-014  (in ~/Repos/side-hustle)
+    bobby run workflow TKT-014  (in ~/Repos/side-hustle)
 ```
 
 Set `BOBBY_NO_REGISTRY=1` to opt out of auto-registration (e.g. in CI).
 
 ## Agents (17)
 
-### Core Pipeline
+### Core Workflow
 
-These agents chain together automatically via `bobby run pipeline`:
+These agents chain together automatically via `bobby run workflow`:
 
 | Agent | Role |
 |-------|------|
@@ -525,7 +567,7 @@ Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can inv
 
 ```
 /bobby-plan          /bobby-build         /bobby-review
-/bobby-test          /bobby-ship          /bobby-pipeline
+/bobby-test          /bobby-ship          /bobby-workflow
 /bobby-feature       /bobby-ux            /bobby-pm
 /bobby-qe            /bobby-vet           /bobby-strategy
 /bobby-security      /bobby-debug         /bobby-docs
@@ -533,21 +575,19 @@ Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can inv
 /bobby-ticket-intake /bobby-local
 ```
 
-## Custom Pipelines
+## Custom Workflows
 
-Define named pipelines in `.bobbyrc.yml` to customize the agent chain:
+Bobby ships three built-in workflows — `default`, `secure`, `quick`. Define your own (or override a built-in) in `.bobbyrc.yml`:
 
 ```yaml
-pipelines:
-  default: [plan, build, review, test]
-  secure: [plan, build, security, review, test]
-  fast: [plan, build, test]
+workflows:
+  thorough: [plan, build, review, security, test]
 ```
 
-Run a named pipeline:
+Run a named workflow:
 
 ```bash
-bobby run pipeline TKT-001 --pipeline secure
+bobby run workflow TKT-001 --workflow secure
 ```
 
 ## Contributing

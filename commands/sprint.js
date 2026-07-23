@@ -4,7 +4,7 @@ import {
   readConfig, findProjectRoot, resolveTicketsDir, resolveSprintsDir, resolveSessionsDir,
 } from '../lib/config.js';
 import { findTicket } from '../lib/tickets.js';
-import { resolvePipeline, listPipelines, buildSprintPrompt } from '../lib/pipeline.js';
+import { resolveWorkflow, listWorkflows, buildSprintPrompt } from '../lib/workflow.js';
 import {
   createSprint, findSprint, listSprints, addTicketsToSprint,
   removeTicketsFromSprint, setSprintStatus, SPRINT_STATUSES,
@@ -31,7 +31,7 @@ export function registerSprint(program) {
     .command('new <name> [ticketIds...]')
     .description('Create a sprint (e.g., bobby sprint new "Auth overhaul" TKT-004 TKT-007)')
     .option('--goal <goal>', 'What finishing this batch delivers')
-    .option('--pipeline <name>', 'Pipeline each ticket runs through', 'default')
+    .option('--workflow <name>', 'Workflow each ticket runs through', 'default')
     .action((name, ticketIds, opts) => {
       try {
         const root = findProjectRoot();
@@ -39,16 +39,16 @@ export function registerSprint(program) {
         const ticketsDir = resolveTicketsDir(root, config);
         const sprintsDir = resolveSprintsDir(root, config);
 
-        const pipelineName = opts.pipeline || 'default';
-        if (pipelineName !== 'default' && !listPipelines(config).includes(pipelineName)) {
-          throw new Error(`Unknown pipeline '${pipelineName}'. Available: ${listPipelines(config).join(', ')}`);
+        const pipelineName = opts.workflow || 'default';
+        if (pipelineName !== 'default' && !listWorkflows(config).includes(pipelineName)) {
+          throw new Error(`Unknown workflow '${pipelineName}'. Available: ${listWorkflows(config).join(', ')}`);
         }
         assertTicketsExist(ticketsDir, ticketIds || []);
 
         const result = createSprint(sprintsDir, {
           name,
           goal: opts.goal || '',
-          pipeline: pipelineName,
+          workflow: pipelineName,
           tickets: ticketIds || [],
           branchPrefix: config.git_conventions?.feature_branch_prefix || 'feature',
         });
@@ -115,7 +115,7 @@ export function registerSprint(program) {
         console.log(`  ${bold(`${d.id} — ${d.name}`)}  ${dim(`[${d.status}]`)}`);
         if (d.goal) console.log(`  ${dim('Goal:')}     ${d.goal}`);
         console.log(`  ${dim('Branch:')}   ${d.branch}`);
-        console.log(`  ${dim('Pipeline:')} ${d.pipeline || 'default'}`);
+        console.log(`  ${dim('Workflow:')} ${(d.workflow || d.pipeline) || 'default'}`);
         console.log('');
         const tickets = d.tickets || [];
         if (tickets.length === 0) {
@@ -203,7 +203,7 @@ export function registerSprint(program) {
 
   cmd
     .command('run <id>')
-    .description('Run a sprint — work each ticket through its pipeline on the shared branch')
+    .description('Run a sprint — work each ticket through its workflow on the shared branch')
     .option('--max-retries <n>', 'Max retry loops on rejection per ticket', '3')
     .option('--max-iterations <n>', 'Max total agent invocations across all tickets')
     .action((id, opts) => {
@@ -238,7 +238,7 @@ export function registerSprint(program) {
           throw new Error(`Sprint ${d.id} references missing ticket(s): ${missing.join(', ')}. Remove them: bobby sprint rm ${d.id} ${missing.join(' ')}`);
         }
 
-        const pipeline = resolvePipeline(config, d.pipeline || 'default');
+        const pipeline = resolveWorkflow(config, (d.workflow || d.pipeline) || 'default');
         const target = getTarget(config.target || 'claude-code');
         const agentsPath = target.paths().agents;
         const hasServices = !!(config.services && Object.keys(config.services).length > 0);
@@ -246,7 +246,7 @@ export function registerSprint(program) {
         const maxIterations = opts.maxIterations ? parseInt(opts.maxIterations, 10) : undefined;
 
         const sessionsDir = resolveSessionsDir(root, config);
-        const sessionId = initSession(sessionsDir, { ticketIds, agent: 'sprint', pipeline: d.pipeline || 'default' });
+        const sessionId = initSession(sessionsDir, { ticketIds, agent: 'sprint', pipeline: (d.workflow || d.pipeline) || 'default' });
 
         const sprintPlanPath = `${config.sprints_dir}/${path.basename(sprint.path)}/sprint-plan.md`;
         const prompt = buildSprintPrompt(d, sprintTickets, pipeline, {

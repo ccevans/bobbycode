@@ -2,7 +2,7 @@
 import inquirer from 'inquirer';
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir } from '../lib/config.js';
 import { getFeatureTickets, listEpics } from '../lib/tickets.js';
-import { DEFAULT_PIPELINE, buildPromptFor, resolvePipeline, listPipelines } from '../lib/pipeline.js';
+import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, listWorkflows } from '../lib/workflow.js';
 import { findTicket } from '../lib/tickets.js';
 import { VALID_AGENTS } from '../lib/agent-registry.js';
 import { bold, dim, error } from '../lib/colors.js';
@@ -17,15 +17,15 @@ function withSession(prompt, sessionId) {
 }
 
 // Re-export for backwards compatibility (dashboard.js imports from here)
-export { resolvePipeline } from '../lib/pipeline.js';
+export { resolveWorkflow } from '../lib/workflow.js';
 
 export function registerRun(program) {
   program
     .command('run <agent> [ticketIds...]')
-    .description('Run an agent on ticket(s) — pipeline, feature, next, plan, build, review, test, ship, and more')
+    .description('Run an agent on ticket(s) — workflow, feature, next, plan, build, review, test, ship, and more')
     .addHelpText('after', `
 Modes:
-  Fast mode:  bobby run pipeline <id>    — auto-chains all agents
+  Workflow:   bobby run workflow <id>    — auto-chains the default workflow (or: secure, quick)
   Feature:    bobby run feature [epic]   — full epic workflow on one branch
   Slow mode:  bobby run next <id>        — runs next agent for current stage
   Batch:      bobby run plan             — runs agent on all tickets in matching stage
@@ -35,26 +35,27 @@ Modes:
   Security:   bobby run security <id>    — OWASP + STRIDE audit
   Debug:      bobby run debug <id>       — root-cause investigation
   Freeform:   bobby run docs|performance|watchdog — no ticket required
-  Shorthand:  bobby run <pipeline-name> <id> — run a custom pipeline`)
+  Workflow:   bobby run <workflow-name> <id> — run a named workflow (default, secure, quick, or your own)`)
     .option('--max-retries <n>', 'Max retry loops on rejection per ticket', '3')
     .option('--max-iterations <n>', 'Max total agent invocations across all tickets')
-    .option('--pipeline <name>', 'Named pipeline to use (from .bobbyrc.yml pipelines config)', 'default')
+    .option('--workflow <name>', 'Named workflow to use (built-in or from .bobbyrc.yml workflows)', 'default')
     .action(async (agent, ticketIds, opts) => {
       try {
         const root = findProjectRoot();
         const config = readConfig(root);
 
-        // Pipeline shorthand: if agent name matches a custom pipeline, treat as `pipeline --pipeline <name>`
-        const pipelineNames = listPipelines(config);
-        if (!VALID_AGENTS.includes(agent) && pipelineNames.includes(agent)) {
-          opts.pipeline = agent;
-          agent = 'pipeline';
+        // Workflow shorthand: `bobby run <workflow-name> <id>` runs that named
+        // workflow through the orchestrator (the 'workflow' agent).
+        const workflowNames = listWorkflows(config);
+        if (!VALID_AGENTS.includes(agent) && workflowNames.includes(agent)) {
+          opts.workflow = agent;
+          agent = 'workflow';
         }
 
         if (!VALID_AGENTS.includes(agent)) {
           error(`Unknown agent '${agent}'. Valid: ${VALID_AGENTS.join(', ')}`);
-          if (pipelineNames.length > 1) {
-            console.log(`  Pipeline shorthands: ${pipelineNames.filter(n => n !== 'default').join(', ')}`);
+          if (workflowNames.length > 1) {
+            console.log(`  Workflows: ${workflowNames.join(', ')}`);
           }
           process.exit(1);
         }
@@ -69,19 +70,19 @@ Modes:
 
         // Initialize session for logging
         const sessionsDir = resolveSessionsDir(root, config);
-        const sessionId = initSession(sessionsDir, { ticketIds: ticketIds, agent, pipeline: opts.pipeline || 'default' });
+        const sessionId = initSession(sessionsDir, { ticketIds: ticketIds, agent, pipeline: opts.workflow || 'default' });
 
-        // Resolve ticket-level pipeline override (if ticket has a `pipeline` field in frontmatter)
+        // Resolve ticket-level workflow override (if ticket has a `workflow` field in frontmatter)
         let ticketPipeline = null;
         if (ticketIds.length > 0) {
           const ticket = findTicket(ticketsDir, ticketIds[0]);
-          if (ticket && ticket.data.pipeline) {
-            ticketPipeline = ticket.data.pipeline;
+          if (ticket && (ticket.data.workflow || ticket.data.pipeline)) {
+            ticketPipeline = ticket.data.workflow || ticket.data.pipeline;
           }
         }
 
-        // Resolve pipeline config: explicit flag > ticket frontmatter > default
-        const pipeline = resolvePipeline(config, opts.pipeline || 'default', ticketPipeline);
+        // Resolve workflow: explicit flag > ticket frontmatter > default
+        const pipeline = resolveWorkflow(config, opts.workflow || 'default', ticketPipeline);
 
         // Feature mode: if no epic id provided, let user pick interactively.
         // This is the only interactive step — the dashboard will always pass an explicit epicId.
@@ -121,7 +122,7 @@ Modes:
             ticketsDir,
             ticketsRelDir: config.tickets_dir,
             agentsPath,
-            pipeline,
+            workflow: pipeline,
             maxRetries,
             maxIterations,
             hasServices,

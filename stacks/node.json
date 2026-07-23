@@ -1,0 +1,28 @@
+{
+  "name": "node",
+  "display": "Node HTTP API (built-in starter)",
+  "health_checks": [
+    {
+      "name": "app",
+      "url": "http://localhost:3000/health",
+      "description": "Node HTTP server"
+    }
+  ],
+  "areas": [
+    "api"
+  ],
+  "commands": {
+    "dev": "node server.js",
+    "test": "node --test",
+    "lint": "",
+    "build": ""
+  },
+  "testing_tools": [
+    "curl"
+  ],
+  "template_vars": {
+    "test_command": "node --test",
+    "lint_command": "",
+    "spec_dir": "test/"
+  }
+}

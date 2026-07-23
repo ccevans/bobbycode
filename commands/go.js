@@ -1,8 +1,8 @@
 // commands/go.js
 // The golden path. One verb that answers "just make progress":
 //   bobby go                → run the most valuable next action (from brief's logic)
-//   bobby go "build login"  → create a ticket AND run the full pipeline on it
-//   bobby go TKT-007        → run the full pipeline on that ticket
+//   bobby go "build login"  → create a ticket AND run the full workflow on it
+//   bobby go TKT-007        → run the full workflow on that ticket
 // Delegates execution by re-invoking the CLI (`bobby run …`), so go adds no
 // second orchestration path — it only decides WHAT to run.
 import { spawnSync } from 'child_process';
@@ -27,17 +27,28 @@ export function registerGo(program) {
     .description('Make progress: no args runs the next best action; text creates a ticket and runs it; an ID runs that ticket')
     .argument('[what...]', 'Nothing, a ticket ID, or a ticket title')
     .option('-p, --priority <priority>', 'Priority when creating a ticket (critical, high, medium, low)', 'medium')
+    .option('--workflow <name>', 'Workflow to run a new ticket through (default, secure, quick, or your own)')
     .action((what, opts) => {
       try {
-        const root = findProjectRoot();
+        // Outside any project, `go` points you at the one command that starts things.
+        let root;
+        try {
+          root = findProjectRoot();
+        } catch {
+          console.log('');
+          console.log(`  ${bold("You're not in a Bobby project yet.")} Start one:`);
+          console.log(`    ${bold('bobby new "your idea"')}   ${dim('# scaffolds a running project, then just run: bobby go')}`);
+          console.log('');
+          return;
+        }
         const config = readConfig(root);
         const ticketsDir = resolveTicketsDir(root, config);
 
-        // bobby go TKT-007 — run the pipeline on a specific ticket
+        // bobby go TKT-007 — run the workflow on a specific ticket
         if (what.length === 1 && looksLikeTicketId(what[0])) {
           const id = what[0].toUpperCase();
-          console.log(`  ${dim(`Running the pipeline on ${id}…`)}`);
-          exec(['run', 'pipeline', id]);
+          console.log(`  ${dim(`Running the workflow on ${id}…`)}`);
+          exec(['run', 'workflow', id]);
           return;
         }
 
@@ -49,10 +60,11 @@ export function registerGo(program) {
             title,
             priority: opts.priority,
             author: 'go',
+            workflow: opts.workflow || null, // run reads this off the ticket
           });
-          success(`Created ${result.id} — ${title}`);
-          console.log(`  ${dim('Now running the pipeline on it…')}`);
-          exec(['run', 'pipeline', result.id]);
+          success(`Created ${result.id} — ${title}${opts.workflow ? `  (${opts.workflow} workflow)` : ''}`);
+          console.log(`  ${dim('Now running it…')}`);
+          exec(['run', 'workflow', result.id]);
           return;
         }
 
@@ -62,13 +74,14 @@ export function registerGo(program) {
         const next = b.nextAction;
         if (!next.argv) {
           console.log('');
-          console.log(`  ${bold('Board is empty.')} Start with:`);
-          console.log(`    bobby go "describe your first task"`);
-          console.log(`    ${dim('or capture thoughts first:')} bobby idea "a thought"`);
+          console.log(`  ${bold('Nothing to do yet.')} Kick something off:`);
+          console.log(`    ${bold('bobby go "describe a task"')}   ${dim('# create it and start building')}`);
+          console.log(`    ${dim('or capture a thought for later:')} bobby idea "..."`);
           console.log('');
           return;
         }
-        console.log(`  ${dim(`${next.reason} → ${next.command}`)}`);
+        console.log(`  ${dim(`Next: ${next.reason}`)}`);
+        console.log(`  ${dim(`→ ${next.command}`)}`);
         exec(next.argv);
       } catch (e) {
         error(e.message);

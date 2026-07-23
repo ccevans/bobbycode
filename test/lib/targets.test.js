@@ -1,7 +1,7 @@
 // test/lib/targets.test.js
 import { getTarget, TARGETS } from '../../lib/targets/index.js';
 import { scaffoldProject } from '../../commands/init.js';
-import { buildSingleAgentPrompt, buildBatchStagePrompt, buildOrchestrationPrompt, DEFAULT_PIPELINE } from '../../lib/pipeline.js';
+import { buildSingleAgentPrompt, buildBatchStagePrompt, buildOrchestrationPrompt, DEFAULT_WORKFLOW } from '../../lib/workflow.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -187,7 +187,7 @@ describe('pipeline prompts with cline target', () => {
 
   test('buildOrchestrationPrompt uses cline paths', () => {
     const prompt = buildOrchestrationPrompt(
-      'TKT-001', DEFAULT_PIPELINE, 3, '.bobby/tickets', 20, clineAgentsPath
+      'TKT-001', DEFAULT_WORKFLOW, 3, '.bobby/tickets', 20, clineAgentsPath
     );
     expect(prompt).toContain('.clinerules/agents/');
     expect(prompt).not.toContain('.claude/agents/');

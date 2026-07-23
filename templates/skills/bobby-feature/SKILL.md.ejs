@@ -49,7 +49,7 @@ argument-hint: "<epic ticket ID>"
 - **Max retries per ticket:** <%= typeof max_retries !== 'undefined' && max_retries ? max_retries : 3 %> (when an agent rejects, loop back to building)
 - **Max total agent invocations:** 20 (across all tickets — stop and report if hit)
 
-## Pipeline Stages
+## Workflow Stages
 
 | Stage | Agent | What it does |
 |-------|-------|-------------|
@@ -150,7 +150,7 @@ After each agent completes:
 ### 4. Advance or Retry
 - **Stage advanced** → continue to the next agent
 - **Stage went back to building** (rejection) → run bobby-build again. The build agent reads rejection comments to understand what to fix. Max retries: <%= typeof max_retries !== 'undefined' && max_retries ? max_retries : 3 %>
-- **Stage is shipping** → this ticket's pipeline is complete
+- **Stage is shipping** → this ticket's workflow is complete
 - **Stage is blocked** → skip this ticket, report the blocker, continue with the next ticket
 - **Max retries exceeded** → skip this ticket, report failure, continue with the next ticket
 
@@ -180,7 +180,7 @@ Repeat for each ticket in the queue.
 - **feature-plan.md is the source of truth** — cross-cutting decisions live in the epic's feature-plan.md, not scattered across individual plans
 - **Single branch** — all tickets are built on the same feature branch, not separate branches
 - **One ticket at a time** — process sequentially to catch integration issues early
-- **Finish in-progress work first** — don't start new tickets while others are mid-pipeline
+- **Finish in-progress work first** — don't start new tickets while others are mid-workflow
 - **Integration tests between tickets** — run the full test suite after each ticket ships
 - **Trust agent decisions** — if an agent rejects, don't override it
 - **Clean workspace** — verify `git status` after each agent

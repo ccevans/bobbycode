@@ -42,7 +42,7 @@ describe('buildBrief', () => {
     const b = buildBrief(ticketsDir(), sprintsDir());
     expect(b.backlogCount).toBe(2);
     // Nothing in flight → next action starts the critical ticket
-    expect(b.nextAction.command).toContain('bobby run pipeline');
+    expect(b.nextAction.command).toContain('bobby run workflow');
     expect(b.backlogTop[0].priority).toBe('critical');
   });
 
@@ -64,6 +64,30 @@ describe('buildBrief', () => {
     // testing outranks building → TKT-002 is closest to done
     expect(b.nextAction.command).toBe('bobby run ship TKT-002');
     expect(b.inFlight[0].id).toBe('TKT-002');
+  });
+
+  test('a fresh epic (no children) -> next action is break it down with run plan', () => {
+    run('ticket create -t "A whole product idea" --epic');
+    const b = buildBrief(ticketsDir(), sprintsDir());
+    expect(b.nextAction.command).toBe('bobby run plan TKT-001');
+    expect(b.nextAction.reason).toMatch(/fresh idea/);
+  });
+
+  test('a planned epic (has children, nothing in flight) -> next action is run feature', () => {
+    run('ticket create -t "A whole product idea" --epic');   // TKT-001 epic
+    run('ticket create -t "child one" --parent TKT-001');     // TKT-002 child (backlog)
+    const b = buildBrief(ticketsDir(), sprintsDir());
+    expect(b.nextAction.command).toBe('bobby run feature TKT-001');
+    expect(b.nextAction.reason).toMatch(/build the MVP/);
+  });
+
+  test('in-flight child work takes priority over kicking off the feature build', () => {
+    run('ticket create -t "Epic" --epic');                 // TKT-001
+    run('ticket create -t "child" --parent TKT-001');       // TKT-002
+    run('ticket move TKT-002 build');                       // child in flight
+    const b = buildBrief(ticketsDir(), sprintsDir());
+    // Push the in-flight child, don't restart the whole feature
+    expect(b.nextAction.command).toBe('bobby run review TKT-002');
   });
 
   test('blocked tickets are separated from in-flight', () => {
