@@ -4,7 +4,11 @@ All notable changes to Bobby are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and Bobby follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] — 2026-07-24
+
+First public release, live on npm: `npm install -g bobbycode`. Bobby is a full
+SDLC workflow for a solo developer — one person, a whole team of Claude Code
+agents.
 
 ### Changed — BREAKING
 - **"Pipelines" are now "workflows"** throughout the user-facing surface:
@@ -49,11 +53,6 @@ All notable changes to Bobby are documented here. The format is based on
   Starters ship a runnable app (Node built-ins + `node:test`, zero install):
   `node` (HTTP API with `/health`, default) and `web` (static page). Extensible:
   add a starter dir + a `stacks/<name>.json` preset.
-
-## [1.0.0] — 2026-07-19
-
-First public release. Bobby is a full SDLC workflow for a solo developer — one
-person, a whole team of Claude Code agents.
 
 ### Changed — BREAKING
 - `bobby local-init` → `bobby init local`; `bobby export-plugin` → `bobby export plugin`.
