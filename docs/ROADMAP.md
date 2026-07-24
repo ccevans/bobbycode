@@ -13,6 +13,11 @@
 
 ## Now — sharpen what exists around the solo builder
 
+- **1.0.0 dogfood paper-cuts** (found running the published npm package end-to-end in a fresh Next.js project, 2026-07-24):
+  - `bobby init` outro points at `docs/CUSTOMIZING.md` / `docs/MIGRATING.md`, which don't exist in the scaffolded project (they ship in the npm package, not the user's repo) — confusing when the project has its own `docs/`.
+  - `bobby ticket create` has no `--description`/`--body-file` (nor stdin), so programmatically seeding a backlog with rich descriptions means hand-writing `ticket.md` bodies. Make it first-class.
+  - Stack presets write commands without checking they exist: the nextjs preset emitted `lint: npm run lint` into `.bobbyrc.yml`/CLAUDE.md in a repo with no lint script, which would fail every workflow lint gate. Init should probe `package.json` scripts and fall back (e.g. `npx tsc --noEmit`).
+  - `ticket create` defaults author to `"unknown"` instead of falling back to git identity; every `npx bobbycode` run prints a `node-domexception` deprecation warning from a transitive dep.
 - **Interruption-safety audit.** Verify every long-running flow (`bobby run workflow`, `bobby sprint run`, feature workflow) survives being killed mid-run and resumes cleanly from `progress.md` / session state. Bursty time is the solo constraint; resumability is the feature.
 - **`bobby brief` follow-ups.** Fold in recent session activity ("last touched TKT-003, 2 days ago") and surface stale-ticket nudges, so the brief reflects time as well as state.
 
