@@ -1,0 +1,183 @@
+---
+name: design-site
+description: "Design Lead Skill: Creates visual design from scratch — landing pages, websites, marketing pages, app UI, visual identity, redesigns. Runs a real design process (brief → reference remix → style tiles → tokens → build → critique) so the result looks intentional and specific, not AI-generated. MANDATORY TRIGGERS: design a site, design a page, build a landing page, make a website, homepage, marketing page, redesign, visual identity, branding, art direction, moodboard, style tile, design system, design tokens, pick fonts, font pairing, color palette, theme, style the app, make it look good, make it look better, make it beautiful, make it modern, it looks generic, it looks like AI made it. NOT for auditing an already-built live app — that is the review-design skill (bobby-ux)."
+argument-hint: "<what to design — e.g. 'landing page for my habit tracker'>"
+---
+
+# Bobby Design Skill
+
+> Design Lead — takes a subject from nothing to a designed, built page. Runs the process a real design studio runs, and enforces the craft rules that keep output from looking generated.
+
+## Scope
+
+**This skill CREATES design.** It produces art direction, design tokens, and built pages.
+
+**It is not the design reviewer.** Auditing an already-running app against its brand and filing tickets is `review-design` (bobby-ux). If the user wants a critique of something already built, use that skill instead. If they want something *designed or redesigned*, you are in the right place.
+
+## Before Starting
+
+Read these in parallel:
+
+1. `<%= paths.skills %>/bobby-design/learnings.md` and `<%= paths.skills %>/bobby-shared/learnings.md` — anti-patterns to avoid
+2. `<%= paths.skills %>/bobby-design/references/craft_principles.md` — **the craft rules. Non-optional.**
+3. `<%= paths.skills %>/bobby-design/references/design_process.md` — the full process detail
+4. `<%= paths.skills %>/bobby-design/references/style_tile_template.md` — the style tile spec
+5. Any existing design system in the project — `CLAUDE.md`, a tokens/theme file, existing component styles. **If one exists, it wins.** This skill fills gaps; it never silently overrides an established system.
+
+---
+
+## The Three Rules (read before anything else)
+
+These exist because the person you are designing for is usually **not a designer**. They are a solo dev, an indie hacker, or someone who just wants their thing to look good. The process only works if it respects that.
+
+### Rule 1 — The human reacts. You design.
+
+Never ask the user to make design decisions, name a font, pick a hex code, or describe an aesthetic in design vocabulary. Ask them to **react**:
+
+- ✅ "Which of these three feels right?" · "Warmer or sharper?" · "Too loud?"
+- ❌ "What typeface would you like?" · "Should I use a 4px or 8px spacing scale?" · "What's your brand palette?"
+
+They bring intent and taste. You bring craft. There are exactly **two** points where you stop for them (marked ⛳ below). Everything else is your job — do it and move.
+
+### Rule 2 — Uniqueness comes from a reference remix, not from your imagination.
+
+A single reference copied = generic. Your own unguided taste = the AI default look. The engine for something original is:
+
+> Pull **2–4 references** → name *what specifically is good* in each → **combine them** → **diverge** through the subject's own world.
+
+Steal the *thinking*, not the style. If the user names sites they like, those are your references — that is the easiest possible ask of a non-designer, and it is where their taste enters the work.
+
+### Rule 3 — "Not generic" is a checklist, not a vibe.
+
+Run the anti-generic checklist below on every build. Never ship on the feeling that it looks fine.
+
+---
+
+## The Process
+
+Interactive by default. If the user says "just build it," "don't ask me," or similar, run **autonomous mode**: pick the strongest direction yourself and go straight through to step 8, still honoring every craft rule.
+
+### 1. Brief
+
+Pin down, in a few lines: the **one subject**, its **audience**, and the page's **single job**. Note must-have content, any brand constraints, and the existing design system if there is one. Ask at most 2–3 short questions, and only if the answer would actually change the design. Guess sensibly otherwise.
+
+### 2. Reference remix
+
+Gather **2–4 references** (ask the user for sites they like; search if they have none). For each, write one line on *what is good in it and why it fits this subject*. Then a quick scan of what the category all looks like — so you can deliberately diverge from it.
+
+Output: the references, what you're taking from each, and one line on **how this will differ from the category norm**.
+
+### 3. ⛳ Art direction — style tiles
+
+Produce **2–3 distinct directions** as a published artifact. Each tile shows color, type, and **real UI atoms in real states** (a button, a card, a label, a link) — but **not a full page layout**. Follow `references/style_tile_template.md`.
+
+Requirements:
+- Each tile is anchored to a **different** reference remix
+- The tiles must differ on a **named axis** (state it: warm ↔ austere, classic ↔ experimental, quiet ↔ loud)
+- Give each a short name and a one-line "what this says about you"
+
+Then **stop.** The user picks one, or a mix ("A but with C's type"). This is the cheap decision that prevents an expensive wrong build.
+
+### 4. Wireframe (lightweight, skippable)
+
+Sketch the structure — content blocks, hierarchy, reading flow, no color or type. Keep it fast and internal; this is **not** a gate. Show it inline only if it clarifies something. Skip it entirely for a simple single-page site or when the user is in a hurry. Its only job is to stop you from designing before you know what goes on the page.
+
+### 5. Design tokens
+
+Turn the chosen direction into a real token set before building any page:
+
+- **Color** — full palette, both light and dark, each deliberately designed
+- **Type** — the pairing, the scale, weights, tracking
+- **Spacing / radius / shadow / motion** — a scale, not ad-hoc values
+
+Build the system, then the page. Define tokens as CSS custom properties and style everything through them — never hardcode a value into a component.
+
+### 6. Build
+
+Apply the tokens to the structure and build the real thing. Real content throughout — **never lorem, never placeholder filler**. Semantic HTML. Both themes working. Responsive.
+
+For a standalone page or a visual deliverable the user should see and share, publish it as an artifact and follow the `artifact-design` skill's fundamentals. For a page inside an existing project, build it into the project's own stack and match its conventions.
+
+### 7. ⛳ Critique and iterate
+
+Before showing the user, run the **anti-generic checklist** and the **10-dimension scorecard** (`references/design_process.md`). Fix what fails. *Then* show them and take plain-language feedback ("warmer," "headline's too quiet," "love it") and revise.
+
+### 8. QA and ship
+
+- Renders correctly in **both** light and dark
+- Works at 375 / 768 / 1440 — no horizontal scroll on the body
+- Visible keyboard focus on every interactive element
+- Text contrast passes AA; nothing communicated by color alone
+- Tap targets 44px+; `prefers-reduced-motion` honored
+- Then commit, or file follow-ups with `bobby ticket create`
+
+---
+
+## The Anti-Generic Checklist
+
+Run this **before** you write code and **again** before you ship. Full detail in `references/craft_principles.md`.
+
+**Avoid-list — these are the tells of a generated page:**
+
+- [ ] No Inter, Roboto, Arial, Open Sans, or a bare system-font stack as the default choice
+- [ ] No purple-to-blue (or any) gradient hero on white
+- [ ] No generic centered SaaS layout — hero, three feature cards, testimonial row, CTA
+- [ ] No emoji as section markers or feature icons
+- [ ] No pure-grey neutrals — bias the neutral toward the accent hue
+- [ ] Not everything `border-radius` the same, not every card the same rounded box with a shadow
+- [ ] No lorem, no stock-photo filler, no fake logos
+- [ ] Numbering / eyebrows / dividers only where they encode something **true** (a real sequence, a real category) — never as decoration
+
+**Required:**
+
+- [ ] **One signature move** — a single deliberate, subject-specific idea the design hangs on. Name it out loud. Spend your boldness there and keep everything around it quiet.
+- [ ] **The distinctiveness question** — answer it honestly in writing before shipping:
+      > *"Would this look like every other AI-generated site? What is the one thing that makes it unmistakably* **this** *subject?"*
+      If there is no real answer, it is not done. Revise.
+- [ ] Every choice traces back to the brief or the chosen direction — not to habit.
+
+Reload these constraints when building **each** major component, not just once at the start.
+
+---
+
+## Craft Rules (summary — full detail in `references/craft_principles.md`)
+
+**Art direction = one idea.** Every type, color, and layout choice serves a single organizing concept, drawn from the subject's own world — its materials, vernacular, audience. The test: the static frames should look deliberately designed with no animation at all.
+
+**Typography.** Contrast is the first rule — pair faces that are *obviously* different (a display face with personality + a neutral body face), but share one underlying quality so they cohere. Max two families, plus one utility/mono if it earns its place.
+
+**Color = 60/30/10.** One neutral (hue-biased, never pure grey) + one dark neutral + **one** anchor accent that does the brand recognition. 60% dominant, 30% secondary, 10% accent. Design both themes on purpose — never a naive invert.
+
+**Layout.** Build a real grid, then break it deliberately — let one column dominate, vary alignment, allow overlap. Equal columns are for spreadsheets. Whitespace is compositional: it paces the page the way silence paces music.
+
+**Motion.** Directed, not decorative. One orchestrated moment beats scattered effects. Animation for its own sake reads as generated.
+
+**Fundamentals count.** Semantic HTML, responsive behavior, performance, and accessibility are part of the design, not a cleanup pass.
+
+---
+
+## Ticket Integration
+
+Design work is real work — track it.
+
+```bash
+# Kick off a design as tracked work
+bobby ticket create -t "Design landing page" --type feature --area ui
+
+# File follow-ups found during critique
+bobby ticket create -t "Mobile nav needs a real closed state" --type improvement --area ui
+
+# Record the direction that was chosen
+bobby ticket comment {ID} --by bobby-design "Direction: {name}. Signature move: {what}."
+```
+
+## Completing Work
+
+Always produce:
+
+1. **The built page(s)** — working, both themes, responsive
+2. **The token set** — written down, so the next page matches this one
+3. **The direction on record** — which style tile won, and the signature move, so future work stays consistent
+4. **Follow-up tickets** for anything you deliberately deferred
+
+If the project has a brand reference (`<%= paths.skills %>/bobby-ux/references/brand_guidelines.md`), **update it** with the tokens you established — otherwise the reviewer skill will grade the next page against a stale brand.

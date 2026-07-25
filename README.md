@@ -36,6 +36,41 @@ bobby vet "a habit tracker for runners"
 
 This asks you the right questions **one at a time** — who feels the pain, what they use today, the riskiest assumption, the cheapest way to test it — then gives an honest **PURSUE / REFINE / PARK** read and a sharpened one-liner. Works from anywhere, no project needed. Vet a captured idea by number with `bobby vet 3`. If it survives, hand the sharpened idea to `bobby new`.
 
+## Already Built Something? Audit It
+
+If you vibe-coded an app and you're not sure it's safe to put customers on, start here — it works on **any** repo, whether or not Bobby has ever touched it:
+
+```bash
+cd my-app
+npx bobbycode audit
+```
+
+You get a **0–100 production-readiness score**, broken down by area, and every gap worst-first with what the audit saw and how to fix it:
+
+```
+  Production readiness  — 76 files scanned
+
+  ██████████████████████░░  92/100  production-ready
+
+    Security        88/100  4/5 checks
+    Reliability    100/100  4/4 checks
+    Operability     75/100  3/4 checks
+    Change safety  100/100  5/5 checks
+```
+
+The checks are the guards that separate a prototype from something you can charge for: committed secrets, security headers, rate limiting, input validation, dependency scanning, config validation, error handling, timeouts, webhook signatures and idempotency, structured logging, request correlation, secret redaction, health checks, tests, CI, and static analysis. Checks that don't apply to your project are skipped, not counted against you.
+
+It's **deterministic and local** — no model calls, no network, no token cost. Same tree, same score, every time.
+
+Then turn the gaps into work:
+
+```bash
+bobby audit --tickets     # one ticket per gap, described and prioritized
+bobby go                  # start closing the worst one
+```
+
+Seeded tickets arrive with the gap, why it matters, the suggested fix, and acceptance criteria — and security gaps are routed to the `secure` workflow automatically. Use `--json` for CI, `--all` to see what passed.
+
 ## Start From an Idea
 
 Got a new idea and nothing built yet? One command turns a sentence into a **running project** with an MVP epic ready to build:
@@ -82,6 +117,7 @@ Everything below (`vet`, `idea`, `brief`, `ticket`, `sprint`, `run`, `dashboard`
 
 ```bash
 bobby vet "a risky idea"           # Pressure-test an idea before building it
+bobby audit                        # Score this codebase on production readiness
 bobby go "build the login page"    # Create a specific ticket AND build it now
 bobby idea "dark mode someday"     # Capture a thought in 5 seconds, without touching the board
 bobby brief                        # Where was I? What's in flight, what's blocked, what's next
@@ -338,6 +374,7 @@ Everything that touches a ticket lives under one namespace:
 | `bobby go` | Do the most valuable next thing (finish in-flight → unblock → start backlog) |
 | `bobby go "title"` | Create a ticket and run the full workflow on it, one step (`-p <priority>`) |
 | `bobby go <id>` | Run the workflow on a specific ticket |
+| `bobby audit` | Score this codebase on production readiness — security, reliability, operability, change safety (`--tickets` to turn gaps into work, `--json`, `--all`) |
 | `bobby idea "..."` | Capture an idea in five seconds, without touching the board |
 | `bobby idea list` | List open ideas (`--all` includes promoted, `--inbox` for the global inbox) |
 | `bobby idea promote <n>` | Turn an idea into a backlog ticket (`-p`, `--area`, `--epic`, `--inbox`) |
