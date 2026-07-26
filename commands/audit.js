@@ -2,6 +2,7 @@
 import chalk from 'chalk';
 import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
 import { auditRepo, findingToTicket, AREAS } from '../lib/audit.js';
+import { listPacks, findPack } from '../lib/packs.js';
 import { createTicket } from '../lib/tickets.js';
 import { bold, dim, success, error } from '../lib/colors.js';
 import { tryLogEntry } from '../lib/session.js';
@@ -28,6 +29,7 @@ export function registerAudit(program) {
   program
     .command('audit')
     .description('Score this codebase on production readiness — the guards between a prototype and something you can put customers on')
+    .option('--pack <ids>', 'Also score against platform pack(s) — comma-separated, or "all" for every installed pack')
     .option('--tickets', 'Create a ticket for each gap, ready for bobby go')
     .option('--json', 'Machine-readable output')
     .option('--all', 'Also list the checks that passed')
@@ -38,7 +40,22 @@ export function registerAudit(program) {
         let root;
         try { root = findProjectRoot(); } catch { root = process.cwd(); }
 
-        const result = auditRepo(root);
+        // Packs add domain expectations on top of the baseline: what a
+        // multi-tenant SaaS (or marketplace, or AI product) still needs.
+        let packs = [];
+        if (opts.pack) {
+          if (opts.pack === 'all') {
+            packs = listPacks(root);
+          } else {
+            for (const id of opts.pack.split(',').map((s) => s.trim()).filter(Boolean)) {
+              const pack = findPack(id, root);
+              if (!pack) throw new Error(`No pack "${id}" installed. Run: bobby pack list`);
+              packs.push(pack);
+            }
+          }
+        }
+
+        const result = auditRepo(root, packs.length > 0 ? { packs } : {});
 
         if (opts.json) {
           console.log(JSON.stringify(result, null, 2));
@@ -46,7 +63,8 @@ export function registerAudit(program) {
         }
 
         console.log('');
-        console.log(`  ${bold('Production readiness')}  ${dim(`— ${result.fileCount} files scanned`)}`);
+        const packLabel = packs.length > 0 ? ` ${dim(`+ ${packs.map((p) => p.name).join(', ')}`)}` : '';
+        console.log(`  ${bold('Production readiness')}${packLabel}  ${dim(`— ${result.fileCount} files scanned`)}`);
         console.log('');
         console.log(`  ${bar(result.score)}  ${scoreColor(result.score)(bold(`${result.score}/100`))}  ${dim(result.grade)}`);
         console.log('');
@@ -54,7 +72,7 @@ export function registerAudit(program) {
         for (const key of Object.keys(AREAS)) {
           const area = result.byArea[key];
           if (area.score === null) continue;
-          const label = area.label.padEnd(14);
+          const label = area.label.padEnd(20);
           console.log(`    ${label} ${scoreColor(area.score)(String(area.score).padStart(3))}${dim('/100')}  ${dim(`${area.passed}/${area.total} checks`)}`);
         }
         console.log('');

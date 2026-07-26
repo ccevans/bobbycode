@@ -1,0 +1,197 @@
+id: saas-starter
+name: SaaS Foundations
+version: 1.0.0
+domain: Single-tenant SaaS — one product, many individual customers
+description: >
+  The free foundation pack. Checks the things every SaaS needs before it can
+  charge money: an account model, a paid path, transactional email, and a way to
+  tell whether anyone is using it. Deeper platform packs (multi-tenant, AI
+  product, marketplace) build on this.
+
+# Only score this pack where it makes sense — a CLI or a static site is not a SaaS.
+appliesWhen:
+  anyOf:
+    - grep: "stripe|checkout|subscription|signup|sign-up|login"
+    - dep: ["stripe", "next-auth", "@clerk/nextjs", "lucia", "@supabase/supabase-js"]
+
+checks:
+  - id: account-model
+    area: product
+    severity: critical
+    title: There is an account model, not just a session
+    why: >
+      A SaaS needs a durable customer identity to attach a subscription, data,
+      and support to. Session-only apps cannot bill or restore an account.
+    fix: Add a users/accounts table with a stable id, and attach all owned data to it.
+    detect:
+      anyOf:
+        - grep: "create table (users|accounts)|users\\s*=\\s*(sqliteTable|pgTable|Table)|model User"
+        - grep: "users?\\.(id|email)"
+          in: "schema|model|migration|db"
+
+  - id: paid-path
+    area: product
+    severity: critical
+    title: There is a way to take money
+    why: A SaaS with no checkout is a hobby; the paid path is the product.
+    fix: Wire checkout (Stripe or equivalent) plus a webhook that records what the customer bought.
+    detect:
+      anyOf:
+        - dep: ["stripe", "@paddle/paddle-js", "lemonsqueezy"]
+        - grep: "checkout\\.sessions\\.create|createCheckoutSession|payment_intent"
+
+  - id: plan-gating
+    area: product
+    severity: high
+    title: Paid features are actually gated
+    why: >
+      Billing that does not gate anything is a donation button — customers only
+      upgrade when the free tier stops at a boundary they can feel.
+    fix: Add a single plan/entitlement check and use it at every paid boundary.
+    appliesWhen:
+      anyOf:
+        - dep: ["stripe", "@paddle/paddle-js", "lemonsqueezy"]
+        - grep: "subscription"
+    detect:
+      anyOf:
+        - grep: "getPlan|hasPlan|entitlement|isPro|requireSubscription|plan\\s*===|tier\\s*==="
+
+  - id: subscription-lifecycle
+    area: product
+    severity: high
+    title: Cancellations and failed payments are handled
+    why: >
+      Customers churn, cards expire, and providers retry webhooks. If you only
+      handle the happy path, cancelled users keep their access and you keep
+      billing people who left.
+    fix: >
+      Handle subscription updated/deleted and payment failure events, and make
+      handlers idempotent so retries do not double-apply.
+    appliesWhen:
+      grep: "webhook"
+    detect:
+      anyOf:
+        - grep: "customer\\.subscription\\.(updated|deleted)|invoice\\.payment_failed|subscription_canceled"
+
+  - id: transactional-email
+    area: product
+    severity: high
+    title: The app can send transactional email
+    why: >
+      Password resets, receipts, and expiry warnings are not optional — without
+      them support becomes your inbox and churn becomes silent.
+    fix: Add an email adapter with a real production driver and a dev driver that prints locally.
+    detect:
+      anyOf:
+        - dep: ["resend", "@sendgrid/mail", "nodemailer", "postmark", "mailgun.js", "@aws-sdk/client-ses"]
+        - grep: "sendMail|sendEmail|EmailDriver"
+
+  - id: account-deletion
+    area: data
+    severity: medium
+    title: Customers can delete their account and data
+    why: >
+      Deletion is a legal requirement in most markets (GDPR/CCPA) and the first
+      thing an enterprise questionnaire asks about.
+    fix: Add a deletion path that removes or anonymises the account and everything it owns.
+    detect:
+      anyOf:
+        - grep: "deleteAccount|deleteUser|/account/delete|anonymi[sz]e"
+
+  - id: product-analytics
+    area: product
+    severity: low
+    title: You can tell whether anyone is using it
+    why: >
+      Without activation and usage events you cannot see where customers drop
+      off, so you improve by guessing.
+    fix: Track signup, activation, and the core action — even a table of events beats nothing.
+    detect:
+      anyOf:
+        - dep: ["posthog-js", "@vercel/analytics", "mixpanel-browser", "plausible-tracker", "@segment/analytics-node"]
+        - grep: "track\\(|analytics\\.|captureEvent"
+
+  - id: backup-restore
+    area: data
+    severity: high
+    title: Backups exist and restoring them is documented
+    why: >
+      An untested backup is a rumour. The day you need it, "we have backups" is
+      not the same as "we have restored one".
+    fix: Automate backups and write down the restore procedure — then run it once.
+    detect:
+      anyOf:
+        - grep: "backup|pg_dump|restore"
+          in: "docs|README|scripts|\\.github"
+        - file: "docs/(backup|restore|runbook)"
+
+# The path to "finished" — seeded as tickets by `bobby pack apply saas-starter`.
+# Items already satisfied by the repo are skipped, so the roadmap shrinks as you build.
+roadmap:
+  - title: Define the account model and own every record
+    priority: critical
+    area: data
+    description: >
+      Every row in the product should trace back to an account. Decide the
+      identity model now — it is the hardest thing to retrofit.
+    criteria:
+      - An accounts/users table exists with a stable primary key.
+      - Every user-owned table carries an owning account reference.
+      - Deleting an account removes or anonymises everything it owns.
+    skipWhen:
+      grep: "create table (users|accounts)|model User"
+
+  - title: Wire the paid path end to end
+    priority: critical
+    area: product
+    workflow: secure
+    description: >
+      Checkout, a signature-verified webhook, and a plan the app can read. Money
+      paths get the secure workflow because a mistake here costs real money.
+    criteria:
+      - Checkout creates a subscription for the signed-in account.
+      - The webhook verifies signatures and is safe to replay.
+      - A single entitlement helper answers "what plan is this account on?".
+      - Cancellation and payment failure downgrade access.
+    skipWhen:
+      allOf:
+        - grep: "checkout\\.sessions\\.create|createCheckoutSession"
+        - grep: "getPlan|entitlement|isPro"
+
+  - title: Transactional email with a dev driver
+    priority: high
+    area: product
+    description: >
+      Receipts, resets, and lifecycle mail. A console driver in development keeps
+      local work zero-config; a real provider in production.
+    criteria:
+      - An email interface with at least a console and a production driver.
+      - Provider credentials are required only in production.
+      - The magic-link/reset flow sends through it end to end.
+    skipWhen:
+      dep: ["resend", "@sendgrid/mail", "nodemailer", "postmark"]
+
+  - title: Self-serve account management
+    priority: medium
+    area: product
+    description: >
+      Let customers change plan, update payment details, export their data, and
+      delete their account without emailing you.
+    criteria:
+      - Billing portal link or equivalent plan management.
+      - Data export produces the account's own data.
+      - Account deletion removes or anonymises owned records.
+    skipWhen:
+      grep: "deleteAccount|billingPortal|createPortalSession"
+
+  - title: Know your activation number
+    priority: low
+    area: product
+    description: >
+      Instrument signup → activation → the core action, so you can see where
+      customers stall instead of guessing.
+    criteria:
+      - Signup, activation, and the core action emit events.
+      - The events are queryable somewhere you will actually look.
+    skipWhen:
+      grep: "track\\(|analytics\\.|captureEvent"

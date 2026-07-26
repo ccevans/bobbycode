@@ -62,6 +62,36 @@ The checks are the guards that separate a prototype from something you can charg
 
 It's **deterministic and local** — no model calls, no network, no token cost. Same tree, same score, every time.
 
+### Packs — what "finished" looks like for your kind of product
+
+The baseline audit knows what every serious app needs. A **pack** adds what a
+*particular kind of product* needs — and carries the roadmap to get there:
+
+```bash
+bobby pack list                     # what's installed
+bobby audit --pack saas-starter     # score against a platform's expectations
+bobby pack apply saas-starter       # seed its roadmap as tickets
+bobby go                            # work the roadmap
+```
+
+```
+  Production readiness + SaaS Foundations  — 76 files scanned
+
+  █████████████████████░░░  86/100  nearly there
+
+    Security              88/100  4/5 checks
+    Reliability          100/100  4/4 checks
+    Operability           75/100  3/4 checks
+    Change safety        100/100  5/5 checks
+    Product completeness  95/100  5/6 checks
+    Data & tenancy         0/100  0/2 checks
+```
+
+Packs are declarative YAML — checks, a roadmap, and optional scaffolds — so they
+are safe to install and easy to write. `bobby pack apply` seeds only what your
+repo is still missing, so the roadmap shrinks as you build. Write your own with
+[docs/PACKS.md](docs/PACKS.md).
+
 Then turn the gaps into work:
 
 ```bash
@@ -374,6 +404,8 @@ Everything that touches a ticket lives under one namespace:
 | `bobby go` | Do the most valuable next thing (finish in-flight → unblock → start backlog) |
 | `bobby go "title"` | Create a ticket and run the full workflow on it, one step (`-p <priority>`) |
 | `bobby go <id>` | Run the workflow on a specific ticket |
+| `bobby pack list` / `info` / `add` / `rm` | Platform packs — domain checks + a roadmap to a finished product ([docs](docs/PACKS.md)) |
+| `bobby pack apply <id>` | Seed a pack's roadmap as tickets (skips what you already have) and copy its scaffolds |
 | `bobby audit` | Score this codebase on production readiness — security, reliability, operability, change safety (`--tickets` to turn gaps into work, `--json`, `--all`) |
 | `bobby idea "..."` | Capture an idea in five seconds, without touching the board |
 | `bobby idea list` | List open ideas (`--all` includes promoted, `--inbox` for the global inbox) |
