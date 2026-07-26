@@ -326,6 +326,15 @@ components. A window title bar on a full-bleed page is still a page. The window 
 world (taskbar, menu bar, icons on the wallpaper) and ideally one give-away cue like a second
 window peeking out behind.
 
+**Every in-world control must behave in-world.** A metaphor is a promise about behaviour, not
+just appearance. A desktop icon that scrolls to an anchor is a link in a costume, and one
+click collapses the whole conceit. Icons open windows; close buttons close; taskbar items
+focus. **If a control cannot behave in-world, remove it** — a dead close button is worse than
+none, because it proves the metaphor is decoration.
+
+**Static checks cannot catch this.** A screenshot shows the metaphor reading correctly right
+up until someone clicks. Drive every in-world control in the harness and assert the state.
+
 **Apply the 3-second test before showing anyone:** could a stranger name the metaphor without
 being told? If not, you have built the parts and skipped the idea. Full method in
 `references/reference_teardown.md` §8c.

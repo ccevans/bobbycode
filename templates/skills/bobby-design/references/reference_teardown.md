@@ -214,6 +214,28 @@ Write down, explicitly:
 | **The give-away** | A **second window peeking out behind** — one cheap element that makes it unmistakable |
 | **What breaks it** | Content going edge-to-edge; icons in a padded sidebar rather than on the wallpaper |
 
+**Affordances must behave in-world.** A metaphor is a *promise about behaviour*, and every
+control that looks in-world has to act in-world. A desktop icon that scrolls to an anchor is
+not a desktop icon — it is a link wearing a costume, and one click destroys the illusion the
+whole design is built on.
+
+| Looks like | Must actually |
+|---|---|
+| Desktop icon | **Open a window** — not scroll, not navigate |
+| Close / minimise | Close or minimise **that** window |
+| Taskbar item | Focus or restore its window |
+| Tab | Switch panels |
+| Folder, file, drawer | Open |
+
+**If a control cannot behave in-world, remove it.** A dead close button is worse than no
+close button — it proves the metaphor is decoration.
+
+**The 3-second test is static and therefore not enough.** It checks whether the metaphor
+*reads*; it cannot check whether it *survives contact*. Add the behavioural pass: **click
+every in-world control and confirm it does the in-world thing.** Drive it in the harness —
+open a window, close it, click the taskbar — and assert the state, exactly as you would test
+any other interaction.
+
 **The 3-second test:** show the render to someone with no context. If they cannot name the
 metaphor unprompted, it is not built yet. Components are necessary; staging is what
 communicates. Most of the legibility lives in **one or two cheap cues** — find them and
