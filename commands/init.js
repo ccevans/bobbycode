@@ -147,7 +147,7 @@ export function scaffoldProject(rootDir, config) {
   const agentsDir = path.join(rootDir, targetPaths.agents);
   fs.mkdirSync(agentsDir, { recursive: true });
 
-  const agentFiles = ['bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship', 'bobby-ux', 'bobby-design', 'bobby-pm', 'bobby-qe', 'bobby-vet', 'bobby-strategy', 'bobby-security', 'bobby-debug', 'bobby-docs', 'bobby-performance', 'bobby-watchdog', 'bobby-arch', 'bobby-ticket-intake'];
+  const agentFiles = ['bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship', 'bobby-ux', 'bobby-design', 'bobby-design-research', 'bobby-design-analyze', 'bobby-design-mockup', 'bobby-design-spec', 'bobby-design-build', 'bobby-design-check', 'bobby-pm', 'bobby-qe', 'bobby-vet', 'bobby-strategy', 'bobby-security', 'bobby-debug', 'bobby-docs', 'bobby-performance', 'bobby-watchdog', 'bobby-arch', 'bobby-ticket-intake'];
   for (const agent of agentFiles) {
     const agentTemplate = path.join(AGENT_TEMPLATES_DIR, `${agent}.md.ejs`);
     if (fs.existsSync(agentTemplate)) {
