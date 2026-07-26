@@ -25,7 +25,7 @@ When the app is down, try Service Recovery (below). If recovery fails, mark your
 
 1. **Check learnings** — Read `<%= paths.skills %>/bobby-ux/learnings.md`
 2. **Load brand guide** — Read `<%= paths.skills %>/bobby-ux/references/brand_guidelines.md`
-3. **Load design principles** — Read `<%= paths.skills %>/bobby-ux/references/frontend_design.md`
+3. **Load craft rules** — Read `<%= paths.skills %>/bobby-design/references/craft_principles.md`. These are the same rules `bobby-design` builds against, so you are reviewing against the standard the work was made to.
 4. **Health check** — Verify dev environment:
 <% if (health_checks && health_checks.length > 0) { %>
 <% health_checks.forEach(function(check) { %>
@@ -60,6 +60,61 @@ curl -s -o /dev/null -w "%{http_code}" <your dev server URL> || echo "APP DOWN �
 ## Brand Identity — Quick Reference
 
 See `references/brand_guidelines.md` for full brand tokens and design rules. Customize that file with your project's specific colors, fonts, and design tokens.
+
+---
+
+## Spec Conformance Review (run this FIRST)
+
+If `.bobby/design/design-spec.md` exists, the build has an agreed spec and **conformance is checked before anything subjective.** This is the design equivalent of a test suite: it either passes or it does not, and no amount of "it looks fine" substitutes.
+
+**Why a separate agent does this:** the person who built it is the worst judge of whether it matches — drift is invisible to whoever introduced it. `bobby-design` builds; you verify. Same split as `bobby-build` / `bobby-review`.
+
+### Step 1 — Read the spec
+
+Read `.bobby/design/design-spec.md`. Note the decided values, the user's keep/drop verdicts, and the logged deviations. **Deviations already listed there are approved** — do not re-flag them.
+
+### Step 2 — Extract what actually shipped
+
+Check the built source, not your impression of the page:
+
+```bash
+grep -oE '\-\-[a-z-]+: *#[0-9A-Fa-f]{3,8}' <build> | sort -u    # colours shipped
+grep -oE 'font-size: *[0-9.]+(rem|px)' <build> | sort -u         # sizes — check the floor
+grep -oE 'border-radius: *[^;]{1,30}' <build> | sort -u
+grep -oE 'transition:[^;]{1,60}' <build> | sort -u
+grep -oE 'grid-template-columns:[^;]{1,60}' <build> | sort -u
+```
+
+### Step 3 — Report pass/fail per field
+
+| Field | Spec | Built | ✓/✗ |
+|---|---|---|---|
+| Ground | | | |
+| Surface / ink / muted / accent | | | |
+| Layout (columns, frame, padding) | | | |
+| Radius scale | | | |
+| Type families + scale | | | |
+| **Type floor** (body ≥16px, nothing <13px) | | | |
+| Motion (durations, easings, distances) | | | |
+| Headline (verbatim) | | | |
+
+**Rules:**
+
+- **Any value in the build that is not in the spec is a FAIL** — it is drift, not a decision, even if it looks good.
+- **Any spec value missing from the build is a FAIL.**
+- A conformance failure is a **bug**, not an improvement: `bobby ticket create -t "..." --type bug --area ui`
+- Report **Spec Conformance: PASS / FAIL (n failures)** before the Design Health Score. A page can look great and still fail — say both.
+
+### Step 4 — Verify in the browser
+
+Values matching in source does not prove it renders correctly. Confirm visually:
+
+- Both light and dark themes
+- 375 / 768 / 1440
+- Motion actually runs at the specified duration and distance
+- Focus states visible; reduced-motion honoured
+
+**If there is no spec**, note that in your review and fall back to `references/brand_guidelines.md`. Recommend the team run the design skill to produce one — design work without a spec cannot be verified, only opined about.
 
 ---
 
@@ -218,7 +273,7 @@ When reviewing any page, check against these rules:
 
 ## Frontend Aesthetics Guidelines
 
-When evaluating design quality, apply these principles (see `references/frontend_design.md` for full guide):
+When evaluating design quality, apply these principles (see `<%= paths.skills %>/bobby-design/references/craft_principles.md` for the full rules — the type floors, the banned-font tiers, and the anti-generic checklist live there):
 
 ### Typography
 - Font choices should have personality — generic system fonts (Arial, Roboto) are a red flag

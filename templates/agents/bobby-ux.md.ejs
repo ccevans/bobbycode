@@ -13,9 +13,16 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-ux/SKILL.md
 
 Read these in parallel:
 1. `<%= paths.skills %>/bobby-ux/learnings.md` and `<%= paths.skills %>/bobby-shared/learnings.md` — anti-patterns to avoid
-2. `<%= paths.skills %>/bobby-ux/references/brand_guidelines.md` — brand tokens
-3. `<%= paths.skills %>/bobby-ux/references/frontend_design.md` — design principles
-4. If reviewing a specific ticket, the ticket's `ticket.md` for context
+2. `.bobby/design/design-spec.md` — **the agreed design spec, if it exists. This is the contract you verify against.**
+3. `<%= paths.skills %>/bobby-ux/references/brand_guidelines.md` — brand tokens
+4. `<%= paths.skills %>/bobby-design/references/craft_principles.md` — the craft rules you review against
+5. If reviewing a specific ticket, the ticket's `ticket.md` for context
+
+## Spec Conformance Comes First
+
+If a design spec exists, run **Spec Conformance** before any subjective review. It is pass/fail, checked against the built source — not against how the page looks to you. Drift is invisible to whoever introduced it, which is why the builder does not get to certify their own work.
+
+Report **Spec Conformance: PASS / FAIL (n failures)** alongside the Design Health Score. A page can look excellent and still fail conformance; report both honestly. Conformance failures are filed as `--type bug`, not improvements.
 
 ## Design Scorecard
 
