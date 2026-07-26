@@ -196,6 +196,29 @@ grep -oE '(linear|radial)-gradient\([^)]{1,90}\)' page.html | sort -u | head
 `linear-gradient(180deg, rgba(255,255,255,0) …)` is a screenshot **fading into the page ground**
 rather than ending on a hard edge — a technique, not a colour.
 
+**8c. If the reference runs a METAPHOR, extract what makes it legible.**
+
+Some designs are built on a conceit — the site is an operating system, a newspaper, a
+terminal, a filing cabinet, a book. For these, the components are the easy part and the
+**staging** is the whole thing. Copy the components without the staging and you get a page
+with a title bar on it, not a desktop.
+
+Write down, explicitly:
+
+| Field | Example — "the site is a desktop OS" |
+|---|---|
+| **The conceit** | This is an OS desktop, and the page is a window open on it |
+| **The frame** | A **wallpaper** — an actual scene, not a tint — visible on *all sides* |
+| **The staging** | The content window **floats**, with desktop showing around it. It is not full-bleed. |
+| **The furniture** | Taskbar/dock · menu bar · desktop icons *on the wallpaper* · min/max/close |
+| **The give-away** | A **second window peeking out behind** — one cheap element that makes it unmistakable |
+| **What breaks it** | Content going edge-to-edge; icons in a padded sidebar rather than on the wallpaper |
+
+**The 3-second test:** show the render to someone with no context. If they cannot name the
+metaphor unprompted, it is not built yet. Components are necessary; staging is what
+communicates. Most of the legibility lives in **one or two cheap cues** — find them and
+build those first, before any of the detail.
+
 **Then write the "true feel" paragraph.** One paragraph naming where the energy actually lives:
 *"Quiet page, loud product — the layout is deliberately unremarkable so the screenshots and the
 voice do all the work."* If you cannot write that sentence, you have not understood the
