@@ -32,19 +32,54 @@ Also capture: must-have content, brand constraints, and **any existing design sy
 
 ---
 
-## 2. Reference remix
+## 2. Reference remix — a hard gate
 
 **Goal:** source the raw material for something original.
 
-1. **Get 2–4 references.** First ask the user: *"any sites you like the look of?"* This is the easiest possible question for a non-designer and it is where their taste enters the project. If they have none, go find candidates and let them react.
+**You may not proceed to style tiles without 3–5 fully cited references you have actually looked at.** This gate exists because it is the step most likely to be skipped under time pressure, and skipping it is the single largest cause of generic output. Autonomous mode does not exempt you — it only removes the *asking*, not the *looking*.
 
-2. **Name what is good in each — the thinking, not the surface.** One line each. "Warm pink gradients" is surface. "Deliberately rejected the hacker-terminal cliché so the tool feels emotionally warm" is thinking, and thinking is what transfers.
+### 2a. Ask the user first
 
-3. **Scan the category.** What do all the competitors look like? You need to know the norm to diverge from it deliberately rather than accidentally landing on it.
+> *"Any sites, apps, posters, packaging — anything — whose look you like? Even one or two helps a lot."*
 
-4. **Find the lens.** What is *this subject's own world* made of — its materials, vernacular, instruments? That is what transforms borrowed thinking into something new.
+Easiest possible question for a non-designer, and it is where their taste enters the project. Note that the ask is deliberately broader than websites: a book cover or a piece of packaging is often a better lead than another SaaS homepage.
 
-**Output:** the references, what you take from each, the category norm, and one line: **"how this will differ."**
+### 2b. Find the rest yourself
+
+If they name none, or fewer than three, search and **actually open them**. Aim for 3–5 total.
+
+Range deliberately:
+- **Outside the subject's category** — if it is a dev tool, look at editorial design, wayfinding, instrument panels, record sleeves
+- **Outside the minimal-website cluster** — that cluster is where the default look lives
+- **At least one that is not a website at all**
+
+### 2c. Cite every reference, fully
+
+Record all four fields for each. An uncited reference does not count.
+
+| Field | Requirement |
+|---|---|
+| **Name** | What it is |
+| **Source** | A URL, or a specific findable citation for a physical/print artifact |
+| **What's good** | The *thinking*, not the surface — one line |
+| **What we take** | The specific thing carried into this design |
+
+**Surface vs. thinking:** "warm pink gradients" is surface. "Deliberately rejected the hacker-terminal cliché so the tool feels emotionally warm" is thinking — and thinking is what transfers to a different subject.
+
+### The rules that make this real
+
+- **No working from memory.** "Film end credits," "greenbar paper," "Swiss posters," "brutalist web" are *mental images*, not references. Working from a remembered aesthetic produces a generic imitation of that aesthetic — the same failure as working from your own taste, just wearing a costume. If you want the motif, go find real specimens and look at them.
+- **Every tile names its sources.** A direction that cannot cite where it came from was invented, not remixed.
+- **Check nostalgia.** Retro and skeuomorphic references carry a message. Ask whether it is the right message for *this* subject in *this* year, or whether it just reads as period costume. Distinctive is not the same as right.
+- **Show the user the reference table.** It costs them nothing to skim, and it catches a wrong direction before any pixels exist.
+
+### 2d. Scan the category, then find the lens
+
+**The norm:** what do all the competitors look like? You need this to diverge deliberately rather than landing on the norm by accident.
+
+**The lens:** what is *this subject's own world* made of — its materials, vernacular, instruments? That is what transforms borrowed thinking into something new rather than a collage.
+
+**Output:** the cited reference table, the category norm, and one line: **"how this will differ."**
 
 ---
 
