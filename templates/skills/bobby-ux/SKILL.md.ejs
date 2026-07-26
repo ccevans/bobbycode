@@ -26,6 +26,7 @@ When the app is down, try Service Recovery (below). If recovery fails, mark your
 1. **Check learnings** — Read `<%= paths.skills %>/bobby-ux/learnings.md`
 2. **Load brand guide** — Read `<%= paths.skills %>/bobby-ux/references/brand_guidelines.md`
 3. **Load craft rules** — Read `<%= paths.skills %>/bobby-design/references/craft_principles.md`. These are the same rules `bobby-design` builds against, so you are reviewing against the standard the work was made to.
+4. **Load the slop checklist** — Read `<%= paths.skills %>/bobby-design/references/slop_checklist.md` and **score the page against it**. Report the count with the calibration: 0–1 clean · 2–3 mild · **4+ heavy slop**. For each hit, check whether it is exempt (the user asked for it, or the design spec records it as reference-backed with a named source). **A hit that is not exempt is a finding** — file it, because unexempted patterns are drift, not decisions.
 4. **Health check** — Verify dev environment:
 <% if (health_checks && health_checks.length > 0) { %>
 <% health_checks.forEach(function(check) { %>

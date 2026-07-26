@@ -22,7 +22,8 @@ Read these in parallel:
 2. `<%= paths.skills %>/bobby-design/references/craft_principles.md` — **the craft rules. Non-optional.**
 3. `<%= paths.skills %>/bobby-design/references/design_process.md` — the full process detail
 4. `<%= paths.skills %>/bobby-design/references/reference_teardown.md` — how to extract a design doc from a reference
-5. `<%= paths.skills %>/bobby-design/references/style_tile_template.md` — the style tile spec
+5. `<%= paths.skills %>/bobby-design/references/slop_checklist.md` — **the full do-not list. Binding.**
+6. `<%= paths.skills %>/bobby-design/references/style_tile_template.md` — the style tile spec
 5. Any existing design system in the project — `CLAUDE.md`, a tokens/theme file, existing component styles. **If one exists, it wins.** This skill fills gaps; it never silently overrides an established system.
 
 ---
@@ -515,7 +516,27 @@ Before showing the user, run the **anti-generic checklist** and the **10-dimensi
 
 ## The Anti-Generic Checklist
 
-Run this **before** you write code and **again** before you ship. Full detail in `references/craft_principles.md`.
+**The authoritative list is `references/slop_checklist.md` — read it and run the page against it.** ~100 catalogued patterns across typography, colour, layout, surfaces, motion, copy, imagery, and build defects, with a calibration: **0–1 patterns is clean, 2–3 is mild, 4+ is heavy slop.**
+
+**Every item on it is a do-not by default.** Two exemptions only:
+
+1. **The user explicitly asked for it** — their words always win; say you know it's on the list.
+2. **A teardown shows it in the user's own reference** — inheriting a trait from a site *they chose* is honouring their taste. Record it in the spec as reference-backed, naming the reference.
+
+Anything else from that list appearing in your build is **drift, not a decision**. And "it's reference-backed" is not a laundering step: the trait must be in the written teardown *before* you build, not rationalised afterwards.
+
+Highest-signal single tells, worth memorising:
+
+- **Side-tab accent border** — a 3–4px coloured stripe on one edge of a card. The catalogue calls this the most reliable tell there is: *the design equivalent of em-dashes in AI text.*
+- **Inter** on a centered hero — plus the recurring set: Geist, Space Grotesk, Instrument Serif
+- **Purple-to-blue gradients**, and "VibeCode purple" generally
+- **Icon tile stacked above a feature heading** — the universal generated feature card
+- **`01 · 02 · 03`** beside headings, and 1-2-3 step sequences
+- **Stat banner rows** — `10M+ users / 99.9% uptime / 200ms p50`
+- **Hairline border + wide diffuse shadow** on the same element — commit to one
+- **Cream/beige surfaces** and **Instrument Serif** — the *second-generation* tells, i.e. the reflexive escape routes once the first-generation ones get banned
+
+The quick summary below stays useful, but the checklist file is the standard.
 
 **Avoid-list — these are the tells of a generated page:**
 
