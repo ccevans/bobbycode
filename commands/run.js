@@ -29,9 +29,10 @@ Modes:
   Feature:    bobby run feature [epic]   — full epic workflow on one branch
   Slow mode:  bobby run next <id>        — runs next agent for current stage
   Batch:      bobby run plan             — runs agent on all tickets in matching stage
-  Direct:     bobby run plan|build|review|test|ship|ux|design|pm|qe <id>
+  Direct:     bobby run plan|build|review|test|ship|ux|pm|qe <id>
   Vet:        bobby run vet [id]         — interrogate design before planning
-  Design:     bobby run design-research|analyze|mockup|spec|build|check
+  Design:     bobby run design <id>          — full chain: research → analyze → mockup → spec → build → check
+              bobby run design-research|design-analyze|design-mockup|design-spec|design-build|design-check
   Strategy:   bobby run strategy [id]    — strategic validation gate
   Security:   bobby run security <id>    — OWASP + STRIDE audit
   Debug:      bobby run debug <id>       — root-cause investigation

@@ -483,11 +483,11 @@ grep -oE 'transition:[^;]{1,60}' build.html | sort -u
 **Then hand off to the reviewer.** This self-check is the equivalent of a builder running tests before opening a PR — necessary, not sufficient. Design gets the same two-agent treatment code does:
 
 ```
-bobby-build  → bobby-review     (code)
-bobby-design → review-design    (design)
+bobby-build        → bobby-review        (code)
+bobby-design-build → bobby-design-check  (design)
 ```
 
-Run `bobby run ux` (the `review-design` skill) for independent verification against the spec. **You built it, so you are the worst judge of whether it matches** — every drift in practice has been invisible to the person who introduced it. Do not mark design work done on your own certification.
+Run `bobby run design-check` for independent verification against the spec and the slop checklist. **You built it, so you are the worst judge of whether it matches** — every drift in practice has been invisible to the person who introduced it. Do not mark design work done on your own certification.
 
 ### 6c. Present so the work can actually be judged
 
