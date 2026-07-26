@@ -1,0 +1,208 @@
+id: revenue
+name: Get Paid
+version: 1.0.0
+domain: Any product that intends to charge money
+description: >
+  The free revenue pack. An app that cannot take money is a hobby, however
+  well-engineered — so this scores the path from "it works" to "a stranger can
+  pay me": a price in public, a working checkout, features that are actually
+  gated, and the unglamorous parts (failed payments, refunds, receipts) that
+  decide whether the money stays.
+
+appliesWhen:
+  anyOf:
+    - grep: "pricing|checkout|subscription|billing|payment|stripe|paddle|lemonsqueezy"
+    - dep: ["stripe", "@paddle/paddle-js", "lemonsqueezy", "@lemonsqueezy/lemonsqueezy.js"]
+
+checks:
+  - id: price-in-public
+    area: revenue
+    severity: critical
+    title: The price is visible to a stranger
+    why: >
+      "Contact us for pricing" costs you every self-serve customer who was
+      willing to buy at 2am. If a visitor cannot learn the price without talking
+      to you, most of them leave instead.
+    fix: Publish a pricing page with the plans, what each includes, and the actual number.
+    detect:
+      anyOf:
+        - grep: "pricing"
+          in: "app|src|pages|routes|components|views"
+        - file: "(pricing|plans)"
+
+  - id: checkout-path
+    area: revenue
+    severity: critical
+    title: A stranger can complete a purchase unaided
+    why: >
+      Every manual step between "I want this" and "I paid" is a place the sale
+      dies — and invoicing by hand does not survive your tenth customer.
+    fix: Wire a hosted checkout so a visitor can pay without you being involved.
+    detect:
+      anyOf:
+        - grep: "checkout\\.sessions\\.create|createCheckoutSession|paddle\\.Checkout|createCheckout|payment_link"
+        - grep: "stripe"
+          in: "billing|checkout|payment"
+
+  - id: payment-webhook-verified
+    area: revenue
+    severity: critical
+    title: Payment events are verified and idempotent
+    why: >
+      The webhook is where money becomes access. Unverified, anyone can grant
+      themselves a subscription; non-idempotent, a provider retry double-applies
+      it. Both are silent until they are expensive.
+    fix: Verify the signature on every payment webhook and make handlers safe to replay.
+    appliesWhen:
+      grep: "webhook"
+    detect:
+      anyOf:
+        - grep: "constructEvent|verif\\w*Signature|webhook.*secret|signature"
+          in: "webhook|billing|stripe|payment|hook"
+
+  - id: entitlement-gate
+    area: revenue
+    severity: critical
+    title: Paying changes what the customer can do
+    why: >
+      Billing that gates nothing is a donation button. Customers upgrade when
+      the free tier stops at a boundary they can feel — and if nothing is gated,
+      churn is invisible because nothing was ever lost.
+    fix: Put one entitlement helper behind every paid feature, and use it everywhere.
+    detect:
+      anyOf:
+        - grep: "getPlan|hasPlan|entitlement|isPro|isPaid|requireSubscription|canUse\\(|plan\\s*===|tier\\s*==="
+
+  - id: failed-payment-handling
+    area: revenue
+    severity: high
+    title: Failed payments are handled, not ignored
+    why: >
+      Cards expire constantly. Involuntary churn is the cheapest revenue you
+      will ever recover, and doing nothing means silently losing customers who
+      still wanted to pay you.
+    fix: Handle payment failure events, tell the customer, retry, and downgrade only after a grace period.
+    appliesWhen:
+      grep: "subscription|invoice|webhook"
+    detect:
+      anyOf:
+        - grep: "payment_failed|invoice\\.payment|past_due|dunning|grace period|retry.*payment"
+
+  - id: cancellation-path
+    area: revenue
+    severity: high
+    title: Customers can cancel without emailing you
+    why: >
+      A hidden cancel button buys you one month of revenue and a chargeback,
+      a bad review, and in several jurisdictions a legal problem.
+    fix: Expose self-serve cancellation (a billing portal counts) and end access at period end, not instantly.
+    appliesWhen:
+      grep: "subscription"
+    detect:
+      anyOf:
+        - grep: "billingPortal|createPortalSession|cancelSubscription|cancel_at_period_end|customer_portal"
+
+  - id: receipts
+    area: revenue
+    severity: medium
+    title: Customers get a receipt or invoice
+    why: >
+      Business buyers cannot expense what they cannot document, and "can I have
+      an invoice?" is the most common support email a young SaaS gets.
+    fix: Enable provider receipts or send your own, with the details a finance team needs.
+    appliesWhen:
+      grep: "subscription|payment|invoice"
+    detect:
+      anyOf:
+        - grep: "receipt|invoice_pdf|hosted_invoice|billing_details|invoice"
+
+  - id: revenue-visibility
+    area: revenue
+    severity: low
+    title: You can see revenue without opening the provider dashboard
+    why: >
+      If you only see money in Stripe, you find out about a failed upgrade flow
+      days late. Signup → checkout → paid is the funnel that matters most.
+    fix: Track checkout started, completed, and failed alongside your product analytics.
+    detect:
+      anyOf:
+        - grep: "checkout.*(track|analytics|event)|(track|analytics|capture).*(checkout|purchase|subscribe)|mrr"
+
+roadmap:
+  - title: Decide the price and publish it
+    priority: critical
+    area: revenue
+    description: >
+      Pick a number, pick what each tier includes, and put it on a public page.
+      You can change it later; you cannot sell without it. Guessing a price and
+      shipping beats a month of deliberation.
+    criteria:
+      - A public pricing page lists each plan, its price, and what it includes.
+      - The free/trial boundary is stated plainly.
+      - The page has a call to action that starts checkout.
+    skipWhen:
+      anyOf:
+        - grep: "pricing"
+          in: "app|src|pages|routes|components"
+        - file: "(pricing|plans)"
+
+  - title: Wire checkout end to end
+    priority: critical
+    area: revenue
+    workflow: secure
+    description: >
+      A stranger clicks buy, pays, and comes back with access — no manual step
+      by you. Money paths get the secure workflow.
+    criteria:
+      - Checkout creates a subscription or purchase for the signed-in account.
+      - The success path grants access; the cancel path returns cleanly.
+      - The payment webhook verifies its signature and is safe to replay.
+      - A test-mode purchase has been completed end to end at least once.
+    skipWhen:
+      grep: "checkout\\.sessions\\.create|createCheckoutSession|createCheckout|payment_link"
+
+  - title: Gate the paid features
+    priority: critical
+    area: revenue
+    description: >
+      One entitlement helper answers "what is this account allowed to do?", and
+      every paid boundary calls it. Without this, billing changes nothing.
+    criteria:
+      - A single helper resolves the account's plan and limits.
+      - Every paid feature and quota checks it — none check the plan inline.
+      - Downgrades take effect at the right moment and are tested.
+    skipWhen:
+      grep: "getPlan|entitlement|isPro|requireSubscription"
+
+  - title: Handle failed payments and cancellation
+    priority: high
+    area: revenue
+    workflow: secure
+    description: >
+      The unglamorous half of billing, and where the revenue actually leaks:
+      expired cards, retries, grace periods, and a cancel button you are not
+      embarrassed by.
+    criteria:
+      - Payment failure notifies the customer and retries on a schedule.
+      - Access ends after a documented grace period, not instantly.
+      - Self-serve cancellation exists and ends access at period end.
+      - Reactivation works without support involvement.
+    skipWhen:
+      allOf:
+        - grep: "payment_failed|past_due|dunning"
+        - grep: "billingPortal|cancel_at_period_end|cancelSubscription"
+
+  - title: Receipts and revenue visibility
+    priority: medium
+    area: revenue
+    description: >
+      Make the money legible: receipts your customers can expense, and a funnel
+      you can read without logging into the payment provider.
+    criteria:
+      - Every payment produces a receipt or invoice the customer can retrieve.
+      - Checkout started/completed/failed are tracked as events.
+      - You can answer "how many people started checkout and did not finish?".
+    skipWhen:
+      allOf:
+        - grep: "receipt|invoice"
+        - grep: "(track|analytics|capture).*(checkout|purchase)"

@@ -92,6 +92,19 @@ are safe to install and easy to write. `bobby pack apply` seeds only what your
 repo is still missing, so the roadmap shrinks as you build. Write your own with
 [docs/PACKS.md](docs/PACKS.md).
 
+Two ship free: **`saas-starter`** (account model, paid path, email, deletion,
+backups) and **`revenue`** — *Get Paid*, because an app that cannot charge money
+is a hobby however well-engineered. It scores the whole path from "it works" to
+"a stranger can pay me": a price in public, a checkout a visitor can complete
+unaided, verified payment webhooks, features that are actually gated, and the
+unglamorous parts that decide whether the money stays — failed payments,
+cancellation, receipts.
+
+```bash
+bobby audit --pack revenue      # what stands between you and revenue
+bobby pack apply revenue        # the roadmap to charging, as tickets
+```
+
 Then turn the gaps into work:
 
 ```bash

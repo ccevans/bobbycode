@@ -54,7 +54,7 @@ appliesWhen:
 
 checks:
   - id: tenant-scoping
-    area: data                 # security | reliability | operability | change-safety | product | data
+    area: data                 # security | reliability | operability | change-safety | product | data | revenue
     severity: critical         # critical | high | medium | low
     title: Every owned row carries a tenant id
     why: Shared tables without a tenant column are one bad WHERE clause from a data leak.
@@ -113,6 +113,36 @@ severity-weighted (critical 5, high 3, medium 2, low 1) and reported per area, s
 reliability.
 
 Checks whose `appliesWhen` fails are **skipped**, not counted against you.
+
+## Commercial packs
+
+A pack can be sold. Add a `license` block carrying the pack's **public** key:
+
+```yaml
+license:
+  product: my-pack
+  buy: https://your-checkout-url
+  publicKey: |
+    -----BEGIN PUBLIC KEY-----
+    ...
+    -----END PUBLIC KEY-----
+```
+
+Licensed packs refuse to score or seed until a key is activated:
+
+```bash
+bobby pack activate <key>     # verifies offline, stores in ~/.bobby/licenses.yml
+```
+
+A key is `base64url(payload).base64url(ed25519 signature)`. Verification is a
+signature check against the key in the pack — **no server, no account, no
+network call**, and it works offline forever. Keys can be lifetime or carry an
+`expires` date.
+
+Bobby itself stays MIT; this exists so packs, which are separate products, can
+be sold without infrastructure. The threat model is honest: it stops casual
+copying and gives buyers a clean activation step. Someone determined can patch
+an open-source CLI — the pack's value is its content and its updates.
 
 ## Writing a pack
 

@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
 import { auditRepo, findingToTicket, AREAS } from '../lib/audit.js';
 import { listPacks, findPack } from '../lib/packs.js';
+import { checkPackLicense, licenseHelp } from '../lib/license.js';
 import { createTicket } from '../lib/tickets.js';
 import { bold, dim, success, error } from '../lib/colors.js';
 import { tryLogEntry } from '../lib/session.js';
@@ -45,11 +46,14 @@ export function registerAudit(program) {
         let packs = [];
         if (opts.pack) {
           if (opts.pack === 'all') {
-            packs = listPacks(root);
+            // "all" quietly uses what you are entitled to, rather than erroring.
+            packs = listPacks(root).filter((p) => checkPackLicense(p).ok);
           } else {
             for (const id of opts.pack.split(',').map((s) => s.trim()).filter(Boolean)) {
               const pack = findPack(id, root);
               if (!pack) throw new Error(`No pack "${id}" installed. Run: bobby pack list`);
+              const lic = checkPackLicense(pack);
+              if (!lic.ok) throw new Error(licenseHelp(lic));
               packs.push(pack);
             }
           }

@@ -7,10 +7,18 @@ import { listPacks, findPack, loadPack, remainingRoadmap, PROJECT_PACKS_DIR } fr
 import { scanRepo } from '../lib/audit.js';
 import { createTicket } from '../lib/tickets.js';
 import { renderExternalDir } from '../lib/template.js';
-import { bold, dim, success, error } from '../lib/colors.js';
+import { checkPackLicense, licenseHelp, verifyKey, saveLicense } from '../lib/license.js';
+import { bold, dim, success, error, warn } from '../lib/colors.js';
 
 function projectRootOrCwd() {
   try { return findProjectRoot(); } catch { return process.cwd(); }
+}
+
+/** Commercial packs need an activated key before they do any work. */
+function requireLicense(pack) {
+  const status = checkPackLicense(pack);
+  if (!status.ok) throw new Error(licenseHelp(status));
+  return status;
 }
 
 export function registerPack(program) {
@@ -36,7 +44,9 @@ export function registerPack(program) {
           return;
         }
         for (const p of packs) {
-          console.log(`  ${bold(p.id)}  ${dim(`v${p.version}`)}`);
+          const lic = checkPackLicense(p);
+          const badge = !lic.required ? '' : (lic.ok ? chalk.green(' licensed') : chalk.yellow(' needs a key'));
+          console.log(`  ${bold(p.id)}  ${dim(`v${p.version}`)}${badge}`);
           console.log(`    ${p.name}${p.domain ? dim(` — ${p.domain}`) : ''}`);
           console.log(`    ${dim(`${p.checks.length} check(s) · ${p.roadmap.length} roadmap item(s)`)}`);
           console.log('');
@@ -91,6 +101,12 @@ export function registerPack(program) {
         success(`Installed ${pack.id} — ${pack.name}`);
         console.log(`  ${dim(`→ ${target}`)}`);
         console.log('');
+        const lic = checkPackLicense(pack);
+        if (!lic.ok) {
+          warn(licenseHelp(lic));
+          console.log('');
+          return;
+        }
         console.log(`  ${dim('Score against it:')} bobby audit --pack ${pack.id}`);
         console.log('');
       } catch (e) { error(e.message); process.exit(1); }
@@ -120,6 +136,7 @@ export function registerPack(program) {
         const config = readConfig(root);
         const pack = findPack(id, root);
         if (!pack) throw new Error(`No pack "${id}". Run: bobby pack list`);
+        requireLicense(pack);
 
         const snapshot = scanRepo(root);
         const remaining = remainingRoadmap(pack, snapshot);
@@ -162,6 +179,34 @@ export function registerPack(program) {
         console.log(`  ${bold('Next')}  ${dim('— work the roadmap')}`);
         console.log('    bobby go');
         console.log('');
+      } catch (e) { error(e.message); process.exit(1); }
+    });
+
+  cmd
+    .command('activate <key>')
+    .description('Activate a license key for a commercial pack')
+    .action((key) => {
+      try {
+        const root = projectRootOrCwd();
+        // Find the pack this key belongs to by trying each licensed pack's key.
+        const licensed = listPacks(root).filter((p) => p.license && p.license.publicKey);
+        if (licensed.length === 0) {
+          throw new Error('No commercial packs are installed yet — run `bobby pack add <dir>` first.');
+        }
+        const errors = [];
+        for (const pack of licensed) {
+          try {
+            const payload = verifyKey(key, pack.license.publicKey, { product: pack.license.product || pack.id });
+            const file = saveLicense(pack.license.product || pack.id, key);
+            success(`Activated ${pack.name}${payload.buyer ? dim(` — ${payload.buyer}`) : ''}`);
+            console.log(`  ${dim(`key stored in ${file}`)}`);
+            console.log('');
+            console.log(`  ${dim('Now:')} bobby audit --pack ${pack.id}`);
+            console.log('');
+            return;
+          } catch (e) { errors.push(`${pack.id}: ${e.message}`); }
+        }
+        throw new Error(`That key did not match any installed pack.\n  ${errors.join('\n  ')}`);
       } catch (e) { error(e.message); process.exit(1); }
     });
 
