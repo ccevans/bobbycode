@@ -24,7 +24,7 @@ Read these in parallel:
 4. `<%= paths.skills %>/bobby-design/references/reference_teardown.md` — how to extract a design doc from a reference
 5. `<%= paths.skills %>/bobby-design/references/slop_checklist.md` — **the full do-not list. Binding.**
 6. `<%= paths.skills %>/bobby-design/references/style_tile_template.md` — the style tile spec
-5. Any existing design system in the project — `CLAUDE.md`, a tokens/theme file, existing component styles. **If one exists, it wins.** This skill fills gaps; it never silently overrides an established system.
+7. Any existing design system in the project — `CLAUDE.md`, a tokens/theme file, existing component styles. **If one exists, it wins.** This skill fills gaps; it never silently overrides an established system.
 
 ---
 
@@ -479,6 +479,20 @@ Also check the other theme at each size.
 **Then compare it against the reference screenshot side by side.** In close-replica mode this is the actual acceptance test: put your render next to `ref-top.png` and ask what a stranger would say is different. Proportions, weight, density, and empty space are what give a replica away — not colour values, which you already diffed.
 
 Two real defects caught this way in one build: a hero clipping the product window it was supposed to overlap, and an illustrated character hidden entirely behind a panel. Neither is visible in source. Both would have shipped.
+
+### Parity before comparison
+
+Before presenting any lineup, confirm **every** option is held to the same standard:
+
+- [ ] Each direction has its **teardown on file** — an option built from an undocumented render has your memory as its provenance, not a document
+- [ ] Each has been scored against `slop_checklist.md`
+- [ ] Each has been rendered and measured at 375 / 768 / 1440
+
+**When a rule is added mid-project, re-audit everything built before it.** Rules do not apply
+themselves retroactively, and earlier work is never re-checked because it already "passed" —
+under the older, weaker standard. The re-audit is cheap and mechanical; the drift it finds is
+invisible by eye. Two directions carrying 9.6px text and no filed teardown survived many
+rounds of review exactly this way.
 
 ### 6b. Diff the build against the spec — before anyone sees it
 
