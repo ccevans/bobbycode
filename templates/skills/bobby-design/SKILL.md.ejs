@@ -23,8 +23,9 @@ Read these in parallel:
 3. `<%= paths.skills %>/bobby-design/references/design_process.md` — the full process detail
 4. `<%= paths.skills %>/bobby-design/references/reference_teardown.md` — how to extract a design doc from a reference
 5. `<%= paths.skills %>/bobby-design/references/slop_checklist.md` — **the full do-not list. Binding.**
-6. `<%= paths.skills %>/bobby-design/references/style_tile_template.md` — the style tile spec
-7. Any existing design system in the project — `CLAUDE.md`, a tokens/theme file, existing component styles. **If one exists, it wins.** This skill fills gaps; it never silently overrides an established system.
+6. `<%= paths.skills %>/bobby-design/references/style_directory.md` — catalogue of studied systems, for when the user has none
+7. `<%= paths.skills %>/bobby-design/references/style_tile_template.md` — the style tile spec
+8. Any existing design system in the project — `CLAUDE.md`, a tokens/theme file, existing component styles. **If one exists, it wins.** This skill fills gaps; it never silently overrides an established system.
 
 ---
 
@@ -90,7 +91,12 @@ If the user supplies references, **those are the references.** Two is a complete
 
 - **They gave you references → use exactly those.** Do not add, substitute, or supplement.
 - **You think more range would help?** *Say so and ask.* "Your two are both quiet and light — want me to find a third with a different energy, or stay inside these?" Their call, not yours.
-- **They gave you none → then** search and open 3–5 yourself, ranging outside the subject's category and outside the minimal-website cluster. This is the only case where you pick.
+- **They gave you none → then** you pick — but pick from **evidence, not taste**. Start with
+  `references/style_directory.md`, a catalogue of already-studied systems with citations and
+  registers, and show the user the range. Supplement by searching and opening new ones, still
+  ranging outside the subject's category and outside the minimal-website cluster.
+  **The directory is a lead, never a teardown** — once a direction is picked, run the real
+  extraction against the live site, because entries go stale.
 - **They gave you one →** flag the risk (a single reference produces a copy) and ask whether to add or to work within it.
 
 The 3–5 target is a floor for the *no-references* case only. It is never a reason to dilute a set the user chose.
