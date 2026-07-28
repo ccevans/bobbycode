@@ -49,9 +49,39 @@ Originality is not invention from nothing. It is **remix through a specific lens
 **Steal the thinking, not the style.** "Charm uses warm pink gradients" is the surface. "Charm rejected the hacker-terminal cliché to make developer tools feel emotionally warm" is the thinking — and the thinking is what transfers to a new subject.
 
 Failure modes:
-- **One reference** → you have made a copy. Always 2+.
+- **One reference** → you have made a copy. Always 3+.
 - **References with no lens** → you have made a collage. The subject must transform them.
 - **Your own unguided taste** → you have made the AI default. References are the antidote.
+- **References from memory** → you have made a generic imitation of a remembered aesthetic. This is the subtlest failure, because "film end credits" or "greenbar computer paper" *sounds* specific while being exactly as ungrounded as taste. If you did not look at it, it is not a reference.
+
+### Citation is the discipline
+
+Every reference carries four fields, and all four are required:
+
+| Field | Requirement |
+|---|---|
+| **Name** | What it is |
+| **Source** | A URL, or a specific findable citation for a physical/print artifact |
+| **What's good** | The *thinking*, not the surface |
+| **What we take** | The specific thing carried into this design |
+
+A direction that cannot cite its sources was invented from taste. Citation is not bureaucracy here — it is the mechanism that forces you to have actually looked, and looking is where the specific details come from that separate a real design from an imitation of one.
+
+**Non-web references are welcome and often stronger** — packaging, signage, book design, instrument panels, forms, film titles, record sleeves. They must still be found, looked at, and cited.
+
+**Check nostalgia before committing.** Retro and skeuomorphic references carry a message about the subject. Ask whether it is the right message, or whether the page will read as period costume. Distinctive is not the same as right.
+
+### Diverge from the category, not from the user
+
+"Diverge" means **differ from the competitors**, never from the references the user chose. Those references are their taste, and taste is the one thing you cannot supply for them.
+
+The finished design must be **recognizably in the family** of what they picked. If they showed you quiet, light, typographic sites and you deliver dark industrial blocks, you have not been bold — you have substituted your taste for theirs, and the fact that it is distinctive does not redeem it.
+
+**The trap:** the user says an early draft "looks generic." It is tempting to hear *"this aesthetic is wrong"* and abandon it. Usually the aesthetic was fine and the draft was **empty** — quiet with no idea in it. The fix is to put a specific idea *into* their aesthetic, not to switch aesthetics.
+
+Minimal is not the same as generic. The minimal sites people admire have a spine — a thesis, a structural device, real specificity. Generic minimal is what is left when you copy the calm and skip the spine.
+
+**Check before shipping:** put the design next to the user's references. Could someone tell they belong to the same family? If not, go back.
 
 ### The subject's own world is the lens
 
@@ -87,9 +117,48 @@ Common strong strategies:
 - Geometric or grotesque display + humanist text face
 - Monospace display + neutral sans body (excellent for developer tools — the mono *is* the subject)
 
-### Overriding the defaults
+### Size floors — never design small
 
-**Inter, Roboto, Arial, Open Sans, and bare `system-ui` are red flags.** They are what gets chosen when nothing gets chosen. Pick something with a point of view.
+**Small type is one of the loudest AI tells.** Models produce 13–14px body copy and 10–11px labels because dense small text *looks* sophisticated in a thumbnail and costs nothing to generate. On a real screen it reads as cramped, cheap, and hard to use.
+
+Hard floors. These are not suggestions:
+
+| Role | Floor | Prefer |
+|---|---|---|
+| **Body copy** | **16px / 1rem** | **17–18px** on desktop |
+| Secondary / captions | 14px | 15–16px |
+| Labels, eyebrows, legal, metadata | **13px** — nothing on the page goes below this | 14px |
+| Line-height (body) | 1.5 | 1.5–1.65 |
+| Measure | — | 50–75 characters |
+
+- **16px is the browser default and the accessibility baseline.** Going under it is a decision to be less readable, and it is almost never the right one.
+- **18px body on desktop is the confident choice.** Generous type reads as considered; small type reads as generated.
+- **Labels are where this fails most.** A 10px uppercase eyebrow is the single most common AI typography tic. If a label needs to recede, use colour and letter-spacing — not a smaller size.
+- **The floor beats reference fidelity.** If a teardown shows the reference running 10/12/14px, **do not inherit that.** Take its proportions and scale the whole system up to clear the floor. Only go below if the user explicitly asks, and say what it costs.
+- Scale display type with `clamp()`, but set the **minimum** of every clamp above the floor too — a headline that collapses to 20px on mobile has the same problem.
+
+### Overriding the defaults — the banned font list
+
+Models default to **safe, not appropriate**: they reach for the most-trained-on option, which is by definition the most generic one. These are the fonts that result. **Do not use any of them unless the user explicitly asks, or a teardown shows the user's own reference using one.**
+
+**Tier 1 — the outright tells.** Using these is the fastest way to look machine-made:
+`Inter` · `Roboto` · `Arial` · `Helvetica` / `Helvetica Neue` · `Space Grotesk` · `Space Mono`
+
+> **Inter is the #1 slop tell.** And `Space Grotesk` is the trap one level up: it is the model's idea of an *edgy* default, reached for when it wants to look "more designed." It signals that someone asked for distinctive and accepted the first distinctive-sounding answer.
+
+**Tier 2 — the "safe modern" set.** Not offensive, just the next thing reached for:
+`Open Sans` · `Lato` · `Montserrat` · `Poppins` · `Nunito` · `Raleway` · `Work Sans` · `DM Sans` · `Manrope` · `Plus Jakarta Sans` · `Geist`
+
+**Tier 3 — the "elegant" defaults.** The reflex when a brief says premium or editorial:
+`Playfair Display` · `Instrument Serif` · `Cormorant Garamond` · `Libre Baskerville`
+
+**Tier 4 — the non-choice.** A bare `system-ui` / `-apple-system` stack presented as if it were a decision.
+
+**What to do instead:**
+
+- Pick a face with an actual point of view, and be able to say **why it fits this subject** in one sentence. If the reason is "it's clean and modern," it is a default.
+- **System monospace is the honest exception.** Where webfonts cannot load, `ui-monospace` / `SF Mono` / `Menlo` genuinely carries character in a way a system grotesque does not — especially for developer subjects, where the terminal is the subject.
+- **A reference-backed choice is not a default.** If a teardown shows the user's own reference running Geist, using Geist is inheriting their taste, not falling back to yours. Say which it is.
 
 When the environment blocks external font CDNs (as artifacts do), inline the face as a `@font-face` data URI rather than linking a URL and silently falling back — a silent fallback to the system stack undoes the entire type decision.
 
@@ -188,10 +257,11 @@ Current AI-generated design clusters around a recognizable set of looks. Avoid t
 
 ### The tells
 
+- **The minimal default: an off-white or cream ground + dark ink + exactly one accent + a grotesque.** This is the single most common AI-design output. It is not neutral and it is not safe — it is *recognizable*, and it reads as "nothing was decided."
 - Warm cream `#F4F1EA` ground + serif display + terracotta accent
 - Near-black ground + a single acid-green or vermilion pop
 - Purple-to-blue gradient hero on white
-- Inter or Space Grotesk as the "safe" face
+- Inter or Space Grotesk as the "safe" face — or a bare system stack in the *final* output
 - Broadsheet hairline rules with dense columns
 - Emoji as section markers or feature icons
 - Everything centered
@@ -199,9 +269,42 @@ Current AI-generated design clusters around a recognizable set of looks. Avoid t
 - An accent bar/rail on every card
 - The generic SaaS spine: hero → three feature cards → testimonial row → CTA band
 
+### The minimal trap
+
+Restraint is not automatically taste. The sites people admire for being minimal — the ones a user will point you at — are restrained **and** intensely specific: real typefaces, real photography, a real point of view. Copy only the restraint and you get the default look.
+
+If a user shows you minimal references, the thing to take is **what they were confident enough to leave out and why** — not the off-white ground. Steal the thinking, not the style. Producing a quiet page with no specific idea in it is the most common way this skill fails.
+
+### The range test (for a set of directions)
+
+A set of style tiles must span **different worlds**, not different temperatures of one world.
+
+- [ ] **Different grounds.** If every tile's background is in the same colour family, you have produced one tile three times. Redo it.
+- [ ] **Different type strategies.** Not three weights of the same grotesque.
+- [ ] **Different structural motifs.** Each tile should be built out of a different material.
+- [ ] **At least one real risk.** If every option is safe, the user has no actual choice — they are picking a shade. One tile should be the one you are slightly nervous to show.
+
+**The description test:** write one sentence describing each tile. If any two sentences are interchangeable, one of those tiles is wasted.
+
+### When you cannot load real typefaces
+
+If the environment blocks webfonts (artifacts, sandboxed pages) and you cannot inline a face as a data URI, **do not ship default-font specimens and call it art direction.** Disclosure does not fix it — the page still looks generic.
+
+Carry the personality through what you *can* control:
+
+- Extreme scale contrast, and tracking pushed well past default
+- Case as a design decision (all-caps with wide letterspacing, or strict lowercase)
+- Structure and motif — rules, box-drawing characters, grids, borders, stamps, gutters
+- Color and ground doing more of the work than usual
+- System **monospace** is genuinely characterful; a system grotesque is not
+
+The identity has to live in the system, not in a font you cannot load.
+
 ### The two required outputs
 
-**1. Name the signature move.** One sentence, before you build: *"This design hangs on ___."* If you cannot finish that sentence, you do not have a direction yet.
+**1. Name the signature move — and make it visible.** One sentence, before you build: *"This design hangs on ___."* If you cannot finish that sentence, you do not have a direction yet.
+
+A signature move written in a caption is not a signature move. If you say "the roster is the spine of the page," the roster must be *rendered as a spine* — visibly, structurally. If a reader has to be told the idea, the design has not expressed it.
 
 **2. Answer the distinctiveness question honestly, in writing, before shipping:**
 
@@ -215,7 +318,33 @@ Do not read these rules once and then drift. Re-check them when building **each*
 
 ---
 
-## Part 7 — Fundamentals (these are graded too)
+## Part 6b — Copy: the fastest way to look AI-generated
+
+A page can pass every visual check and still read as machine-written in its first sentence. Copy is the highest-signal thing on the page and it is the thing most often coasted on.
+
+### The tells
+
+- **The em-dash enumeration.** Interrupting a sentence to list things, then resuming: *"Bobby staffs the rest — planner, builder, reviewer, testers, security, QE — and runs a lifecycle."* This is the single most recognizable AI construction. Break it into sentences or cut the list.
+- **Filler qualifiers.** "end to end," "seamlessly," "robust," "powerful," "comprehensive," "real," "truly," "simply." Delete each one; if the sentence survives unchanged, it was filler.
+- **Decorative tricolon.** Rule-of-three rhythm applied to things that are not actually three ("taste, judgment, and knowing why it matters"). A real sequence is fine; a rhythmic one is a tell.
+- **Parallel-construction padding.** *"Its agents are your reviewer, its sessions carry your context."* Symmetry standing in for content.
+- **"Not just X, but Y."** Almost always deletable down to Y.
+- **"Whether you're X or Y…"** openings.
+- **The subhead restating the headline.** If the headline says it, the subhead must do a *different* job — get concrete, or name the pain.
+- **Copy that duplicates what the design already shows.** If a table lists six roles, the intro must not list them too. Redundancy undercuts the visual idea.
+- **Abstract nouns where a verb belongs.** "provides visibility into" → "shows."
+
+### The replacements
+
+- **Say what happens, in verbs.** *"Tell it what you want. It plans the work, writes the tests first, reviews the diff, and ships."*
+- **Name the pain in the user's own words.** Not "reduces friction in solo workflows" — *"No one reviews your code. No one remembers where you stopped at 1am."*
+- **Specific beats clever.** A real number, a real command, a real failure mode.
+- **Write from the user's side of the screen.** Name things as they experience them, not as the system implements them.
+
+### Two rules
+
+1. **Product docs are not page copy.** Lifting sentences from a README feels like "using real content," but README prose is written to be complete, and page copy is written to land. Rewrite it.
+2. **Read the first sentence out loud.** If no person would say it that way, it is not finished.
 
 Craft is not just aesthetics. Judges — and users — score execution.
 

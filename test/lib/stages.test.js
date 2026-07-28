@@ -2,18 +2,20 @@
 import { STAGES, TRANSITIONS, isValidStage, stageColor, stageIndex, resolveTransition } from '../../lib/stages.js';
 
 describe('stages', () => {
-  test('STAGES has 8 entries', () => {
-    expect(STAGES).toHaveLength(8);
+  test('STAGES has 12 entries', () => {
+    expect(STAGES).toHaveLength(12);
   });
 
   test('STAGES starts with backlog and ends with blocked', () => {
     expect(STAGES[0]).toBe('backlog');
-    expect(STAGES[7]).toBe('blocked');
+    expect(STAGES[STAGES.length - 1]).toBe('blocked');
   });
 
   test('STAGES contains all expected stages', () => {
     expect(STAGES).toEqual([
-      'backlog', 'planning', 'building', 'reviewing',
+      'backlog', 'planning',
+      'design-research', 'design-analyze', 'design-mockup', 'design-spec',
+      'building', 'reviewing',
       'testing', 'shipping', 'done', 'blocked',
     ]);
   });
@@ -45,8 +47,11 @@ describe('stages', () => {
 
   test('stageIndex returns numeric index', () => {
     expect(stageIndex('backlog')).toBe(0);
-    expect(stageIndex('blocked')).toBe(7);
-    expect(stageIndex('building')).toBe(2);
+    expect(stageIndex('blocked')).toBe(STAGES.length - 1);
+    expect(stageIndex('building')).toBe(STAGES.indexOf('building'));
+    // design stages sit between planning and building
+    expect(stageIndex('design-research')).toBeGreaterThan(stageIndex('planning'));
+    expect(stageIndex('design-spec')).toBeLessThan(stageIndex('building'));
   });
 
   test('TRANSITIONS maps aliases to stage names', () => {

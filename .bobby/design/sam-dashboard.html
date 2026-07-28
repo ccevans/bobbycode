@@ -1,0 +1,307 @@
+<title>Sam — job finder, running locally</title>
+<style>
+  /* ============================================================
+     SAM · dashboard
+       SHELL     sectioned left nav + breadcrumb + panel grid   [Grafana]
+       SUMMARY   stat-tile row w/ deltas · live indicator       [Plausible]
+       ROWS      inline magnitude bars inside list rows         [Plausible]
+       DENSITY   tight rows, few dividers, small type           [Linear]
+       REGISTER  local-first, keyboard-first, dark              [Raycast]
+       FLOOR     body >=16px equivalent · nothing below 13px
+     ============================================================ */
+  :root{
+    --bg:#0E1013; --panel:#15181D; --panel2:#1A1E24; --line:#252A31; --line2:#2E343C;
+    --ink:#E8EBEF; --mut:#9BA3AD; --dim:#6B747E;
+    --accent:#4C8DFF;                 /* one anchor accent */
+    --ok:#3FB27F; --warn:#E0A33E; --stale:#C7644E;
+    --sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#F7F8FA; --panel:#FFFFFF; --panel2:#F2F4F7; --line:#E3E7ED; --line2:#D5DBE3;
+           --ink:#151A21; --mut:#5C666F; --dim:#8A939D; --accent:#2563EB; }
+  }
+  :root[data-theme="light"]{ --bg:#F7F8FA;--panel:#FFF;--panel2:#F2F4F7;--line:#E3E7ED;--line2:#D5DBE3;--ink:#151A21;--mut:#5C666F;--dim:#8A939D;--accent:#2563EB }
+  :root[data-theme="dark"]{ --bg:#0E1013;--panel:#15181D;--panel2:#1A1E24;--line:#252A31;--line2:#2E343C;--ink:#E8EBEF;--mut:#9BA3AD;--dim:#6B747E;--accent:#4C8DFF }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{ background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:16px; line-height:1.5;
+        -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums }
+  .app{ display:grid; grid-template-columns:232px minmax(0,1fr); min-height:100vh }
+
+  /* ---------- shell: sectioned nav ---------- */
+  aside{ border-right:1px solid var(--line); background:var(--panel); padding:14px 10px; position:sticky; top:0; align-self:start; height:100vh; overflow-y:auto }
+  .brand{ display:flex; align-items:center; gap:9px; padding:4px 8px 14px }
+  .brand .logo{ width:26px;height:26px;border-radius:7px;background:var(--accent);display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px }
+  .brand b{ font-size:15px; letter-spacing:-.01em }
+  .brand .v{ font-family:var(--mono); font-size:13px; color:var(--dim); margin-left:auto }
+  .navsec{ font-size:13px; text-transform:uppercase; letter-spacing:.07em; color:var(--dim); padding:12px 8px 5px; font-weight:600 }
+  .nav a{ display:flex; align-items:center; gap:9px; padding:6px 8px; border-radius:6px; color:var(--mut);
+          text-decoration:none; font-size:14.5px; transition:background .12s, color .12s }
+  .nav a:hover{ background:var(--panel2); color:var(--ink) }
+  .nav a.on{ background:var(--panel2); color:var(--ink); font-weight:600 }
+  .nav a .c{ margin-left:auto; font-family:var(--mono); font-size:13px; color:var(--dim) }
+  .nav a.on .c{ color:var(--accent) }
+  .privacy{ margin-top:18px; border:1px solid var(--line); border-radius:8px; padding:10px 11px; background:var(--panel2) }
+  .privacy .h{ display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; margin-bottom:4px }
+  .privacy p{ font-size:13px; color:var(--mut); line-height:1.45 }
+  .lock{ width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none }
+
+  /* ---------- topbar ---------- */
+  header{ display:flex; align-items:center; gap:14px; padding:12px 20px; border-bottom:1px solid var(--line); background:var(--panel) }
+  .crumb{ display:flex; align-items:center; gap:7px; font-size:14px; color:var(--mut) }
+  .crumb b{ color:var(--ink); font-weight:600 }
+  .crumb span{ color:var(--dim) }
+  /* liveness stated as fact, in the header — Plausible */
+  .live{ display:flex; align-items:center; gap:7px; font-size:14px; color:var(--mut) }
+  .pulse{ width:8px;height:8px;border-radius:50%;background:var(--ok); position:relative }
+  .pulse::after{ content:""; position:absolute; inset:-4px; border-radius:50%; border:1px solid var(--ok); opacity:.45; animation:ping 2.4s ease-out infinite }
+  @keyframes ping{ 0%{transform:scale(.6);opacity:.6} 100%{transform:scale(1.5);opacity:0} }
+  .sp{ margin-left:auto; display:flex; gap:8px; align-items:center }
+  .kbd{ font-family:var(--mono); font-size:13px; border:1px solid var(--line2); border-radius:5px; padding:2px 6px; color:var(--dim) }
+  .btn{ font:inherit; font-size:14px; padding:6px 12px; border-radius:6px; border:1px solid var(--line2);
+        background:var(--panel2); color:var(--ink); cursor:pointer; transition:border-color .12s }
+  .btn:hover{ border-color:var(--accent) }
+  .btn.pri{ background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600 }
+  .btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px }
+
+  main{ padding:18px 20px 40px }
+
+  /* ---------- stat tiles — summary before detail ---------- */
+  .tiles{ display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); border:1px solid var(--line);
+          border-radius:9px; background:var(--panel); overflow:hidden }
+  .tile{ padding:12px 15px; border-right:1px solid var(--line) }
+  .tile:last-child{ border-right:none }
+  .tile.sel{ background:var(--panel2); box-shadow:inset 2px 0 0 var(--accent) }
+  .tile .k{ font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); font-weight:600 }
+  .tile .v{ font-size:25px; font-weight:600; letter-spacing:-.02em; margin-top:5px; display:flex; align-items:baseline; gap:8px }
+  .delta{ font-size:13.5px; font-weight:600 }
+  .delta.up{ color:var(--ok) } .delta.dn{ color:var(--stale) } .delta.flat{ color:var(--dim) }
+
+  /* ---------- panels ---------- */
+  .grid{ display:grid; grid-template-columns:1.55fr 1fr; gap:14px; margin-top:14px }
+  @media (max-width:1100px){ .grid{ grid-template-columns:1fr } }
+  .panel{ border:1px solid var(--line); border-radius:9px; background:var(--panel); overflow:hidden }
+  .ph{ display:flex; align-items:center; gap:12px; padding:9px 14px; border-bottom:1px solid var(--line) }
+  .ph h2{ font-size:14.5px; font-weight:600; letter-spacing:-.01em }
+  .tabs{ display:flex; gap:2px; margin-left:auto }
+  .tab{ font:inherit; font-size:13.5px; padding:3px 9px; border-radius:5px; border:none; background:none; color:var(--mut); cursor:pointer }
+  .tab.on{ background:var(--panel2); color:var(--ink); font-weight:600 }
+
+  /* ---------- rows with inline magnitude bars — Plausible ---------- */
+  .row{ position:relative; display:flex; align-items:center; gap:11px; padding:9px 14px; border-bottom:1px solid var(--line);
+        font-size:14.5px; cursor:pointer }
+  .row:last-child{ border-bottom:none }
+  .row:hover{ background:var(--panel2) }
+  .row .bar{ position:absolute; inset:0 auto 0 0; background:color-mix(in srgb, var(--accent) 13%, transparent); pointer-events:none }
+  .row > *{ position:relative }
+  .row .co{ font-weight:600; min-width:126px }
+  .row .ti{ color:var(--mut); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+  .row .meta{ font-family:var(--mono); font-size:13px; color:var(--dim) }
+  .pill{ font-size:13px; font-weight:600; padding:2px 8px; border-radius:999px; white-space:nowrap }
+  .p-ready{ background:color-mix(in srgb,var(--ok) 18%,transparent); color:var(--ok) }
+  .p-new{ background:color-mix(in srgb,var(--accent) 18%,transparent); color:var(--accent) }
+  .p-stale{ background:color-mix(in srgb,var(--stale) 18%,transparent); color:var(--stale) }
+  .p-sent{ background:var(--panel2); color:var(--mut) }
+  .score{ font-family:var(--mono); font-size:13px; color:var(--mut); min-width:34px; text-align:right }
+
+  /* ---------- pipeline ---------- */
+  .pipe{ padding:12px 14px; display:grid; gap:9px }
+  .st{ display:grid; grid-template-columns:104px 1fr 42px; align-items:center; gap:10px; font-size:14px }
+  .st .track{ display:block; height:7px; border-radius:4px; background:var(--panel2); overflow:hidden }
+  .st .fill{ display:block; height:100%; border-radius:4px }
+  .st .n{ font-family:var(--mono); font-size:13.5px; color:var(--mut); text-align:right }
+
+  /* ---------- activity ---------- */
+  .log{ padding:11px 14px; font-family:var(--mono); font-size:13.5px; line-height:1.95; white-space:pre-wrap; color:var(--mut); max-height:210px; overflow-y:auto }
+  .log b{ color:var(--ink); font-weight:400 }
+  .log .t{ color:var(--dim) }
+  .log .g{ color:var(--ok) }
+
+  .foot{ display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center; padding:10px 14px; border-top:1px solid var(--line); font-size:13.5px; color:var(--dim) }
+  .foot .path{ font-family:var(--mono) }
+
+  @media (max-width:820px){
+    .app{ grid-template-columns:minmax(0,1fr) }
+    aside{ display:none }
+    header{ flex-wrap:wrap; gap:8px 12px; padding:10px 14px }
+    .live{ font-size:13.5px; order:3; flex-basis:100% }
+    .sp{ margin-left:auto }
+    .kbd{ display:none }
+    .btn{ font-size:13.5px; padding:5px 10px }
+    main{ padding:14px }
+    .row{ flex-wrap:wrap; gap:6px 10px; padding:10px 12px }
+    .row .co{ min-width:0; flex:1 1 auto }
+    .row .score{ min-width:0 }
+    .tile{ border-right:none; border-bottom:1px solid var(--line) }
+    .row .ti{ display:none }
+  }
+  @media (prefers-reduced-motion:reduce){ .pulse::after{ animation:none } }
+</style>
+
+<div class="app">
+  <aside>
+    <div class="brand">
+      <span class="logo">S</span><b>Sam</b><span class="v">v0.9</span>
+    </div>
+    <div class="navsec">Search</div>
+    <nav class="nav">
+      <a href="#" class="on">◈ Briefing <span class="c">14</span></a>
+      <a href="#">◇ Matches <span class="c">128</span></a>
+      <a href="#">▤ Résumés <span class="c">3</span></a>
+      <a href="#">↗ Submitted <span class="c">9</span></a>
+      <a href="#">⊘ Dismissed <span class="c">61</span></a>
+    </nav>
+    <div class="navsec">Setup</div>
+    <nav class="nav">
+      <a href="#">⚙ Criteria</a>
+      <a href="#">⛁ Sources <span class="c">6</span></a>
+      <a href="#">▢ Base CV</a>
+    </nav>
+    <div class="privacy">
+      <div class="h"><span class="lock"></span> Runs on this Mac</div>
+      <p>Your CV, searches and rejections never leave the machine. No account, no sync.</p>
+    </div>
+  </aside>
+
+  <div>
+    <header>
+      <div class="crumb"><span>Sam</span><span>/</span><b>Briefing</b></div>
+      <div class="live"><span class="pulse"></span> scanning · 6 sources · last sweep 4m ago</div>
+      <div class="sp">
+        <span class="kbd">⌘K</span>
+        <button class="btn">Pause</button>
+        <button class="btn pri">Review résumés · 3</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- summary before detail -->
+      <div class="tiles">
+        <div class="tile sel">
+          <div class="k">New since Friday</div>
+          <div class="v">14 <span class="delta up">+6</span></div>
+        </div>
+        <div class="tile">
+          <div class="k">Résumés ready</div>
+          <div class="v">3 <span class="delta up">+2</span></div>
+        </div>
+        <div class="tile">
+          <div class="k">Going stale</div>
+          <div class="v">2 <span class="delta dn">48h</span></div>
+        </div>
+        <div class="tile">
+          <div class="k">Submitted</div>
+          <div class="v">9 <span class="delta flat">0</span></div>
+        </div>
+        <div class="tile">
+          <div class="k">Replies</div>
+          <div class="v">2 <span class="delta up">+1</span></div>
+        </div>
+        <div class="tile">
+          <div class="k">Match rate</div>
+          <div class="v">11% <span class="delta up">+3%</span></div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <!-- triage list -->
+        <section class="panel">
+          <div class="ph">
+            <h2>Found while you were away</h2>
+            <div class="tabs">
+              <button class="tab on">New 14</button>
+              <button class="tab">Ready 3</button>
+              <button class="tab">Stale 2</button>
+            </div>
+          </div>
+
+          <div class="row"><span class="bar" style="width:94%"></span>
+            <span class="co">Linear</span><span class="ti">Senior Product Engineer · Remote (EU)</span>
+            <span class="score">94</span><span class="pill p-ready">résumé ready</span><span class="meta">2h</span></div>
+
+          <div class="row"><span class="bar" style="width:91%"></span>
+            <span class="co">Vercel</span><span class="ti">Staff Engineer, DX · Remote</span>
+            <span class="score">91</span><span class="pill p-ready">résumé ready</span><span class="meta">5h</span></div>
+
+          <div class="row"><span class="bar" style="width:88%"></span>
+            <span class="co">Anthropic</span><span class="ti">Product Engineer, Claude Code</span>
+            <span class="score">88</span><span class="pill p-ready">résumé ready</span><span class="meta">6h</span></div>
+
+          <div class="row"><span class="bar" style="width:82%"></span>
+            <span class="co">Stripe</span><span class="ti">Engineer, Developer Products</span>
+            <span class="score">82</span><span class="pill p-new">new</span><span class="meta">9h</span></div>
+
+          <div class="row"><span class="bar" style="width:79%"></span>
+            <span class="co">Figma</span><span class="ti">Senior Frontend · Hybrid, London</span>
+            <span class="score">79</span><span class="pill p-new">new</span><span class="meta">11h</span></div>
+
+          <div class="row"><span class="bar" style="width:74%"></span>
+            <span class="co">Basecamp</span><span class="ti">Full-stack Programmer</span>
+            <span class="score">74</span><span class="pill p-stale">closes in 2d</span><span class="meta">3d</span></div>
+
+          <div class="row"><span class="bar" style="width:71%"></span>
+            <span class="co">Railway</span><span class="ti">Infrastructure Engineer · Remote</span>
+            <span class="score">71</span><span class="pill p-new">new</span><span class="meta">1d</span></div>
+
+          <div class="foot">
+            <span>Showing 7 of 14</span>
+            <span class="path">~/Documents/sam/matches.db</span>
+          </div>
+        </section>
+
+        <div style="display:grid;gap:14px;align-content:start">
+          <!-- pipeline -->
+          <section class="panel">
+            <div class="ph"><h2>Pipeline</h2></div>
+            <div class="pipe">
+              <div class="st"><span>Found</span><span class="track"><span class="fill" style="width:100%;background:var(--line2)"></span></span><span class="n">128</span></div>
+              <div class="st"><span>Matched</span><span class="track"><span class="fill" style="width:52%;background:var(--accent)"></span></span><span class="n">67</span></div>
+              <div class="st"><span>Résumé ready</span><span class="track"><span class="fill" style="width:23%;background:var(--ok)"></span></span><span class="n">3</span></div>
+              <div class="st"><span>Submitted</span><span class="track"><span class="fill" style="width:14%;background:var(--warn)"></span></span><span class="n">9</span></div>
+              <div class="st"><span>Replied</span><span class="track"><span class="fill" style="width:4%;background:var(--ok)"></span></span><span class="n">2</span></div>
+            </div>
+            <div class="foot"><span>You submit — Sam never applies for you.</span></div>
+          </section>
+
+          <!-- activity -->
+          <section class="panel">
+            <div class="ph"><h2>Activity</h2><span class="live" style="margin-left:auto"><span class="pulse"></span></span></div>
+            <div class="log">
+<span class="t">09:14</span> swept <b>6 sources</b> · 41 new postings
+<span class="t">09:14</span> matched <b>3</b> above threshold
+<span class="t">09:15</span> tailored résumé → <b>Linear</b>
+<span class="t">09:15</span> tailored résumé → <b>Vercel</b>
+<span class="t">09:16</span> tailored résumé → <b>Anthropic</b>
+<span class="g">09:16</span> <span class="g">3 ready for review</span>
+<span class="t">05:02</span> swept 6 sources · 12 new
+<span class="t">01:40</span> swept 6 sources · 4 new</div>
+            <div class="foot"><span class="path">nothing left this computer</span></div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  if(!document.querySelector('meta[name="viewport"]')){
+    var m=document.createElement('meta'); m.name='viewport';
+    m.content='width=device-width, initial-scale=1'; document.head.appendChild(m);
+  }
+  // tabs behave — filter the list, don't just restyle
+  var tabs=[].slice.call(document.querySelectorAll('.tab'));
+  var rows=[].slice.call(document.querySelectorAll('.row'));
+  var MAP={'New':'p-new','Ready':'p-ready','Stale':'p-stale'};
+  tabs.forEach(function(t){
+    t.addEventListener('click',function(){
+      tabs.forEach(function(x){ x.classList.toggle('on', x===t) });
+      var key=MAP[t.textContent.trim().split(' ')[0]];
+      rows.forEach(function(r){
+        r.style.display = (!key || r.querySelector('.'+key)) ? '' : 'none';
+      });
+    });
+  });
+})();
+</script>

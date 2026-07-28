@@ -76,6 +76,6 @@ describe('template', () => {
     };
     renderSkillTemplates(tmpDir, config);
     expect(fs.existsSync(path.join(tmpDir, 'bobby-ux', 'references', 'brand_guidelines.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'bobby-ux', 'references', 'frontend_design.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'bobby-design', 'references', 'craft_principles.md'))).toBe(true);
   });
 });

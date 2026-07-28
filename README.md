@@ -26,6 +26,19 @@ bobby init
 
 Requires Node.js 18+ (you already have it if you use Claude Code).
 
+<details>
+<summary><strong>Never installed anything like this? Start here.</strong></summary>
+
+Bobby runs in the terminal and drives Claude Code, so a first-time setup is three one-time installs, in this order:
+
+1. **Node.js** — powers the `npx` and `npm` commands above. Go to [nodejs.org](https://nodejs.org), download the **LTS** installer, and click through it like any normal app install.
+2. **Claude Code** — Bobby's agents run inside it, so you need it installed and signed in with a Claude account (Pro/Max subscription or an API key). Follow the [Claude Code setup guide](https://docs.anthropic.com/en/docs/claude-code/setup).
+3. **Git** — Bobby commits your work as it goes. On a Mac, macOS offers to install it the first time it's needed — say yes. On Windows, download it from [git-scm.com](https://git-scm.com).
+
+Then open your terminal — **Terminal** on Mac, **PowerShell** on Windows (both are already on your computer) — and run `npx bobbycode init`. From here on, the two commands above are all you touch.
+
+</details>
+
 ## Vet the Idea First
 
 Before you build anything, pressure-test the idea — solo, there's no cofounder to poke holes:

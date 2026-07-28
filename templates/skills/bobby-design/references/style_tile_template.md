@@ -27,6 +27,14 @@ A short name (one or two words) and one line of **what this says about you**.
 
 > **Whiteroom** — "We are serious, and we do not need to shout."
 
+### 1b. Sources — required on the tile
+
+Name the references this direction was built from, with links. Put them **on the tile**, visible.
+
+> *Built from: [rfeasley.io](https://rfeasley.io) (restraint in service of a point of view) · [Charm](https://charm.land) (the terminal deserves art direction)*
+
+A tile that cannot name its sources was invented from taste rather than remixed from references — which is the default look in disguise. If you cannot fill this in, go back to step 2.
+
 ### 2. Color
 
 Every swatch labeled with its **role** and its **hex**. Roles, not just colors:
@@ -114,6 +122,8 @@ Tiles are fast, but they are not sloppy. A tile that is too rough to judge has f
 
 - [ ] All 2–3 tiles use identical content, so only design varies
 - [ ] Each tile is anchored to a different reference remix
+- [ ] **Every tile names its sources, with links, visibly on the tile**
+- [ ] Every reference was actually looked at — none are working from memory
 - [ ] The differentiating axis is named
 - [ ] Every color swatch is labeled with role + hex
 - [ ] Type is shown with real copy, not "The quick brown fox"
