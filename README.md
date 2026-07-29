@@ -11,6 +11,8 @@ Bobby is an open-source npm CLI that gives one person a **whole engineering team
 
 **The idea:** working alone means no reviewer, no standup, and no one to remind you where you left off. So Bobby *is* your team — its agents are your reviewer, its sessions carry your context between stolen hours, and every command pays for itself in shipped work. Read the full philosophy in [docs/POSITIONING.md](docs/POSITIONING.md) and where it's headed in [docs/ROADMAP.md](docs/ROADMAP.md).
 
+**New here?** [docs/FLOW.md](docs/FLOW.md) walks the whole path end to end — the two ways in (new project vs. existing codebase) and the one loop you live in afterward.
+
 ## Install
 
 Bobby is published to the public npm registry — no account or auth required.
@@ -118,6 +120,22 @@ bobby audit --pack revenue      # what stands between you and revenue
 bobby pack apply revenue        # the roadmap to charging, as tickets
 ```
 
+### Bobby Pro
+
+Bobby is free forever — the whole loop, all 17 agents, the audit, and the packs
+above are MIT and always will be. **Bobby Pro** is the shelf on top: every paid
+pack (now and every one released later), Pro specialists beyond the free 17, and
+the work of keeping them current as Claude Code and the models move.
+
+```bash
+bobby pro                    # status, and what it unlocks here
+bobby pro activate <key>     # one key, every paid pack
+```
+
+Activation is offline — a signature check, no account and no network call. **A
+lapsed subscription keeps everything it paid for**; renewing only adds what
+shipped since. [Get Bobby Pro](https://ccevans.gumroad.com/l/bobby-pro).
+
 Then turn the gaps into work:
 
 ```bash
@@ -143,7 +161,22 @@ npm run dev    # it already runs → http://localhost:3000
 bobby go       # break the idea down, build it, ship it — run it again and again
 ```
 
-**Starters** (`--stack`): `node` (HTTP API, default) and `web` (static page) ship a runnable skeleton. Framework presets (`nextjs`, `go`, `django`, …) scaffold Bobby only for now. Name the directory with `--dir`. Already have a project? Use `init` below instead.
+**Starters** (`--stack`): `node` (HTTP API, default), `web` (static page), and `blog` (static blog) ship a runnable skeleton. Framework presets (`nextjs`, `go`, `django`, …) scaffold Bobby only for now. Name the directory with `--dir`. Already have a project? Use `init` below instead.
+
+### Need a blog?
+
+```bash
+bobby new "notes on shipping alone" --stack blog
+```
+
+Markdown files in `posts/`, a static site out in `public/` — index page, a page per post, and an RSS feed. No framework, no database, **no dependencies at all**:
+
+```bash
+cd notes-on-shipping-alone
+npm run dev      # build + preview at http://localhost:3000
+```
+
+Write a post by dropping a file in `posts/` with `title` and `date` frontmatter; `draft: true` keeps it out of the build until it's ready. The filename is the URL, the theme is one CSS file, and the generator is ~250 readable lines you own. Deploy `public/` to GitHub Pages, Netlify, Cloudflare Pages, or any static host.
 
 ## Just Say What You Want
 
@@ -432,6 +465,7 @@ Everything that touches a ticket lives under one namespace:
 | `bobby go <id>` | Run the workflow on a specific ticket |
 | `bobby pack list` / `info` / `add` / `rm` | Platform packs — domain checks + a roadmap to a finished product ([docs](docs/PACKS.md)) |
 | `bobby pack apply <id>` | Seed a pack's roadmap as tickets (skips what you already have) and copy its scaffolds |
+| `bobby pro` / `pro activate <key>` | Bobby Pro — one subscription for every paid pack and specialist |
 | `bobby audit` | Score this codebase on production readiness — security, reliability, operability, change safety (`--tickets` to turn gaps into work, `--json`, `--all`) |
 | `bobby idea "..."` | Capture an idea in five seconds, without touching the board |
 | `bobby idea list` | List open ideas (`--all` includes promoted, `--inbox` for the global inbox) |
