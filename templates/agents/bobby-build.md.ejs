@@ -12,8 +12,8 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-build/SKILL
 ## Before Starting
 
 Read these files in parallel to minimize startup time:
-1. `<%= paths.skills %>/bobby-build/learnings.md` — anti-patterns to avoid
-2. `<%= paths.skills %>/bobby-shared/learnings.md` — cross-agent patterns
+1. `<%= paths.skills %>/bobby-build/learnings.md` + `<%= paths.skills %>/bobby-build/learnings.local.md` — anti-patterns to avoid
+2. `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` — cross-agent patterns
 3. `.bobby/architecture-wakeup.md` (if it exists) — compressed codebase context
 <% if (typeof build_skills !== 'undefined' && build_skills && build_skills.length > 0) { %>
 <% build_skills.forEach(function(skill) { %>
@@ -42,3 +42,9 @@ Follow the Safety Rules in `CLAUDE.md`. In particular:
 - If you discovered anything non-obvious or a pattern future builds should avoid: `bobby learn bobby-build "pattern" "description"`
 - `bobby ticket move {ID} review`
 - Output: `<bobby:done ticket="{ID}" stage="reviewing" />`
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-build.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

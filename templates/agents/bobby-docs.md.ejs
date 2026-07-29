@@ -12,7 +12,7 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-docs/SKILL.
 ## Before Starting
 
 Read these in parallel:
-1. `<%= paths.skills %>/bobby-docs/learnings.md` and `<%= paths.skills %>/bobby-shared/learnings.md` — documentation patterns and cross-agent gotchas
+1. `<%= paths.skills %>/bobby-docs/learnings.md` + `<%= paths.skills %>/bobby-docs/learnings.local.md` and `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` — documentation patterns and cross-agent gotchas
 2. `README.md` — current project documentation
 3. `CLAUDE.md` — current Claude workflow instructions
 
@@ -25,3 +25,9 @@ Then:
 - Commit doc updates: `git add` changed docs, `git commit` with `docs: update documentation for {shipped features}`
 - If you discovered a documentation pattern: `bobby learn bobby-docs "pattern" "description"`
 - Output summary of what was updated and why
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-docs.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

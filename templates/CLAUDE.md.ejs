@@ -283,4 +283,20 @@ bobby retro --weekly                        # Weekly retro with metrics
 bobby learn bobby-build "pattern" "desc"    # Add learning
 bobby upgrade                               # Upgrade Bobby to latest version
 ```
+## Shipped vs yours
+
+Every file Bobby scaffolds follows one rule:
+
+| Shipped — replaced on upgrade | Yours — never overwritten |
+|---|---|
+| `<%= paths.skills %>/<skill>/SKILL.md` | `<%= paths.skills %>/<skill>/SKILL.local.md` |
+| `<%= paths.skills %>/<skill>/learnings.md` | `<%= paths.skills %>/<skill>/learnings.local.md` |
+| `<%= paths.agents %>/<agent>.md` | `<%= paths.agents %>/<agent>.local.md` |
+| everything above `<!-- bobby:end -->` in this file | everything below it, and `CLAUDE.local.md` |
+
+**Wherever you read a Bobby file `X.ext`, also read `X.local.ext` if it exists — and let it
+win.** Put project-specific instructions in the `.local` file; anything written into a shipped
+file is lost on the next upgrade.
+
+
 <!-- bobby:end -->

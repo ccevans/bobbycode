@@ -12,7 +12,7 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-performance
 ## Before Starting
 
 Read these in parallel:
-1. `<%= paths.skills %>/bobby-performance/learnings.md` and `<%= paths.skills %>/bobby-shared/learnings.md` — known performance patterns and cross-agent gotchas
+1. `<%= paths.skills %>/bobby-performance/learnings.md` + `<%= paths.skills %>/bobby-performance/learnings.local.md` and `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` — known performance patterns and cross-agent gotchas
 2. `.bobby/benchmarks/baseline.json` if it exists — previous baseline metrics
 
 Then:
@@ -30,3 +30,9 @@ Then:
 - If no baseline exists, save current measurements as baseline
 - If you discovered a performance pattern: `bobby learn bobby-performance "pattern" "description"`
 - Output summary with specific metrics and comparison to baseline
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-performance.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

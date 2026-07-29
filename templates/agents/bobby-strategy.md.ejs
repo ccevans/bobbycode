@@ -12,7 +12,7 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-strategy/SK
 ## Before Starting
 
 Read these in parallel:
-1. `<%= paths.skills %>/bobby-strategy/learnings.md` and `<%= paths.skills %>/bobby-shared/learnings.md` — patterns and anti-patterns
+1. `<%= paths.skills %>/bobby-strategy/learnings.md` + `<%= paths.skills %>/bobby-strategy/learnings.local.md` and `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` — patterns and anti-patterns
 2. The ticket's `ticket.md` from `<%= tickets_dir %>/`
 3. Run `bobby ticket list backlog --sort priority` — understand the full backlog for relative prioritization
 
@@ -26,3 +26,9 @@ Then:
 - If deferred: `bobby ticket comment {ID} --by bobby-strategy "STRATEGY DEFERRED: {reasoning}. Revisit: {suggested date or condition}"` then output `<bobby:done ticket="{ID}" stage="backlog" />`
 - If killed: `bobby ticket archive {ID}` then output `<bobby:done ticket="{ID}" stage="done" />`
 - If you discovered a strategic pattern: `bobby learn bobby-strategy "pattern" "description"`
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-strategy.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

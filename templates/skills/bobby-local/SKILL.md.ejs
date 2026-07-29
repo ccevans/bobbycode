@@ -10,7 +10,7 @@ argument-hint: "<profile> [fresh|daily|reset|check]"
 
 ## Before Starting
 
-1. **Check learnings** — Read `<%= paths.skills %>/bobby-local/learnings.md`
+1. **Check learnings** — Read `<%= paths.skills %>/bobby-local/learnings.md` + `<%= paths.skills %>/bobby-local/learnings.local.md`
 2. **Parse the argument** — Extract the profile name and optional action:
    - `/bobby-local myproject` → profile `myproject`, action `fresh` (default for first run) or `daily` (if already set up)
    - `/bobby-local myproject reset` → profile `myproject`, action `reset`
@@ -277,3 +277,14 @@ After any action:
 1. Run all health checks and report results
 2. If something failed, diagnose and fix it or report the issue to the user
 3. Log any new learnings discovered during setup
+
+---
+
+## Project overrides
+
+If `<%= paths.skills %>/bobby-local/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

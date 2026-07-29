@@ -12,7 +12,7 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-test/SKILL.
 ## Before Starting
 
 Read these in parallel:
-1. `<%= paths.skills %>/bobby-test/learnings.md` and `<%= paths.skills %>/bobby-shared/learnings.md` — anti-patterns to avoid
+1. `<%= paths.skills %>/bobby-test/learnings.md` + `<%= paths.skills %>/bobby-test/learnings.local.md` and `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` — anti-patterns to avoid
 2. The ticket's `ticket.md` — acceptance criteria
 3. The ticket's `test-cases.md` — test scenarios to execute
 4. The ticket's `plan.md` — to understand what was implemented
@@ -23,3 +23,9 @@ Read these in parallel:
 - If you discovered anything non-obvious or a pattern future testing should catch: `bobby learn bobby-test "pattern" "description"`
 - If all tests pass: `bobby ticket move {ID} ship` then output `<bobby:done ticket="{ID}" stage="shipping" />`
 - If tests fail: `bobby ticket move {ID} reject "test failure details"` then output `<bobby:done ticket="{ID}" stage="building" />`
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-test.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

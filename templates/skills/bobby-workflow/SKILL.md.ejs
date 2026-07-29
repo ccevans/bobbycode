@@ -99,3 +99,14 @@ Repeat for each ticket in the queue.
 - **Clean workspace** — verify `git status` after each agent
 - **Stop on confusion** — if a ticket is in an unexpected state, stop and report rather than guessing
 - **Never auto-ship** — workflow stops at shipping; user triggers `bobby run ship` when ready
+
+---
+
+## Project overrides
+
+If `<%= paths.skills %>/bobby-workflow/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

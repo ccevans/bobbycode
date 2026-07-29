@@ -26,3 +26,9 @@ Then follow the skill's pre-flight and review process.
 - If approved with notes: `bobby ticket move {ID} test` then output `<bobby:done ticket="{ID}" stage="testing" />`
 - If rejected: `bobby ticket move {ID} reject "specific feedback"` then output `<bobby:done ticket="{ID}" stage="building" />`
 - If blocked: `bobby ticket move {ID} block "reason"` then output `<bobby:done ticket="{ID}" stage="blocked" />`
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-review.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

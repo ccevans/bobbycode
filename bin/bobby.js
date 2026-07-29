@@ -37,6 +37,8 @@ import { registerVet } from '../commands/vet.js';
 import { registerDo } from '../commands/do.js';
 import { registerAudit } from '../commands/audit.js';
 import { registerPack } from '../commands/pack.js';
+import { registerPro } from '../commands/pro.js';
+import { registerSkill } from '../commands/skill.js';
 import { touchProject } from '../lib/studio.js';
 
 const initCmd = registerInit(program);
@@ -47,6 +49,7 @@ registerNew(program);
 registerGo(program);
 registerAudit(program);
 registerPack(program);
+registerPro(program);
 registerBrief(program);
 registerIdea(program);
 registerTicket(program);
@@ -55,6 +58,7 @@ registerRun(program);
 registerWorkflow(program);
 registerRetro(program);
 registerLearn(program);
+registerSkill(program);
 registerProjects(program);
 registerSession(program);
 registerSync(program);
@@ -69,7 +73,7 @@ registerUpgrade(program);
 // else is listed compactly below and still works + has its own --help.
 const ESSENTIAL = ['do', 'new', 'go', 'init'];
 const EVERYDAY = ['vet', 'audit', 'brief', 'idea', 'ticket', 'sprint', 'run', 'dashboard'];
-const POWER = ['pack', 'workflow', 'retro', 'learn', 'projects', 'session', 'sync', 'export', 'upgrade'];
+const POWER = ['pack', 'pro', 'workflow', 'retro', 'learn', 'skill', 'projects', 'session', 'sync', 'export', 'upgrade'];
 program.configureHelp({
   visibleCommands: (cmd) =>
     cmd.parent === null // only filter the ROOT help; subcommand help lists everything

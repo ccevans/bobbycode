@@ -142,3 +142,9 @@ Write all three files and print:
 > - `.bobby/decisions.yaml` — [N] active decisions
 >
 > All Bobby agents will now load the wake-up before starting ticket work. Re-run `bobby run arch` after major refactors."
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-arch.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

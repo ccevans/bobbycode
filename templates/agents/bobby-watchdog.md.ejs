@@ -12,7 +12,7 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-watchdog/SK
 ## Before Starting
 
 Read these in parallel:
-1. `<%= paths.skills %>/bobby-watchdog/learnings.md` and `<%= paths.skills %>/bobby-shared/learnings.md` — known deployment patterns and cross-agent gotchas
+1. `<%= paths.skills %>/bobby-watchdog/learnings.md` + `<%= paths.skills %>/bobby-watchdog/learnings.local.md` and `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` — known deployment patterns and cross-agent gotchas
 2. `.bobbyrc.yml` — check for `production_url` and `watchdog_pages` config
 
 Then:
@@ -23,3 +23,9 @@ Then:
 - If all checks pass: output `Watchdog check passed — {n} pages verified, 0 errors`
 - If issues found: file bug tickets: `bobby ticket create -t "WATCHDOG: {issue}" --type bug -p critical`
 - If you discovered a deployment pattern: `bobby learn bobby-watchdog "pattern" "description"`
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-watchdog.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

@@ -11,7 +11,7 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-vet/SKILL.m
 
 ## Before Starting
 
-1. Read `<%= paths.skills %>/bobby-vet/learnings.md` and `<%= paths.skills %>/bobby-shared/learnings.md` — anti-patterns to avoid
+1. Read `<%= paths.skills %>/bobby-vet/learnings.md` + `<%= paths.skills %>/bobby-vet/learnings.local.md` and `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` — anti-patterns to avoid
 2. If vetting a specific ticket, read the ticket's `ticket.md` for context
 3. If the ticket has a `parent` field, read the parent epic's `ticket.md` and `plan.md` for broader context
 
@@ -21,3 +21,9 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-vet/SKILL.m
 - If ticket description or AC improved: update the ticket's `ticket.md` directly
 - If new concerns surfaced: `bobby ticket comment {ID} --by bobby-vet "Open concern: {description}"`
 - If you discovered a reusable insight: `bobby learn bobby-vet "pattern" "description"`
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-vet.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

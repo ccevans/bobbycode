@@ -10,7 +10,7 @@ argument-hint: "<ticket ID to evaluate, or omit for batch backlog evaluation>"
 
 ## Before Starting
 
-1. **Check learnings** — Read `<%= paths.skills %>/bobby-strategy/learnings.md`
+1. **Check learnings** — Read `<%= paths.skills %>/bobby-strategy/learnings.md` + `<%= paths.skills %>/bobby-strategy/learnings.local.md`
 2. **Read the ticket** — title, description, acceptance criteria, priority, type, area
 3. **Survey the backlog** — `bobby ticket list backlog --sort priority` to understand relative positioning
 4. **Check in-flight work** — `bobby ticket list planning`, `bobby ticket list building` to see current capacity
@@ -249,3 +249,14 @@ bobby learn bobby-strategy "pattern" "description"
 ## Feature Areas
 
 <%= areas && areas.length > 0 ? areas.join(' | ') : '_No areas configured_' %>
+
+---
+
+## Project overrides
+
+If `<%= paths.skills %>/bobby-strategy/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

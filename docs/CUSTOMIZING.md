@@ -1,18 +1,59 @@
 # Customizing Bobby
 
-After `bobby init`, everything Bobby scaffolds is yours to edit. This guide covers the main customization points.
+## The one rule: `.local` files are yours
+
+Every file Bobby scaffolds is either **shipped** or **yours**, and you can tell which from the
+filename:
+
+| Shipped — replaced on every upgrade | Yours — never overwritten |
+|---|---|
+| `.claude/skills/<skill>/SKILL.md` | `.claude/skills/<skill>/SKILL.local.md` |
+| `.claude/skills/<skill>/learnings.md` | `.claude/skills/<skill>/learnings.local.md` |
+| `.claude/agents/<agent>.md` | `.claude/agents/<agent>.local.md` |
+| `.claude/commands/<cmd>.md` | `.claude/commands/<cmd>.local.md` |
+| everything above `<!-- bobby:end -->` in `CLAUDE.md` | everything below it, plus `CLAUDE.local.md` |
+
+`X.local.ext` sits **on top of** `X.ext` and **wins** wherever the two disagree. Agents are told
+to read both. It's the same convention as Claude Code's own `settings.local.json`.
+
+**Put your customizations in the `.local` file.** Editing a shipped file works until your next
+upgrade, and then it's gone — that's the point of shipped files: you get the improvements.
+
+```bash
+# add a rule for this project's design work — survives every upgrade
+echo "Never use teal. The client hates it." >> .claude/skills/bobby-design/SKILL.local.md
+
+# same idea for an agent
+echo "Always run \`make verify\` before committing." >> .claude/agents/bobby-build.local.md
+```
+
+These files are meant to be committed — they're how your team shares project conventions.
+
+The rest of this guide covers the other customization points.
 
 ## Adding Custom Agents and Skills
 
-Bobby agents are markdown files in `.claude/agents/`. Skills are instruction sets in `.claude/skills/<name>/`.
+The fast path:
 
-To add a custom agent:
+```bash
+bobby skill create deploy-check "Verify staging health before any deploy." --agent
+```
+
+That scaffolds the skill folder, seeds its `learnings.local.md`, and (with `--agent`) creates
+the agent file so `bobby run deploy-check` works immediately. The name must be kebab-case and
+must not start with `bobby-` — the command enforces both.
+
+**Naming standard** (same one Bobby's shipped skills follow): kebab-case, verb-noun —
+`deploy-check`, `review-copy`, `vet-pricing`. The folder name is the skill's name everywhere:
+`bobby run <name>`, `bobby learn <name>`, and Claude Code's auto-discovery all key off it.
+
+To do the same by hand:
 
 1. Create the skill directory:
    ```
    .claude/skills/my-linter/
-     SKILL.md        # Detailed instructions for the agent
-     learnings.md    # Anti-patterns and best practices (starts empty)
+     SKILL.md              # Detailed instructions for the agent
+     learnings.local.md    # Anti-patterns — `bobby learn my-linter` writes here
    ```
 
 2. Create the agent definition:
@@ -34,7 +75,22 @@ To add a custom agent:
 
 3. Optionally add it to a custom workflow (see below).
 
-Bobby prefixes its own agents with `bobby-`. Your custom agents can use any name that doesn't start with `bobby-` to avoid collisions on re-init.
+**The `bobby-` prefix is reserved.** Everything Bobby ships is named `bobby-*`, and
+`bobby init --refresh` treats that namespace as its own: stale `bobby-*` agents and commands
+from older versions are *removed* on refresh. Name your custom agents, skills, and commands
+anything else (`deploy-check`, `my-linter`) and Bobby will never touch them — not to
+overwrite, not to prune. This applies to pack authors too.
+
+**Custom agents are runnable by name.** `bobby run <your-agent>` works for any
+`.claude/agents/<your-agent>.md` — no registration needed. It can claim tickets like a shipped
+agent, and you can slot it into a custom workflow (below). Add a
+`.claude/agents/<your-agent>.local.md` if you want per-project tweaks layered on a shared
+definition.
+
+**Pinning and rollback.** `bobby upgrade --to 1.1.0` installs that exact version and
+re-scaffolds from it — files a newer version added are pruned, and your `.local` files and
+data survive in both directions. Staying on an old version is fine: nothing phones home, and
+refresh only ever scaffolds from the version you have installed.
 
 ## Defining Custom Workflows
 
@@ -58,13 +114,15 @@ bobby run workflow TKT-001 --workflow secure
 
 ## Modifying Skill Behavior
 
-All skill files in `.claude/skills/bobby-*/SKILL.md` are yours to edit after init. Common modifications:
+Write your changes to `.claude/skills/bobby-*/SKILL.local.md` — **not** `SKILL.md`. The skill
+reads both and your file wins. Common modifications:
 
 - Add project-specific rules (e.g., "always use our design system components")
 - Adjust review criteria (e.g., stricter performance thresholds)
 - Change test expectations (e.g., require integration tests, not just unit tests)
 
-**Note:** Re-running `bobby init` will overwrite bobby-prefixed skills. Commit your customizations first, or use `bobby learn` for incremental improvements that survive re-init.
+**Why not edit `SKILL.md` directly?** It's shipped, so re-scaffolding and upgrading both replace
+it — that's how you receive new rules and fixes. Your `SKILL.local.md` is never touched.
 
 ### Teaching Bobby with `bobby learn`
 

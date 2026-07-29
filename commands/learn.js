@@ -17,25 +17,37 @@ export function registerLearn(program) {
         const config = readConfig(root);
         const target = getTarget(config.target || 'claude-code');
         const skillsDir = path.join(root, target.paths().skills);
-        const learningsFile = path.join(skillsDir, skill, 'learnings.md');
+        const skillDir = path.join(skillsDir, skill);
 
-        if (!fs.existsSync(learningsFile)) {
-          // Discover which skills have learnings files
+        if (!fs.existsSync(skillDir)) {
           const validSkills = fs.readdirSync(skillsDir)
-            .filter(d => fs.existsSync(path.join(skillsDir, d, 'learnings.md')))
+            .filter(d => fs.existsSync(path.join(skillsDir, d, 'SKILL.md')))
             .sort();
           error(`Unknown skill '${skill}'. Valid: ${validSkills.join(', ')}`);
           process.exit(1);
         }
+
+        // Always write to the user-owned overlay. `learnings.md` is shipped and
+        // is replaced on every upgrade — anything written there would be lost.
+        const learningsFile = path.join(skillDir, 'learnings.local.md');
         let entry = `- **${pattern}**: ${description}`;
         if (opts.source) entry += ` (source: ${opts.source})`;
 
-        let content = fs.readFileSync(learningsFile, 'utf8');
-        // Insert after ## Anti-Patterns heading
-        content = content.replace(
-          /(## Anti-Patterns[^\n]*\n(?:<!--[^>]*-->\n)?)/,
-          `$1\n${entry}\n`
-        );
+        const HEADING = '## Anti-Patterns';
+        let content = fs.existsSync(learningsFile)
+          ? fs.readFileSync(learningsFile, 'utf8')
+          : `# ${skill} — This Project's Learnings\n\n${HEADING}\n`;
+
+        // A missing heading used to make the replace a silent no-op that still
+        // reported success (bobby-shared had no heading at all). Append instead.
+        if (content.includes(HEADING)) {
+          content = content.replace(
+            /(## Anti-Patterns[^\n]*\n(?:<!--[^>]*-->\n)?)/,
+            `$1\n${entry}\n`
+          );
+        } else {
+          content = `${content.replace(/\s*$/, '')}\n\n${HEADING}\n\n${entry}\n`;
+        }
         fs.writeFileSync(learningsFile, content, 'utf8');
         autoSync(root);
 
