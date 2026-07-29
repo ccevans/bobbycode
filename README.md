@@ -494,10 +494,12 @@ Everything that touches a ticket lives under one namespace:
 
 | Command | Description |
 |---------|-------------|
-| `bobby init` | Initialize a new Bobby project (or re-initialize to update skills/agents) |
+| `bobby init` | Initialize a new Bobby project |
+| `bobby init --refresh` | Regenerate shipped skills/agents/commands from the installed version (`.local` files untouched) |
 | `bobby init local` | Discover and configure a local dev profile |
+| `bobby skill create <name>` | Scaffold a custom skill (`--agent` makes it runnable via `bobby run <name>`) |
 | `bobby export plugin` | Export Bobby skills and agents as a Cowork plugin (.zip) |
-| `bobby upgrade` | Upgrade Bobby to the latest version (`--check` to preview) |
+| `bobby upgrade` | Upgrade to latest and refresh the project (`--check` to preview, `--to <version>` to pin or roll back) |
 
 ### Move Aliases
 
@@ -677,7 +679,7 @@ Focused agents for specific concerns:
 
 ## Skills (21)
 
-Each agent is backed by a **skill** — a detailed instruction set in `.claude/skills/bobby-{name}/SKILL.md`. Skills also accumulate learnings over time in `learnings.md`, so agents get smarter as your project evolves.
+Each agent is backed by a **skill** — a detailed instruction set in `.claude/skills/bobby-{name}/SKILL.md`. Skills also accumulate learnings over time, so agents get smarter as your project evolves.
 
 ### Teaching Bobby
 
@@ -688,7 +690,38 @@ bobby learn bobby-build "hard-coded test values" "Implement the algorithm, don't
 bobby learn bobby-review "missing error handling" "Check all async calls have try/catch"
 ```
 
-Learnings are stored in `.claude/skills/bobby-{name}/learnings.md` and loaded by agents before every run.
+Learnings land in `.claude/skills/bobby-{name}/learnings.local.md` — a file that's yours and survives every upgrade — and agents load them before every run.
+
+## Make It Yours (and Keep It Through Upgrades)
+
+Every file Bobby scaffolds follows **one rule**: `X.md` is shipped and replaced on upgrade; `X.local.md` is yours and never overwritten. Agents read both, and yours wins.
+
+```bash
+# add project rules on top of a shipped skill — survives every upgrade
+echo "Every plan MUST include a rollback section." >> .claude/skills/bobby-plan/SKILL.local.md
+
+# same for an agent, or for CLAUDE.md via CLAUDE.local.md
+echo "Always run make verify before committing." >> .claude/agents/bobby-build.local.md
+```
+
+Build your own skills and agents — any name that doesn't start with `bobby-` is yours forever:
+
+```bash
+bobby skill create deploy-check "Verify staging health before any deploy." --agent
+bobby run deploy-check              # runs immediately — no registration
+bobby learn deploy-check "..." "..."  # teach it like any shipped skill
+```
+
+Custom agents can claim tickets and slot into workflows — swap a shipped agent out per stage:
+
+```yaml
+workflows:
+  default:
+    - { stage: planning, agent: deploy-check }   # replaces bobby-plan
+    - { stage: building, agent: bobby-build }
+```
+
+Updates are explicit and safe: `bobby upgrade` installs the latest and refreshes shipped files (refusing to clobber uncommitted edits), `bobby upgrade --to 1.2.0` pins or rolls back, and your `.local` files, tickets, and data survive in every direction. Details in [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md).
 
 ## Slash Commands (20)
 
