@@ -52,6 +52,7 @@
     "templates/",
     "stacks/",
     "packs/",
+    "docs/FLOW.md",
     "docs/CUSTOMIZING.md",
     "docs/PACKS.md",
     "docs/MIGRATING.md",
