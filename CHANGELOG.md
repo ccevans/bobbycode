@@ -71,6 +71,19 @@ All notable changes to Bobby are documented here. The format is based on
 - License keys resolve `~/.bobby/licenses.yml` per call and prefer `$HOME`, so a
   sandboxed run (tests, CI) can no longer write a key into the real user's home.
 
+## [1.2.0] — 2026-07-27
+
+### Added
+- **bobby-design skill** — a real design process for building sites: six named
+  design jobs wired into the workflow, a binding AI-slop pattern checklist, a
+  style directory of 13 studied design systems (cited), metaphor staging and
+  affordance rules, and dashboard rules that verify data marks actually render.
+- **Spec-conformance review in bobby-ux** — design work now gets a verify phase
+  against the locked spec.
+- **README first-time setup walkthrough** — a collapsible section for
+  non-technical users covering Node.js, Claude Code, git, and which terminal
+  app to open.
+
 ## [1.0.0] — 2026-07-24
 
 First public release, live on npm: `npm install -g bobbycode`. Bobby is a full
