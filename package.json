@@ -39,6 +39,8 @@
     "gray-matter": "^4.0.3",
     "inquirer": "^9.2.0",
     "node-fetch": "^3.3.2",
+    "qrcode-terminal": "^0.12.0",
+    "ws": "^8.21.1",
     "yaml": "^2.4.0"
   },
   "devDependencies": {

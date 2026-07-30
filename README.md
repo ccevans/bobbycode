@@ -491,6 +491,33 @@ The `cursor-agent` CLI is a separate install from the Cursor app:
 **Everything above is free, forever.** The dashboard is MIT like the rest of
 Bobby — there is no gated route and no feature that checks a license.
 
+### From your phone — `bobby remote`
+
+The dashboard, but in your pocket. Your agents keep working after you walk away
+from the desk; `bobby remote` means the moment one needs a human, you're still
+that human:
+
+```bash
+bobby remote          # prints a QR — scan it with your phone
+```
+
+This starts the same dashboard bound to loopback, then opens **one outbound,
+end-to-end-encrypted connection** to a relay. Your phone gets the Bobby HQ app:
+the ticket board, live agent logs, and a **"Needs you"** queue with thumb-sized
+Approve / Send back buttons.
+
+The trust story, in full:
+
+- **Your subscription, your machine.** Agents run here, exactly as if you'd
+  typed `bobby dashboard`. Nothing about inference leaves your computer.
+- **Outbound only.** No open ports, no port forwarding, NAT stays shut.
+- **The relay is blind.** Every frame is AES-256-GCM under a key that travels
+  only inside the QR/pairing code — the relay routes ciphertext it cannot read.
+- **The phone gets verbs, not a shell.** The tunnel exposes the dashboard's
+  `/api/*` surface and refuses everything else.
+- Pairing state lives in `~/.bobby/remote/`, never in the repo. Lost a phone?
+  `bobby remote --new-code` rotates the channel and cuts old devices off.
+
 ### Dashboard add-ons
 
 The dashboard has an extension seam so *separately distributed* add-ons can

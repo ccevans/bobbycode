@@ -6,6 +6,18 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **`bobby remote` — run your team from your phone.** Starts the dashboard on a
+  loopback-only ephemeral port, then opens ONE outbound, end-to-end-encrypted
+  WebSocket to a relay; scan the printed QR (or paste the code) and the Bobby HQ
+  app gets exactly the dashboard's API — approve, reject, run, live logs —
+  nothing more. Inference stays on your machine, on your subscription. Every
+  frame is AES-256-GCM under a key delivered only inside the pairing code, so
+  the relay routes ciphertext it cannot read; the tunnel refuses any path
+  outside `/api/*` and any method beyond GET/POST. Pairing state lives in
+  `~/.bobby/remote/` (never in the repo); `--new-code` rotates the channel and
+  cuts old phones off.
+
 ## [1.3.0] — 2026-07-29
 
 ### Added

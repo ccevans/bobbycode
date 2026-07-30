@@ -39,6 +39,7 @@ import { registerAudit } from '../commands/audit.js';
 import { registerPack } from '../commands/pack.js';
 import { registerPro } from '../commands/pro.js';
 import { registerSkill } from '../commands/skill.js';
+import { registerRemote } from '../commands/remote.js';
 import { touchProject } from '../lib/studio.js';
 
 const initCmd = registerInit(program);
@@ -63,6 +64,7 @@ registerProjects(program);
 registerSession(program);
 registerSync(program);
 registerDashboard(program);
+registerRemote(program);
 registerExport(program);
 registerUpgrade(program);
 
@@ -72,7 +74,7 @@ registerUpgrade(program);
 // The whole process is two verbs. Default help shows just the loop; everything
 // else is listed compactly below and still works + has its own --help.
 const ESSENTIAL = ['do', 'new', 'go', 'init'];
-const EVERYDAY = ['vet', 'audit', 'brief', 'idea', 'ticket', 'sprint', 'run', 'dashboard'];
+const EVERYDAY = ['vet', 'audit', 'brief', 'idea', 'ticket', 'sprint', 'run', 'dashboard', 'remote'];
 const POWER = ['pack', 'pro', 'workflow', 'retro', 'learn', 'skill', 'projects', 'session', 'sync', 'export', 'upgrade'];
 program.configureHelp({
   visibleCommands: (cmd) =>
