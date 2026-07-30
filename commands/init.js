@@ -94,6 +94,7 @@ export function scaffoldProject(rootDir, config) {
     services: config.services || {},
     paths: targetPaths,
     target: config.target || 'claude-code',
+    target_display: target.displayName ? target.displayName() : 'your agent',
   };
 
   // Render and write rules file (CLAUDE.md or .clinerules/rules.md)
@@ -165,7 +166,9 @@ export function scaffoldProject(rootDir, config) {
 
   const commandFiles = fs.readdirSync(COMMAND_TEMPLATES_DIR).filter(f => f.endsWith('.md.ejs'));
   for (const file of commandFiles) {
-    const content = renderTemplate(`commands/${file}`, templateData);
+    const rendered = renderTemplate(`commands/${file}`, templateData);
+    // Targets that don't parse command frontmatter get a rewritten body.
+    const content = target.transformCommand ? target.transformCommand(rendered) : rendered;
     const outName = file.replace('.ejs', '');
     fs.writeFileSync(path.join(commandsDir, outName), content, 'utf8');
   }
@@ -515,6 +518,7 @@ export function registerInit(program) {
             message: 'AI target:',
             choices: [
               { name: 'Claude Code — scaffolds to .claude/ (agents, skills, commands, CLAUDE.md)', value: 'claude-code' },
+              { name: 'Cursor — scaffolds to .cursor/ (skills, commands, agents) + AGENTS.md', value: 'cursor' },
               { name: 'Cline (VS Code) — scaffolds to .clinerules/ (agents, skills, workflows)', value: 'cline' },
             ],
             default: existingConfig?.target || 'claude-code',
@@ -743,12 +747,13 @@ export function registerInit(program) {
         const tp = targetAdapter.paths();
         console.log('');
 
-        // Notify about rules file backup
-        if (detected.hasExistingRules) {
-          const bakPath = path.join(rootDir, detected.hasExistingRules + '.pre-bobby');
-          if (fs.existsSync(bakPath)) {
-            warn(`Existing ${detected.hasExistingRules} backed up to ${detected.hasExistingRules}.pre-bobby`);
-          }
+        // Notify about rules file backup. Keyed off the target's rules file, not
+        // whichever rules file detection happened to find first — a repo can hold
+        // several (CLAUDE.md and AGENTS.md both), but scaffold only ever backs up
+        // the one it is about to write.
+        const rulesRel = tp.rules;
+        if (fs.existsSync(path.join(rootDir, `${rulesRel}.pre-bobby`))) {
+          warn(`Existing ${rulesRel} backed up to ${rulesRel}.pre-bobby`);
         }
         if (gitInitialized) {
           success('Initialized git repo');
@@ -762,9 +767,16 @@ export function registerInit(program) {
         success(`Created ${config.tickets_dir}/ (single directory, frontmatter-based stages)`);
         success(`Created ${config.sessions_dir}/ (session logs)`);
         success('Created .bobbyrc.yml');
-        success(`Created ${tp.skills}/ with 21 workflow skills`);
-        success(`Created ${tp.agents}/ with 17 agent definitions`);
-        success(`Created ${tp.commands}/ with 20 slash commands`);
+        // Counted from disk, not hardcoded — these drifted out of date before.
+        const countIn = (rel, filter) => {
+          try {
+            return fs.readdirSync(path.join(rootDir, rel)).filter(filter).length;
+          } catch { return 0; }
+        };
+        const isShipped = f => f.endsWith('.md') && !f.endsWith('.local.md');
+        success(`Created ${tp.skills}/ with ${countIn(tp.skills, () => true)} workflow skills`);
+        success(`Created ${tp.agents}/ with ${countIn(tp.agents, isShipped)} agent definitions`);
+        success(`Created ${tp.commands}/ with ${countIn(tp.commands, isShipped)} slash commands`);
         success(`Created ${tp.rules} with Bobby workflow instructions`);
         if (config.conductor !== false) {
           success('Created conductor.json (for Conductor.build parallel workspaces)');
@@ -814,7 +826,7 @@ export function registerInit(program) {
         console.log('    bobby idea "a passing thought"    # Capture without breaking flow');
         console.log('    bobby brief                        # Where was I? What\'s next?');
         console.log('');
-        console.log('  Tell Claude: "work tickets" and it\'ll pick up from the queue.');
+        console.log(`  Tell ${targetAdapter.displayName()}: "work tickets" and it'll pick up from the queue.`);
         console.log('');
         if (localResult) {
           console.log(`  Local dev: /bobby-local ${localResult.profileName}`);

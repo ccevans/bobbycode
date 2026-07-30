@@ -1,7 +1,13 @@
 // test/lib/dashboard/executor.test.js
 import { jest } from '@jest/globals';
 import { EventEmitter } from 'events';
-import { runClaude } from '../../../lib/dashboard/executor.js';
+import {
+  runClaude,
+  runAgent,
+  resolveExecutor,
+  commandExists,
+  EXECUTOR_NAMES,
+} from '../../../lib/dashboard/executor.js';
 
 function fakeSpawn(scripted = {}) {
   const child = new EventEmitter();
@@ -131,5 +137,185 @@ describe('runClaude', () => {
   test('requires worktreePath and prompt', () => {
     expect(() => runClaude({ prompt: 'p', sessionId: 's' })).toThrow(/worktreePath/);
     expect(() => runClaude({ worktreePath: '/t', sessionId: 's' })).toThrow(/prompt/);
+  });
+
+  test('runClaude is an alias of runAgent', () => {
+    expect(runClaude).toBe(runAgent);
+  });
+});
+
+describe('resolveExecutor', () => {
+  test('defaults to claude when nothing is configured', () => {
+    expect(resolveExecutor({}).name).toBe('claude');
+    expect(resolveExecutor({}).bin).toBe('claude');
+  });
+
+  test('derives cursor-agent from target=cursor', () => {
+    const e = resolveExecutor({ target: 'cursor' });
+    expect(e.name).toBe('cursor-agent');
+    expect(e.bin).toBe('cursor-agent');
+  });
+
+  test('leaves other targets on claude', () => {
+    expect(resolveExecutor({ target: 'cline' }).name).toBe('claude');
+    expect(resolveExecutor({ target: 'claude-code' }).name).toBe('claude');
+  });
+
+  test('an explicit executor overrides the target derivation', () => {
+    expect(resolveExecutor({ target: 'cursor', dashboard: { executor: 'claude' } }).name).toBe('claude');
+    expect(resolveExecutor({ target: 'claude-code', dashboard: { executor: 'cursor-agent' } }).name)
+      .toBe('cursor-agent');
+  });
+
+  test('an unrecognized executor is treated as a custom binary path', () => {
+    const e = resolveExecutor({ dashboard: { executor: '/opt/bin/claude' } });
+    expect(e.bin).toBe('/opt/bin/claude');
+    // Custom bins keep claude-style flags, which is what this config meant before.
+    expect(e.buildArgs({ prompt: 'p', outputFormat: 'stream-json' }))
+      .toEqual(['-p', 'p', '--output-format', 'stream-json', '--verbose']);
+  });
+
+  test('EXECUTOR_NAMES lists both known flavors', () => {
+    expect(EXECUTOR_NAMES).toEqual(expect.arrayContaining(['claude', 'cursor-agent']));
+  });
+});
+
+describe('cursor-agent executor', () => {
+  test('spawns cursor-agent with stream-json and --trust, without --verbose', () => {
+    const spawn = fakeSpawn();
+    runAgent({
+      worktreePath: '/tmp/wt', prompt: 'hi', sessionId: 'ses-1', spawn,
+      executor: 'cursor-agent',
+    });
+    const [bin, args, opts] = spawn.mock.calls[0];
+    expect(bin).toBe('cursor-agent');
+    expect(args).toEqual(['-p', 'hi', '--output-format', 'stream-json', '--trust']);
+    expect(args).not.toContain('--verbose');
+    expect(opts.cwd).toBe('/tmp/wt');
+    expect(opts.env.BOBBY_SESSION_ID).toBe('ses-1');
+  });
+
+  test('passes --model through', () => {
+    const spawn = fakeSpawn();
+    runAgent({
+      worktreePath: '/t', prompt: 'p', sessionId: 's', spawn,
+      executor: 'cursor-agent', model: 'composer-1',
+    });
+    const [, args] = spawn.mock.calls[0];
+    expect(args).toContain('--model');
+    expect(args[args.indexOf('--model') + 1]).toBe('composer-1');
+  });
+
+  test('maps write-capable permission modes to --force', () => {
+    for (const mode of ['acceptEdits', 'bypassPermissions']) {
+      const spawn = fakeSpawn();
+      runAgent({
+        worktreePath: '/t', prompt: 'p', sessionId: 's', spawn,
+        executor: 'cursor-agent', permissionMode: mode,
+      });
+      const [, args] = spawn.mock.calls[0];
+      expect(args).toContain('--force');
+      expect(args).not.toContain('--permission-mode');
+    }
+  });
+
+  test('maps plan mode to --mode plan and never forces', () => {
+    const spawn = fakeSpawn();
+    runAgent({
+      worktreePath: '/t', prompt: 'p', sessionId: 's', spawn,
+      executor: 'cursor-agent', permissionMode: 'plan',
+    });
+    const [, args] = spawn.mock.calls[0];
+    expect(args).toContain('--mode');
+    expect(args[args.indexOf('--mode') + 1]).toBe('plan');
+    expect(args).not.toContain('--force');
+  });
+
+  test('drops allowedTools — cursor-agent has no per-tool allowlist', () => {
+    const spawn = fakeSpawn();
+    runAgent({
+      worktreePath: '/t', prompt: 'p', sessionId: 's', spawn,
+      executor: 'cursor-agent', allowedTools: 'Bash,Edit',
+    });
+    const [, args] = spawn.mock.calls[0];
+    expect(args).not.toContain('--allowed-tools');
+    expect(args).not.toContain('Bash,Edit');
+  });
+
+  test('parses cursor-agent stream-json events', async () => {
+    const spawn = fakeSpawn();
+    const events = [];
+    const handle = runAgent({
+      worktreePath: '/t', prompt: 'p', sessionId: 's', spawn,
+      executor: 'cursor-agent',
+      onEvent: (ev) => events.push(ev),
+    });
+    spawn.child.stdout.emit('data', Buffer.from(
+      '{"type":"system","subtype":"init","session_id":"abc"}\n' +
+      '{"type":"tool_call","subtype":"started","call_id":"1","tool_call":{"readToolCall":{"args":{"path":"a.txt"}}}}\n' +
+      '{"type":"result","subtype":"success","is_error":false,"result":"done"}\n'
+    ));
+    spawn.child.emit('exit', 0, null);
+    await handle.done;
+    const json = events.filter(e => e.type === 'stdout' && e.kind === 'json');
+    expect(json).toHaveLength(3);
+    expect(json[0].data.subtype).toBe('init');
+    expect(json[1].data.tool_call.readToolCall.args.path).toBe('a.txt');
+    expect(json[2].data.result).toBe('done');
+  });
+
+  test('claudeBin overrides the flavor default binary', () => {
+    const spawn = fakeSpawn();
+    runAgent({
+      worktreePath: '/t', prompt: 'p', sessionId: 's', spawn,
+      executor: 'cursor-agent', claudeBin: '/opt/cursor/cursor-agent',
+    });
+    expect(spawn.mock.calls[0][0]).toBe('/opt/cursor/cursor-agent');
+  });
+
+  test('claudeArgs fully overrides the built arg list', () => {
+    const spawn = fakeSpawn();
+    runAgent({
+      worktreePath: '/t', prompt: 'p', sessionId: 's', spawn,
+      executor: 'cursor-agent', claudeArgs: ['--resume', 'abc'],
+    });
+    expect(spawn.mock.calls[0][1]).toEqual(['--resume', 'abc']);
+  });
+});
+
+describe('commandExists', () => {
+  test('finds a binary that is on PATH', () => {
+    expect(commandExists('node')).toBe(true);
+  });
+
+  test('rejects a binary that is not on PATH', () => {
+    expect(commandExists('bobby-definitely-not-a-real-binary')).toBe(false);
+  });
+
+  test('checks the filesystem for explicit absolute paths', () => {
+    expect(commandExists(process.execPath)).toBe(true);
+    expect(commandExists('/nope/not/here')).toBe(false);
+  });
+
+  test('rejects a directory or non-executable file', () => {
+    // existsSync alone would accept both of these and then EACCES per agent run.
+    expect(commandExists('/usr/local/bin')).toBe(false);
+    expect(commandExists('/etc/hosts')).toBe(false);
+  });
+
+  test('rejects relative paths, which would resolve differently at spawn time', () => {
+    // The preflight runs from the repo root; agents spawn with cwd=worktree.
+    expect(commandExists('./node')).toBe(false);
+    expect(commandExists('bin/claude')).toBe(false);
+  });
+
+  test('treats a forward-slash path as a path regardless of platform separator', () => {
+    // Guards against using path.sep, which is "\\" on Windows.
+    expect(commandExists('C:/tools/definitely-not-here.exe')).toBe(false);
+  });
+
+  test('rejects empty input', () => {
+    expect(commandExists('')).toBe(false);
+    expect(commandExists(undefined)).toBe(false);
   });
 });

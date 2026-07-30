@@ -100,7 +100,16 @@ export function registerExport(program) {
         const agentsDir = path.join(root, '.claude', 'agents');
 
         if (!fs.existsSync(skillsDir)) {
-          error('No .claude/skills/ found. Run "bobby init" first.');
+          // The output is a Claude-format plugin, so this reads .claude/ even on
+          // other targets. Say so rather than implying init never ran.
+          error('No .claude/skills/ found — nothing to export.');
+          const target = config.target || 'claude-code';
+          if (target !== 'claude-code') {
+            console.log(`  This project targets ${target}, so its skills live elsewhere.`);
+            console.log('  Export builds a Claude-format plugin and currently reads .claude/ only.');
+          } else {
+            console.log('  Run "bobby init" first.');
+          }
           process.exit(1);
         }
 

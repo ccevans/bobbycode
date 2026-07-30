@@ -12,6 +12,8 @@ import { WorkspaceStore } from '../lib/dashboard/state.js';
 import { SSEHub } from '../lib/dashboard/sse.js';
 import { Orchestrator } from '../lib/dashboard/orchestrator.js';
 import { buildServer } from '../lib/dashboard/server.js';
+import { resolveExecutor, commandExists, EXECUTOR_NAMES } from '../lib/dashboard/executor.js';
+import { loadDashboardPlugins, pluginStatusLine } from '../lib/dashboard/plugins.js';
 import { isGitRepo } from '../lib/dashboard/worktree.js';
 import { resolveWorkflow } from './run.js';
 import { bold, dim, success, error, warn } from '../lib/colors.js';
@@ -47,6 +49,18 @@ export function registerDashboard(program) {
 
         const target = getTarget(config.target || 'claude-code');
         const agentsPath = target.paths().agents;
+
+        // Warn once here rather than failing per spawned agent — but don't exit:
+        // reviewing diffs, approving, and merging existing workspaces all work
+        // without the agent CLI installed.
+        const executor = resolveExecutor(config);
+        const executorReady = commandExists(executor.bin);
+        if (!executorReady) {
+          warn(`Executor '${executor.bin}' not found — running agents will fail.`);
+          console.log(`  ${dim(`Install it, or set dashboard.executor in .bobbyrc.yml (${EXECUTOR_NAMES.join(' | ')}; an explicit path must be absolute).`)}`);
+          console.log(`  ${dim('Reviewing diffs, approving, and merging still work.')}`);
+        }
+
         const ticketsDir = resolveTicketsDir(root, config);
         const sessionsDir = resolveSessionsDir(root, config);
         const pipeline = resolveWorkflow(config, opts.workflow || 'default');
@@ -85,15 +99,24 @@ export function registerDashboard(program) {
           sseHub.broadcast(`workspace:${workspace.id}`, { type: 'store', event, workspace, at: new Date().toISOString() });
         });
 
+        // Paid dashboard extensions, if any are installed and licensed. Never
+        // throws — absent or broken means free tier, which is the normal case.
+        const { plugins, status: pluginStatus } = await loadDashboardPlugins({ repoRoot: root });
+
         // HTTP server
-        const server = buildServer({ orchestrator, store, sseHub, config, repoRoot: root, ticketsDir });
+        const server = buildServer({
+          orchestrator, store, sseHub, config, repoRoot: root, ticketsDir,
+          plugins, pluginStatus,
+        });
 
         server.listen(port, host, () => {
           const url = `http://${host}:${port}`;
           console.log('');
           console.log(`  ${bold('Bobby Dashboard')}`);
           console.log(`  ${dim(`Workflow: ${opts.workflow || 'default'}`)}`);
+          console.log(`  ${dim(`Executor: ${executor.bin}${config.dashboard?.model ? ` (${config.dashboard.model})` : ''}${executorReady ? '' : ' — NOT FOUND'}`)}`);
           console.log(`  ${dim(`State:    ${stateFile}`)}`);
+          console.log(`  ${dim(pluginStatusLine(pluginStatus))}`);
           console.log('');
           success(`  Running at ${url}`);
           console.log(`  ${dim('Press Ctrl+C to stop')}`);

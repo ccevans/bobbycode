@@ -120,22 +120,6 @@ bobby audit --pack revenue      # what stands between you and revenue
 bobby pack apply revenue        # the roadmap to charging, as tickets
 ```
 
-### Bobby Pro
-
-Bobby is free forever — the whole loop, all 17 agents, the audit, and the packs
-above are MIT and always will be. **Bobby Pro** is the shelf on top: every paid
-pack (now and every one released later), Pro specialists beyond the free 17, and
-the work of keeping them current as Claude Code and the models move.
-
-```bash
-bobby pro                    # status, and what it unlocks here
-bobby pro activate <key>     # one key, every paid pack
-```
-
-Activation is offline — a signature check, no account and no network call. **A
-lapsed subscription keeps everything it paid for**; renewing only adds what
-shipped since. [Get Bobby Pro](https://ccevans.gumroad.com/l/bobby-pro).
-
 Then turn the gaps into work:
 
 ```bash
@@ -144,6 +128,55 @@ bobby go                  # start closing the worst one
 ```
 
 Seeded tickets arrive with the gap, why it matters, the suggested fix, and acceptance criteria — and security gaps are routed to the `secure` workflow automatically. Use `--json` for CI, `--all` to see what passed.
+
+## Make It Look Designed
+
+The reason most solo-built apps look solo-built is that there was no designer —
+so everything defaults to the same centered hero, the same purple gradient, the
+same rounded cards. Bobby ships a **design lead**, free:
+
+```bash
+bobby "design a landing page for my habit tracker"
+bobby "make it look less generic"
+```
+
+It runs the process a studio runs, rather than guessing at a prompt: research
+real references and **cite** them, tear each one down into actual extracted
+values, build mockups in each system so you choose by **reacting** ("warmer or
+sharper?" — never "pick a hex code"), lock the winner into a versioned spec,
+build it, then review the result live against that spec.
+
+What keeps it from looking AI-made is that the rules are binding, not advisory:
+a **slop checklist** of banned patterns, a directory of 13 studied design
+systems to work from when you have no references of your own, and a final check
+that probes the rendered page — it verifies computed styles rather than trusting
+the source, and greps for CSS that fails silently.
+
+Already built and just want a critique? That's `bobby run ux`, which reviews the
+running app and files tickets. This skill *creates*; that one *reviews*.
+
+## Bobby Pro
+
+Bobby is free forever — the whole loop, all 23 agents (design included), the
+audit, and the packs above are MIT and always will be. **Bobby Pro** is the
+shelf on top: every paid pack (now and every one released later), Pro
+specialists beyond the free 23, and the work of keeping them current as Claude
+Code and the models move.
+
+```bash
+bobby pro                    # status, and what it unlocks here
+bobby pro activate <key>     # one key, every paid pack
+bobby pro install <tarball>  # install a Pro add-on you downloaded
+```
+
+Activation is offline — a signature check, no account and no network call. **A
+lapsed subscription keeps everything it paid for**; renewing only adds what
+shipped since. [Get Bobby Pro](https://ccevans.gumroad.com/l/bobby-pro).
+
+The line is simple and it does not move: **anything shipped in this MIT package
+is free forever.** Pro is only ever net-new content, delivered as packs or as
+add-ons that install into `~/.bobby/pro/` — never a lock bolted onto something
+you already have.
 
 ## Start From an Idea
 
@@ -216,8 +249,8 @@ bobby dashboard                    # Watch agents work in parallel worktrees
 
 </details>
 
-`bobby init` scaffolds: `.bobby/` (tickets, sessions, config), `.claude/` (21 skills,
-17 agents, 20 slash commands), and `CLAUDE.md` — everything auto-detected from your
+`bobby init` scaffolds: `.bobby/` (tickets, sessions, config), `.claude/` (22 skills,
+23 agents, 20 slash commands), and `CLAUDE.md` — everything auto-detected from your
 repo. Prefer to choose? `bobby init --custom` runs the full wizard.
 
 ## Configuration
@@ -228,7 +261,7 @@ All configuration lives in `.bobbyrc.yml`, generated with comments during `bobby
 # Project identity
 project: my-app
 stack: nextjs                  # nextjs | rails-react | django | python-flask | go | rust | polyglot | generic
-target: claude-code            # claude-code | cline
+target: claude-code            # claude-code | cursor | cline
 
 # Directories
 bobby_dir: .bobby
@@ -322,6 +355,74 @@ Bobby auto-detects your tech stack during `bobby init` and configures commands, 
 
 **Custom stacks:** Create `.bobby/stacks/<name>.json` with your own commands, areas, and health checks. Custom stacks appear at the top of the `bobby init` selection menu. See [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) for the JSON schema.
 
+## Editors: Claude Code, Cursor, Cline
+
+Bobby's CLI never calls a model itself — tickets, audits, scoring, sprints, and
+`bobby vet` are all deterministic local code. The AI half is a set of markdown
+files (rules, agents, skills, commands) scaffolded into whatever your editor
+reads. Set that with `target` in `.bobbyrc.yml`, or pick it in `bobby init --custom`:
+
+| `target` | Rules | Skills | Commands | Agents | Subagents |
+|---|---|---|---|---|---|
+| `claude-code` | `CLAUDE.md` | `.claude/skills/` | `.claude/commands/` | `.claude/agents/` | Yes |
+| `cursor` | `AGENTS.md` | `.cursor/skills/` | `.cursor/commands/` | `.cursor/agents/` | No |
+| `cline` | `.clinerules/rules.md` | `.clinerules/skills/` | `.clinerules/workflows/` | `.clinerules/agents/` | No |
+
+To switch, set `target:` and run `bobby init --refresh`. Your tickets, sessions,
+and `.local` files carry over untouched — they live in `.bobby/`, which is
+target-independent. Refresh only writes the new target's files, so the old
+target's directory is left in place; delete it yourself if you don't want both
+(`rm -rf .claude CLAUDE.md hooks`, say, after moving to Cursor).
+
+### Using Bobby with Cursor
+
+Three of the four paths land on things Cursor already understands, so the whole
+loop works with no glue: skills are invocable as `/bobby-build`, commands as
+`/bobby-plan`, and `AGENTS.md` is picked up automatically at the repo root.
+
+> **Heads up — you may see each `/bobby-*` entry twice.** Bobby scaffolds both a
+> skill and a command under the same name (all 20 commands share a name with a
+> skill), because Cursor added skills after commands and older versions only
+> support the latter. Either entry does the same thing — the command is a
+> one-line pointer to the skill — so pick whichever appears. If your Cursor
+> supports skills and you want a shorter menu, `rm -rf .cursor/commands` is safe.
+
+```bash
+bobby init --custom     # choose Cursor at the "AI target" prompt
+```
+
+There are three ways to actually run a stage, and only the middle one involves
+pasting anything:
+
+1. **In Cursor's agent pane — no pasting.** Type `/bobby-build` and pick your
+   ticket, or just say "work tickets". `AGENTS.md` tells Cursor which skill to
+   load for which request, so plain English routes correctly. This is the daily
+   loop, and it's the same experience Claude Code users get.
+2. **From the terminal** — `bobby run build TKT-001` (and `bobby go`) print a
+   ready-made prompt for you to paste into Cursor or pipe to `cursor-agent -p`.
+   This is how `bobby run` behaves on *every* target, Claude Code included.
+3. **`bobby dashboard` — headless.** Each workspace spawns its own `cursor-agent`
+   subprocess in an isolated git worktree, streaming tool calls and diffs to the
+   web UI. Requires `cursor-agent` on your `PATH`. For it to run start-to-finish
+   without stopping to ask about file edits, set `dashboard.permission_mode`
+   (see [Dashboard](#dashboard)) — unset, each CLI keeps its own default posture.
+
+The one real difference from Claude Code: Cursor has no user-defined subagent
+registry, so **stages run in the main agent, one at a time** instead of being
+dispatched to a subagent. Agent definitions live in `.cursor/agents/` as plain
+files that the generated prompts point at by path. (`bobby run` prints a prompt
+to paste on *every* target, Claude Code included — that isn't a Cursor penalty.)
+
+Rules go to `AGENTS.md` rather than `.cursor/rules/*.mdc` on purpose: project
+rules must carry the `.mdc` extension plus frontmatter to be read at all, while
+`AGENTS.md` is plain markdown, always applied, and shared with every other tool
+that reads the same convention. An existing `AGENTS.md` is backed up to
+`AGENTS.md.pre-bobby` and merged, never clobbered.
+
+Bobby also writes `.cursorindexingignore` to keep session logs out of codebase
+search. That is deliberately *not* `.cursorignore` — the latter would block the
+agent from reading your tickets.
+
 ## Dashboard
 
 Bobby ships with a local web dashboard for kicking off agents in parallel, isolated workspaces and watching them work in real time.
@@ -332,7 +433,29 @@ bobby dashboard --port 7778 # Custom port
 bobby dashboard --no-open   # Don't auto-open the browser
 ```
 
-**Workspace model.** Each workspace = one ticket + one git worktree on its own branch + one `claude` subprocess. Multiple workspaces run in parallel without colliding — each agent lives in its own isolated checkout.
+**Workspace model.** Each workspace = one ticket + one git worktree on its own branch + one agent CLI subprocess. Multiple workspaces run in parallel without colliding — each agent lives in its own isolated checkout.
+
+**Executor.** The dashboard drives `claude` by default, or `cursor-agent` when
+`target: cursor`. Override either with `dashboard.executor`, and pass a specific
+model with `dashboard.model`:
+
+```yaml
+dashboard:
+  executor: cursor-agent           # claude | cursor-agent | /abs/path/to/a/binary
+  model: composer-1                # optional — passed through as --model
+  permission_mode: bypassPermissions   # optional — see below
+```
+
+`permission_mode` is what makes a run unattended. Left unset, each CLI keeps its
+own default posture and may stop to ask before editing files — which in a
+headless subprocess means the run stalls or denies itself. `bypassPermissions`
+(or `acceptEdits`) maps to `--permission-mode` for `claude` and `--force` for
+`cursor-agent`. Worktrees isolate each agent to its own checkout, but this still
+grants write access without prompting, so it's opt-in rather than the default.
+
+Bobby prints which executor it's using at startup and warns if the binary isn't
+found — it doesn't refuse to start, since reviewing diffs, approving, and merging
+existing workspaces all work without the agent CLI.
 
 **What you get:**
 - **Workspace list** on the left — live status dots (running, awaiting approval, ready to merge, failed, stopped)
@@ -345,6 +468,39 @@ bobby dashboard --no-open   # Don't auto-open the browser
 **Crash-safe state.** Workspace state is persisted atomically to `.bobby/workspaces.json`, so `bobby dashboard` survives restarts.
 
 **Security.** The dashboard binds to `127.0.0.1` only and has no authentication. If you override the host, bobby prints a loud warning.
+
+**Everything above is free, forever.** The dashboard is MIT like the rest of
+Bobby — there is no gated route and no feature that checks a license.
+
+### Dashboard add-ons
+
+The dashboard has an extension seam so *separately distributed* add-ons can
+mount routes and UI without the free core carrying a paywall. `bobby dashboard`
+reports what's loaded, and `GET /api/capabilities` tells the UI what's unlocked
+so paid features can render as visible-but-locked rather than invisible.
+
+An extension is a package exporting `register(context)`:
+
+```js
+export default {
+  name: '@bobbycode/pro-dashboard',
+  version: '1.0.0',
+  features: ['Fleet view: all workspaces at once'],
+
+  register({ route, serveDir, addScript, store, orchestrator, helpers }) {
+    const mount = serveDir(new URL('./ui', import.meta.url).pathname);
+    addScript(`${mount}pro.js`);                    // loads after the core app boots
+    route('GET', '/api/pro/fleet', (req, res) =>    // /api/pro/* is reserved for add-ons
+      helpers.sendJson(res, 200, { total: store.list().length }));
+  },
+};
+```
+
+Bobby looks for add-ons in `$BOBBY_PRO_DASHBOARD` (for developing one), then
+`~/.bobby/pro/node_modules/` (where `bobby pro install` puts them), then the
+project's `node_modules/`. A missing, unlicensed, or broken add-on degrades to
+the free dashboard with a reason in the banner — an add-on can never take the
+free dashboard down with it.
 
 ## Getting Started: Your First Ticket, End to End
 
@@ -403,6 +559,7 @@ Creates a PR, waits for CI, and merges.
 | I have a clear task to build | `bobby run workflow TKT-001` |
 | I have a big feature idea | `bobby ticket create -t "Feature" --epic` then `bobby run feature TKT-001` |
 | I have a batch of related tickets | `bobby sprint new "Auth overhaul" TKT-004 TKT-007` then `bobby sprint run SPR-001` |
+| I want it to look designed, not generated | `bobby "design a landing page for X"` |
 | I want to review the live app | `bobby run ux` / `bobby run pm` / `bobby run qe` |
 | I want to validate before building | `bobby run vet TKT-001` or `bobby run strategy` |
 | Something broke | `bobby run debug TKT-001` |
@@ -637,7 +794,7 @@ $ bobby brief --all
 
 Set `BOBBY_NO_REGISTRY=1` to opt out of auto-registration (e.g. in CI).
 
-## Agents (17)
+## Agents (23)
 
 ### Core Workflow
 
@@ -651,7 +808,20 @@ These agents chain together automatically via `bobby run workflow`:
 | **bobby-test** | Automated testing. Runs test suite and verifies acceptance criteria pass |
 | **bobby-ship** | Creates PR from current branch, waits for CI, merges |
 
-### Design & Product
+### Design
+
+Six agents that run the design process in order — see [Make It Look Designed](#make-it-look-designed):
+
+| Agent | Role |
+|-------|------|
+| **bobby-design-research** | Gathers and **cites** the references a design is built from |
+| **bobby-design-analyze** | Tears each reference down into extracted values — type, scale, colour, spacing |
+| **bobby-design-mockup** | Builds options in each reference's system so you can pick by reacting |
+| **bobby-design-spec** | Locks the agreed decisions into a versioned contract |
+| **bobby-design-build** | Builds the real thing from the locked spec |
+| **bobby-design-check** | Independent live review against the spec and the slop checklist |
+
+### Review & Product
 
 Freeform agents that review the live application and create tickets for issues found:
 
@@ -677,7 +847,7 @@ Focused agents for specific concerns:
 | **bobby-arch** | Architecture discovery — documents codebase structure and decisions |
 | **bobby-ticket-intake** | Converts PM specs into structured Bobby tickets |
 
-## Skills (21)
+## Skills (22)
 
 Each agent is backed by a **skill** — a detailed instruction set in `.claude/skills/bobby-{name}/SKILL.md`. Skills also accumulate learnings over time, so agents get smarter as your project evolves.
 

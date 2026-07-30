@@ -7,6 +7,41 @@ All notable changes to Bobby are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Dashboard extension seam — paid add-ons without a paywall in the free core.**
+  The dashboard stays MIT and ungated; separately distributed add-ons can now
+  mount their own routes and UI. An extension exports `register(context)` and
+  gets `route` (restricted to `/api/pro/*`, so a core route can never collide),
+  `serveDir` (assets under `/pro/<slug>/`), `addScript`/`addStylesheet` (injected
+  after the core app boots), plus the orchestrator, store, and response helpers.
+  Discovery order: `$BOBBY_PRO_DASHBOARD`, then `~/.bobby/pro/node_modules/`,
+  then the project's `node_modules/`. Loading never throws — absent, unlicensed,
+  or broken all degrade to the free dashboard and say why in the banner, so an
+  add-on cannot take the free dashboard down with it. New `GET /api/capabilities`
+  reports core features and add-on status so the UI can render paid features as
+  visible-but-locked instead of invisible. New `bobby pro install <tarball>`
+  verifies activation, installs into `~/.bobby/pro/`, and then proves the add-on
+  actually loads rather than reporting success on an unpack.
+
+  The reasoning, recorded because it constrains future work: gating code that
+  ships inside an MIT npm tarball is theatre — the source is on disk and
+  `npm i bobbycode@<older>` is a version pin away. A capability is only really
+  paid if its code never enters this package.
+- **Cursor support — `target: cursor`.** Scaffolds to locations Cursor already
+  reads natively: skills to `.cursor/skills/<name>/SKILL.md` (invocable as
+  `/bobby-build`), commands to `.cursor/commands/`, and rules to `AGENTS.md`.
+  Agent definitions go to `.cursor/agents/` as prompt-referenced files, since
+  Cursor has no user-defined subagent registry — so stages run in the main agent
+  one at a time rather than being dispatched. Command frontmatter is rewritten
+  (Cursor doesn't parse it; the filename is the command name). An existing
+  `AGENTS.md` is backed up to `AGENTS.md.pre-bobby` and merged. Bobby writes
+  `.cursorindexingignore` to keep session logs out of codebase search —
+  deliberately not `.cursorignore`, which would stop the agent reading tickets.
+- **The dashboard can drive `cursor-agent`.** It defaults to `claude`, or
+  `cursor-agent` when `target: cursor`; `dashboard.executor` overrides either and
+  still accepts a bare binary path. New `dashboard.model` is passed through as
+  `--model` (e.g. `composer-1`). The executor binary is checked against `PATH`
+  at startup and named in the banner, so a missing CLI fails once instead of on
+  every agent run.
 - **The `.local` overlay — your customizations now survive every upgrade.** One
   rule for the whole system: `X.md` is shipped and refreshed; `X.local.md` is
   yours and never written twice. Works for skills (`SKILL.local.md`), learnings
@@ -62,7 +97,40 @@ All notable changes to Bobby are documented here. The format is based on
   is the URL (a `2026-08-01-` prefix is stripped); the theme is one CSS file the
   build never overwrites. No dependencies, no framework, nothing to install.
 
+### Changed
+- **Dashboard static serving now percent-decodes request paths**, so assets whose
+  names contain spaces or non-ASCII characters resolve. Decoding happens before
+  normalizing, and containment is checked against `dir + path.sep` rather than a
+  bare string prefix — both required now that extensions mount their own
+  directories, where a sibling path like `../ui-secret/` would otherwise satisfy
+  a prefix match. (The core template dir was never reachable this way: an
+  absolute path's leading `/` makes `normalize()` collapse leading `..`, and
+  nothing decoded `%2f` into a separator.)
+
 ### Fixed
+- **Scaffolded agents and skills referenced `CLAUDE.md` literally**, so on any
+  non-Claude-Code target they pointed at a file that is never written — most
+  importantly `bobby-build` and `bobby-ship`, whose "follow the Safety Rules in
+  `CLAUDE.md`" instruction silently loaded nothing, and `bobby-docs`, which was
+  told to keep a nonexistent file in sync. All 13 references now render the
+  target's actual rules file (`AGENTS.md`, `.clinerules/rules.md`). Affected
+  Cline since it was introduced.
+- **`dashboard.executor` is no longer dead config.** It had a default but was
+  never passed to the subprocess, so the dashboard always spawned `claude`
+  regardless of the setting.
+- **The dashboard never passed a permission mode to the agent CLI**, so a
+  headless run could stall or deny its own file edits. New optional
+  `dashboard.permission_mode` (`bypassPermissions` | `acceptEdits` | `plan`)
+  maps to `--permission-mode` for `claude` and `--force` for `cursor-agent`.
+  Unset keeps each CLI's existing default.
+- **The rules-file backup notice reported the wrong file.** It keyed off whichever
+  rules file was detected first rather than the one the target actually writes, so
+  a repo holding both `CLAUDE.md` and `AGENTS.md` could be told the wrong file was
+  backed up — or not told at all.
+- `bobby dashboard` no longer refuses to start when the agent CLI is missing; it
+  warns instead, since reviewing diffs, approving, and merging need no CLI.
+- Target extras (`.cursorindexingignore`, `.clineignore`) are now staged by
+  auto-sync instead of being left permanently unstaged.
 - `bobby learn bobby-shared` was a silent no-op (the file had no
   `## Anti-Patterns` heading, so the insert regex never matched but success was
   still reported). Learn now appends the heading when missing.

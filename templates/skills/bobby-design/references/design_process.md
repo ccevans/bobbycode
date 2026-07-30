@@ -24,7 +24,7 @@ Pin down three things:
 - **The audience** — who is actually looking at this, and what state are they in when they arrive? (A stressed homeowner and a curious developer need different pages.)
 - **The single job** — what is the one thing this page must accomplish? If there are three, rank them and design for the first.
 
-Also capture: must-have content, brand constraints, and **any existing design system**. Check `CLAUDE.md`, a tokens/theme file, existing component styles. If one exists, it wins — you fill gaps, you do not override.
+Also capture: must-have content, brand constraints, and **any existing design system**. Check the project rules file, a tokens/theme file, existing component styles. If one exists, it wins — you fill gaps, you do not override.
 
 **Asking questions:** at most 2–3, and only where the answer changes the design. Guess sensibly on everything else and say what you assumed. A brief is not an interrogation.
 
