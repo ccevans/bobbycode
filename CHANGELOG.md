@@ -6,6 +6,8 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-07-29
+
 ### Added
 - **Dashboard extension seam — paid add-ons without a paywall in the free core.**
   The dashboard stays MIT and ungated; separately distributed add-ons can now
