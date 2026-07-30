@@ -365,7 +365,7 @@ reads. Set that with `target` in `.bobbyrc.yml`, or pick it in `bobby init --cus
 | `target` | Rules | Skills | Commands | Agents | Subagents |
 |---|---|---|---|---|---|
 | `claude-code` | `CLAUDE.md` | `.claude/skills/` | `.claude/commands/` | `.claude/agents/` | Yes |
-| `cursor` | `AGENTS.md` | `.cursor/skills/` | `.cursor/commands/` | `.cursor/agents/` | No |
+| `cursor` | `AGENTS.md` | `.cursor/skills/` | `.cursor/commands/` | `.cursor/agents/` | Yes (3.13+) |
 | `cline` | `.clinerules/rules.md` | `.clinerules/skills/` | `.clinerules/workflows/` | `.clinerules/agents/` | No |
 
 To switch, set `target:` and run `bobby init --refresh`. Your tickets, sessions,
@@ -407,17 +407,28 @@ pasting anything:
    without stopping to ask about file edits, set `dashboard.permission_mode`
    (see [Dashboard](#dashboard)) — unset, each CLI keeps its own default posture.
 
-The one real difference from Claude Code: Cursor has no user-defined subagent
-registry, so **stages run in the main agent, one at a time** instead of being
-dispatched to a subagent. Agent definitions live in `.cursor/agents/` as plain
-files that the generated prompts point at by path. (`bobby run` prints a prompt
-to paste on *every* target, Claude Code included — that isn't a Cursor penalty.)
+Agent definitions land in `.cursor/agents/`, which Cursor 3.13+ reads as
+workspace-scoped **subagents** — it keys their identity on the `name` frontmatter
+field Bobby already writes, so `bobby-build` and friends show up as real
+dispatchable subagents, the same as under Claude Code. On older Cursor builds
+that predate subagents the directory is simply ignored, and the loop still works
+because every generated prompt references its agent by path.
+
+(`bobby run` prints a prompt to paste on *every* target, Claude Code included —
+that isn't a Cursor penalty.)
 
 Rules go to `AGENTS.md` rather than `.cursor/rules/*.mdc` on purpose: project
 rules must carry the `.mdc` extension plus frontmatter to be read at all, while
 `AGENTS.md` is plain markdown, always applied, and shared with every other tool
-that reads the same convention. An existing `AGENTS.md` is backed up to
-`AGENTS.md.pre-bobby` and merged, never clobbered.
+that reads the same convention. Checking Cursor 3.13's shipped code confirms it:
+`AGENTS.md` is honored unconditionally, whereas `CLAUDE.md` is only picked up when
+a third-party-extensibility setting is enabled. An existing `AGENTS.md` is backed
+up to `AGENTS.md.pre-bobby` and merged, never clobbered.
+
+Worth knowing if you work across both tools: Cursor also reads `.claude/skills/`,
+so a `target: claude-code` project isn't inert when opened in Cursor. It still
+isn't the better choice — `.claude/agents/` is *not* one of Cursor's subagent
+roots, and `CLAUDE.md` needs that extra setting — so prefer `target: cursor`.
 
 Bobby also writes `.cursorindexingignore` to keep session logs out of codebase
 search. That is deliberately *not* `.cursorignore` — the latter would block the
@@ -442,7 +453,7 @@ model with `dashboard.model`:
 ```yaml
 dashboard:
   executor: cursor-agent           # claude | cursor-agent | /abs/path/to/a/binary
-  model: composer-1                # optional — passed through as --model
+  model: sonnet-4-thinking         # optional — passed through as --model
   permission_mode: bypassPermissions   # optional — see below
 ```
 
@@ -453,9 +464,17 @@ headless subprocess means the run stalls or denies itself. `bypassPermissions`
 `cursor-agent`. Worktrees isolate each agent to its own checkout, but this still
 grants write access without prompting, so it's opt-in rather than the default.
 
+`dashboard.model` is passed through verbatim, so get the valid names from the CLI
+itself rather than guessing — `cursor-agent --list-models` (after `agent login`).
+Leave it unset to use the CLI's own default.
+
 Bobby prints which executor it's using at startup and warns if the binary isn't
 found — it doesn't refuse to start, since reviewing diffs, approving, and merging
 existing workspaces all work without the agent CLI.
+
+The `cursor-agent` CLI is a separate install from the Cursor app:
+`curl https://cursor.com/install -fsS | bash`, which lands in `~/.local/bin`
+(add it to your `PATH`), then `agent login`.
 
 **What you get:**
 - **Workspace list** on the left — live status dots (running, awaiting approval, ready to merge, failed, stopped)

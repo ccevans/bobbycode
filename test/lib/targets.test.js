@@ -126,8 +126,10 @@ describe('cursor adapter', () => {
     expect(p.rules).toBe('AGENTS.md');
   });
 
-  test('does not support subagents', () => {
-    expect(target.supportsSubagents()).toBe(false);
+  test('supports subagents', () => {
+    // Cursor 3.13+ watches .cursor/agents as workspace-scoped subagent
+    // definitions, keyed on the `name` frontmatter field Bobby already writes.
+    expect(target.supportsSubagents()).toBe(true);
   });
 
   test('prompt hint mentions Cursor', () => {

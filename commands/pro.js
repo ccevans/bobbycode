@@ -30,7 +30,7 @@ function showStatus() {
     console.log('');
     console.log(`  ${dim('Bobby is free forever — including the dashboard. Pro adds the shelf on top:')}`);
     console.log(`    ${dim('·')} Every paid pack — now and every one released later`);
-    console.log(`    ${dim('·')} Pro specialists — extra agents and skills beyond the free 17`);
+    console.log(`    ${dim('·')} Pro specialists — extra agents and skills beyond the free 23`);
     console.log(`    ${dim('·')} Dashboard add-ons — fleet view, cost rollups, and more`);
     console.log(`    ${dim('·')} Kept current as Claude Code and the models move`);
     console.log('');

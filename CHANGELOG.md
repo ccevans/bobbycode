@@ -29,9 +29,10 @@ All notable changes to Bobby are documented here. The format is based on
 - **Cursor support — `target: cursor`.** Scaffolds to locations Cursor already
   reads natively: skills to `.cursor/skills/<name>/SKILL.md` (invocable as
   `/bobby-build`), commands to `.cursor/commands/`, and rules to `AGENTS.md`.
-  Agent definitions go to `.cursor/agents/` as prompt-referenced files, since
-  Cursor has no user-defined subagent registry — so stages run in the main agent
-  one at a time rather than being dispatched. Command frontmatter is rewritten
+  Agent definitions go to `.cursor/agents/`, which Cursor 3.13+ reads as
+  workspace-scoped subagents keyed on the `name` frontmatter Bobby already
+  writes; older builds ignore the directory and the prompts reference each agent
+  by path regardless. Command frontmatter is rewritten
   (Cursor doesn't parse it; the filename is the command name). An existing
   `AGENTS.md` is backed up to `AGENTS.md.pre-bobby` and merged. Bobby writes
   `.cursorindexingignore` to keep session logs out of codebase search —
@@ -39,7 +40,8 @@ All notable changes to Bobby are documented here. The format is based on
 - **The dashboard can drive `cursor-agent`.** It defaults to `claude`, or
   `cursor-agent` when `target: cursor`; `dashboard.executor` overrides either and
   still accepts a bare binary path. New `dashboard.model` is passed through as
-  `--model` (e.g. `composer-1`). The executor binary is checked against `PATH`
+  `--model` (get valid names from `cursor-agent --list-models`). The executor
+  binary is checked against `PATH`
   at startup and named in the banner, so a missing CLI fails once instead of on
   every agent run.
 - **The `.local` overlay — your customizations now survive every upgrade.** One
