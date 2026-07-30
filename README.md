@@ -453,7 +453,7 @@ model with `dashboard.model`:
 ```yaml
 dashboard:
   executor: cursor-agent           # claude | cursor-agent | /abs/path/to/a/binary
-  model: sonnet-4-thinking         # optional — passed through as --model
+  model: composer-2.5              # optional — passed through as --model
   permission_mode: bypassPermissions   # optional — see below
 ```
 
