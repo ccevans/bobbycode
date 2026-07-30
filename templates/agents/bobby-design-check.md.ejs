@@ -23,7 +23,15 @@ Run the **Spec Conformance Review** in `<%= paths.skills %>/bobby-ux/SKILL.md`, 
 grep -oE '\-\-[a-z-]+: *#[0-9A-Fa-f]{3,8}' <build> | sort -u
 grep -oE 'font-size: *[0-9.]+(rem|px)' <build> | sort -u
 grep -oE 'border-radius:[^;]{1,30}|transition:[^;]{1,60}' <build> | sort -u
+
+# silent CSS failures — both MUST come back empty
+grep -nE '[0-9](rem|px|em|vw|vh)[+-][0-9]' <build>   # math without spaces = declaration dropped
+grep -nE 'columns *:|column-count' <build>           # multicol detaches absolute children
 ```
+
+**Then confirm the sizes actually landed.** The source says what was asked for; only
+`getComputedStyle` says what the browser kept. A dropped `font-size` inherits and reads as "a
+bit small," never as a bug — it will pass a visual review every time.
 
 Any value in the build not in the spec is a **FAIL** — drift, not a decision, even if it looks good. Any spec value missing is a FAIL.
 
@@ -37,3 +45,9 @@ Report **Spec Conformance: PASS/FAIL (n)** and **Slop: n patterns** alongside th
 
 File conformance and slop failures as bugs:
 `bobby ticket create -t "..." --type bug --area ui`
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-design-check.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

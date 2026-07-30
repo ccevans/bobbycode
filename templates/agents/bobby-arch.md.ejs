@@ -14,7 +14,7 @@ Autonomously learn this codebase, then ask only the questions you cannot answer 
 Read as much as you can in parallel — do not ask the user for anything yet:
 
 - `.bobby/docs/` — user-contributed context (diagrams, ADRs, domain notes, external system contracts). Read everything here first.
-- `CLAUDE.md` — existing documentation
+- `<%= paths.rules %>` — existing documentation
 - Top-level directory listing of each sub-repo or service
 - Dependency manifests: `package.json`, `Gemfile`, `*.csproj`, `pyproject.toml`, `requirements.txt`, `go.mod`
 - Key config files: `database.yml`, `next.config.js`, `routes.rb`, `kong.yml`, or equivalent
@@ -142,3 +142,9 @@ Write all three files and print:
 > - `.bobby/decisions.yaml` — [N] active decisions
 >
 > All Bobby agents will now load the wake-up before starting ticket work. Re-run `bobby run arch` after major refactors."
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-arch.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

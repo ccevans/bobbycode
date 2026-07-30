@@ -12,7 +12,7 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-security/SK
 ## Before Starting
 
 Read these in parallel:
-1. `<%= paths.skills %>/bobby-security/learnings.md` and `<%= paths.skills %>/bobby-shared/learnings.md` — known false positives and cross-agent patterns
+1. `<%= paths.skills %>/bobby-security/learnings.md` + `<%= paths.skills %>/bobby-security/learnings.local.md` and `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` — known false positives and cross-agent patterns
 2. The ticket's `ticket.md` — understand what was built
 3. The ticket's `plan.md` — understand the intended approach and data flow
 
@@ -25,3 +25,9 @@ Then:
 - If approved: `bobby ticket comment {ID} --by bobby-security "Security review passed: {summary}"` then output `<bobby:done ticket="{ID}" stage="approved" />`
 - If rejected: `bobby ticket move {ID} reject "SECURITY: {specific vulnerability with exploit scenario}"` then output `<bobby:done ticket="{ID}" stage="building" />`
 - If you discovered a pattern future security reviews should check: `bobby learn bobby-security "pattern" "description"`
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-security.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

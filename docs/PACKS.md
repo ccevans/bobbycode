@@ -30,6 +30,11 @@ my-pack/
   scaffolds/      optional; copied in by `bobby pack apply` (never overwrites)
 ```
 
+**Namespace rule:** never name a scaffolded agent, skill, or command `bobby-*` — that prefix
+is reserved for core, and `bobby init --refresh` prunes stale `bobby-*` files as its own.
+Use your pack id as the prefix (`revenue-pricing.md`). Pack-scaffolded agents are runnable
+with `bobby run <name>` like any custom agent.
+
 Discovery order, later winning on an id collision:
 
 1. Built-in packs shipped with Bobby
@@ -114,9 +119,26 @@ reliability.
 
 Checks whose `appliesWhen` fails are **skipped**, not counted against you.
 
-## Commercial packs
+## Paid packs
 
-A pack can be sold. Add a `license` block carrying the pack's **public** key:
+Bobby's core is MIT and stays that way. Paid packs are unlocked by **Bobby
+Pro** — one subscription covering every paid pack, now and every one released
+later. A pack opts in with two lines:
+
+```yaml
+released: 2026-07-28        # when this version shipped (see "lapsing" below)
+license:
+  pro: true
+  buy: https://your-checkout-url
+```
+
+```bash
+bobby pro                     # status, and what it unlocks here
+bobby pro activate <key>      # verifies offline, stores in ~/.bobby/licenses.yml
+```
+
+A pack can also be sold standalone with its own signing key, which works the
+same way and is unlocked by either its own key or Pro:
 
 ```yaml
 license:
@@ -128,21 +150,21 @@ license:
     -----END PUBLIC KEY-----
 ```
 
-Licensed packs refuse to score or seed until a key is activated:
-
-```bash
-bobby pack activate <key>     # verifies offline, stores in ~/.bobby/licenses.yml
-```
-
 A key is `base64url(payload).base64url(ed25519 signature)`. Verification is a
-signature check against the key in the pack — **no server, no account, no
-network call**, and it works offline forever. Keys can be lifetime or carry an
-`expires` date.
+signature check against a public key we ship — **no server, no account, no
+network call**, and it works offline forever.
 
-Bobby itself stays MIT; this exists so packs, which are separate products, can
-be sold without infrastructure. The threat model is honest: it stops casual
-copying and gives buyers a clean activation step. Someone determined can patch
-an open-source CLI — the pack's value is its content and its updates.
+### Lapsing keeps what you paid for
+
+A Pro key carries an `expires` date, but expiry does not take anything away.
+Everything you already have keeps working forever; renewing is what adds packs
+released *since* your updates ended — that is what `released` is compared
+against. A pack with no `released` date is never withheld.
+
+This exists so packs, which are separate products, can be sold without
+infrastructure. The threat model is honest: it stops casual copying and gives
+buyers a clean activation step. Someone determined can patch an open-source
+CLI — the value is the content and its updates, not the lock.
 
 ## Writing a pack
 

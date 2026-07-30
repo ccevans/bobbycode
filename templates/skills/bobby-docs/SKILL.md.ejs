@@ -1,21 +1,21 @@
 ---
 name: update-docs
-description: "Documentation Skill: Updates project documentation after shipping to keep README, CLAUDE.md, and docs in sync with code. MANDATORY TRIGGERS: docs, documentation, update docs, document release, sync docs, update readme."
+description: "Documentation Skill: Updates project documentation after shipping to keep README, <%= paths.rules %>, and docs in sync with code. MANDATORY TRIGGERS: docs, documentation, update docs, document release, sync docs, update readme."
 argument-hint: ""
 ---
 
 # Bobby Docs Skill
 
-> Updates project documentation after shipping. Keeps README, CLAUDE.md, and docs in sync with what was actually shipped.
+> Updates project documentation after shipping. Keeps README, <%= paths.rules %>, and docs in sync with what was actually shipped.
 
 ## Before Starting
 
-1. **Check learnings** — Read `<%= paths.skills %>/bobby-docs/learnings.md`
+1. **Check learnings** — Read `<%= paths.skills %>/bobby-docs/learnings.md` + `<%= paths.skills %>/bobby-docs/learnings.local.md`
 2. Run `bobby ticket list done --sort newest` to see recently shipped tickets
 3. Run `git log --oneline -20` to understand recent changes
 4. Read current documentation files in parallel:
    - `README.md`
-   - `CLAUDE.md`
+   - `<%= paths.rules %>`
    - Any `docs/` directory if it exists
    - `CONTRIBUTING.md` if it exists
    - `CHANGELOG.md` if it exists
@@ -41,7 +41,7 @@ For each documentation file that needs changes:
 - Update screenshots if UI changed significantly
 - Do NOT rewrite sections that are still accurate
 
-**CLAUDE.md:**
+**<%= paths.rules %>:**
 - Update agent descriptions if new agents or skills were added
 - Update workflow instructions if the workflow changed
 - Update CLI command reference if new commands were added
@@ -84,3 +84,14 @@ Before committing documentation changes:
 1. Commit changes: `git add` changed docs, `git commit` with `docs: update for {brief description of shipped features}`
 2. If you noticed a documentation pattern: `bobby learn bobby-docs "pattern" "description"`
 3. Output summary listing each file updated and what changed
+
+---
+
+## Project overrides
+
+If `<%= paths.skills %>/bobby-docs/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

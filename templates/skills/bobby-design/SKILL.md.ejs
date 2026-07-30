@@ -18,14 +18,14 @@ argument-hint: "<what to design — e.g. 'landing page for my habit tracker'>"
 
 Read these in parallel:
 
-1. `<%= paths.skills %>/bobby-design/learnings.md` and `<%= paths.skills %>/bobby-shared/learnings.md` — anti-patterns to avoid
+1. `<%= paths.skills %>/bobby-design/learnings.md` + `<%= paths.skills %>/bobby-design/learnings.local.md` and `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` — anti-patterns to avoid
 2. `<%= paths.skills %>/bobby-design/references/craft_principles.md` — **the craft rules. Non-optional.**
 3. `<%= paths.skills %>/bobby-design/references/design_process.md` — the full process detail
 4. `<%= paths.skills %>/bobby-design/references/reference_teardown.md` — how to extract a design doc from a reference
 5. `<%= paths.skills %>/bobby-design/references/slop_checklist.md` — **the full do-not list. Binding.**
 6. `<%= paths.skills %>/bobby-design/references/style_directory.md` — catalogue of studied systems, for when the user has none
 7. `<%= paths.skills %>/bobby-design/references/style_tile_template.md` — the style tile spec
-8. Any existing design system in the project — `CLAUDE.md`, a tokens/theme file, existing component styles. **If one exists, it wins.** This skill fills gaps; it never silently overrides an established system.
+8. Any existing design system in the project — `<%= paths.rules %>`, a tokens/theme file, existing component styles. **If one exists, it wins.** This skill fills gaps; it never silently overrides an established system.
 
 ---
 
@@ -75,6 +75,53 @@ Two failure modes this exists to prevent:
 
 Re-check it at the critique gate: if the design moved a long way, the line that fit the first version may not fit the last.
 
+### 1b. ⛳ Structure — what shape is this thing?
+
+**Decide this before looking at a single reference.** Structure is what the screen is *made
+of*; tokens are what it is painted with. A wrong structure cannot be rescued by any palette,
+typeface or metaphor — and the failure is invisible, because each new attempt looks different
+while being the same thing underneath.
+
+**Start by naming the default, so you can refuse it.**
+
+> *"The obvious shape here is __________, because that is what everything in this category does."*
+
+For almost any product the default is **"a list of X with attributes."** Say it out loud. If
+you cannot describe the screen as anything else, you have not chosen a structure yet — you
+have accepted one.
+
+**Then name two or three real alternatives.** A working vocabulary:
+
+| Shape | What it is | Fits when |
+|---|---|---|
+| **List** | Items with attributes, scanned | Many items, comparison matters |
+| **Queue** | One item at a time, decide and advance | Few items, each needs a decision |
+| **Letter** | Someone wrote to you | There is a sender with a point of view |
+| **Conversation** | Turn-taking, it speaks and you answer | The product has opinions |
+| **Briefing** | Summary first, detail on demand | You check in periodically |
+| **Stream** | Chronological, with unread state | Things arrive continuously |
+| **Ledger** | Numbered entries with provenance | The record matters as much as the items |
+| **Stage** | One composition, states swap in place | A small fixed number of things to say |
+| **Canvas** | Spatial, you arrange it | The user's own structure matters |
+| **Document** | Read top to bottom | Argument or narrative |
+| **Form** | You fill it in | Input is the point |
+| **Gallery** | Objects to browse | The things are visual |
+
+**Let the numbers choose.** Three items a day is not a list — it is a queue or a letter. Two
+hundred items is not a letter. Ask how many, how often, and what the user actually *does* with
+each one.
+
+**Then stop and ask.** This is react-not-create, and it is cheap:
+
+> *"Sam finds you about three jobs a day. That could be a list you scan, one decision at a
+> time, or a note it leaves you each morning. Which sounds right?"*
+
+**Structure decides which references are relevant.** If it is a letter, go and look at letters
+— not at other products in the category. Choosing structure first is what stops step 2
+collapsing back onto the category norm.
+
+**Record the choice in the spec**, because it outranks everything downstream.
+
 ### 2. Reference remix — a hard gate
 
 **You may not proceed to style tiles without 3–5 fully cited references you have actually looked at.** No exceptions, no autonomous-mode skip. This is the step that decides whether the output is distinctive or default, and it is the step most likely to get quietly skipped.
@@ -84,6 +131,35 @@ Re-check it at the critique gate: if the design moved a long way, the line that 
 > *"Any sites, apps, posters, packaging — anything — whose look you like? Even one or two helps a lot."*
 
 This is the easiest possible question for a non-designer and it is where their taste enters the work. Take whatever they give you.
+
+**Step 2a-ii — hunt for the STRUCTURE, not the category.** Take the shape chosen in step 1b
+and go looking for things with *that shape*, wherever they live. A letter → correspondence,
+newsletters, a good obituary. A queue → triage tools, card games, dating apps. A ledger →
+auction catalogues, order books, shipping manifests.
+
+**This applies double to product UI.** Studying other dashboards to design a dashboard *feels*
+like the responsible thing and guarantees the category norm comes back. For a UI, ranging
+outside the category matters **more**, not less.
+
+**Search the shape, never the category — on every platform.** The query decides the result far
+more than the venue does. A category name returns the category norm from Google, Pinterest,
+Dribbble, Behance, anywhere; popularity-ranked platforms return it *harder*, because they rank
+by what has been copied most.
+
+| Don't search | Search |
+|---|---|
+| `conversational ui design` → 24 chat bubbles | `screenplay script typography print` → character cues, indented dialogue, coloured revision stock |
+| `dashboard design` → the same dashboard | `ledger` · `auction catalogue` · `flight manifest` |
+| `job board ui` → cards with attributes | `flyer board` · `tear-off tabs` · `gig poster` |
+
+Two rules that follow:
+
+- **Name the artefact, not the software.** "Screenplay," "index card," "missing-person poster,"
+  "order book" — physical things with centuries of design behind them. If your query contains
+  "ui," "app," "dashboard," or "design," you are asking for the norm.
+- **A category-shaped result set is your query's fault, not the platform's.** When everything
+  comes back identical, do not conclude the venue is useless — re-query by shape and try again
+  before abandoning it.
 
 **Step 2b — the user's references are THE SET. Do not pad it.**
 
@@ -520,6 +596,36 @@ grep -oE 'transition:[^;]{1,60}' build.html | sort -u
 
 **A value in the build that is not in the spec is drift, not a decision.** Fix it or log it.
 
+### 6c. Grep for the silent failures — the ones that render as "a bit off"
+
+A rule that fails loudly gets fixed. These fail *quietly*: the browser drops the declaration,
+the element falls back to something plausible, and the page looks slightly wrong rather than
+broken — so it survives every visual review. Run these greps; do not judge by eye.
+
+```bash
+grep -nE '[0-9](rem|px|em|vw|vh)[+-][0-9]' build.html   # CSS math without spaces — MUST be empty
+grep -nE 'columns *:|column-count' build.html            # multicol + absolute children?
+```
+
+- **CSS math operators require whitespace on both sides.** `clamp(2.3rem,1.1rem+4.4vw,3.4rem)`
+  is invalid, so the *entire* `font-size` is discarded and the element inherits — a 54px poster
+  headline renders at 16px. It reads as "the headline is a bit small," never as a bug. `+` and
+  `-` need spaces; `*` and `/` do not. This one shipped four flyers deep before a computed-style
+  probe caught it.
+- **CSS multicol fragments absolutely-positioned descendants.** Pushpins, staples, ribbons and
+  badges positioned against a card inside `columns:3` detach at column breaks and land on
+  neighbouring cards. Use explicit flex/grid columns whenever children are absolutely
+  positioned.
+
+**Probe computed styles, don't trust the source.** The source says what you asked for; only the
+computed value says what the browser kept.
+
+```python
+# every declaration that silently died shows up as an inherited value here
+page.evaluate("""() => ['.hero h1','.card .price'].map(s =>
+  s + ' = ' + getComputedStyle(document.querySelector(s)).fontSize)""")
+```
+
 **Then hand off to the reviewer.** This self-check is the equivalent of a builder running tests before opening a PR — necessary, not sufficient. Design gets the same two-agent treatment code does:
 
 ```
@@ -646,3 +752,14 @@ Always produce:
 4. **Follow-up tickets** for anything you deliberately deferred
 
 If the project has a brand reference (`<%= paths.skills %>/bobby-ux/references/brand_guidelines.md`), **update it** with the tokens you established — otherwise the reviewer skill will grade the next page against a stale brand.
+
+---
+
+## Project overrides
+
+If `<%= paths.skills %>/bobby-design/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

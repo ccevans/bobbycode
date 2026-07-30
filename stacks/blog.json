@@ -1,0 +1,29 @@
+{
+  "name": "blog",
+  "display": "Static blog (built-in starter)",
+  "health_checks": [
+    {
+      "name": "blog",
+      "url": "http://localhost:3000",
+      "description": "Static blog preview server"
+    }
+  ],
+  "areas": [
+    "content",
+    "ui"
+  ],
+  "commands": {
+    "dev": "npm run dev",
+    "test": "node --test",
+    "lint": "",
+    "build": "node build.js"
+  },
+  "testing_tools": [
+    "curl"
+  ],
+  "template_vars": {
+    "test_command": "node --test",
+    "lint_command": "",
+    "spec_dir": "test/"
+  }
+}

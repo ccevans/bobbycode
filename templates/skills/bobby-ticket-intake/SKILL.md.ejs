@@ -102,3 +102,14 @@ Created <id>: "<title>" [<type> · <priority> · <area>] → <%= tickets_dir %>/
 ## Anti-Patterns
 
 <!-- bobby learn bobby-ticket-intake adds entries below this line -->
+
+---
+
+## Project overrides
+
+If `<%= paths.skills %>/bobby-ticket-intake/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

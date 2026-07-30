@@ -10,7 +10,7 @@ argument-hint: "<ticket ID to review>"
 
 ## Pre-flight Checks
 
-1. **Check learnings** — Read `<%= paths.skills %>/bobby-review/learnings.md` and `<%= paths.skills %>/bobby-shared/learnings.md` in parallel
+1. **Check learnings** — Read `<%= paths.skills %>/bobby-review/learnings.md` + `<%= paths.skills %>/bobby-review/learnings.local.md` and `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` in parallel
 2. **Branch check** — `git branch --show-current` must NOT be main/master
 3. **Hygiene check** — `git status --short` should show no uncommitted source files (build agent left dirty state if it does)
 4. **Load context** — Read these in parallel:
@@ -192,3 +192,14 @@ Can't complete review — tests won't run, environment broken, missing context:
 ## If Something Goes Wrong
 
 - If you discover a systemic pattern: `bobby learn bobby-review "pattern" "description"`
+
+---
+
+## Project overrides
+
+If `<%= paths.skills %>/bobby-review/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

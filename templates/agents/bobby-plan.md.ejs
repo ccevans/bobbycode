@@ -12,8 +12,8 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-plan/SKILL.
 ## Before Starting
 
 Read these in parallel:
-1. `<%= paths.skills %>/bobby-plan/learnings.md` — anti-patterns to avoid
-2. `<%= paths.skills %>/bobby-shared/learnings.md` — cross-agent patterns
+1. `<%= paths.skills %>/bobby-plan/learnings.md` + `<%= paths.skills %>/bobby-plan/learnings.local.md` — anti-patterns to avoid
+2. `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` — cross-agent patterns
 3. `.bobby/architecture-wakeup.md` (if it exists) — compressed codebase context
 4. The ticket's `ticket.md` from `<%= tickets_dir %>/`
 
@@ -23,3 +23,9 @@ Read these in parallel:
 - If refine mode: create `plan.md` + `test-cases.md`, then `bobby ticket move {ID} build`
 - If you discovered anything non-obvious or a pattern future planning should avoid: `bobby learn bobby-plan "pattern" "description"`
 - Output: `<bobby:done ticket="{ID}" stage="building" />` (refine) or `<bobby:done ticket="{ID}" stage="backlog" />` (epic breakdown)
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-plan.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

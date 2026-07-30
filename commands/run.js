@@ -1,4 +1,6 @@
 // commands/run.js
+import fs from 'fs';
+import path from 'path';
 import inquirer from 'inquirer';
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir } from '../lib/config.js';
 import { getFeatureTickets, listEpics } from '../lib/tickets.js';
@@ -54,10 +56,31 @@ Modes:
           agent = 'workflow';
         }
 
+        // Custom agents: any `<agentsPath>/<name>.md` the user (or a pack)
+        // created is runnable by name — no registry entry required. Bobby's
+        // shipped agents keep their richer chain semantics; a custom agent
+        // gets a generic dispatch that defers to its own file.
+        let customAgent = null;
         if (!VALID_AGENTS.includes(agent)) {
+          const targetEarly = getTarget(config.target || 'claude-code');
+          const customPath = path.join(root, targetEarly.paths().agents, `${agent}.md`);
+          if (fs.existsSync(customPath)) customAgent = agent;
+        }
+
+        if (!VALID_AGENTS.includes(agent) && !customAgent) {
           error(`Unknown agent '${agent}'. Valid: ${VALID_AGENTS.join(', ')}`);
           if (workflowNames.length > 1) {
             console.log(`  Workflows: ${workflowNames.join(', ')}`);
+          }
+          const targetEarly = getTarget(config.target || 'claude-code');
+          const agentsDirAbs = path.join(root, targetEarly.paths().agents);
+          const custom = fs.existsSync(agentsDirAbs)
+            ? fs.readdirSync(agentsDirAbs)
+              .filter(f => f.endsWith('.md') && !f.endsWith('.local.md') && !f.startsWith('bobby-'))
+              .map(f => f.replace(/\.md$/, ''))
+            : [];
+          if (custom.length > 0) {
+            console.log(`  Custom agents: ${custom.join(', ')}`);
           }
           process.exit(1);
         }
@@ -118,22 +141,40 @@ Modes:
 
         // Build the prompt via the unified dispatcher
         let built;
-        try {
-          built = buildPromptFor(agent, ticketIds, {
-            config,
-            ticketsDir,
-            ticketsRelDir: config.tickets_dir,
-            agentsPath,
-            workflow: pipeline,
-            maxRetries,
-            maxIterations,
-            hasServices,
-            epicData,
-            gitConventions: config.git_conventions || {},
-          });
-        } catch (e) {
-          error(e.message);
-          process.exit(1);
+        if (customAgent) {
+          const rel = `${agentsPath}/${customAgent}.md`;
+          const steps = [];
+          if (ticketIds.length > 0) {
+            steps.push(`Claim the ticket: \`bobby ticket assign ${ticketIds[0]} ${customAgent}\``);
+          }
+          steps.push(`Load and follow \`${rel}\`. If \`${agentsPath}/${customAgent}.local.md\` exists, read it too — it wins on any conflict.`);
+          if (ticketIds.length > 0) {
+            steps.push(`The ticket is \`${config.tickets_dir}/${ticketIds[0]}*/ticket.md\`. When done, update its stage per the agent file's instructions.`);
+          }
+          built = {
+            label: customAgent,
+            subtitle: `custom agent · ${rel}`,
+            prompt: `You are **${customAgent}**, a custom agent defined by this project.\n\n` +
+              steps.map((s, i) => `${i + 1}. ${s}`).join('\n') + '\n',
+          };
+        } else {
+          try {
+            built = buildPromptFor(agent, ticketIds, {
+              config,
+              ticketsDir,
+              ticketsRelDir: config.tickets_dir,
+              agentsPath,
+              workflow: pipeline,
+              maxRetries,
+              maxIterations,
+              hasServices,
+              epicData,
+              gitConventions: config.git_conventions || {},
+            });
+          } catch (e) {
+            error(e.message);
+            process.exit(1);
+          }
         }
 
         // Print header + prompt

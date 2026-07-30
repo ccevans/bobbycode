@@ -11,7 +11,7 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-pm/SKILL.md
 
 ## Before Starting
 
-1. Read `<%= paths.skills %>/bobby-pm/learnings.md` and `<%= paths.skills %>/bobby-shared/learnings.md` — anti-patterns to avoid
+1. Read `<%= paths.skills %>/bobby-pm/learnings.md` + `<%= paths.skills %>/bobby-pm/learnings.local.md` and `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` — anti-patterns to avoid
 2. If reviewing a specific ticket, read the ticket's `ticket.md` for context
 
 ## Completing Work
@@ -19,3 +19,9 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-pm/SKILL.md
 - File ideas: `bobby ticket create -t "Idea title" --type feature`
 - File bugs: `bobby ticket create -t "Bug title" --type bug -p high`
 - Add comment to reviewed ticket: `bobby ticket comment {ID} --by bobby-pm "PM review: {summary}"`
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-pm.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

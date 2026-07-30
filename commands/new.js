@@ -14,7 +14,7 @@ import { success, warn, error, bold, dim } from '../lib/colors.js';
 
 // Stacks with a built-in runnable starter come first (they're the point of `new`);
 // framework stacks scaffold Bobby only until they get a starter.
-const STACKS = ['node', 'web', 'nextjs', 'rails-react', 'django', 'python-flask', 'go', 'rust', 'polyglot', 'generic'];
+const STACKS = ['node', 'web', 'blog', 'nextjs', 'rails-react', 'django', 'python-flask', 'go', 'rust', 'polyglot', 'generic'];
 
 // Bake the idea into the epic's description so the plan/build agents know the goal.
 function injectIdea(ticketDir, idea) {
@@ -76,7 +76,12 @@ export function registerNew(program) {
         scaffoldProject(root, config);
 
         // Lay down a runnable app skeleton if this stack has a built-in starter.
-        const starter = applyStarter(opts.stack, root, { project: dirName, idea });
+        // `date` seeds any dated content a starter ships (e.g. the blog's first post).
+        const starter = applyStarter(opts.stack, root, {
+          project: dirName,
+          idea,
+          date: new Date().toISOString().slice(0, 10),
+        });
 
         // New-project niceties: .gitignore + README seeded with the idea.
         try {

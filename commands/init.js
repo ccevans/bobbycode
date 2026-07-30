@@ -3,7 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import inquirer from 'inquirer';
 import { writeConfig, writeConfigCommented, readConfig, configExists } from '../lib/config.js';
-import { renderTemplate, renderSkillTemplates } from '../lib/template.js';
+import { renderTemplate, renderSkillTemplates, pruneStaleShipped, isUserOwned } from '../lib/template.js';
+import { createRequire } from 'module';
 import { success, warn, error, bold, dim } from '../lib/colors.js';
 import { getTarget, TARGETS } from '../lib/targets/index.js';
 import { detectServices, aggregateAreas, aggregateHealthChecks } from '../lib/services.js';
@@ -18,6 +19,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STACKS_DIR = path.join(__dirname, '..', 'stacks');
 const AGENT_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'agents');
 const COMMAND_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'commands');
+const SKILL_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'skills');
+const pkgVersion = createRequire(import.meta.url)('../package.json').version;
 const HOOKS_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'hooks');
 const BOBBY_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'bobby');
 
@@ -91,6 +94,7 @@ export function scaffoldProject(rootDir, config) {
     services: config.services || {},
     paths: targetPaths,
     target: config.target || 'claude-code',
+    target_display: target.displayName ? target.displayName() : 'your agent',
   };
 
   // Render and write rules file (CLAUDE.md or .clinerules/rules.md)
@@ -162,7 +166,9 @@ export function scaffoldProject(rootDir, config) {
 
   const commandFiles = fs.readdirSync(COMMAND_TEMPLATES_DIR).filter(f => f.endsWith('.md.ejs'));
   for (const file of commandFiles) {
-    const content = renderTemplate(`commands/${file}`, templateData);
+    const rendered = renderTemplate(`commands/${file}`, templateData);
+    // Targets that don't parse command frontmatter get a rewritten body.
+    const content = target.transformCommand ? target.transformCommand(rendered) : rendered;
     const outName = file.replace('.ejs', '');
     fs.writeFileSync(path.join(commandsDir, outName), content, 'utf8');
   }
@@ -217,6 +223,11 @@ export function scaffoldProject(rootDir, config) {
     fs.writeFileSync(wakeupPath, `# Architecture Wakeup\n\n_Not yet generated. Run \`bobby run arch\` to discover and document this codebase._\n`, 'utf8');
   }
 
+  // Stamp which package version produced these files, so drift between the
+  // installed package and the scaffolded project is detectable later
+  // (`bobby upgrade --check` reads this).
+  fs.writeFileSync(path.join(rootDir, bobbyDir, '.scaffold-version'), pkgVersion + '\n', 'utf8');
+
   // Target-specific extras (e.g., .clineignore for Cline)
   target.scaffoldExtras(rootDir);
 
@@ -229,15 +240,89 @@ export function registerInit(program) {
     .command('init')
     .description('Initialize a new Bobby project (zero questions — everything auto-detected; --custom for the wizard)')
     .option('--custom', 'Interactive setup wizard: choose stack, target, health checks, services, and more')
+    .option('--refresh', 'Non-interactively regenerate skills, agents and commands (your .local.md files are never touched)')
+    .option('--force', 'With --refresh: overwrite shipped files even if they have uncommitted edits')
     .action(async (opts = {}) => {
       try {
         const rootDir = process.cwd();
         const custom = !!opts.custom;
 
+        // --refresh only ever updates an existing install; it must never fall
+        // through and run the first-time setup wizard.
+        if (opts.refresh && !configExists(rootDir)) {
+          error('Nothing to refresh — no .bobbyrc.yml here. Run `bobby init` first.');
+          process.exit(1);
+        }
+
         // Check for existing project
         let existingConfig = null;
         if (configExists(rootDir)) {
           existingConfig = readConfig(rootDir);
+
+          // Non-interactive refresh — how `bobby upgrade` delivers new skills,
+          // agents and commands. Your .local.md overlays are never touched.
+          if (opts.refresh) {
+            const tp = getTarget(existingConfig.target || 'claude-code').paths();
+
+            // Guard: a tracked-but-uncommitted edit to a shipped file would be
+            // destroyed with NO recovery path — git cannot restore what was
+            // never committed. Untracked files are ignored (a project that
+            // never committed .claude/ shouldn't be blocked forever).
+            let dirty = [];
+            try {
+              const out = execSync(
+                `git status --porcelain -- "${tp.skills}" "${tp.agents}" "${tp.commands}" "${tp.rules}"`,
+                { cwd: rootDir, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
+              );
+              dirty = out.split('\n')
+                .filter(l => l && !l.startsWith('??'))
+                .map(l => l.slice(3).trim())
+                .filter(f => !isUserOwned(path.basename(f)));
+            } catch { /* not a git repo — nothing recoverable either way */ }
+
+            if (dirty.length > 0 && !opts.force) {
+              error('Refresh would overwrite uncommitted edits to shipped files:');
+              dirty.forEach(f => console.log(`    ${f}`));
+              console.log('');
+              console.log(`  ${dim('Shipped files are replaced on refresh. Move your changes into the')}`);
+              console.log(`  ${dim('matching .local.md file (which is never overwritten), or commit first')}`);
+              console.log(`  ${dim('so git keeps a copy. Use --force to overwrite anyway.')}`);
+              process.exit(1);
+            }
+
+            scaffoldProject(rootDir, existingConfig);
+
+            // Prune bobby-* files that no longer ship, so upgrades can remove
+            // and rename — not only add. Custom (non bobby-prefixed) files and
+            // all .local.md files are never candidates.
+            const shippedAgents = new Set(fs.readdirSync(AGENT_TEMPLATES_DIR)
+              .filter(f => f.endsWith('.md.ejs')).map(f => f.replace(/\.ejs$/, '')));
+            const shippedCommands = new Set(fs.readdirSync(COMMAND_TEMPLATES_DIR)
+              .filter(f => f.endsWith('.md.ejs')).map(f => f.replace(/\.ejs$/, '')));
+            const pruned = [
+              ...pruneStaleShipped(path.join(rootDir, tp.agents), shippedAgents).map(f => `${tp.agents}/${f}`),
+              ...pruneStaleShipped(path.join(rootDir, tp.commands), shippedCommands).map(f => `${tp.commands}/${f}`),
+            ];
+
+            // Skill directories can hold user .local files, so never auto-delete
+            // a whole directory — report stale ones instead.
+            const shippedSkills = new Set(fs.readdirSync(SKILL_TEMPLATES_DIR));
+            const skillsRoot = path.join(rootDir, tp.skills);
+            const staleSkills = fs.existsSync(skillsRoot)
+              ? fs.readdirSync(skillsRoot).filter(d => d.startsWith('bobby-') && !shippedSkills.has(d))
+              : [];
+
+            console.log('');
+            success(`Refreshed ${tp.skills}/, ${tp.agents}/, ${tp.commands}/, ${tp.rules}`);
+            console.log(`  ${dim('Your .local.md files and tickets were left untouched.')}`);
+            pruned.forEach(f => console.log(`  ${dim(`Removed (no longer ships): ${f}`)}`));
+            if (staleSkills.length > 0) {
+              warn(`Skills no longer shipped: ${staleSkills.join(', ')}`);
+              console.log(`  ${dim('Not auto-removed — they may hold your .local files. Delete manually if unused.')}`);
+            }
+            console.log('');
+            return;
+          }
 
           console.log('');
           console.log(`  ${bold('Bobby')} is already set up in this project.`);
@@ -433,6 +518,7 @@ export function registerInit(program) {
             message: 'AI target:',
             choices: [
               { name: 'Claude Code — scaffolds to .claude/ (agents, skills, commands, CLAUDE.md)', value: 'claude-code' },
+              { name: 'Cursor — scaffolds to .cursor/ (skills, commands, agents) + AGENTS.md', value: 'cursor' },
               { name: 'Cline (VS Code) — scaffolds to .clinerules/ (agents, skills, workflows)', value: 'cline' },
             ],
             default: existingConfig?.target || 'claude-code',
@@ -661,12 +747,13 @@ export function registerInit(program) {
         const tp = targetAdapter.paths();
         console.log('');
 
-        // Notify about rules file backup
-        if (detected.hasExistingRules) {
-          const bakPath = path.join(rootDir, detected.hasExistingRules + '.pre-bobby');
-          if (fs.existsSync(bakPath)) {
-            warn(`Existing ${detected.hasExistingRules} backed up to ${detected.hasExistingRules}.pre-bobby`);
-          }
+        // Notify about rules file backup. Keyed off the target's rules file, not
+        // whichever rules file detection happened to find first — a repo can hold
+        // several (CLAUDE.md and AGENTS.md both), but scaffold only ever backs up
+        // the one it is about to write.
+        const rulesRel = tp.rules;
+        if (fs.existsSync(path.join(rootDir, `${rulesRel}.pre-bobby`))) {
+          warn(`Existing ${rulesRel} backed up to ${rulesRel}.pre-bobby`);
         }
         if (gitInitialized) {
           success('Initialized git repo');
@@ -680,9 +767,16 @@ export function registerInit(program) {
         success(`Created ${config.tickets_dir}/ (single directory, frontmatter-based stages)`);
         success(`Created ${config.sessions_dir}/ (session logs)`);
         success('Created .bobbyrc.yml');
-        success(`Created ${tp.skills}/ with 21 workflow skills`);
-        success(`Created ${tp.agents}/ with 17 agent definitions`);
-        success(`Created ${tp.commands}/ with 20 slash commands`);
+        // Counted from disk, not hardcoded — these drifted out of date before.
+        const countIn = (rel, filter) => {
+          try {
+            return fs.readdirSync(path.join(rootDir, rel)).filter(filter).length;
+          } catch { return 0; }
+        };
+        const isShipped = f => f.endsWith('.md') && !f.endsWith('.local.md');
+        success(`Created ${tp.skills}/ with ${countIn(tp.skills, () => true)} workflow skills`);
+        success(`Created ${tp.agents}/ with ${countIn(tp.agents, isShipped)} agent definitions`);
+        success(`Created ${tp.commands}/ with ${countIn(tp.commands, isShipped)} slash commands`);
         success(`Created ${tp.rules} with Bobby workflow instructions`);
         if (config.conductor !== false) {
           success('Created conductor.json (for Conductor.build parallel workspaces)');
@@ -732,7 +826,7 @@ export function registerInit(program) {
         console.log('    bobby idea "a passing thought"    # Capture without breaking flow');
         console.log('    bobby brief                        # Where was I? What\'s next?');
         console.log('');
-        console.log('  Tell Claude: "work tickets" and it\'ll pick up from the queue.');
+        console.log(`  Tell ${targetAdapter.displayName()}: "work tickets" and it'll pick up from the queue.`);
         console.log('');
         if (localResult) {
           console.log(`  Local dev: /bobby-local ${localResult.profileName}`);

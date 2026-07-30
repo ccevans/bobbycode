@@ -1,0 +1,62 @@
+---
+title: Hello, world
+date: <%= date %>
+summary: The first post — and a tour of everything this blog can do.
+tags: [meta]
+---
+
+This blog is a folder of markdown files and one build script. There is no
+framework, no database, and nothing to install. Write a file, run the build, and
+the site is on disk.
+
+## Writing a post
+
+Add a markdown file to `posts/`. The frontmatter block at the top is the only
+required ceremony:
+
+```
+---
+title: What I learned shipping alone
+date: 2026-08-01
+summary: One sentence for the index page and the RSS feed.
+tags: [solo, shipping]
+---
+
+Your post starts here.
+```
+
+Only `title` and `date` really matter. Leave `summary` out and the first
+paragraph is used instead. Set `draft: true` to keep a post out of the build
+until it's ready — `npm run drafts` previews those locally.
+
+The filename becomes the URL. Name it `what-i-learned.md` and it publishes to
+`/posts/what-i-learned.html`. A date prefix works too: `2026-08-01-what-i-learned.md`
+sorts nicely in your editor and publishes to the same clean URL.
+
+## Formatting
+
+The usual markdown works — **bold**, *italic*, `inline code`, [links](https://example.com),
+and lists:
+
+- Bullet lists
+- Numbered lists
+- Blockquotes and horizontal rules
+
+Fenced code blocks keep their language label:
+
+```js
+export function hello(name) {
+  return `hello, ${name}`;
+}
+```
+
+> Posts are sorted newest first, and an RSS feed is generated at `/feed.xml`
+> so readers can subscribe.
+
+## Publishing
+
+Run `npm run build` and everything lands in `public/` as plain HTML. That folder
+is the whole site — host it on GitHub Pages, Netlify, Cloudflare Pages, S3, or
+any box that can serve files.
+
+Now delete this post and write your own.

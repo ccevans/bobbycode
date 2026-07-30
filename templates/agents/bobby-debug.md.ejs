@@ -12,7 +12,7 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-debug/SKILL
 ## Before Starting
 
 Read these in parallel:
-1. `<%= paths.skills %>/bobby-debug/learnings.md` and `<%= paths.skills %>/bobby-shared/learnings.md` — known debugging patterns and cross-agent gotchas
+1. `<%= paths.skills %>/bobby-debug/learnings.md` + `<%= paths.skills %>/bobby-debug/learnings.local.md` and `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` — known debugging patterns and cross-agent gotchas
 2. The ticket's `ticket.md` — understand the bug or failure
 3. The ticket's `plan.md` — understand what was supposed to happen
 
@@ -37,3 +37,9 @@ If you discover issues outside scope, file them as new tickets: `bobby ticket cr
 - If you discovered a systemic pattern: `bobby learn bobby-debug "pattern" "description"` and `bobby retro {ID} "pattern"`
 - Move ticket forward: `bobby ticket move {ID} review`
 - Output: `<bobby:done ticket="{ID}" stage="reviewing" />`
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-debug.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

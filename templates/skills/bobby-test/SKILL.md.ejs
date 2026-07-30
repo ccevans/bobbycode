@@ -16,7 +16,7 @@ argument-hint: "<ticket ID to test>"
 
 ## Before Starting
 
-1. **Check learnings** — Read `<%= paths.skills %>/bobby-test/learnings.md`
+1. **Check learnings** — Read `<%= paths.skills %>/bobby-test/learnings.md` + `<%= paths.skills %>/bobby-test/learnings.local.md`
 2. Read the ticket's `ticket.md` and `test-cases.md`
 3. Read `plan.md` to understand what was implemented
 
@@ -322,3 +322,14 @@ If any acceptance criteria fail in the live app:
 - **Evidence over assertion** — Always provide screenshots and response output as proof
 - **Be specific** — "Page looks wrong" is not useful. "Hero section missing CTA button, screenshot attached" is useful
 - If systemic: `bobby learn bobby-test "pattern" "description"`
+
+---
+
+## Project overrides
+
+If `<%= paths.skills %>/bobby-test/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

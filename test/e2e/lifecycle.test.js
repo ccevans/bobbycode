@@ -100,10 +100,47 @@ describe('E2E: full ticket lifecycle', () => {
     expect(retros[0]).toContain('missing-validation');
 
     run('learn bobby-build "missing-validation" "Always validate inputs"');
-    const learnings = fs.readFileSync(
-      path.join(tmpDir, '.claude', 'skills', 'bobby-build', 'learnings.md'), 'utf8'
-    );
-    expect(learnings).toContain('missing-validation');
+
+    // `bobby learn` writes to the user-owned overlay, never to the shipped
+    // learnings.md — the shipped file is replaced on every upgrade.
+    const skillDir = path.join(tmpDir, '.claude', 'skills', 'bobby-build');
+    expect(fs.readFileSync(path.join(skillDir, 'learnings.local.md'), 'utf8'))
+      .toContain('missing-validation');
+    expect(fs.readFileSync(path.join(skillDir, 'learnings.md'), 'utf8'))
+      .not.toContain('missing-validation');
+  });
+
+  test('skill create scaffolds a runnable, learnable custom skill', () => {
+    run('skill create smoke-test "Run smoke tests." --agent');
+
+    const skillDir = path.join(tmpDir, '.claude', 'skills', 'smoke-test');
+    expect(fs.existsSync(path.join(skillDir, 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(skillDir, 'learnings.local.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'agents', 'smoke-test.md'))).toBe(true);
+
+    // runnable by name, and bobby learn writes to its .local file
+    expect(run('run smoke-test')).toContain('smoke-test');
+    run('learn smoke-test "flaky-suite" "Quarantine before debugging"');
+    expect(fs.readFileSync(path.join(skillDir, 'learnings.local.md'), 'utf8')).toContain('flaky-suite');
+
+    // reserved namespace is enforced
+    let err = '';
+    try { run('skill create bobby-mine'); } catch (e) { err = (e.stdout || '') + (e.stderr || ''); }
+    expect(err).toContain('reserved');
+  });
+
+  test('custom agents are runnable by name and never pruned', () => {
+    const agentPath = path.join(tmpDir, '.claude', 'agents', 'deploy-check.md');
+    fs.writeFileSync(agentPath, '# Deploy Check\nVerify staging before deploy.\n', 'utf8');
+
+    const out = run('run deploy-check');
+    expect(out).toContain('deploy-check');
+    expect(out).toContain('.claude/agents/deploy-check.md');
+
+    // unknown names should surface the custom agents that do exist
+    let err = '';
+    try { run('run not-a-real-agent'); } catch (e) { err = (e.stdout || '') + (e.stderr || ''); }
+    expect(err).toContain('deploy-check');
   });
 
   test('run next shows stage-aware prompt', () => {

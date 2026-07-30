@@ -1,0 +1,202 @@
+/* style.css — the whole theme. One file, no build step; edit it freely.
+   `build.js` never touches public/style.css, so your changes survive rebuilds. */
+
+:root {
+  --bg: #fdfdfc;
+  --fg: #1b1b19;
+  --muted: #6b6b66;
+  --rule: #e4e3df;
+  --link: #9a3412;
+  --code-bg: #f4f3f0;
+  --measure: 34rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16161a;
+    --fg: #e9e8e4;
+    --muted: #9b9a94;
+    --rule: #2c2c32;
+    --link: #f0a173;
+    --code-bg: #202027;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0 1.25rem 4rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: 17px/1.65 ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+main, header.site, footer.site {
+  max-width: var(--measure);
+  margin: 0 auto;
+}
+
+/* ---------------------------------------------------------------- header -- */
+
+header.site {
+  padding: 3.5rem 0 2.5rem;
+}
+
+.site-title {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.site-title:hover { color: var(--link); }
+
+.site-desc {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* ------------------------------------------------------------ post list -- */
+
+.post-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.post-item {
+  padding: 1.5rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+.post-item:last-child { border-bottom: 1px solid var(--rule); }
+
+.post-link {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.post-link:hover { color: var(--link); }
+
+.post-item time,
+.post .meta {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.post-summary {
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+}
+
+.post-item.empty p { color: var(--muted); }
+
+/* ----------------------------------------------------------------- post -- */
+
+.post h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.post .meta { margin-bottom: 2rem; }
+
+.post h2 { margin: 2.5rem 0 0.75rem; font-size: 1.3rem; }
+.post h3 { margin: 2rem 0 0.5rem; font-size: 1.1rem; }
+
+.post p, .post ul, .post ol { margin: 0 0 1.25rem; }
+.post li { margin-bottom: 0.4rem; }
+
+a { color: var(--link); }
+
+blockquote {
+  margin: 1.5rem 0;
+  padding-left: 1.25rem;
+  border-left: 2px solid var(--rule);
+  color: var(--muted);
+  font-style: italic;
+}
+
+blockquote p:last-child { margin-bottom: 0; }
+
+img { max-width: 100%; height: auto; }
+
+hr {
+  margin: 2.5rem 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+/* ----------------------------------------------------------------- code -- */
+
+code {
+  padding: 0.15em 0.35em;
+  background: var(--code-bg);
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+
+pre {
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  background: var(--code-bg);
+  border-radius: 6px;
+  line-height: 1.5;
+}
+
+pre code {
+  padding: 0;
+  background: none;
+  font-size: 0.82em;
+}
+
+/* ----------------------------------------------------------- tags/footer -- */
+
+.tags { margin-top: 2.5rem; }
+
+.tag {
+  display: inline-block;
+  margin-right: 0.4rem;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--muted);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+}
+
+.back {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.9rem;
+}
+
+.back a { text-decoration: none; }
+
+footer.site {
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.85rem;
+}

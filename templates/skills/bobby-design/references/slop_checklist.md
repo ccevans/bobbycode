@@ -164,6 +164,13 @@ Once the first-generation patterns get banned, agents escape through the same al
 - [ ] Content overflowing its container or forcing horizontal scroll.
 - [ ] Positioned children clipped by an `overflow: hidden` parent (tooltips, menus, popovers).
 - [ ] Text occluded by an overlapping layer.
+- [ ] **CSS math without spaces around `+` / `-`** — `clamp(2rem,1rem+3vw,3rem)` is invalid and
+      the whole declaration is dropped, so the element silently inherits. Detector:
+      `grep -nE '[0-9](rem|px|em|vw|vh)[+-][0-9]'` must return nothing.
+- [ ] **Absolutely-positioned children inside `columns` / `column-count`** — multicol fragments
+      them and they land on the wrong card. Use flex or grid columns instead.
+- [ ] Declared type sizes never confirmed against `getComputedStyle` — a dropped declaration
+      looks like a slightly small heading, not a bug, and passes every visual review.
 - [ ] Headings crowded closer to the previous block than to their own content.
 - [ ] Content stuck at `opacity: 0` because a reveal handler never ran.
 - [ ] Uncaught script errors on load.

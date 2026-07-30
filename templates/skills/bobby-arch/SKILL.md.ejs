@@ -9,3 +9,14 @@ argument-hint: "(no arguments)"
 > Autonomously learns the codebase, writes `.bobby/architecture.md` (full reference), `.bobby/architecture-wakeup.md` (compressed ~300-token summary loaded by all agents), and seeds `.bobby/decisions.yaml` (enforced by bobby-review).
 
 Load and follow the agent instructions in `<%= paths.agents %>/bobby-arch.md`.
+
+---
+
+## Project overrides
+
+If `<%= paths.skills %>/bobby-arch/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

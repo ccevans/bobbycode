@@ -12,8 +12,8 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-ticket-inta
 ## Before Starting
 
 Read these in parallel:
-1. `<%= paths.skills %>/bobby-ticket-intake/learnings.md` — anti-patterns to avoid
-2. `<%= paths.skills %>/bobby-shared/learnings.md` — cross-agent patterns
+1. `<%= paths.skills %>/bobby-ticket-intake/learnings.md` + `<%= paths.skills %>/bobby-ticket-intake/learnings.local.md` — anti-patterns to avoid
+2. `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` — cross-agent patterns
 3. `.bobbyrc.yml` — valid areas list (read before inferring area)
 
 ## Completing Work
@@ -21,3 +21,9 @@ Read these in parallel:
 - Output one line: `Created {ID}: "{title}" [{type} · {priority} · {area}]`
 - Do NOT move the ticket to planning — leave it in `backlog`
 - If you discovered anything non-obvious: `bobby learn bobby-ticket-intake "pattern" "description"`
+
+## Project overrides
+
+If `<%= paths.agents %>/bobby-ticket-intake.local.md` exists, read it and follow it. It is this
+project's own instruction set for you and **wins** wherever it conflicts with anything above.
+This file is regenerated on upgrade; that one never is.

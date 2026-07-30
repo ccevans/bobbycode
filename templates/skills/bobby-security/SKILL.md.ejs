@@ -10,7 +10,7 @@ argument-hint: "<ticket ID to audit>"
 
 ## Before Starting
 
-1. **Check learnings** — Read `<%= paths.skills %>/bobby-security/learnings.md`
+1. **Check learnings** — Read `<%= paths.skills %>/bobby-security/learnings.md` + `<%= paths.skills %>/bobby-security/learnings.local.md`
 2. Run `git log --oneline -10` to understand what changed
 3. Read the ticket's `ticket.md` and `plan.md` for context
 
@@ -140,3 +140,14 @@ If high-confidence findings exist:
 
 - If you discover a critical vulnerability in existing code (not introduced by this ticket): `bobby ticket create -t "SECURITY: {vulnerability}" --type bug -p critical`
 - If you discover a systemic pattern: `bobby learn bobby-security "pattern" "description"`
+
+---
+
+## Project overrides
+
+If `<%= paths.skills %>/bobby-security/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

@@ -23,7 +23,7 @@ When the app is down, try Service Recovery (below). If recovery fails, mark your
 
 ## Before Starting
 
-1. **Check learnings** — Read `<%= paths.skills %>/bobby-ux/learnings.md`
+1. **Check learnings** — Read `<%= paths.skills %>/bobby-ux/learnings.md` + `<%= paths.skills %>/bobby-ux/learnings.local.md`
 2. **Load brand guide** — Read `<%= paths.skills %>/bobby-ux/references/brand_guidelines.md`
 3. **Load craft rules** — Read `<%= paths.skills %>/bobby-design/references/craft_principles.md`. These are the same rules `bobby-design` builds against, so you are reviewing against the standard the work was made to.
 4. **Load the slop checklist** — Read `<%= paths.skills %>/bobby-design/references/slop_checklist.md` and **score the page against it**. Report the count with the calibration: 0–1 clean · 2–3 mild · **4+ heavy slop**. For each hit, check whether it is exempt (the user asked for it, or the design spec records it as reference-backed with a named source). **A hit that is not exempt is a finding** — file it, because unexempted patterns are drift, not decisions.
@@ -398,3 +398,14 @@ Whenever the designer proposes or approves design changes that affect brand toke
 - **File it or lose it** — every finding goes into `bobby ticket create`. Don't let insights die in chat.
 - **Trust what you see** — if it looks wrong in the browser, it IS wrong. The rendered output is the truth.
 - **Reference the brand guide** — when in doubt, check `references/brand_guidelines.md` for the canonical token values.
+
+---
+
+## Project overrides
+
+If `<%= paths.skills %>/bobby-ux/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

@@ -1,0 +1,55 @@
+# <%= project %>
+
+> <%= idea %>
+
+A dependency-free static blog: markdown files in `posts/`, plain HTML out in
+`public/`. No framework, no database, nothing to install.
+
+## Write and publish
+
+```bash
+npm run dev       # build + preview at http://localhost:3000
+npm run build     # build only — writes public/
+npm run drafts    # preview including draft: true posts
+npm test          # test the generator
+```
+
+Add a post by dropping a markdown file in `posts/`:
+
+```
+---
+title: What I shipped this week
+date: 2026-08-01
+summary: One sentence for the index page and the RSS feed.
+tags: [shipping]
+draft: false
+---
+
+Your post starts here.
+```
+
+- **Only `title` and `date` matter.** No `summary` means the first paragraph is used.
+- **The filename is the URL.** `my-post.md` publishes to `/posts/my-post.html`; a
+  `2026-08-01-` prefix is stripped, so date-prefixed files get clean URLs too.
+- **`draft: true` keeps a post out of the build** until you're ready.
+
+## Layout
+
+```
+posts/            your markdown — the only folder you edit day to day
+blog.config.json  title, description, site URL, author
+build.js          the generator (~250 lines, no dependencies)
+server.js         local preview server
+public/           the generated site — this is what you deploy
+  style.css       the whole theme; the build never overwrites it
+```
+
+`public/` is a plain static site. Host it on GitHub Pages, Netlify, Cloudflare
+Pages, S3, or anything that serves files. Set `url` in `blog.config.json` so the
+RSS feed and canonical links point at your real domain.
+
+## Making it yours
+
+The theme is one CSS file — start with the variables at the top of
+`public/style.css` for colors and measure. Page structure lives in the `layout`,
+`renderIndex`, and `renderPost` functions in `build.js`.
