@@ -1,0 +1,307 @@
+---
+name: test-ticket
+description: "Test Skill: Verifies ticket changes through the live running application using browser automation and API calls. Tests what users actually see — not source code. MANDATORY TRIGGERS: test, verify, smoke test, acceptance testing, verify the app, check if it works."
+argument-hint: "<ticket ID to test>"
+---
+
+# Bobby Test Skill
+
+> Bug hunter, not spec runner. Finds bugs by exercising the running app — browser automation, API calls, direct runtime execution. NEVER runs the test suite (rspec/jest/npm test) — build and review already did that. Running specs here is a critical error.
+
+## Hard Rules
+
+- **NEVER run any spec/test runner** — no `npm test`, `rspec`, `jest`, `pytest`, `dotnet test`, `go test`, or any unit/integration test command. The build agent writes specs (TDD) and the review agent runs them independently. Running specs here is redundant and wastes the testing budget.
+- **NEVER verify behavior by reading source code** — you verify by observing the live app.
+- If a test case cannot be verified through the live app, mark it **BLOCKED** — do not fall back to running specs as a substitute.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/bobby-test/learnings.md` + `.claude/skills/bobby-test/learnings.local.md`
+2. Read the ticket's `ticket.md` and `test-cases.md`
+3. Read `plan.md` to understand what was implemented
+
+## Health Check
+
+Verify the dev environment is running before testing:
+
+- `curl -s -o /dev/null -w "%{http_code}" <your dev server URL>` (app — configure `health_checks` in .bobbyrc.yml)
+
+
+### Required Services
+
+The web server is not enough. Read `plan.md` to identify ALL services the feature depends on — background workers (Sidekiq, Celery, Bull), message queues, caches, etc. Verify each one is running:
+
+- **Web server** — health check above
+- **Background workers** — check if the worker process is running (e.g., `docker compose ps`, `ps aux | grep sidekiq`). If not running, start it: `docker compose up -d sidekiq` or the equivalent.
+- **Databases / caches** — verify connectivity if the feature depends on Redis, Elasticsearch, etc.
+
+### Service Recovery
+
+If a service isn't running or a health check fails, attempt **one** restart per service:
+
+- Web: Run `npm run dev` in the background
+
+- Workers: `docker compose up -d sidekiq` or the project's equivalent
+- Wait up to 15 seconds, then re-check
+- If it doesn't come back after one attempt, mark affected tests as **BLOCKED**
+
+### Migrations
+
+If there are pending migrations needed for the feature under test, run them. The build agent may have added migrations that haven't been applied to the dev database yet.
+
+**Boundaries:**
+- One restart attempt per service — if it doesn't come back, it's BLOCKED
+- Never edit application source code or config files
+- Never debug application logs for code issues
+
+## Test Data Setup
+
+**"No data" is never an excuse for a soft pass.** If the dev DB doesn't have the data conditions your test needs, create them.
+
+### Process
+
+1. **Read `plan.md` and `test-cases.md`** to understand what data conditions each AC requires (e.g., "a user with an active subscription and at least one item in their cart")
+2. **Query the live DB** to check if those conditions already exist (via API calls, CLI tools, admin UI)
+3. **If missing, create the data** through the app's own interfaces — API endpoints, CLI tools, admin UI, or seed scripts. Do NOT write raw SQL.
+4. **Document what you seeded** in `results.md` under a "Test Data Created" section so it's clear what was set up for testing
+5. **Clean up after** if the test data would confuse other developers — note in results.md if cleanup was skipped
+
+### Examples
+
+- AC says "notifications fire for scheduled events" but no events exist with the right state → create events via the API or CLI tools, trigger the scheduled job, verify notifications
+- AC says "user sees notification badge after action" but no users exist → create a user through the signup flow or API, perform the action, verify the badge
+- AC says "export handles 1000+ rows" but only 3 rows exist → seed enough rows via API or bulk create script
+
+### When You Truly Cannot Create Data
+
+If creating the required data is impossible (e.g., requires third-party OAuth tokens, paid API keys, or production-only infrastructure), mark the AC as **BLOCKED** with a specific explanation of what's missing and why you can't create it. "No matching data in dev DB" is never a valid reason for BLOCKED — that's your job to fix.
+
+## Evidence Storage
+
+All test evidence is saved in the ticket folder:
+
+```
+.bobby/tickets/{ID}--{slug}/
+└── test-evidence/
+    ├── screenshots/        # UI screenshots (baseline + after actions)
+    └── results.md          # Summary: pass/fail per AC with evidence references
+```
+
+Create `test-evidence/` and `test-evidence/screenshots/` at the start of testing. Save all screenshots there. Write `results.md` at the end with the final verdict.
+
+### results.md Format
+
+```markdown
+# Test Evidence — {ID}
+
+**Date:** {YYYY-MM-DD}
+**Verdict:** PASS | FAIL | PARTIAL ({N} of {M} ACs passed)
+
+## Acceptance Criteria
+
+| # | Criterion | Result | Evidence |
+|---|-----------|--------|----------|
+| 1 | {AC text} | PASS/FAIL | screenshot: screenshots/{filename}.png |
+| 2 | {AC text} | PASS/FAIL | API: GET /endpoint → 200 |
+
+## Notes
+{Any observations, blocked items, or issues discovered}
+
+## Regression
+{Quick check of adjacent features — note any issues found or "No regressions observed"}
+```
+
+<example label="Good results.md entry">
+| 2 | Filter persists after refresh | PASS | screenshot: screenshots/filter-persist-after-refresh.png |
+
+Steps taken: Selected "Active" from status dropdown → URL changed to /leads?status=active → Refreshed page → Dropdown still shows "Active" → Lead list shows only active leads.
+</example>
+
+## Preferred Testing Tools
+
+
+
+
+### curl (API Testing)
+
+Use curl for all API endpoint verification:
+- `curl -s -w "\n%{http_code}"` for status checks
+- `curl -X POST -H "Content-Type: application/json" -d '{...}'` for write operations
+- Always capture and include the response body and status code as evidence
+
+
+
+
+## Testing Process
+
+1. Read `ticket.md` for acceptance criteria
+2. Read `test-cases.md` for test scenarios
+3. Create `test-evidence/screenshots/` directory in the ticket folder
+4. For each AC and test case, verify through the **live app** using UI testing, API testing, or both
+5. Save screenshots to `test-evidence/screenshots/`
+6. Write `test-evidence/results.md` with the final summary
+
+### UI Testing
+
+
+For each AC with a UI surface:
+
+1. **Navigate** to the affected page(s)
+2. **Screenshot** the initial state — to establish a visual baseline so you can prove what changed after your actions
+3. **Read the page** accessibility tree to verify elements exist
+4. **Check console** for errors before interacting
+5. **Execute steps** — click buttons, fill forms, navigate
+6. **Screenshot** after each significant action
+7. **Verify expected results** — check page content, URL, console
+8. **Record result** — pass/fail with evidence
+
+### API Testing
+
+For endpoints affected by the ticket:
+1. **Happy path** — Valid request with expected parameters
+2. **Error cases** — Missing fields, invalid data, auth failures
+3. **Verify response** — Status code, payload structure, data correctness
+
+```bash
+# Example: verify an endpoint
+curl -s -w "\n%{http_code}" http://localhost:3000/api/endpoint
+```
+
+### What to Check
+
+- Page loads without console errors
+- Interactive elements are clickable and responsive
+- Forms validate inputs properly
+- Data persists after refresh
+- Navigation flows work end to end
+- No broken images or missing assets
+- **Write path works** — If the feature involves saving/updating data, actually change a value, save it, refresh, and confirm it persisted
+- **Auth on write endpoints** — If testing an authenticated feature, verify that save/update/delete operations succeed (not just reads)
+
+### Bug Hunting Strategy
+
+Don't just verify the happy path — actively try to break things:
+
+- **Boundary values** — If AC says "user can enter a name", try empty string, 1 character, 500 characters, special characters, emoji
+- **State transitions** — If AC says "status changes to X", what happens if you trigger it twice? From an unexpected starting state?
+- **Persistence** — Save data, refresh the page, verify it's still there. Navigate away and come back. Close and reopen.
+- **Concurrent/conflicting inputs** — If the feature modifies shared state, try conflicting operations
+- **Error recovery** — Submit invalid data, hit endpoints with missing params, try unauthorized access
+- **Side effects** — If the feature creates records, verify related records update too. Check that notifications fire, counters increment, audit logs record.
+
+### Non-UI Features (Background Jobs, Workers, API-only, CLI)
+
+Not every ticket has a UI entry point — but almost every feature has a UI surface where its effects are visible. Your job is to trigger the feature AND verify the result end-to-end.
+
+#### Step 1: Trigger the Feature
+
+1. **Background jobs / workers** — Use `rails runner`, `node -e`, or the equivalent to trigger the job directly. Make sure the worker process is running (see Health Check above).
+2. **API-only endpoints** — Use `curl` to call the endpoint. Verify response status, payload, and any side effects.
+3. **CLI tools / scripts** — Run the command and verify its output and side effects.
+4. **Data migrations / seeds** — Verify the data state before and after by querying the database or API.
+
+#### Step 2: Trace to UI
+
+After triggering the backend feature, identify where its effects surface in the UI and verify there too:
+
+- **Background job sends emails** → check the sent folder, notification badge, delivery status page, or admin dashboard in the browser
+- **API creates/updates records** → navigate to the page that displays those records and confirm the change is visible
+- **Cron job recalculates data** → open the dashboard or report that shows the recalculated values
+- **Worker processes a queue** → check the admin panel, job status page, or affected user-facing page
+
+If there truly is no UI surface (pure infrastructure — logging, metrics, internal tooling with no web UI), document why in results.md and verify through the closest observable output (log files, admin API, monitoring endpoint).
+
+**Never stop at "the job chain executed without error."** That proves the code doesn't crash — it doesn't prove the feature works. Follow the data all the way to where a user would see it.
+
+### Regression Check
+
+After verifying all ACs, do a quick sanity check on adjacent features that share the same page or component:
+
+- **Same page** — If you tested changes to a tab, verify the other tabs on that page still load and function
+- **Shared components** — If the ticket modified a shared component (header, sidebar, modal), spot-check one other page that uses it
+- **Navigation** — Verify you can navigate to and from the affected page without errors
+
+This is not a full regression suite — just a 2-minute sanity check. Document any regressions found in `results.md` under a "Regression" section.
+
+### Design Reference Check
+
+If the ticket or its parent epic references a design mockup (HTML file, screenshot, or Figma URL):
+
+1. **Locate the reference** — Check the ticket's `ticket.md` description and the parent epic's `feature-plan.md` for a `## Design Reference` or `## File References` section pointing to a mockup file.
+2. **Read the mockup** — If it's an HTML file, read the relevant section (use grep to find the tab/component, not the whole file). Note the expected layout, colors, spacing, and structure.
+3. **Screenshot the live app** — Navigate to the page the ticket affects and take a full-page screenshot at desktop (1440px) and mobile (375px) viewports.
+4. **Compare structure** — Verify the live app matches the mockup in:
+   - Layout (grid columns, card arrangement, section order)
+   - Colors (accent colors, backgrounds, text colors match design tokens)
+   - Typography (font sizes, weights, headings vs body)
+   - Spacing (padding, margins, gaps between elements)
+   - Interactive states (hover effects, active tabs, focus rings)
+5. **Report mismatches** — Add a `## Design Comparison` section to `results.md`:
+   ```
+   ## Design Comparison
+
+   **Reference:** {path to mockup}
+   **Pages checked:** {URLs}
+
+   | Aspect | Match? | Notes |
+   |--------|--------|-------|
+   | Layout | ✅/❌ | {details} |
+   | Colors | ✅/❌ | {details} |
+   | Typography | ✅/❌ | {details} |
+   | Spacing | ✅/❌ | {details} |
+   | Interactions | ✅/❌ | {details} |
+   ```
+6. **Verdict impact** — Design mismatches are informational, not blocking. Minor spacing differences are acceptable. Significant structural or color mismatches should be noted but don't auto-reject — the review agent or user decides if they matter.
+
+Skip this section if no design reference is found.
+
+## Self-Check Before Verdict
+
+<self_check>
+Before recording your verdict:
+
+1. Re-read each AC from `ticket.md`. For each one, confirm you tested it through the live app (not by reading code).
+2. Verify every AC has a corresponding entry in `results.md` with evidence (screenshot or API response).
+3. If any AC was not testable through the live app, mark it as BLOCKED with an explanation rather than guessing.
+4. Confirm you did NOT run any test suite commands (npm test, rspec, jest, pytest, etc.). If you did, your results are invalid — redo them through the live app.
+5. Confirm you tested beyond the happy path — if every AC is PASS with no edge cases explored, you haven't tested hard enough.
+6. Confirm you created test data where the dev DB was missing required conditions — if you soft-passed any AC because "no matching data in dev DB," go back and seed the data, then retest.
+7. Confirm all required services were running during your tests (web, workers, queues) — if a feature depends on a background worker and it wasn't running, your test of that feature is invalid.
+8. For backend features, confirm you traced the result to a UI surface — if you only verified through CLI tools or `curl` but didn't check the UI where users would see the result, go back and verify there too.
+9. Confirm you did a quick regression check on adjacent features sharing the same page or component.
+10. If a design mockup was referenced in the ticket or feature-plan.md, confirm you compared the live app against it and documented findings in a Design Comparison section of results.md.
+</self_check>
+
+## Decision
+
+### Approve
+If all acceptance criteria are verified through the live app:
+1. Write `test-evidence/results.md` with all AC results and evidence references
+2. Add comment: `bobby ticket comment {ID} --by bobby-test "Passed: all AC verified through live app — evidence in test-evidence/"`
+3. If you discovered anything non-obvious or a pattern future testing should catch: `bobby learn bobby-test "pattern" "description"`
+4. Move to shipping: `bobby ticket move {ID} ship`
+
+### Reject
+If any acceptance criteria fail in the live app:
+1. Write `test-evidence/results.md` with all AC results including failures
+2. Move back with specific feedback: `bobby ticket move {ID} reject "Live test failure: {specific description} — evidence in test-evidence/"`
+3. Be specific — describe what you saw vs. what was expected, reference screenshots by filename
+
+## Key Principles
+
+- **Test what the ticket says** — Don't scope-creep to unrelated features
+- **Live app only** — Verify through the browser and API calls, not by reading source code
+- **Evidence over assertion** — Always provide screenshots and response output as proof
+- **Be specific** — "Page looks wrong" is not useful. "Hero section missing CTA button, screenshot attached" is useful
+- If systemic: `bobby learn bobby-test "pattern" "description"`
+
+---
+
+## Project overrides
+
+If `.claude/skills/bobby-test/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

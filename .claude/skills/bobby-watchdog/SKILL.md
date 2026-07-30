@@ -1,0 +1,127 @@
+---
+name: watchdog-check
+description: "Post-Deploy Watchdog Skill: Verifies production health after deployment. Checks page loads, console errors, and API responses. MANDATORY TRIGGERS: watchdog, post-deploy, verify deploy, production check, health check, smoke test."
+argument-hint: ""
+---
+
+# Bobby Watchdog Skill
+
+> Post-deploy verification. Checks that production pages load, APIs respond, and no new console errors appear after deployment.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/bobby-watchdog/learnings.md` + `.claude/skills/bobby-watchdog/learnings.local.md`
+2. Read `.bobbyrc.yml` for production config:
+   - `production_url` — base URL for production
+   - `watchdog_pages` — list of paths to check (default: `["/"]`)
+
+## Watchdog Check Process
+
+### Step 1: Determine What to Check
+
+Check these pages (in order):
+1. Pages listed in `watchdog_pages` config
+2. If no config: homepage (`/`), login page, main dashboard
+3. Any pages specifically affected by the most recent deployment
+
+### Step 2: Health Checks
+
+For each page, verify via browser automation:
+
+**Page Load:**
+- [ ] HTTP status is 200 (or expected redirect)
+- [ ] Page renders within 5 seconds
+- [ ] No blank/white page (check that main content container exists)
+- [ ] Title tag is present and not "Error" or "500"
+
+**Console Errors:**
+- [ ] No JavaScript errors in console
+- [ ] No failed network requests (4xx/5xx) except expected ones
+- [ ] No unhandled promise rejections
+
+**Visual Verification:**
+- [ ] Screenshot each page for the record
+- [ ] Key UI elements are present (navigation, main content, footer)
+- [ ] No "loading" spinners stuck indefinitely
+
+**API Health (if applicable):**
+- [ ] Health endpoint responds: `curl -s {production_url}/api/health`
+- [ ] Key API endpoints return expected status codes
+
+### Step 3: Compare to Pre-Deploy State
+
+If previous watchdog results exist (`.bobby/watchdog/last-run.json`):
+- Compare screenshot diffs for unexpected visual changes
+- Compare console error counts (new errors = regression)
+- Compare response times (>50% slower = regression)
+
+### Step 4: Record Results
+
+Save to `.bobby/watchdog/run-{YYYYMMDD-HHmmss}.json`:
+
+```json
+{
+  "timestamp": "ISO date",
+  "production_url": "https://...",
+  "pages": [
+    {
+      "path": "/",
+      "status": 200,
+      "load_time_ms": 850,
+      "console_errors": 0,
+      "failed_requests": 0,
+      "screenshot": "watchdog/screenshots/home-{timestamp}.png",
+      "passed": true
+    }
+  ],
+  "overall": "passed"
+}
+```
+
+Also save as `last-run.json` for future comparisons.
+
+## Decision
+
+### All Checks Pass
+Output:
+```
+Watchdog check PASSED — {timestamp}
+Production: {url}
+Pages checked: {n}
+Console errors: 0
+Failed requests: 0
+All pages loaded within 5s.
+```
+
+### Issues Found
+1. File bug tickets for each issue:
+   ```bash
+   bobby ticket create -t "WATCHDOG: {page} returns {status}" --type bug -p critical
+   bobby ticket create -t "WATCHDOG: JS error on {page}: {error message}" --type bug -p high
+   ```
+2. Output:
+```
+Watchdog check FAILED — {timestamp}
+Production: {url}
+Issues found:
+- {page}: {issue description}
+- {page}: {issue description}
+Tickets filed: {ticket IDs}
+```
+
+## If Something Goes Wrong
+
+- Production URL not configured: Ask user to add `production_url` to `.bobbyrc.yml`
+- Production is completely down: `bobby ticket create -t "WATCHDOG: Production is DOWN — {url} unreachable" --type bug -p critical`
+- If you discovered a deployment pattern: `bobby learn bobby-watchdog "pattern" "description"`
+
+---
+
+## Project overrides
+
+If `.claude/skills/bobby-watchdog/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

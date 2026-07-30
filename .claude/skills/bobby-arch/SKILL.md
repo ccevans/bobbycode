@@ -1,0 +1,22 @@
+---
+name: bobby-arch
+description: "Architecture Skill: Discovers and documents the codebase so all Bobby agents start with shared context. MANDATORY TRIGGERS: arch, architecture, discover codebase, document architecture, regenerate wakeup, update decisions."
+argument-hint: "(no arguments)"
+---
+
+# Bobby Arch Skill
+
+> Autonomously learns the codebase, writes `.bobby/architecture.md` (full reference), `.bobby/architecture-wakeup.md` (compressed ~300-token summary loaded by all agents), and seeds `.bobby/decisions.yaml` (enforced by bobby-review).
+
+Load and follow the agent instructions in `.claude/agents/bobby-arch.md`.
+
+---
+
+## Project overrides
+
+If `.claude/skills/bobby-arch/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

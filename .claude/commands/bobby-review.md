@@ -1,0 +1,6 @@
+---
+description: "Code review a ticket — reviews git diff and acceptance criteria"
+argument-hint: "<ticket ID>"
+---
+
+Load and follow the skill in `.claude/skills/bobby-review/SKILL.md` to review the specified ticket.

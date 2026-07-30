@@ -2,4 +2,10 @@ node_modules/
 coverage/
 .DS_Store
 *.log
-.bobby/tickets/
+
+# Bobby dogfoods itself: this repo is a Bobby project, so .bobby/ is tracked —
+# tickets and decisions are the work record and belong in history.
+# These three are per-machine or pure noise and are not:
+.bobby/sessions/
+.bobby/workspaces.json
+.bobby/.counter.lock

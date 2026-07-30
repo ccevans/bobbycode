@@ -1,0 +1,199 @@
+---
+name: review-code
+description: "Code Review Skill: Deep code review that traces data flow, checks callers, and catches regressions. MANDATORY TRIGGERS: review, code review, peer review, review PR, check code, approve, review changes."
+argument-hint: "<ticket ID to review>"
+---
+
+# Bobby Review Skill
+
+> Deep code review. Reads the full context around every change to catch regressions, broken callers, misused APIs, and LLM-typical mistakes. Separate agent from build for fresh perspective.
+
+## Pre-flight Checks
+
+1. **Check learnings** — Read `.claude/skills/bobby-review/learnings.md` + `.claude/skills/bobby-review/learnings.local.md` and `.claude/skills/bobby-shared/learnings.md` + `.claude/skills/bobby-shared/learnings.local.md` in parallel
+2. **Branch check** — `git branch --show-current` must NOT be main/master
+3. **Hygiene check** — `git status --short` should show no uncommitted source files (build agent left dirty state if it does)
+4. **Load context** — Read these in parallel:
+   - The ticket's `ticket.md` — acceptance criteria
+   - The ticket's `plan.md` — intended approach
+   - The ticket's `test-cases.md` — expected test coverage
+5. **Understand what was built** — `git log --oneline main..HEAD` to see all branch commits
+
+## Investigation First
+
+<investigation_rules>
+Before forming any opinion about the code:
+- Read `ticket.md` and `plan.md` in parallel — understand what was supposed to be built and the intended approach
+- Read every file referenced in `plan.md` that was supposed to change
+- If the diff touches files not in the plan, read those files to understand why
+- Do not approve or reject based on the diff alone — verify against the actual codebase
+</investigation_rules>
+
+## Deep Code Review
+
+This is the core of your job. Don't skim diffs — investigate the code like you're debugging a production incident before it happens.
+
+### 1. Trace the change boundaries
+
+- Run `git diff main...HEAD --stat` — get an overview of every file touched
+- For each changed file, **read the full file** (not just the diff hunk) to understand context
+- Cross-reference against `plan.md`:
+  - Files in the plan that were NOT changed — were they supposed to be?
+  - Changed files NOT in the plan — why were they touched? Is this scope creep?
+
+### 2. Check for breakage in callers and dependents
+
+For every function, component, or API endpoint that was **modified or renamed**:
+- Grep the codebase for its callers/consumers
+- Verify callers still work with the new signature, return type, or behavior
+- Check if any imports were added — do the imported modules actually export what's being used?
+- Check if any exports were removed or renamed — are there consumers that still reference the old name?
+
+### 3. Look for LLM-typical mistakes
+
+<llm_mistakes>
+These are patterns that LLM-generated code frequently gets wrong:
+
+- **Hallucinated APIs**: Method calls on libraries/frameworks that don't exist (e.g., `router.pushState()` instead of `router.push()`, `db.findOneBy()` instead of `db.findOne()`). When you see an unfamiliar API call, verify it exists.
+- **Stale references**: Code referencing variables, functions, or files that were renamed or removed elsewhere in the codebase.
+- **Copy-paste drift**: Similar code added in multiple places that is subtly inconsistent (different arg order, missing a condition, wrong variable name).
+- **Incomplete migrations**: A pattern was changed (renamed function, new API) but only in the new code — old call sites still use the previous version.
+- **Wrong assumptions about existing code**: The builder may have misread how an existing function works and used it incorrectly. Verify the usage matches the actual implementation.
+</llm_mistakes>
+
+### 4. Performance and resource concerns
+
+<performance_review>
+Look for these specific patterns in the diff:
+
+- **N+1 queries**: Database/API calls inside loops — each iteration triggers a separate query
+- **Unbounded fetches**: Queries without LIMIT, pagination, or reasonable caps
+- **Missing cleanup**: Event listeners, intervals, subscriptions, or timers that are added but never removed (memory leaks)
+- **Synchronous blocking**: Heavy operations (file I/O, network calls, large data processing) that should be async
+- **Redundant work**: Computing the same value multiple times when it could be computed once
+- **Large objects in memory**: Holding entire datasets when only a subset is needed
+</performance_review>
+
+### 5. Verify test quality
+
+Don't just check that tests exist — check that they would actually catch bugs:
+
+- Do assertions check the **right thing**? A test that asserts `result !== null` passes even if the result is completely wrong.
+- Are there tests that would pass even if the feature was completely broken? (e.g., only testing that a function doesn't throw)
+- Do tests cover the sad path, not just the happy path? (invalid input, empty data, error conditions)
+- Read `test-cases.md` and confirm each documented test case has a corresponding test in the diff
+- Are test descriptions accurate? A test named "should filter by status" that doesn't actually test filtering is misleading.
+
+## Decisions Check
+
+If `.bobby/decisions.yaml` exists, scan the changed code for violations of active decisions (where `invalidated` is null). For each violation found, flag it by decision `id` in `review.md` under a "Decision Violations" section. A decision violation is a rejection reason.
+
+Examples of what to look for based on the decision `fact` field:
+- "Never call the database directly from UI components" → grep changed files for DB calls in component code
+- "All API calls must go through the service layer" → check for direct fetch/axios calls in components
+- Any project-specific constraint in `decisions.yaml`
+
+## AC Verification
+
+After the deep review, verify the minimum bar:
+
+1. Re-read each acceptance criterion from `ticket.md`
+2. For each AC, identify the specific code that satisfies it
+3. If any AC lacks coverage, that's a rejection
+
+## Run Tests and Lint
+
+Run these independently to verify the build agent's work in a fresh context:
+
+
+1. Tests: `npm test`
+2. Lint: `npm run lint`
+
+
+Show the output as evidence. If tests can't run (missing deps, broken environment), this is a BLOCK, not an approval.
+
+## Review Artifact
+
+Write `review.md` in the ticket directory with this structure:
+
+```markdown
+## Review — TKT-{ID}
+
+### Verdict: Approved / Approved with Notes / Rejected / Blocked
+
+### Files Reviewed
+- `path/to/file.js` — {what changed, what you verified}
+
+### Code Concerns
+- {any issues found — broken callers, performance issues, LLM mistakes, etc.}
+- {or "None found" if clean}
+
+### Decision Violations
+- {any violations of .bobby/decisions.yaml entries}
+- {or "None" if decisions.yaml doesn't exist or no violations found}
+
+### AC Verification
+- [x] AC 1: {how it's satisfied}
+- [x] AC 2: {how it's satisfied}
+
+### Test/Lint Output
+- Tests: {pass/fail, count}
+- Lint: {pass/fail, summary}
+
+### Notes
+- {anything the next agent or human should know}
+```
+
+## Decision
+
+### Approve
+All checks pass, no concerns:
+1. Write `review.md` in the ticket directory
+2. **Commit any changes** you made (lint fixes, debug cleanup): `TKT-{ID}: review fixes`
+3. Add comment: `bobby ticket comment {ID} --by bobby-review "Approved: {summary}"`
+4. If you discovered a pattern future reviews should catch: `bobby learn bobby-review "pattern" "description"`
+5. Move to testing: `bobby ticket move {ID} test`
+
+### Approve with Notes
+Code works and ACs are met, but you have observations worth recording — minor style drift, a pattern that could become a problem, a suggestion for future work. These do NOT block the ticket:
+1. Write `review.md` with notes in the "Code Concerns" and "Notes" sections
+2. **Commit any changes** you made: `TKT-{ID}: review fixes`
+3. Add comment: `bobby ticket comment {ID} --by bobby-review "Approved with notes: {summary}. Notes: {observations}"`
+4. Move to testing: `bobby ticket move {ID} test`
+
+### Reject
+Broken code, missing ACs, or serious quality issues:
+1. Write `review.md` documenting every issue found
+2. Move back with specific feedback: `bobby ticket move {ID} reject "Specific issue description"`
+3. Be specific — the build agent needs to know exactly what to fix
+
+<examples>
+<example label="Good rejection (specific and actionable)">
+`bobby ticket move TKT-042 reject "AC #3 not met: 'Filter persists after page refresh' — tested by refreshing /leads?status=active and the filter dropdown resets to 'All'. The filterByStatus function reads URL params but doesn't call setFilter on mount. Also: getLeadsByStatus() in leads-service.js is called by DashboardWidget (line 47) which expects an array return type, but the new implementation returns an object. Fix both."`
+</example>
+
+<example label="Bad rejection (vague)">
+`bobby ticket move TKT-042 reject "Filtering doesn't work properly"`
+Why this fails: The build agent won't know what specifically to fix or which AC failed.
+</example>
+</examples>
+
+### Block
+Can't complete review — tests won't run, environment broken, missing context:
+1. Write `review.md` documenting what you were able to check and what blocked you
+2. `bobby ticket move {ID} block "reason"`
+
+## If Something Goes Wrong
+
+- If you discover a systemic pattern: `bobby learn bobby-review "pattern" "description"`
+
+---
+
+## Project overrides
+
+If `.claude/skills/bobby-review/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

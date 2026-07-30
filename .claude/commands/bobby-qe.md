@@ -1,0 +1,6 @@
+---
+description: "QE testing — test the live app through browser automation and API calls"
+argument-hint: "<ticket ID or feature to test>"
+---
+
+Load and follow the skill in `.claude/skills/bobby-qe/SKILL.md` to test the specified ticket or feature.

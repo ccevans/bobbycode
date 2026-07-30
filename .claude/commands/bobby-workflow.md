@@ -1,0 +1,6 @@
+---
+description: "Run the full SDLC workflow on tickets — plan → build → review → test"
+argument-hint: "<ticket ID(s)>"
+---
+
+Load and follow the skill in `.claude/skills/bobby-workflow/SKILL.md` to run the workflow on the specified ticket(s).

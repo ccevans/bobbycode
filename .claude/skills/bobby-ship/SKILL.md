@@ -1,0 +1,125 @@
+---
+name: ship-pr
+description: "Ship Skill: Creates PRs from feature branches and waits for CI. Does NOT auto-merge — user merges manually. MANDATORY TRIGGERS: ship, deploy, release, merge, create PR, push, go live, launch."
+argument-hint: "<ticket IDs to ship>"
+---
+
+# Bobby Ship Skill
+
+> Creates PRs from feature branches and waits for CI. Does **not** auto-merge — the user merges PRs manually.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/bobby-ship/learnings.md` + `.claude/skills/bobby-ship/learnings.local.md`
+2. **Check the queue** — Run `bobby ticket list shipping` to see what's ready
+
+## Pre-Flight Checks
+
+### 1. Shipping Count Sanity Check
+
+Run `bobby ticket list shipping` and count the tickets.
+
+**If more than 10 tickets are in shipping, STOP and ask the user:**
+> "There are {N} tickets in shipping. Is this a batch release or were these bulk-migrated? Should I proceed with all of them?"
+
+Do NOT proceed until the user confirms. A large number often means tickets were migrated in bulk without actual code changes.
+
+### 2. Uncommitted Changes Gate
+
+Run `git status --short` in each repo. If there are uncommitted source code changes (modified/new `.js`, `.ts`, `.rb`, `.py`, `.css`, `.html`, `.json`, `.yml`, etc.):
+
+**STOP — do not ship.** Uncommitted changes mean a prior agent (build, review, or test) failed to commit its work.
+
+For each affected ticket:
+1. `bobby ticket move {ID} build`
+2. `bobby ticket comment {ID} --by bobby-ship "Returned to build: uncommitted changes detected. Files: {list}. Build agent must commit all work before shipping."`
+
+Then **abort the ship process**. The workflow will re-run build → review → test → ship with proper commits.
+
+**Ignore non-source artifacts** (screenshots, CSVs, mockups, `.skill` files) — these are not blockers.
+
+### 3. Git Author Email Check
+
+Run `git config user.email`. If the result:
+- Is empty, ends with `.local`, ends with `.internal`, or doesn't contain `@`
+
+**STOP — do not ship.** The commit author email is invalid and will be rejected by deploy platforms (Vercel, GitHub Actions, etc.).
+
+Tell the user:
+> "Your git email is set to `{email}` which will block deployments. Run `git config user.email 'you@example.com'` with your GitHub email, then re-run ship."
+
+### 4. Branch Check
+
+Verify you're on a feature branch (not main/master). If on main, STOP — there's nothing to PR.
+
+### 5. Rebase onto Main
+
+Before pushing, rebase each repo's feature branch onto the latest main — so the PR contains only the feature's changes and CI tests against the latest code:
+
+```
+git fetch origin
+git rebase origin/main
+```
+
+If there are conflicts, resolve them before continuing. PRs must be up-to-date with main to avoid merge conflicts.
+
+
+## Ship Process
+
+### Run Tests & Lint
+
+
+1. All tests pass: `npm test`
+2. Lint clean: `npm run lint`
+
+
+### Rebase & Create Pull Request
+
+1. Rebase: `git fetch origin && git rebase origin/main` — resolve any conflicts
+2. Push the branch: `git push -u origin HEAD`
+3. Create PR: `gh pr create --title "..." --body "..."`
+   - Title: concise summary of what's shipping
+   - Body: list the tickets being shipped with brief descriptions
+4. Wait for CI to pass
+5. **Do NOT merge.** Report the PR URL to the user.
+
+
+
+## After PR Creation
+
+For each ticket in `shipping` stage:
+1. `bobby ticket comment {ID} --by bobby-ship "PR created: #{url}. Awaiting manual merge."`
+
+Report all PR URLs to the user so they can review and merge manually.
+
+**Do NOT run `gh pr merge` or any merge command.** The user decides when to merge.
+
+## Completing Ship
+
+Once all PRs are created and CI is passing:
+
+1. For each ticket in `shipping` stage:
+   - `bobby ticket move {ID} done`
+   - Output `<bobby:done ticket="{ID}" stage="done" />`
+2. Report all PR URLs to the user so they can review and merge at their discretion
+
+**Important:** Moving to `done` means the code is PR'd and CI-green. The user merges PRs on their own schedule.
+
+3. Run `bobby sync` to commit ticket state changes to the umbrella repo
+
+## If Something Goes Wrong
+
+- If CI fails: fix and re-push
+- If deployment fails: investigate, don't retry blindly
+- Document issues: `bobby learn bobby-ship "pattern" "description"`
+
+---
+
+## Project overrides
+
+If `.claude/skills/bobby-ship/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

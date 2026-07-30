@@ -1,0 +1,322 @@
+---
+name: plan-ticket
+description: "Planning Skill: Handles epic breakdown and ticket refinement. Creates plan.md and test-cases.md. MANDATORY TRIGGERS: plan, refine, brainstorm, break down, epic, spec, requirements, scope, estimate, plan ticket."
+argument-hint: "<ticket ID to plan>"
+---
+
+# Bobby Plan Skill
+
+> This skill handles planning — both epic breakdown and ticket refinement.
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/bobby-plan/learnings.md` + `.claude/skills/bobby-plan/learnings.local.md`
+2. **Read the ticket** — Understand what's being asked
+
+## Investigation First
+
+<investigation_rules>
+Before creating any plan:
+- Read the ticket's title, description, and acceptance criteria fully
+- If the ticket has a `parent` field, read the parent epic's ticket.md and plan.md
+- Read any existing `feature-plan.md` to understand cross-cutting decisions already made
+- If you are unsure about the scope of an AC, improve the AC text rather than guessing
+- Explore the codebase to understand existing patterns before proposing new ones
+- **Large file discipline:** For files over 500 lines (CSS, large components, mockups), do NOT read the entire file. Instead, grep for the relevant section name or keyword to find the line range, then read only that range. Record useful line ranges in the plan's `## Files to modify` section so downstream agents (build, review) can do targeted reads too.
+</investigation_rules>
+
+## Mode Detection
+
+- If the ticket has `type: epic` → **Epic Mode** (break down into child tickets)
+- If the ticket is in `planning` stage AND has a `parent` field (belongs to an epic) → **Feature-Aware Refine Mode** (plan with sibling context)
+- If the ticket is in `planning` stage with no `parent` → **Refine Mode** (create plan + test cases)
+
+---
+
+## Epic Mode
+
+### Step 1: Generate & Score Approaches
+
+Generate 3 approaches, then score each on these dimensions (1-5 scale) — scoring makes the decision traceable and defensible, not gut-feel:
+
+| Dimension | Weight | Description |
+|-----------|--------|-------------|
+| Minimal effort | 3x | Least code, fewest files, smallest blast radius |
+| Risk | 2x | Less risk = higher score |
+| Maintainability | 2x | Long-term code health, readability |
+| Impact | 1x | User-facing value delivered |
+
+**Weighted score** = (Effort x 3) + (Risk x 2) + (Maintainability x 2) + (Impact x 1)
+
+### Step 2: Auto-Select or Escalate
+
+- **Auto-select**: Pick the highest-scoring approach. Bias toward minimal fix.
+- **Escalate** (`bobby ticket move {ID} block "Approach decision needed"`) ONLY if:
+  - Top two scores are within 5 points of each other, OR
+  - A lower-effort option scores 10+ points below a long-term option on Maintainability alone
+
+Record all approaches and scores in `plan.md` with a `## Decision` section explaining why the selected approach won. When escalating, flag which dimension caused the tie so the reviewer can decide quickly.
+
+### Step 3: Write Spec
+
+Save a spec in the epic ticket's `plan.md`:
+- **Problem statement** — What and why
+- **Proposed solution** — How
+- **User stories** — Who benefits
+- **Technical approach** — Architecture, data model, APIs
+- **Out of scope** — Explicitly NOT doing
+
+### Step 4: Create Child Tickets
+
+Break the spec into tickets:
+- Each ticket is independently deliverable
+- Order by dependency
+- Use: `bobby ticket create -t "Title" --type feature -p medium --parent {EPIC_ID}`
+
+### Completing Epic Mode
+
+- `plan.md` saved in epic ticket folder
+- Child tickets created in backlog with `parent` field set
+- Add comment: `bobby ticket comment {EPIC_ID} --by bobby-plan "Broke down into {N} tickets"`
+
+---
+
+## Feature-Aware Refine Mode
+
+> Used when planning a ticket that belongs to an epic. Everything from Refine Mode applies, plus cross-ticket context gathering and feature plan management.
+
+### Step 0: Gather Feature Context
+
+Before planning this ticket, build a picture of the whole feature:
+
+1. **Read the parent epic** — Read `.bobby/tickets/{parent}*/ticket.md` and `.bobby/tickets/{parent}*/plan.md` to understand the overall feature goal
+2. **Read the feature plan** — Read `.bobby/tickets/{parent}*/feature-plan.md` if it exists. This captures cross-cutting decisions from previously planned sibling tickets.
+3. **Read sibling plans** — Run `bobby ticket list --epic {parent}` to discover sibling tickets. For each sibling, read `.bobby/tickets/{sibling}*/plan.md` if it exists.
+4. **Summarize context** — Before generating approaches, note:
+   - What shared utilities or components already exist or are planned
+   - Naming conventions and patterns established by siblings
+   - What this ticket's siblings depend on or provide
+   - Any architectural decisions already made
+
+### Step 1: Clarify Requirements
+
+- Ensure description is clear and complete
+- Acceptance criteria are specific, measurable, testable
+- Update the ticket if anything is ambiguous
+- Check for overlapping or duplicate work with sibling tickets
+
+### Step 2: Create Implementation Plan
+
+Generate 2-3 possible approaches. Score each on these dimensions (1-5 scale):
+
+| Dimension | Weight | Description |
+|-----------|--------|-------------|
+| Minimal effort | 3x | Least code, fewest files, smallest blast radius |
+| Risk | 2x | Less risk = higher score |
+| Maintainability | 2x | Long-term code health, readability |
+| Impact | 1x | User-facing value delivered |
+
+**Auto-select** the highest-scoring approach. When scoring, consider **consistency with sibling plans** — an approach that reuses patterns from siblings scores higher on Maintainability. Only escalate (`bobby ticket move {ID} block "Approach decision needed"`) if the top two are within 5 points or a long-term option dominates Maintainability by 10+.
+
+Create `plan.md` in the ticket folder:
+
+1. **Approaches considered** — Brief description + scores for each
+2. **Selected approach** — Which one and why it won
+3. **Files to modify** — List every file that needs changes
+4. **Step-by-step plan** — Ordered steps with checkboxes
+5. **Risk areas** — What could go wrong
+6. **Dependencies** — What needs to exist first
+7. **Feature Context** — Add this section to capture cross-ticket relationships:
+   - **Depends on:** What this ticket needs from siblings (e.g., "Uses shared utility from TKT-002")
+   - **Provides:** What this ticket creates that siblings will use (e.g., "Creates useDataFetch hook for TKT-004")
+   - **Deviations:** Any departures from the feature-plan.md and why
+
+### Step 3: Write Test Cases
+
+Update `test-cases.md`:
+- One test case per acceptance criterion (minimum)
+- Edge cases and error scenarios
+- Each test case: preconditions, steps, expected result
+
+**Mandatory coverage categories:**
+- **Read path** — Does the correct data/UI appear? (navigate, observe)
+- **Write path** — Does changing a value persist and reflect? (change, save, verify)
+- **Error path** — What happens on invalid input, auth failure, missing data?
+
+**Anti-pattern to avoid:** Do NOT write test cases that only verify structure (e.g., "CSS variable exists", "element is on page"). Every test case must include a user action and an observable outcome. If an AC says "X updates when Y changes," the test case MUST change Y and verify X — not just verify X exists in its default state.
+
+<examples>
+<example type="bad" label="Structure-only (wrong)">
+**Test:** Verify dashboard has a chart component
+**Steps:** Navigate to /dashboard, check page contains canvas element
+**Expected:** Canvas element exists on page
+**Why this fails:** Verifies HTML structure, not behavior. Chart could be empty or broken.
+</example>
+
+<example type="good" label="Behavior-focused (correct)">
+**Test:** Dashboard chart renders with real data
+**Precondition:** At least 1 record exists in the database
+**Steps:** Navigate to /dashboard, wait for chart to load, read chart labels
+**Expected:** Chart displays labels matching the database records, not placeholder text
+</example>
+
+<example type="bad" label="Read-only (incomplete)">
+**Test:** Settings page shows user email
+**Steps:** Navigate to /settings, read email field value
+**Expected:** Email field contains current user's email
+**Why this fails:** Only tests the read path. Doesn't verify saving works.
+</example>
+
+<example type="good" label="Write path included (correct)">
+**Test:** User can update their email in settings
+**Precondition:** User is logged in with email "old@test.com"
+**Steps:** Navigate to /settings, clear email field, type "new@test.com", click Save, wait for success message, refresh page, read email field
+**Expected:** Email field shows "new@test.com" after refresh
+</example>
+</examples>
+
+### Step 4: Update Feature Plan
+
+Maintain the epic-level `feature-plan.md` at `.bobby/tickets/{parent}*/feature-plan.md`:
+
+- **If this is the first ticket planned** (no `feature-plan.md` exists), create it with:
+  ```markdown
+  # Feature Plan — {parent}: {epic title}
+
+  ## Architecture Decisions
+  - [Cross-cutting technical decisions discovered so far]
+
+  ## Shared Utilities & Components
+  | Utility/Component | Created By | Used By | Location |
+
+  ## Naming Conventions
+  - [Patterns all tickets should follow]
+
+  ## Ticket Dependencies
+  | Ticket | Depends On | Provides |
+
+  ## Out of Scope
+  [Explicitly deferred items]
+  ```
+
+- **If `feature-plan.md` already exists**, update it: add any new shared decisions, utilities, or conventions discovered while planning this ticket. Do not remove existing entries — append and refine.
+
+### Step 5: Estimate Complexity
+
+Add to ticket frontmatter or comment:
+- **Simple:** Single file change, clear path
+- **Medium:** Multiple files, some decisions
+- **Complex:** Cross-cutting, architectural
+
+### Completing Feature-Aware Refine Mode
+
+1. Verify `plan.md` exists, is complete, and includes `## Feature Context`
+2. Verify `test-cases.md` has coverage
+3. Verify `feature-plan.md` was created or updated
+4. If you discovered anything non-obvious or a pattern future planning should avoid: `bobby learn bobby-plan "pattern" "description"`
+5. Move ticket: `bobby ticket move {ID} build`
+
+---
+
+## Refine Mode
+
+### Step 1: Clarify Requirements
+
+- Ensure description is clear and complete
+- Acceptance criteria are specific, measurable, testable
+- Update the ticket if anything is ambiguous
+
+### Step 2: Create Implementation Plan
+
+Generate 2-3 possible approaches. Score each on these dimensions (1-5 scale):
+
+| Dimension | Weight | Description |
+|-----------|--------|-------------|
+| Minimal effort | 3x | Least code, fewest files, smallest blast radius |
+| Risk | 2x | Less risk = higher score |
+| Maintainability | 2x | Long-term code health, readability |
+| Impact | 1x | User-facing value delivered |
+
+**Auto-select** the highest-scoring approach. Only escalate (`bobby ticket move {ID} block "Approach decision needed"`) if the top two are within 5 points or a long-term option dominates Maintainability by 10+.
+
+Create `plan.md` in the ticket folder:
+
+1. **Approaches considered** — Brief description + scores for each
+2. **Selected approach** — Which one and why it won
+3. **Files to modify** — List every file that needs changes
+4. **Step-by-step plan** — Ordered steps with checkboxes
+5. **Risk areas** — What could go wrong
+6. **Dependencies** — What needs to exist first
+
+### Step 3: Write Test Cases
+
+Update `test-cases.md`:
+- One test case per acceptance criterion (minimum)
+- Edge cases and error scenarios
+- Each test case: preconditions, steps, expected result
+
+**Mandatory coverage categories:**
+- **Read path** — Does the correct data/UI appear? (navigate, observe)
+- **Write path** — Does changing a value persist and reflect? (change, save, verify)
+- **Error path** — What happens on invalid input, auth failure, missing data?
+
+**Anti-pattern to avoid:** Do NOT write test cases that only verify structure (e.g., "CSS variable exists", "element is on page"). Every test case must include a user action and an observable outcome. If an AC says "X updates when Y changes," the test case MUST change Y and verify X — not just verify X exists in its default state.
+
+<examples>
+<example type="bad" label="Structure-only (wrong)">
+**Test:** Verify dashboard has a chart component
+**Steps:** Navigate to /dashboard, check page contains canvas element
+**Expected:** Canvas element exists on page
+**Why this fails:** Verifies HTML structure, not behavior. Chart could be empty or broken.
+</example>
+
+<example type="good" label="Behavior-focused (correct)">
+**Test:** Dashboard chart renders with real data
+**Precondition:** At least 1 record exists in the database
+**Steps:** Navigate to /dashboard, wait for chart to load, read chart labels
+**Expected:** Chart displays labels matching the database records, not placeholder text
+</example>
+
+<example type="bad" label="Read-only (incomplete)">
+**Test:** Settings page shows user email
+**Steps:** Navigate to /settings, read email field value
+**Expected:** Email field contains current user's email
+**Why this fails:** Only tests the read path. Doesn't verify saving works.
+</example>
+
+<example type="good" label="Write path included (correct)">
+**Test:** User can update their email in settings
+**Precondition:** User is logged in with email "old@test.com"
+**Steps:** Navigate to /settings, clear email field, type "new@test.com", click Save, wait for success message, refresh page, read email field
+**Expected:** Email field shows "new@test.com" after refresh
+</example>
+</examples>
+
+### Step 4: Estimate Complexity
+
+Add to ticket frontmatter or comment:
+- **Simple:** Single file change, clear path
+- **Medium:** Multiple files, some decisions
+- **Complex:** Cross-cutting, architectural
+
+### Completing Refine Mode
+
+1. Verify `plan.md` exists and is complete
+2. Verify `test-cases.md` has coverage
+3. If you discovered anything non-obvious or a pattern future planning should avoid: `bobby learn bobby-plan "pattern" "description"`
+4. Move ticket: `bobby ticket move {ID} build`
+
+## Feature Areas
+
+_No areas configured_
+
+---
+
+## Project overrides
+
+If `.claude/skills/bobby-plan/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

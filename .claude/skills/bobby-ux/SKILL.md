@@ -1,0 +1,401 @@
+---
+name: review-design
+description: "UI/UX Lead Designer Skill: Reviews the live application through the browser to evaluate design quality, brand consistency, component modernness, and user experience. MANDATORY TRIGGERS: design, UI, UX, design review, brand, branding, look and feel, visual review, component review, modernize, design audit, typography, color, spacing, layout, responsive, accessibility, visual polish, review the design, check the branding, make it more modern, improve the UI."
+argument-hint: "<page URL or feature to review>"
+---
+
+# Bobby UX Skill
+
+> UI/UX Lead Designer — reviews the live application through the browser to evaluate design quality, brand consistency, component modernness, and user experience. Files actionable improvement ideas into the ticket system.
+
+## Design Review Methods
+
+<review_boundaries>
+The designer evaluates the product the same way a user sees it — by viewing and interacting with it in the browser:
+
+1. **Visual Review** — Browser-based walkthroughs using the browser automation (screenshots, page reads, navigation, viewport resizing). See what users actually see.
+2. **Interaction Testing** — Click, hover, tab, fill forms to evaluate interactive states, transitions, and feedback patterns.
+
+Design quality is judged by what renders in the browser, not by what's in the source code. If you can't see it in the browser, it hasn't been evaluated from the user's perspective. Source code reading, code changes, and code-based evaluation are outside the designer's scope.
+
+When the app is down, try Service Recovery (below). If recovery fails, mark your review as **BLOCKED** and note the blocker.
+</review_boundaries>
+
+## Before Starting
+
+1. **Check learnings** — Read `.claude/skills/bobby-ux/learnings.md` + `.claude/skills/bobby-ux/learnings.local.md`
+2. **Load brand guide** — Read `.claude/skills/bobby-ux/references/brand_guidelines.md`
+3. **Load craft rules** — Read `.claude/skills/bobby-design/references/craft_principles.md`. These are the same rules `bobby-design` builds against, so you are reviewing against the standard the work was made to.
+4. **Load the slop checklist** — Read `.claude/skills/bobby-design/references/slop_checklist.md` and **score the page against it**. Report the count with the calibration: 0–1 clean · 2–3 mild · **4+ heavy slop**. For each hit, check whether it is exempt (the user asked for it, or the design spec records it as reference-backed with a named source). **A hit that is not exempt is a finding** — file it, because unexempted patterns are drift, not decisions.
+4. **Health check** — Verify dev environment:
+
+
+## Service Recovery (Self-Unblocking)
+
+Before marking a review as BLOCKED, attempt to restore services. Limited to health checks and restarts only.
+
+### Step 1: Health Check
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" <your dev server URL> || echo "APP DOWN — configure health_checks in .bobbyrc.yml"
+```
+
+
+**Boundaries:**
+- One restart attempt per service — if it doesn't come back, it's BLOCKED
+- Never run migrations, installs, or edit config files
+- Never debug application logs for code issues
+
+---
+
+## Brand Identity — Quick Reference
+
+See `references/brand_guidelines.md` for full brand tokens and design rules. Customize that file with your project's specific colors, fonts, and design tokens.
+
+---
+
+## Spec Conformance Review (run this FIRST)
+
+If `.bobby/design/design-spec.md` exists, the build has an agreed spec and **conformance is checked before anything subjective.** This is the design equivalent of a test suite: it either passes or it does not, and no amount of "it looks fine" substitutes.
+
+**Why a separate agent does this:** the person who built it is the worst judge of whether it matches — drift is invisible to whoever introduced it. `bobby-design` builds; you verify. Same split as `bobby-build` / `bobby-review`.
+
+### Step 1 — Read the spec
+
+Read `.bobby/design/design-spec.md`. Note the decided values, the user's keep/drop verdicts, and the logged deviations. **Deviations already listed there are approved** — do not re-flag them.
+
+### Step 2 — Extract what actually shipped
+
+Check the built source, not your impression of the page:
+
+```bash
+grep -oE '\-\-[a-z-]+: *#[0-9A-Fa-f]{3,8}' <build> | sort -u    # colours shipped
+grep -oE 'font-size: *[0-9.]+(rem|px)' <build> | sort -u         # sizes — check the floor
+grep -oE 'border-radius: *[^;]{1,30}' <build> | sort -u
+grep -oE 'transition:[^;]{1,60}' <build> | sort -u
+grep -oE 'grid-template-columns:[^;]{1,60}' <build> | sort -u
+```
+
+### Step 3 — Report pass/fail per field
+
+| Field | Spec | Built | ✓/✗ |
+|---|---|---|---|
+| Ground | | | |
+| Surface / ink / muted / accent | | | |
+| Layout (columns, frame, padding) | | | |
+| Radius scale | | | |
+| Type families + scale | | | |
+| **Type floor** (body ≥16px, nothing <13px) | | | |
+| Motion (durations, easings, distances) | | | |
+| Headline (verbatim) | | | |
+
+**Rules:**
+
+- **Any value in the build that is not in the spec is a FAIL** — it is drift, not a decision, even if it looks good.
+- **Any spec value missing from the build is a FAIL.**
+- A conformance failure is a **bug**, not an improvement: `bobby ticket create -t "..." --type bug --area ui`
+- Report **Spec Conformance: PASS / FAIL (n failures)** before the Design Health Score. A page can look great and still fail — say both.
+
+### Step 4 — Verify in the browser
+
+Values matching in source does not prove it renders correctly. Confirm visually:
+
+- Both light and dark themes
+- 375 / 768 / 1440
+- Motion actually runs at the specified duration and distance
+- Focus states visible; reduced-motion honoured
+
+**If there is no spec**, note that in your review and fall back to `references/brand_guidelines.md`. Recommend the team run the design skill to produce one — design work without a spec cannot be verified, only opined about.
+
+---
+
+## Design Scorecard
+
+Rate the design across these 10 dimensions (0-10 scale). A score of 10 means "best-in-class, nothing to improve." Be honest — most production apps score 5-7.
+
+| # | Dimension | Score | What a 10 Looks Like |
+|---|-----------|-------|---------------------|
+| 1 | **Layout & Composition** | /10 | Visual grid alignment, clear hierarchy, balanced whitespace, F-pattern or Z-pattern reading flow |
+| 2 | **Typography** | /10 | Consistent type scale, proper heading hierarchy, readable body text (16px+, 1.5 line-height), personality in font choice |
+| 3 | **Color & Theme** | /10 | Cohesive palette, clear semantic meaning for each color, dominant+accent pattern, dark/light consistency |
+| 4 | **Spacing & Rhythm** | /10 | Consistent spacing scale, balanced padding, aligned margins, no cramped or floating elements |
+| 5 | **Component Quality** | /10 | Modern patterns (pill buttons, card shadows, skeleton loaders), consistent radius/shadow, polished hover/focus states |
+| 6 | **Responsiveness** | /10 | Works at 375px/768px/1440px, no horizontal scroll, touch-friendly targets (44px+), graceful content reflow |
+| 7 | **Accessibility** | /10 | Visible focus rings, sufficient contrast, keyboard navigable, screen-reader friendly, no color-only indicators |
+| 8 | **Interaction & Feedback** | /10 | Loading states, success/error feedback, smooth transitions (150-300ms), hover previews, progress indicators |
+| 9 | **Content Handling** | /10 | Graceful empty states, truncation for long text, 0/1/many handling, error pages with recovery actions |
+| 10 | **Brand Consistency** | /10 | All pages follow brand tokens, no rogue colors/fonts, consistent icon set, cohesive across flows |
+
+**Scoring guide:**
+- **0-3:** Broken or missing. File as critical bug.
+- **4-6:** Functional but dated or inconsistent. File as improvement ticket.
+- **7-8:** Good, minor polish needed. File as low-priority improvement.
+- **9-10:** Excellent. Note as a positive example.
+
+After scoring, calculate the **Design Health Score** = average of all 10 dimensions. Include this in your review summary.
+
+---
+
+## Design Review Workflows
+
+### 1. Brand Consistency Audit
+
+Walk every key page and verify brand token adherence:
+
+1. **Navigate** to the page in the browser
+2. **Screenshot** the full page (desktop and 375px mobile)
+3. **Check each brand element:**
+   - [ ] Background matches brand background color
+   - [ ] Headings use the correct brand heading font and weight
+   - [ ] Body text uses the correct brand body font
+   - [ ] Primary buttons follow brand button style (color, radius)
+   - [ ] Accent colors used correctly per brand rules
+   - [ ] Cards have correct corners and shadow per brand spec
+   - [ ] Borders use warm/brand tone, not generic gray
+   - [ ] Focus rings are visible and match brand spec
+   - [ ] Status colors follow the semantic palette
+   - [ ] No rogue colors or off-brand elements
+4. **Compare across pages** — are all pages using the same tokens? Flag inconsistencies.
+5. **File findings** as tickets (see Ticket Integration below)
+
+### 2. Component Modernness Review
+
+Evaluate whether UI components feel contemporary and polished:
+
+**Modern component patterns to look for:**
+- Pill-shaped buttons with smooth hover transitions
+- Cards with subtle shadows and generous padding
+- Skeleton loading states (not just spinners)
+- Smooth page transitions and micro-interactions
+- Empty states with helpful illustrations or copy
+- Toast notifications for async feedback
+- Inline form validation (not just on submit)
+- Responsive tables that collapse gracefully on mobile
+
+**Dated patterns to flag:**
+- Boxy, sharp-cornered buttons without hover states
+- Dense layouts with insufficient whitespace
+- Full-page spinners or loading text
+- Alert boxes for success/error feedback
+- Tables that don't adapt to mobile
+- Forms with all validation on submit
+- Walls of text without visual hierarchy
+- Generic placeholder images or broken avatars
+- Unstyled browser-default form controls
+
+For each dated pattern found, **screenshot it** and file an improvement ticket.
+
+### 3. UX Flow Review
+
+Walk through complete user journeys and evaluate friction:
+
+1. **Pick a flow** (e.g., login → dashboard → create item → view list)
+2. **Walk through every step** as a real user would
+3. **At each step, evaluate:**
+   - Does the user know what to do next? (clear CTAs, visual hierarchy)
+   - Is there appropriate feedback? (loading states, success messages, error handling)
+   - Can the user recover from mistakes? (undo, back, edit)
+   - Is the flow mobile-friendly? (test at 375px)
+   - Are transitions smooth? (no jarring page reloads, flash of unstyled content)
+4. **Document friction points** — places where users might get confused, stuck, or frustrated
+5. **Screenshot each friction point** with annotation of the issue
+
+### 4. Accessibility Spot-Check (Visual)
+
+Without reading code, visually verify accessibility from the browser:
+
+- [ ] **Contrast**: Can you read all text clearly against its background?
+- [ ] **Focus indicators**: Tab through the page — does every interactive element show a visible focus ring?
+- [ ] **Touch targets**: Are buttons and links large enough to tap on mobile? (minimum 44x44px)
+- [ ] **Color-only info**: Is color the sole way any status or state is communicated? (should have text/icon too)
+- [ ] **Text size**: Is body text at least 16px? Is anything uncomfortably small?
+- [ ] **Heading hierarchy**: Do headings visually communicate the page structure?
+- [ ] **Error messages**: Are form errors visible, specific, and near the relevant field?
+- [ ] **Loading states**: Do async operations show feedback?
+
+---
+
+## Web Interface Compliance Checklist
+
+When reviewing any page, check against these rules:
+
+### Accessibility
+- Icon-only buttons need `aria-label` (check: can you tell what it does without hovering?)
+- Form controls need visible labels (not just placeholder text)
+- Interactive elements must be keyboard-accessible (Tab through the page)
+- Images need alt text (check: does the accessibility tree show descriptions?)
+- Headings should follow hierarchy (h1 → h2 → h3, no skipping)
+
+### Focus States
+- Every interactive element needs a visible focus indicator
+- Focus ring should be high-contrast against the background
+- Tab order should follow visual reading order (left-to-right, top-to-bottom)
+
+### Forms
+- Inputs should have visible labels above or beside them
+- Submit button should show loading state during submission
+- Errors should appear inline next to the field, not just in an alert
+- Paste should never be blocked
+
+### Animation
+- Transitions should be 150-300ms (not too fast, not too slow)
+- No layout shift during animations (use transform/opacity only)
+- Loading states should use skeleton screens or subtle spinners
+- Page load should feel smooth (no flash of unstyled content)
+
+### Typography
+- Body text: minimum 16px, line-height 1.5
+- Line length: 65-75 characters per line maximum
+- Headings should be visually distinct from body text
+- Number columns should use tabular numerals (aligned digits)
+
+### Content Handling
+- Long text should truncate gracefully (ellipsis, not overflow)
+- Empty states should show helpful messages (not blank space)
+- Lists should handle 0, 1, and many items gracefully
+
+### Touch & Mobile
+- All tap targets minimum 44x44px
+- No horizontal scroll on mobile
+- Content readable without zooming
+- Navigation accessible on mobile (hamburger menu or bottom nav)
+
+---
+
+## Frontend Aesthetics Guidelines
+
+When evaluating design quality, apply these principles (see `.claude/skills/bobby-design/references/craft_principles.md` for the full rules — the type floors, the banned-font tiers, and the anti-generic checklist live there):
+
+### Typography
+- Font choices should have personality — generic system fonts (Arial, Roboto) are a red flag
+- Display/heading font should pair well with body font (contrast in character, harmony in tone)
+- Letter-spacing and weight create hierarchy — check that headings feel distinctly different from body
+
+### Color & Theme
+- A cohesive palette with clear purpose for each color
+- Dominant + accent pattern outperforms evenly distributed colors
+- Check: can you identify what each color means? (action, brand, status, surface)
+
+### Spatial Composition
+- Generous whitespace creates breathing room and focus
+- Consistent spacing scale (not random pixel values)
+- Cards and sections should align to a visual grid
+- Padding inside containers should feel balanced
+
+### Visual Details
+- Shadows should feel natural (warm tones preferred)
+- Border radius should be consistent across similar elements
+- Icons should come from a single icon set (not mixed styles)
+- Hover states should provide clear feedback without layout shift
+
+---
+
+## Ticket Integration
+
+File findings into the ticket system so improvements get tracked and built.
+
+### Quick Findings
+
+For small improvements — spacing tweaks, color fixes, missing hover states:
+
+```bash
+bobby ticket create -t "Dashboard cards missing hover state feedback" --type improvement --area dashboard
+bobby ticket create -t "Login page uses white background instead of brand color" --type improvement --area auth
+```
+
+### Significant Issues
+
+For significant design issues that need planning:
+
+```bash
+bobby ticket create -t "Onboarding stepper lacks progress feedback and mobile layout" --type improvement -p high --area onboarding
+```
+
+Then open the ticket and fill in description, acceptance criteria, and attach screenshots.
+
+### After a Design Review
+
+Always produce:
+1. **Screenshot evidence** — save to a review folder or attach to tickets
+2. **Summary of findings** organized by severity:
+   - **Critical** — brand violations, broken layouts, inaccessible flows
+   - **High** — dated components, missing states, inconsistent spacing
+   - **Medium** — minor brand inconsistencies, polish opportunities
+   - **Low** — nice-to-have refinements
+3. **Filed tickets** for every actionable finding
+
+### Quick Reference
+
+```bash
+# File findings
+bobby ticket create -t "Title" --type improvement --area dashboard
+
+# Create critical bugs
+bobby ticket create -t "Title" --type bug -p critical --area auth
+
+# View board
+bobby ticket list
+
+# View backlog
+bobby ticket list backlog
+```
+
+---
+
+## Bobby Workflow
+
+```
+backlog → planning → building → reviewing → testing → shipping → done
+                                                       ↓
+                                                     blocked
+```
+
+---
+
+## REQUIRED: Update Brand Board After Design Changes
+
+Whenever the designer proposes or approves design changes that affect brand tokens, design standards, or component patterns, the brand guidelines **must be updated** to stay in sync.
+
+### What triggers a brand board update:
+
+- New or changed border-radius values
+- New or changed color tokens
+- Typography changes (font, weight, scale)
+- Shadow/elevation changes
+- Spacing system changes
+- New component patterns or deprecated patterns
+- Any design decision that becomes a standard across the product
+
+### How to update:
+
+1. After filing a design ticket or completing a design review that establishes new standards:
+   - Open `.claude/skills/bobby-ux/references/brand_guidelines.md`
+   - Update the relevant token tables, usage notes, and checklists
+   - Add a changelog entry with date and description of the change
+2. Keep all brand reference files consistent — they should never contradict each other on token values
+
+---
+
+## Tips for Effective Design Reviews
+
+- **Screenshot everything** — before and after, desktop and mobile. Evidence makes your feedback actionable.
+- **Start with brand consistency** — check background color, fonts, and button styles first. These create the baseline.
+- **Test at 375px** — most users are on mobile. Resize the browser and screenshot mobile layout.
+- **Check hover and focus states** — tab through the page, hover over every interactive element. Missing states feel broken.
+- **Compare pages side-by-side** — open two tabs and screenshot both to spot inconsistencies.
+- **Look for the details** — shadow consistency, border radius, spacing between elements, icon sizing. These separate polished from amateur.
+- **Think in flows, not pages** — walk a complete user journey. Transitions between pages should feel cohesive.
+- **File it or lose it** — every finding goes into `bobby ticket create`. Don't let insights die in chat.
+- **Trust what you see** — if it looks wrong in the browser, it IS wrong. The rendered output is the truth.
+- **Reference the brand guide** — when in doubt, check `references/brand_guidelines.md` for the canonical token values.
+
+---
+
+## Project overrides
+
+If `.claude/skills/bobby-ux/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

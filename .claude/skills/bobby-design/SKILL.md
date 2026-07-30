@@ -1,0 +1,765 @@
+---
+name: design-site
+description: "Design Lead Skill: Creates visual design from scratch — landing pages, websites, marketing pages, app UI, visual identity, redesigns. Runs a real design process (brief → reference remix → style tiles → tokens → build → critique) so the result looks intentional and specific, not AI-generated. MANDATORY TRIGGERS: design a site, design a page, build a landing page, make a website, homepage, marketing page, redesign, visual identity, branding, art direction, moodboard, style tile, design system, design tokens, pick fonts, font pairing, color palette, theme, style the app, make it look good, make it look better, make it beautiful, make it modern, it looks generic, it looks like AI made it. NOT for auditing an already-built live app — that is the review-design skill (bobby-ux)."
+argument-hint: "<what to design — e.g. 'landing page for my habit tracker'>"
+---
+
+# Bobby Design Skill
+
+> Design Lead — takes a subject from nothing to a designed, built page. Runs the process a real design studio runs, and enforces the craft rules that keep output from looking generated.
+
+## Scope
+
+**This skill CREATES design.** It produces art direction, design tokens, and built pages.
+
+**It is not the design reviewer.** Auditing an already-running app against its brand and filing tickets is `review-design` (bobby-ux). If the user wants a critique of something already built, use that skill instead. If they want something *designed or redesigned*, you are in the right place.
+
+## Before Starting
+
+Read these in parallel:
+
+1. `.claude/skills/bobby-design/learnings.md` + `.claude/skills/bobby-design/learnings.local.md` and `.claude/skills/bobby-shared/learnings.md` + `.claude/skills/bobby-shared/learnings.local.md` — anti-patterns to avoid
+2. `.claude/skills/bobby-design/references/craft_principles.md` — **the craft rules. Non-optional.**
+3. `.claude/skills/bobby-design/references/design_process.md` — the full process detail
+4. `.claude/skills/bobby-design/references/reference_teardown.md` — how to extract a design doc from a reference
+5. `.claude/skills/bobby-design/references/slop_checklist.md` — **the full do-not list. Binding.**
+6. `.claude/skills/bobby-design/references/style_directory.md` — catalogue of studied systems, for when the user has none
+7. `.claude/skills/bobby-design/references/style_tile_template.md` — the style tile spec
+8. Any existing design system in the project — `CLAUDE.md`, a tokens/theme file, existing component styles. **If one exists, it wins.** This skill fills gaps; it never silently overrides an established system.
+
+---
+
+## The Three Rules (read before anything else)
+
+These exist because the person you are designing for is usually **not a designer**. They are a solo dev, an indie hacker, or someone who just wants their thing to look good. The process only works if it respects that.
+
+### Rule 1 — The human reacts. You design.
+
+Never ask the user to make design decisions, name a font, pick a hex code, or describe an aesthetic in design vocabulary. Ask them to **react**:
+
+- ✅ "Which of these three feels right?" · "Warmer or sharper?" · "Too loud?"
+- ❌ "What typeface would you like?" · "Should I use a 4px or 8px spacing scale?" · "What's your brand palette?"
+
+They bring intent and taste. You bring craft. There are exactly **two** points where you stop for them (marked ⛳ below). Everything else is your job — do it and move.
+
+### Rule 2 — Uniqueness comes from a reference remix, not from your imagination.
+
+A single reference copied = generic. Your own unguided taste = the AI default look. The engine for something original is:
+
+> Pull **2–4 references** → name *what specifically is good* in each → **combine them** → **diverge** through the subject's own world.
+
+Steal the *thinking*, not the style. If the user names sites they like, those are your references — that is the easiest possible ask of a non-designer, and it is where their taste enters the work.
+
+### Rule 3 — "Not generic" is a checklist, not a vibe.
+
+Run the anti-generic checklist below on every build. Never ship on the feeling that it looks fine.
+
+---
+
+## The Process
+
+Interactive by default. If the user says "just build it," "don't ask me," or similar, run **autonomous mode**: pick the strongest direction yourself and go straight through to step 8, still honoring every craft rule.
+
+**Autonomous mode does not skip step 2.** You still find and cite real references — you just do not stop to ask. Skipping references is what produces the generic version.
+
+### 1. Brief
+
+Pin down, in a few lines: the **one subject**, its **audience**, and the page's **single job**. Note must-have content, any brand constraints, and the existing design system if there is one. Ask at most 2–3 short questions, and only if the answer would actually change the design. Guess sensibly otherwise.
+
+**⛳ Vet the headline before building anything.** The headline is the highest-stakes content on the page and it must never enter by default. Offer **3–5 options**, each with its **source labelled** — *lifted* from existing docs, *recombined* from existing docs, or *newly written* — and let the user pick or redirect.
+
+Two failure modes this exists to prevent:
+
+- **Splicing a headline out of the README and not saying so.** Doc prose is written to be complete; a headline is written to land. A recombination of two README phrases is a draft, not a decision — and presenting it silently makes it look considered.
+- **Locking it in on iteration one.** A headline chosen quietly in the first mockup survives every later redesign unchallenged, because each subsequent round is about visuals. Settle it explicitly up front or you will ship the first thing you thought of.
+
+Re-check it at the critique gate: if the design moved a long way, the line that fit the first version may not fit the last.
+
+### 1b. ⛳ Structure — what shape is this thing?
+
+**Decide this before looking at a single reference.** Structure is what the screen is *made
+of*; tokens are what it is painted with. A wrong structure cannot be rescued by any palette,
+typeface or metaphor — and the failure is invisible, because each new attempt looks different
+while being the same thing underneath.
+
+**Start by naming the default, so you can refuse it.**
+
+> *"The obvious shape here is __________, because that is what everything in this category does."*
+
+For almost any product the default is **"a list of X with attributes."** Say it out loud. If
+you cannot describe the screen as anything else, you have not chosen a structure yet — you
+have accepted one.
+
+**Then name two or three real alternatives.** A working vocabulary:
+
+| Shape | What it is | Fits when |
+|---|---|---|
+| **List** | Items with attributes, scanned | Many items, comparison matters |
+| **Queue** | One item at a time, decide and advance | Few items, each needs a decision |
+| **Letter** | Someone wrote to you | There is a sender with a point of view |
+| **Conversation** | Turn-taking, it speaks and you answer | The product has opinions |
+| **Briefing** | Summary first, detail on demand | You check in periodically |
+| **Stream** | Chronological, with unread state | Things arrive continuously |
+| **Ledger** | Numbered entries with provenance | The record matters as much as the items |
+| **Stage** | One composition, states swap in place | A small fixed number of things to say |
+| **Canvas** | Spatial, you arrange it | The user's own structure matters |
+| **Document** | Read top to bottom | Argument or narrative |
+| **Form** | You fill it in | Input is the point |
+| **Gallery** | Objects to browse | The things are visual |
+
+**Let the numbers choose.** Three items a day is not a list — it is a queue or a letter. Two
+hundred items is not a letter. Ask how many, how often, and what the user actually *does* with
+each one.
+
+**Then stop and ask.** This is react-not-create, and it is cheap:
+
+> *"Sam finds you about three jobs a day. That could be a list you scan, one decision at a
+> time, or a note it leaves you each morning. Which sounds right?"*
+
+**Structure decides which references are relevant.** If it is a letter, go and look at letters
+— not at other products in the category. Choosing structure first is what stops step 2
+collapsing back onto the category norm.
+
+**Record the choice in the spec**, because it outranks everything downstream.
+
+### 2. Reference remix — a hard gate
+
+**You may not proceed to style tiles without 3–5 fully cited references you have actually looked at.** No exceptions, no autonomous-mode skip. This is the step that decides whether the output is distinctive or default, and it is the step most likely to get quietly skipped.
+
+**Step 2a — ask the user first.**
+
+> *"Any sites, apps, posters, packaging — anything — whose look you like? Even one or two helps a lot."*
+
+This is the easiest possible question for a non-designer and it is where their taste enters the work. Take whatever they give you.
+
+**Step 2a-ii — hunt for the STRUCTURE, not the category.** Take the shape chosen in step 1b
+and go looking for things with *that shape*, wherever they live. A letter → correspondence,
+newsletters, a good obituary. A queue → triage tools, card games, dating apps. A ledger →
+auction catalogues, order books, shipping manifests.
+
+**This applies double to product UI.** Studying other dashboards to design a dashboard *feels*
+like the responsible thing and guarantees the category norm comes back. For a UI, ranging
+outside the category matters **more**, not less.
+
+**Search the shape, never the category — on every platform.** The query decides the result far
+more than the venue does. A category name returns the category norm from Google, Pinterest,
+Dribbble, Behance, anywhere; popularity-ranked platforms return it *harder*, because they rank
+by what has been copied most.
+
+| Don't search | Search |
+|---|---|
+| `conversational ui design` → 24 chat bubbles | `screenplay script typography print` → character cues, indented dialogue, coloured revision stock |
+| `dashboard design` → the same dashboard | `ledger` · `auction catalogue` · `flight manifest` |
+| `job board ui` → cards with attributes | `flyer board` · `tear-off tabs` · `gig poster` |
+
+Two rules that follow:
+
+- **Name the artefact, not the software.** "Screenplay," "index card," "missing-person poster,"
+  "order book" — physical things with centuries of design behind them. If your query contains
+  "ui," "app," "dashboard," or "design," you are asking for the norm.
+- **A category-shaped result set is your query's fault, not the platform's.** When everything
+  comes back identical, do not conclude the venue is useless — re-query by shape and try again
+  before abandoning it.
+
+**Step 2b — the user's references are THE SET. Do not pad it.**
+
+If the user supplies references, **those are the references.** Two is a complete set. Adding a third of your own choosing is not research — it is your taste re-entering through the back door, wearing a citation. Every value you then "extract" from your own pick is a value you chose.
+
+- **They gave you references → use exactly those.** Do not add, substitute, or supplement.
+- **You think more range would help?** *Say so and ask.* "Your two are both quiet and light — want me to find a third with a different energy, or stay inside these?" Their call, not yours.
+- **They gave you none → then** you pick — but pick from **evidence, not taste**. Start with
+  `references/style_directory.md`, a catalogue of already-studied systems with citations and
+  registers, and show the user the range. Supplement by searching and opening new ones, still
+  ranging outside the subject's category and outside the minimal-website cluster.
+  **The directory is a lead, never a teardown** — once a direction is picked, run the real
+  extraction against the live site, because entries go stale.
+- **They gave you one →** flag the risk (a single reference produces a copy) and ask whether to add or to work within it.
+
+The 3–5 target is a floor for the *no-references* case only. It is never a reason to dilute a set the user chose.
+
+**Step 2c — cite every one, fully.** For each reference record all four:
+
+| Field | Requirement |
+|---|---|
+| **Name** | What it is |
+| **Source** | A URL, or a specific, findable citation for a physical/print artifact |
+| **What's good** | The *thinking*, not the surface — one line |
+| **What we take** | The specific thing carried into this design |
+
+### The rules that make this real
+
+- **No working from memory.** "Film end credits," "old computer paper," "brutalist posters" are *mental images*, not references. If you want a motif, go find real specimens and look at them. A remembered aesthetic produces a generic imitation of that aesthetic.
+- **Non-web references are welcome and often better** — packaging, signage, book design, instrument panels, forms, film titles. They must still be found, looked at, and cited like anything else.
+- **Every style tile names the references it was built from.** A direction that cannot cite its sources was invented from taste, which is the default look wearing a costume.
+- **Check nostalgia.** If a reference is retro or skeuomorphic, ask whether it says the right thing about *this* subject or just reads as a period costume. Distinctive is not the same as right.
+
+**Then scan the category.** What do all the competitors look like? You need the norm in order to diverge from it deliberately rather than landing on it by accident.
+
+**Output:** the cited reference table, the category norm, and one line on **how this will differ**. Show it to the user — it costs them nothing to skim and it catches a wrong direction before any pixels exist.
+
+### 2d. Teardown — turn the references into a design doc
+
+**Impressions are not constraints.** "Restrained" and "warm" are too vague to hold a build together; you can write them down and still drift anywhere. So take the top references apart and extract **real values**.
+
+0. **RENDER IT AND LOOK AT IT — first, always.** Screenshot the page with Playwright at several
+   scroll positions and *read the images*. Source analysis tells you what is declared; only the
+   render tells you what the page **is**. Pull computed heading styles too — they reveal
+   webfonts that appear nowhere in source.
+
+   ```bash
+   python3 -c "
+   from playwright.sync_api import sync_playwright
+   with sync_playwright() as p:
+       b=p.chromium.launch(); pg=b.new_page(viewport={'width':1440,'height':900})
+       pg.goto('<url>', wait_until='networkidle'); pg.wait_for_timeout(3000)
+       pg.screenshot(path='ref-top.png'); b.close()"
+   ```
+
+   **For JS-rendered sites (Framer, Webflow, React), static HTML is a shell** — greps return
+   near-empty results, and empty reads as "the design doesn't have this." That is how a page with
+   an animated star field and an illustrated gradient sky gets reported as "white ground, no
+   motion." **Never report a negative from source alone.** Render it, or mark it `unknown`.
+
+1. **Then fetch the stylesheet with `curl`** — not with a markdown-converting fetch tool, which strips `<link>` tags and loses the CSS entirely:
+
+   ```bash
+   curl -sL -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)" <url> -o page.html
+   grep -oE '<link[^>]*rel="stylesheet"[^>]*>' page.html
+   curl -sL -A "Mozilla/5.0" "<css-url>" -o site.css
+   grep -oE '\-\-[a-zA-Z0-9-]+: *[^;}]{1,60}' site.css | sort -u
+   ```
+
+   The `:root` custom-property block often *is* the design system, handed over. Frequency-count `font-size`, `border-radius`, and `background-color` to find the real scale — the most-used values are the system. Grep for `height`, `overflow`, and `scroll-snap` to catch structural facts prose analysis cannot see. Framer/Webflow sites keep styles inline in the HTML; grep that instead.
+2. **Fill in the design doc** — type scale, line-heights, tracking, measure, every colour and its role, the spacing rhythm, container width, radius, border weights, shadows. Template and full method in `.claude/skills/bobby-design/references/reference_teardown.md`.
+
+   **Tokens are paint, not architecture.** A palette and a font tell you nothing about what the page looks like. You must also reconstruct:
+
+   - **Layout** — the exact column structure (`grid-template-columns: 20% 55% 25%` is a fact; "asymmetric" is not), the **visual anchor** (device mockup? video? type alone?), where copy sits relative to it, and where the deliberate empty space is. Layout often lives in **inline styles**, so grep the HTML, not just the CSS.
+   - **Motion as experienced** — durations, easings, and *distances*. "Copy cross-fades over 500ms while rising 12px" is usable; "has animations" is not. Include how controls behave.
+
+   If a browser tool is available, **load the page and look at it.** Source gives you the skeleton, not the feel.
+3. **Label anything you could not extract as `estimated`.** Never silently guess.
+
+**Then the rule that makes this work:**
+
+> **The new design may only use values from the design doc.** Every deviation needs a written reason.
+
+You inherit the *system* — the proportions, the discipline, the rhythm. You bring the content, the structure, and the idea. That is the line between learning from a reference and cloning it: take the craft, never the identity.
+
+### 2e. ⛳ Vet the references with the user
+
+**A reference is not a mandate.** The user pointed at a site; they did not tell you *which parts* of it they like. Extracting values without checking which ones they actually want is how you end up honouring a trait they were indifferent to and dropping the one thing they loved.
+
+So show them what you found, per reference, and let them **react** — never author.
+
+**Cover all four dimensions**, in this order — most people notice layout and feel first, and could not name a hex code if asked:
+
+1. **Layout** — the composition, the visual anchor, what is deliberately empty
+2. **Motion and feel** — how things transition, how fast, what moves
+3. **Colour and type** — the tokens
+4. **Structure** — scrolling behaviour, sectioning
+
+A vetting list made only of hex codes and font names asks about the dimension they care least about.
+
+For each reference, surface **3–5 concrete extracted traits** in plain language, and ask which they actually want:
+
+> **From rfeasley.io I found:**
+> - The desktop page **doesn't scroll** — it's one fixed full screen, and mobile snaps between full-height panels
+> - Only **five colours** in the whole site
+> - **One typeface**, no mono anywhere
+> - A warm off-white ground, not a pure white
+>
+> *Which of these do you want? The no-scroll structure is the big one — it changes everything about the build.*
+
+Rules for this gate:
+
+- **Translate every value into plain language.** Not "`height:100dvh; overflow:hidden`" but "the page doesn't scroll." They cannot react to CSS.
+- **Flag the load-bearing traits.** Say which choices are structural and which are cosmetic, so they know what actually matters.
+- **Ask what they'd change**, too — sometimes the honest answer is "I love it but that colour is wrong."
+- **Separate liked-from-incidental.** A trait that shows up in the CSS is not automatically a trait they noticed.
+
+**Output:** per reference, a short list of *keep* / *drop* / *unsure*.
+
+### 2f-a. ⛳ Ask how closely to follow — the fidelity dial
+
+**"Inspired by" and "make it look like that" are different jobs.** Guessing wrong wastes a whole build, and the usual failure is landing halfway: recognisably neither.
+
+> *"How close to these should it be? A near-replica of the layout and feel with your content in it — or your own design that borrows their system?"*
+
+| Mode | What it means |
+|---|---|
+| **Close replica** | Reproduce the composition, proportions, imagery treatment, and motion as directly as the content allows. Their layout *is* the layout. Change only what the different content forces. |
+| **Inherit the system** | Take tokens, type scale, spacing rhythm and motion values; compose your own layout with them. |
+| **Inspired by** | Take the mood and one or two ideas; the rest is yours. |
+
+Most users asking for a design *from references they chose* want **close replica** and will say the result is "only 50% there" if you quietly do "inspired by." Default to closer than feels comfortable, and say which mode you are in.
+
+**In close-replica mode, "inherit the craft, not the identity" still holds** — never take their copy, imagery, logo, or brand marks. Reproduce the *structure*; supply your own everything else.
+
+### 2f. ⛳ Ask how the references should be used — never assume
+
+With more than one reference there are two fundamentally different jobs, and they produce different work. **Ask; do not decide this yourself.**
+
+> *"Do you want a separate mockup for each reference, so you can see your content in each system side by side — or should I combine them into one direction? If combining, which parts from which?"*
+
+- **Separate mockups per reference** — one option (or two: faithful + variant) built purely in each reference's system. Nothing is blended, so each stays a clean test of that reference. Best when the user is still deciding what they like.
+- **Combined into one direction** — a merged spec drawing named parts from each. Requires knowing *which* parts, so pair it with the step-2e keep/drop verdicts and name the mixable dimensions explicitly: **layout · motion/feel · colour · type · shape.**
+
+Assuming a blend is how you end up with a design that matches none of the references and cannot be traced to any of them.
+
+### 3. ⛳ Art direction — one mockup per reference
+
+**Preferred form: build two options per reference.** Take the user's real content and render it in *that reference's extracted system* — its layout, motion, type scale, colour count, spacing rhythm. Two per reference, not one:
+
+- **Option A — faithful.** The reference's composition applied as directly as the subject allows.
+- **Option B — a variant.** Same extracted system (same tokens, same motion, same discipline) in a **different composition**. Proves the system is being inherited rather than the layout being copied, and gives the user a real choice inside each reference.
+
+**Before presenting, verify the teardown has no holes** (`reference_teardown.md` step 3b) — every dimension extracted or explicitly marked unknown. Blank fields get filled silently by your taste.
+
+**Then ask about combining.** Once they have seen all the options, the question is not only "which one" but **"are we combining?"** — and specifically *what* from each:
+
+> *"Do you want one of these as-is, or a combination? You can mix at the level of layout, feel, or colour — e.g. 'the first one's layout with the second one's motion.'"*
+
+Name the mixable dimensions explicitly (layout · motion/feel · colour · type), because "combine them" is otherwise too vague to act on.
+
+This beats abstract style tiles for the audience this skill serves:
+
+- Every mockup is **grounded in a design doc**, so nothing is invented
+- The user sees *their own site* in each system, which is far easier to judge than swatches
+- **Combining becomes concrete** — "the structure from the first, the warmth from the second" is a real instruction once both exist
+
+Where the user vetted a trait as *drop*, honour that: build the reference's system **minus** what they rejected.
+
+**Fall back to abstract style tiles** only when there are no usable references (rare — step 2 is a gate) or when the references are too close to produce distinguishable mockups. In that case follow `.claude/skills/bobby-design/references/style_tile_template.md`.
+
+Requirements:
+- Each tile is anchored to a **different** reference remix, and **names the references it came from** on the tile itself
+- **Different worlds, not different temperatures.** Different grounds (not all off-white), different type strategies, different structural motifs. If any two tiles could be described by the same sentence, one is wasted — redo it.
+- **At least one tile takes a real risk.** If every option is safe, the user is picking a shade, not a direction.
+- Each tile's **signature move must be visible in the tile**, not written in a caption
+- Give each a short name and a one-line "what this says about you"
+
+Then **stop.** The user picks one, or a mix ("A but with C's type"). This is the cheap decision that prevents an expensive wrong build.
+
+### 4. Wireframe (lightweight, skippable)
+
+Sketch the structure — content blocks, hierarchy, reading flow, no color or type. Keep it fast and internal; this is **not** a gate. Show it inline only if it clarifies something. Skip it entirely for a simple single-page site or when the user is in a hurry. Its only job is to stop you from designing before you know what goes on the page.
+
+### 5. Design tokens
+
+**Start from the design doc (step 2d), not from scratch.** The extracted type scale, spacing rhythm, colour count, and radius are your inherited constraints — your tokens implement them. Any token that contradicts the doc needs a written reason.
+
+### Write the spec to a file — this is what stops drift
+
+**Decisions that live only in the conversation will drift.** Every rebuild re-derives from memory, memory is lossy, and the design wanders a little each time until it no longer resembles what was agreed. The fix is mechanical: **persist the agreed spec, then build from the file, never from recall.**
+
+**Where it lives:** `.bobby/design/design-spec.md`, committed to git. Design specs are tracked like any other spec — a change to the ground colour should show up in a diff and be reviewable in a PR, exactly like a change to an API contract. Keep the reference teardowns beside it as `.bobby/design/teardown-<reference>.md` so the provenance of every value survives.
+
+It records **what was decided**, not what the reference does:
+
+```markdown
+# Design Spec — <project>            Locked: <when>
+
+## Decided
+Direction:   <which option won>
+Headline:    <the exact approved line>
+Layout:      <exact — "20% / 55% / 25%, 100dvh, padding 52px 48px">
+Ground:      <#hex>          Surface: <#hex>
+Ink / muted: <#hex> / <#hex> Accent:  <#hex>
+Radius:      <values>        Type:    <families, scale, floors>
+Motion:      <durations, easings, distances>
+
+## Vetted — from the user
+Keep:  <traits they chose>
+Drop:  <traits they rejected>
+
+## Deviations (each needs a reason)
+- <value> instead of <reference value> — because <reason>
+
+## Changelog
+- <what changed, and who asked for it>
+```
+
+Rules:
+
+- **Every build reads the spec first.** Not your memory of it.
+- **Values are copied from the file, not retyped from recall.** A hex you typed from memory is a guess.
+- **Nothing changes silently.** A changed value gets a changelog line naming who asked. If the user did not ask, it is drift — revert it.
+- **The spec outranks your taste, permanently.** Including on a later request that seems to invite a fresh start.
+
+Turn the chosen direction into a real token set before building any page:
+
+- **Color** — full palette, both light and dark, each deliberately designed
+- **Type** — the pairing, the scale, weights, tracking
+- **Spacing / radius / shadow / motion** — a scale, not ad-hoc values
+
+Build the system, then the page. Define tokens as CSS custom properties and style everything through them — never hardcode a value into a component.
+
+### 6. Build
+
+**Carry the system through the whole page, not just the hero.** The commonest half-finished result is a rich, atmospheric hero followed by a plain white page — the reference's character stops at the fold. If the reference has colour, illustration and motion, those belong in the body sections and the closing CTA too, at lower intensity.
+
+**Product imagery must look like a real product.** A block of terminal text standing in for a screenshot reads as a placeholder. Build actual interface: window chrome, a sidebar with an active state, rows with real IDs and status pills. Interfaces are what make a product page feel like it has a product behind it.
+
+**If the direction rests on a metaphor, build the staging before the details.** A conceit —
+the site is an OS, a newspaper, a terminal, a ledger — lives or dies on framing, not on
+components. A window title bar on a full-bleed page is still a page. The window has to
+*float*, with the wallpaper visible around it, plus the furniture that only exists in that
+world (taskbar, menu bar, icons on the wallpaper) and ideally one give-away cue like a second
+window peeking out behind.
+
+**Every in-world control must behave in-world.** A metaphor is a promise about behaviour, not
+just appearance. A desktop icon that scrolls to an anchor is a link in a costume, and one
+click collapses the whole conceit. Icons open windows; close buttons close; taskbar items
+focus. **If a control cannot behave in-world, remove it** — a dead close button is worse than
+none, because it proves the metaphor is decoration.
+
+**Static checks cannot catch this.** A screenshot shows the metaphor reading correctly right
+up until someone clicks. Drive every in-world control in the harness and assert the state.
+
+**Apply the 3-second test before showing anyone:** could a stranger name the metaphor without
+being told? If not, you have built the parts and skipped the idea. Full method in
+`references/reference_teardown.md` §8c.
+
+**Icons should be drawn, not typed.** Emoji as feature icons is on the avoid-list. Layered SVG in a tinted tile takes a few extra minutes and is the difference between "designed" and "assembled."
+
+Apply the tokens to the structure and build the real thing. Real content throughout — **never lorem, never placeholder filler**. Semantic HTML. Both themes working. Responsive.
+
+For a standalone page or a visual deliverable the user should see and share, publish it as an artifact and follow the `artifact-design` skill's fundamentals. For a page inside an existing project, build it into the project's own stack and match its conventions.
+
+### 6a. RENDER YOUR OWN BUILD AND LOOK AT IT — before anyone else does
+
+You screenshot the *reference* because source lies about what a page is. **Your own build lies in exactly the same way.** Code that reads correctly renders wrong constantly — a parent's `overflow:hidden` clips the element meant to overlap it, an absolutely-positioned figure ends up behind a panel, a negative margin opens a dead gap.
+
+```bash
+python3 -c "
+from playwright.sync_api import sync_playwright; import os
+with sync_playwright() as p:
+    b=p.chromium.launch(); pg=b.new_page(viewport={'width':1440,'height':900})
+    pg.goto('file://'+os.path.abspath('build.html')); pg.wait_for_timeout(1200)
+    pg.screenshot(path='check.png', full_page=True); b.close()"
+```
+
+Then **read the image** and fix what you see. Repeat until it is right.
+
+**Check mobile the same way — by rendering it, not by trusting the media queries.** Most layout bugs only exist at 375px, and none of them are visible in source:
+
+```bash
+python3 -c "
+from playwright.sync_api import sync_playwright; import os
+with sync_playwright() as p:
+    b=p.chromium.launch()
+    for w,h in [(375,812),(768,1024),(1440,900)]:
+        pg=b.new_page(viewport={'width':w,'height':h}, is_mobile=w<500, has_touch=True)
+        pg.goto('file://'+os.path.abspath('build.html')); pg.wait_for_timeout(1000)
+        pg.screenshot(path=f'check-{w}.png', full_page=True)
+        d=pg.evaluate('()=>({w:document.documentElement.scrollWidth,'
+          'over:[...document.querySelectorAll(\"*\")].filter(e=>e.getBoundingClientRect().right>'+str(w)+'+1)'
+          '.map(e=>typeof e.className===\"string\"?e.className:e.tagName)})')
+        print(w, 'scrollWidth', d['w'], 'overflowing', d['over'][:6])
+    b.close()"
+```
+
+**`scrollWidth` must equal the viewport width at every size.** If it is larger, something is pushing the page sideways — the reported class names tell you exactly what.
+
+**One legitimate exception:** an element inside its own `overflow-x:auto` container (a code block, a wide table) may exceed the viewport while the *document* `scrollWidth` stays correct. That is the intended pattern, not a bug. Check the document width, not just the element list.
+
+**Testing a local file? Inject the viewport meta first**, or the browser falls back to a 980px layout viewport and every measurement is meaningless:
+
+```js
+pg.evaluate("()=>{const m=document.createElement('meta');m.name='viewport';" +
+            "m.content='width=device-width, initial-scale=1';document.head.appendChild(m)}")
+```
+
+### Measuring is not testing — drive the interaction on touch
+
+`scrollWidth === viewport` proves the page does not overflow. It proves nothing about whether the page **works**. A layout can measure perfectly and be completely dead to the touch.
+
+**The commonest instance: `wheel`-driven navigation.** Touch scrolling never fires a `wheel` event, so any scroll-jacked state-switcher silently does nothing on a phone — while the screenshot looks fine.
+
+So exercise the interaction, don't just measure the box:
+
+```js
+pg.evaluate("document.querySelector('.deck').scrollTop = innerHeight*2")   // does it advance?
+pg.tap('.dot')                                                            // does tapping work?
+```
+
+**If the desktop design is a fixed stage with switched states, mobile usually needs a separate DOM tree** — native scroll with `scroll-snap-type: y mandatory` and full-height sections. This is what real references do rather than restyling the desktop layout, because the two interaction models are genuinely different.
+
+**Also ensure the viewport meta exists.** If the host wraps your markup and omits it, phones fall back to a 980px layout viewport and render the whole page zoomed out — which reads as "mobile just looks bad." A three-line self-repairing guard is cheap insurance.
+
+### If the page may be embedded, do not depend on the viewport
+
+Many hosts — artifact runtimes, docs embeds, preview panes — render a page in an **auto-height iframe**: a `ResizeObserver` measures the content's `scrollHeight` and sizes the frame to match. Inside one, three very common techniques silently fail:
+
+| Technique | What happens |
+|---|---|
+| `height:100vh` / `100svh` / `100dvh` sections | **Self-referential.** The frame's height derives from the content, so viewport-height sections feed back into their own measurement. |
+| `scroll-snap-type` | **Nothing to attach to.** There is no inner scroller — the *parent* document scrolls. |
+| `html,body{height:100%; overflow:hidden}` | **Collapses the frame.** `scrollHeight` goes tiny, so the host sizes the iframe to almost nothing. |
+
+None of this reproduces in a normally-loaded page, which is why it survives testing and fails on the user's device.
+
+**Build so it cannot happen:**
+
+- Size sections by **content plus padding**, or a `px` `min-height` — never viewport units
+- Use ordinary document flow; let the host page scroll
+- Never lock `overflow` globally; scope it to a desktop query if you must
+- Full-bleed "stage" looks are fine — express them with `min-height: 820px`, not `100vh`
+
+**Test it embedded, not just standalone.** Serve over HTTP (a `file://` iframe blocks cross-document access) and assert the frame height is stable rather than growing:
+
+```bash
+python3 -m http.server 8899 &
+# then load a parent page that iframes your build and auto-sizes it,
+# and confirm the height settles instead of climbing
+```
+
+A page that measures perfectly standalone can be completely broken embedded. If a user reports a bug you cannot reproduce, check whether the delivery context differs from your test context before assuming it is a cache.
+
+### Build mobile-first — never make the fragile layout the fallback
+
+Write the simple, always-works layout with **no media query at all**, then gate the complex desktop version behind `min-width`. Not the other way around.
+
+```css
+/* default — works everywhere, needs no query to fire */
+.deck  { display:block }
+.stage { display:none }
+
+/* enhancement — only above a real desktop width */
+@media (min-width:1001px){
+  html,body{ height:100%; overflow:hidden }
+  .stage{ display:grid } .deck{ display:none }
+}
+```
+
+The reason is failure mode, not style. If the desktop layout is the default and mobile is the exception, **any** failure of the query — stale CSS, an unexpected layout viewport, iframe sizing — drops a phone onto the desktop layout, frequently with `overflow:hidden` making the page unscrollable and content clipped. Inverted, the worst case is a phone-shaped layout on a big screen, which is merely plain.
+
+Same rule for scroll-locking: only lock the page inside the desktop query, never globally.
+
+### Robustness — your test browser is not the target
+
+Headless Chromium in a plain page does not reproduce iOS Safari inside an iframe. So don't only test — **remove the fragility**:
+
+- **Never hide content in CSS and rely on JS to reveal it.** `opacity:0` + IntersectionObserver strands the whole page invisible if the observer doesn't fire. Make content visible by default, apply the hidden state from JS (`html.js-reveal`), and add a timeout failsafe. **Verify with JavaScript disabled** — the page must still read.
+- **Scroll the document, not an inner container.** `body{overflow:hidden}` around a `height:100dvh` scroller breaks on iOS. Put `scroll-snap-type` on `<html>` and scope any `overflow:hidden` to desktop.
+- **Layer viewport units**: `100vh` first, then `100svh`. Avoid `dvh` for full-height sections inside an iframe.
+- **Self-repair the viewport meta** if a host may omit it.
+
+When a user reports a device bug you cannot reproduce, assume a fragile dependency rather than an exotic browser quirk, and design the dependency out.
+
+### Mobile failures to look for specifically
+
+- **Fixed-width sidebars in a grid.** `grid-template-columns: 190px 1fr` does not collapse on its own — the content just crushes. Give it a single-column rule, or hide the sidebar if the information repeats elsewhere.
+- **Nav links running off the edge.** Drop secondary links below a breakpoint rather than letting them clip.
+- **Rows with three inline parts** (id · name · status) need to re-stack, not squeeze. Wrap them and reorder so the long part gets its own line.
+- **Specificity collisions in the media query.** A desktop rule like `.cp.on { transform: translateY(-50%) }` out-specifies a mobile `.cp { transform:none }` and silently keeps the desktop transform — which reads as elements overlapping. **Reset at matching specificity** (`.cp, .cp.on { transform:none }`). This one is invisible in source and obvious in a screenshot.
+- **Decorative absolute elements** colliding with content once the column widths change.
+
+Also check the other theme at each size.
+
+**Then compare it against the reference screenshot side by side.** In close-replica mode this is the actual acceptance test: put your render next to `ref-top.png` and ask what a stranger would say is different. Proportions, weight, density, and empty space are what give a replica away — not colour values, which you already diffed.
+
+Two real defects caught this way in one build: a hero clipping the product window it was supposed to overlap, and an illustrated character hidden entirely behind a panel. Neither is visible in source. Both would have shipped.
+
+### Parity before comparison
+
+Before presenting any lineup, confirm **every** option is held to the same standard:
+
+- [ ] Each direction has its **teardown on file** — an option built from an undocumented render has your memory as its provenance, not a document
+- [ ] Each has been scored against `slop_checklist.md`
+- [ ] Each has been rendered and measured at 375 / 768 / 1440
+
+**When a rule is added mid-project, re-audit everything built before it.** Rules do not apply
+themselves retroactively, and earlier work is never re-checked because it already "passed" —
+under the older, weaker standard. The re-audit is cheap and mechanical; the drift it finds is
+invisible by eye. Two directions carrying 9.6px text and no filed teardown survived many
+rounds of review exactly this way.
+
+### 6b. Diff the build against the spec — before anyone sees it
+
+Open `design-spec.md` beside the build and check **field by field**. Not by eye — by value.
+
+```bash
+grep -oE '\-\-[a-z-]+: *#[0-9A-Fa-f]{3,8}' build.html | sort -u   # every colour actually shipped
+grep -oE 'font-size: *[0-9.]+(rem|px)' build.html | sort -u        # every size — check the floor
+grep -oE 'border-radius: *[^;]{1,30}' build.html | sort -u
+grep -oE 'transition:[^;]{1,60}' build.html | sort -u
+```
+
+- [ ] Every colour in the build appears in the spec
+- [ ] Layout values match exactly
+- [ ] Motion durations, easings, and distances match
+- [ ] Radius and type scale match; nothing below the size floor
+- [ ] The headline is the approved line, verbatim
+- [ ] Anything different is logged in **Deviations** with a reason
+
+**A value in the build that is not in the spec is drift, not a decision.** Fix it or log it.
+
+### 6c. Grep for the silent failures — the ones that render as "a bit off"
+
+A rule that fails loudly gets fixed. These fail *quietly*: the browser drops the declaration,
+the element falls back to something plausible, and the page looks slightly wrong rather than
+broken — so it survives every visual review. Run these greps; do not judge by eye.
+
+```bash
+grep -nE '[0-9](rem|px|em|vw|vh)[+-][0-9]' build.html   # CSS math without spaces — MUST be empty
+grep -nE 'columns *:|column-count' build.html            # multicol + absolute children?
+```
+
+- **CSS math operators require whitespace on both sides.** `clamp(2.3rem,1.1rem+4.4vw,3.4rem)`
+  is invalid, so the *entire* `font-size` is discarded and the element inherits — a 54px poster
+  headline renders at 16px. It reads as "the headline is a bit small," never as a bug. `+` and
+  `-` need spaces; `*` and `/` do not. This one shipped four flyers deep before a computed-style
+  probe caught it.
+- **CSS multicol fragments absolutely-positioned descendants.** Pushpins, staples, ribbons and
+  badges positioned against a card inside `columns:3` detach at column breaks and land on
+  neighbouring cards. Use explicit flex/grid columns whenever children are absolutely
+  positioned.
+
+**Probe computed styles, don't trust the source.** The source says what you asked for; only the
+computed value says what the browser kept.
+
+```python
+# every declaration that silently died shows up as an inherited value here
+page.evaluate("""() => ['.hero h1','.card .price'].map(s =>
+  s + ' = ' + getComputedStyle(document.querySelector(s)).fontSize)""")
+```
+
+**Then hand off to the reviewer.** This self-check is the equivalent of a builder running tests before opening a PR — necessary, not sufficient. Design gets the same two-agent treatment code does:
+
+```
+bobby-build        → bobby-review        (code)
+bobby-design-build → bobby-design-check  (design)
+```
+
+Run `bobby run design-check` for independent verification against the spec and the slop checklist. **You built it, so you are the worst judge of whether it matches** — every drift in practice has been invisible to the person who introduced it. Do not mark design work done on your own certification.
+
+### 6c. Present so the work can actually be judged
+
+How a mockup is framed changes what the user sees, and a bad frame produces bad feedback.
+
+- **Never frame a mockup in a colour you are asking them to judge.** A warm off-white shown against pure-white browser chrome reads as white. Use a neutral mid-tone surround, or show it full-bleed.
+- **Show it at a size where the type is legible**, or say plainly that it is scaled down and type is not representative.
+- **State what is not represented** — a webfont that could not load, an interaction that only works at full size.
+
+If the user misreads a detail, suspect the presentation before assuming they were wrong.
+
+### 7. ⛳ Critique and iterate
+
+Before showing the user, run the **anti-generic checklist** and the **10-dimension scorecard** (`references/design_process.md`). Fix what fails. *Then* show them and take plain-language feedback ("warmer," "headline's too quiet," "love it") and revise.
+
+### 8. QA and ship
+
+- Renders correctly in **both** light and dark
+- Works at 375 / 768 / 1440 — no horizontal scroll on the body
+- Visible keyboard focus on every interactive element
+- Text contrast passes AA; nothing communicated by color alone
+- Tap targets 44px+; `prefers-reduced-motion` honored
+- Then commit, or file follow-ups with `bobby ticket create`
+
+---
+
+## The Anti-Generic Checklist
+
+**The authoritative list is `references/slop_checklist.md` — read it and run the page against it.** ~100 catalogued patterns across typography, colour, layout, surfaces, motion, copy, imagery, and build defects, with a calibration: **0–1 patterns is clean, 2–3 is mild, 4+ is heavy slop.**
+
+**Every item on it is a do-not by default.** Two exemptions only:
+
+1. **The user explicitly asked for it** — their words always win; say you know it's on the list.
+2. **A teardown shows it in the user's own reference** — inheriting a trait from a site *they chose* is honouring their taste. Record it in the spec as reference-backed, naming the reference.
+
+Anything else from that list appearing in your build is **drift, not a decision**. And "it's reference-backed" is not a laundering step: the trait must be in the written teardown *before* you build, not rationalised afterwards.
+
+Highest-signal single tells, worth memorising:
+
+- **Side-tab accent border** — a 3–4px coloured stripe on one edge of a card. The catalogue calls this the most reliable tell there is: *the design equivalent of em-dashes in AI text.*
+- **Inter** on a centered hero — plus the recurring set: Geist, Space Grotesk, Instrument Serif
+- **Purple-to-blue gradients**, and "VibeCode purple" generally
+- **Icon tile stacked above a feature heading** — the universal generated feature card
+- **`01 · 02 · 03`** beside headings, and 1-2-3 step sequences
+- **Stat banner rows** — `10M+ users / 99.9% uptime / 200ms p50`
+- **Hairline border + wide diffuse shadow** on the same element — commit to one
+- **Cream/beige surfaces** and **Instrument Serif** — the *second-generation* tells, i.e. the reflexive escape routes once the first-generation ones get banned
+
+The quick summary below stays useful, but the checklist file is the standard.
+
+**Avoid-list — these are the tells of a generated page:**
+
+- [ ] **No banned fonts.** Tier 1 (the tells): Inter, Roboto, Arial, Helvetica, **Space Grotesk**, Space Mono. Tier 2 (safe-modern): Open Sans, Lato, Montserrat, Poppins, Nunito, Raleway, Work Sans, DM Sans, Manrope, Plus Jakarta Sans, Geist. Tier 3 (fake-elegant): Playfair Display, Instrument Serif, Cormorant Garamond. Tier 4: a bare system stack passed off as a choice. **Only permitted if the user asks for one, or a teardown shows their own reference using it.** Be able to say why the face you picked fits *this subject* — "clean and modern" is not a reason. Full list: `references/craft_principles.md` Part 2.
+- [ ] **Nothing is small.** Body copy **16px minimum**, 17–18px preferred on desktop. Nothing anywhere below **13px** — tiny 10–11px uppercase labels are the most common AI typography tic. Line-height 1.5 on body, measure 50–75ch, and the `min` of every `clamp()` clears the floor too. **This floor beats reference fidelity:** if the reference runs 10/12/14px, take its proportions and scale up.
+- [ ] No purple-to-blue (or any) gradient hero on white
+- [ ] No generic centered SaaS layout — hero, three feature cards, testimonial row, CTA
+- [ ] No emoji as section markers or feature icons
+- [ ] No pure-grey neutrals — bias the neutral toward the accent hue
+- [ ] Not everything `border-radius` the same, not every card the same rounded box with a shadow
+- [ ] No lorem, no stock-photo filler, no fake logos
+- [ ] Numbering / eyebrows / dividers only where they encode something **true** (a real sequence, a real category) — never as decoration
+- [ ] **No `01` / `02` / `03` labels on a row of cards.** This is one of the most recognisable AI tells there is. Three parallel features are not a sequence — numbering them adds no information and signals a template. Only number things a reader must do *in order*, and even then prefer naming the steps.
+- [ ] **No AI-written copy.** No em-dash enumeration mid-sentence, no "end to end / seamlessly / robust / real" filler, no decorative rule-of-three, no subhead restating the headline, no copy duplicating what the design already shows. Product docs are not page copy — rewrite, don't lift. Read the first sentence out loud; if no person would say it that way, it isn't finished. (Full list: `references/craft_principles.md` Part 6b.)
+
+**Required:**
+
+- [ ] **One signature move** — a single deliberate, subject-specific idea the design hangs on. Name it out loud. Spend your boldness there and keep everything around it quiet.
+- [ ] **The distinctiveness question** — answer it honestly in writing before shipping:
+      > *"Would this look like every other AI-generated site? What is the one thing that makes it unmistakably* **this** *subject?"*
+      If there is no real answer, it is not done. Revise.
+- [ ] Every choice traces back to the brief or the chosen direction — not to habit.
+- [ ] **Still in the family of the user's references.** Put the design next to what they picked — could someone tell they belong together? "Diverge" means differ from the *competitors*, never from the user's taste. If they gave you quiet and typographic and you shipped dark and industrial, you substituted your taste for theirs. When they call a draft generic, the aesthetic is usually fine and the draft was *empty* — put an idea into their aesthetic rather than switching aesthetics.
+
+Reload these constraints when building **each** major component, not just once at the start.
+
+---
+
+## Craft Rules (summary — full detail in `references/craft_principles.md`)
+
+**Art direction = one idea.** Every type, color, and layout choice serves a single organizing concept, drawn from the subject's own world — its materials, vernacular, audience. The test: the static frames should look deliberately designed with no animation at all.
+
+**Typography.** Contrast is the first rule — pair faces that are *obviously* different (a display face with personality + a neutral body face), but share one underlying quality so they cohere. Max two families, plus one utility/mono if it earns its place.
+
+**Color = 60/30/10.** One neutral (hue-biased, never pure grey) + one dark neutral + **one** anchor accent that does the brand recognition. 60% dominant, 30% secondary, 10% accent. Design both themes on purpose — never a naive invert.
+
+**Layout.** Build a real grid, then break it deliberately — let one column dominate, vary alignment, allow overlap. Equal columns are for spreadsheets. Whitespace is compositional: it paces the page the way silence paces music.
+
+**Motion.** Directed, not decorative. One orchestrated moment beats scattered effects. Animation for its own sake reads as generated.
+
+**Fundamentals count.** Semantic HTML, responsive behavior, performance, and accessibility are part of the design, not a cleanup pass.
+
+---
+
+## Ticket Integration
+
+Design work is real work — track it.
+
+```bash
+# Kick off a design as tracked work
+bobby ticket create -t "Design landing page" --type feature --area ui
+
+# File follow-ups found during critique
+bobby ticket create -t "Mobile nav needs a real closed state" --type improvement --area ui
+
+# Record the direction that was chosen
+bobby ticket comment {ID} --by bobby-design "Direction: {name}. Signature move: {what}."
+```
+
+## Completing Work
+
+Always produce:
+
+1. **The built page(s)** — working, both themes, responsive
+2. **The token set** — written down, so the next page matches this one
+3. **The direction on record** — which style tile won, and the signature move, so future work stays consistent
+4. **Follow-up tickets** for anything you deliberately deferred
+
+If the project has a brand reference (`.claude/skills/bobby-ux/references/brand_guidelines.md`), **update it** with the tokens you established — otherwise the reviewer skill will grade the next page against a stale brand.
+
+---
+
+## Project overrides
+
+If `.claude/skills/bobby-design/SKILL.local.md` exists, read it and follow it. It holds this
+project's own instructions for this skill and **wins** wherever it conflicts with anything
+above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.
