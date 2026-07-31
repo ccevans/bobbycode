@@ -14,6 +14,8 @@ export function registerUpdate(program) {
     .option('--title <title>', 'Set title')
     .option('--area <area>', 'Set feature area')
     .option('--type <type>', 'Set ticket type')
+    .option('--feature <id>', 'Set feature-map ref (e.g. F1.2)')
+    .option('--persona <id>', 'Set persona ref (e.g. P1)')
     .action((id, opts) => {
       try {
         const root = findProjectRoot();
@@ -27,6 +29,8 @@ export function registerUpdate(program) {
         if (opts.title) updates.title = opts.title.trim();
         if (opts.area !== undefined) updates.area = opts.area || null;
         if (opts.type) updates.type = opts.type;
+        if (opts.feature !== undefined) updates.feature = opts.feature || null;
+        if (opts.persona !== undefined) updates.persona = opts.persona || null;
 
         if (Object.keys(updates).length === 0) {
           error('No updates specified. Use --parent, --priority, --assigned, --title, --area, or --type.');

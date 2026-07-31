@@ -680,3 +680,27 @@ describe('loadStack (custom stacks)', () => {
     expect(stack.name).toBe('nextjs');
   });
 });
+
+describe('define pipeline scaffolding', () => {
+  let tmpDir;
+  beforeEach(() => { tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-init-define-')); });
+  afterEach(() => { fs.rmSync(tmpDir, { recursive: true }); });
+
+  test('init scaffolds the define skill, all four agents, and the slash command', () => {
+    scaffoldProject(tmpDir, {
+      project: 'test-app', stack: 'generic',
+      health_checks: [], areas: [], commands: {},
+      tickets_dir: '.bobby/tickets', ticket_prefix: 'TKT',
+    });
+
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'skills', 'bobby-define', 'SKILL.md'))).toBe(true);
+    for (const stage of ['brief', 'personas', 'journeys', 'features']) {
+      expect(fs.existsSync(path.join(tmpDir, '.claude', 'agents', `bobby-define-${stage}.md`))).toBe(true);
+    }
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'commands', 'bobby-define.md'))).toBe(true);
+
+    // The routing table advertises the pipeline to Claude Code sessions.
+    const rules = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
+    expect(rules).toContain('bobby run define');
+  });
+});

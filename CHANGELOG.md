@@ -7,6 +7,30 @@ All notable changes to Bobby are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **The define pipeline — how the pros go from idea to buildable tickets.**
+  `bobby run define <epicId>` takes the MVP epic through the artifact chain a
+  real product team runs: **brief → personas → journeys → feature map**, one
+  interviewing agent per stage (one question at a time, bracketed tags, a
+  question budget) and a ⛳ human gate after each. Artifacts are locked and
+  committed in `.bobby/product/` with design-spec-style Locked/Deviations/
+  Changelog discipline; features are derived from journey steps, never
+  brainstormed; the Never column must cite a brief Non-goal. The workflow
+  terminates at `planning`, where **bobby-plan's new Product-Aware Epic Mode**
+  decomposes against the locked map — one ticket per Must row, each carrying
+  new `feature:`/`persona:` frontmatter refs (`--feature F1.1 --persona P1` on
+  `ticket create`/`update`, `--feature` filter on `list`, shown by `view`),
+  with a traceability table in the epic's plan.md and a self-check drift gate.
+  Build/test prompts automatically tell agents to read the feature-map row and
+  journey step their ticket serves. `bobby go` routes it all: a fresh epic with
+  no feature map → "define it first"; mid-definition → resume; map locked →
+  decompose; children → build. Say "just draft it" for the express path
+  (artifacts drafted with `(assumed)` marks, one combined gate).
+- **Pipeline stages are now visible to `bobby go`/`brief` — including design's.**
+  A ticket parked in any `design-*` stage now appears in-flight and resumes its
+  own stage agent; previously it was invisible and produced no next action. New
+  stage invariants (rank, color, workflow mapping for every stage) are enforced
+  by tests so a future pipeline can't reintroduce the gap. The design pipeline
+  also gained its missing `bobby do` routing entry and CLAUDE.md rows.
 - **`bobby remote` — run your team from your phone.** Starts the dashboard on a
   loopback-only ephemeral port, then opens ONE outbound, end-to-end-encrypted
   WebSocket to a relay; scan the printed QR (or paste the code) and the Bobby HQ

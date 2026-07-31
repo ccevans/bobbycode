@@ -1,5 +1,5 @@
 // commands/brief.js
-import { readConfig, findProjectRoot, resolveTicketsDir, resolveSprintsDir } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir, resolveSprintsDir, resolveProductDir } from '../lib/config.js';
 import { buildBrief } from '../lib/brief.js';
 import { listProjects } from '../lib/studio.js';
 import { stageColor } from '../lib/stages.js';
@@ -20,7 +20,7 @@ function studioBrief() {
     let next = null;
     try {
       const config = readConfig(p.path);
-      const b = buildBrief(resolveTicketsDir(p.path, config), resolveSprintsDir(p.path, config));
+      const b = buildBrief(resolveTicketsDir(p.path, config), resolveSprintsDir(p.path, config), { productDir: resolveProductDir(p.path, config) });
       const parts = [];
       if (b.inFlight.length > 0) parts.push(`${b.inFlight.length} in flight`);
       if (b.blocked.length > 0) parts.push(`${b.blocked.length} blocked`);
@@ -58,7 +58,7 @@ export function registerBrief(program) {
         const config = readConfig(root);
         const ticketsDir = resolveTicketsDir(root, config);
         const sprintsDir = resolveSprintsDir(root, config);
-        const b = buildBrief(ticketsDir, sprintsDir);
+        const b = buildBrief(ticketsDir, sprintsDir, { productDir: resolveProductDir(root, config) });
 
         console.log('');
         console.log(`  ${bold(`${config.project || 'Bobby'} — where you left off`)}`);

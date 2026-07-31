@@ -33,6 +33,8 @@ Modes:
   Batch:      bobby run plan             — runs agent on all tickets in matching stage
   Direct:     bobby run plan|build|review|test|ship|ux|pm|qe <id>
   Vet:        bobby run vet [id]         — interrogate design before planning
+  Define:     bobby run define <epicId>  — product definition: brief → personas → journeys → feature map (then: run plan)
+              bobby run define-brief|define-personas|define-journeys|define-features
   Design:     bobby run design <id>          — full chain: research → analyze → mockup → spec → build → check
               bobby run design-research|design-analyze|design-mockup|design-spec|design-build|design-check
   Strategy:   bobby run strategy [id]    — strategic validation gate
@@ -92,6 +94,7 @@ Modes:
         const maxRetries = parseInt(opts.maxRetries, 10) || 3;
         const maxIterations = opts.maxIterations ? parseInt(opts.maxIterations, 10) : undefined;
         const hasServices = !!(config.services && Object.keys(config.services).length > 0);
+        const hasProduct = fs.existsSync(path.join(root, config.bobby_dir || '.bobby', 'product', 'feature-map.md'));
 
         // Initialize session for logging
         const sessionsDir = resolveSessionsDir(root, config);
@@ -168,6 +171,7 @@ Modes:
               maxRetries,
               maxIterations,
               hasServices,
+              hasProduct,
               epicData,
               gitConventions: config.git_conventions || {},
             });

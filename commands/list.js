@@ -14,6 +14,7 @@ function renderBoard(ticketsDir, filterStages, opts, config) {
   if (opts.area) filters.area = opts.area;
   if (opts.priority) filters.priority = opts.priority;
   if (opts.type) filters.type = opts.type;
+  if (opts.feature) filters.feature = opts.feature;
   if (opts.stale) filters.staleDays = parseInt(opts.stale, 10);
   if (opts.sort) filters.sort = opts.sort;
 
@@ -126,6 +127,7 @@ export function registerList(program) {
     .option('-p, --priority <priority>', 'Filter by priority (critical, high, medium, low)')
     .option('--type <type>', 'Filter by ticket type (bug, feature, improvement, task, epic)')
     .option('--stale <days>', 'Show only tickets older than N days')
+    .option('--feature <id>', 'Filter by feature-map ref (e.g. F1.2)')
     .option('--sort <order>', 'Sort tickets: newest, oldest, updated, priority')
     .option('--archived', 'Include archived tickets in done column')
     .option('-w, --watch [seconds]', 'Auto-refresh the board')

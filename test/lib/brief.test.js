@@ -108,3 +108,61 @@ describe('buildBrief', () => {
     expect(b.sprints[0]).toMatchObject({ id: 'SPR-001', total: 2, done: 0 });
   });
 });
+
+describe('define-pipeline routing', () => {
+  let tmpDir;
+  const bobby = path.resolve('bin/bobby.js');
+  const run = (args) => execSync(`node ${bobby} ${args}`, { cwd: tmpDir, encoding: 'utf8' });
+  const ticketsDir = () => path.join(tmpDir, '.bobby', 'tickets');
+  const sprintsDir = () => path.join(tmpDir, '.bobby', 'sprints');
+  const productDir = () => path.join(tmpDir, '.bobby', 'product');
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-define-'));
+    fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), YAML.stringify({
+      project: 'test', stack: 'generic',
+      tickets_dir: '.bobby/tickets', sprints_dir: '.bobby/sprints',
+      sessions_dir: '.bobby/sessions', ticket_prefix: 'TKT',
+    }));
+    fs.mkdirSync(ticketsDir(), { recursive: true });
+    fs.writeFileSync(path.join(ticketsDir(), '.counter'), '0');
+  });
+  afterEach(() => { fs.rmSync(tmpDir, { recursive: true }); });
+
+  test('fresh epic with no feature map routes to define', () => {
+    run('ticket create -t "An idea" --epic');
+    const b = buildBrief(ticketsDir(), sprintsDir(), { productDir: productDir() });
+    expect(b.nextAction.argv).toEqual(['run', 'define', 'TKT-001']);
+    expect(b.nextAction.reason).toMatch(/no product definition/);
+  });
+
+  test('fresh epic with a locked feature map routes to plan', () => {
+    run('ticket create -t "An idea" --epic');
+    fs.mkdirSync(productDir(), { recursive: true });
+    fs.writeFileSync(path.join(productDir(), 'feature-map.md'), '# Feature Map\n');
+    const b = buildBrief(ticketsDir(), sprintsDir(), { productDir: productDir() });
+    expect(b.nextAction.argv).toEqual(['run', 'plan', 'TKT-001']);
+  });
+
+  test('an epic mid-definition resumes define regardless of the map', () => {
+    run('ticket create -t "An idea" --epic');
+    run('ticket move TKT-001 journeys');
+    const b = buildBrief(ticketsDir(), sprintsDir(), { productDir: productDir() });
+    expect(b.nextAction.argv).toEqual(['run', 'define', 'TKT-001']);
+    expect(b.nextAction.reason).toMatch(/definition is in progress \(define-journeys\)/);
+  });
+
+  test('without productDir, legacy behavior: fresh epic goes to plan', () => {
+    run('ticket create -t "An idea" --epic');
+    const b = buildBrief(ticketsDir(), sprintsDir());
+    expect(b.nextAction.argv).toEqual(['run', 'plan', 'TKT-001']);
+  });
+
+  test('the design visibility fix: a ticket parked mid-design is in flight and resumes', () => {
+    run('ticket create -t "Landing page"');
+    run('ticket move TKT-001 mockup');
+    const b = buildBrief(ticketsDir(), sprintsDir());
+    expect(b.inFlight.map(t => t.id)).toContain('TKT-001');
+    expect(b.nextAction.argv).toEqual(['run', 'design-mockup', 'TKT-001']);
+  });
+});

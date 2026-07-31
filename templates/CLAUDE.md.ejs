@@ -142,6 +142,8 @@ it to the right capability below and run it; don't make them name the command.
 | add / fix / change / build a specific thing | **Create a ticket and build it:** `bobby go "<the task>"`. Pick the workflow — add `--workflow secure` for anything touching auth/payments/secrets/user-data, `--workflow quick` for a tiny low-risk change, else default. |
 | just keep going / what's next | `bobby go` |
 | start a new project / new app from an idea | `bobby new "<idea>"` |
+| define the product / brief / personas / journeys / feature map / scope v1 | `bobby run define <epicId>` |
+| design a page / make it look good / it looks generic | load `<%= paths.skills %>/bobby-design/SKILL.md` |
 | is this a good idea / should I build this / pressure-test it | `bobby vet "<idea>"` |
 | is this production-ready / safe to launch / harden it | `bobby audit` (add `--tickets` to turn every gap into work) |
 | remember this / note it / idea for later | `bobby idea "<text>"` |
@@ -164,6 +166,13 @@ question only when genuinely ambiguous. `bobby do "<request>"` prints this same
 routing if you ever want it explicitly.
 
 ## Agents
+
+### Product Definer (bobby-define-brief → -personas → -journeys → -features)
+When told to "define the product", "write the brief", "personas", "journeys", or
+"feature map", load `<%= paths.skills %>/bobby-define/SKILL.md`.
+- Brief → personas → journeys → feature map, one ⛳ human gate per stage
+- Artifacts locked in `.bobby/product/`; the epic then moves to planning
+- Run the chain with `bobby run define <epicId>` (resumes mid-pipeline)
 
 ### Planner (bobby-plan)
 When told to "plan", "refine", or "brainstorm", load `<%= paths.skills %>/bobby-plan/SKILL.md`.
@@ -259,6 +268,7 @@ Each skill has a `learnings.md` file that accumulates anti-patterns. Always chec
 ```
 bobby ticket create -t "Title" --type bug -p high   # Create ticket
 bobby ticket create -t "Epic" --epic                # Create epic (breaks down)
+bobby run define TKT-001                            # Product definition: brief → personas → journeys → feature map
 bobby ticket list                                   # Show board
 bobby ticket list --blocked                         # Show blocked tickets
 bobby ticket view TKT-001                           # View ticket

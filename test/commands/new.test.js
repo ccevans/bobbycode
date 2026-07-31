@@ -114,10 +114,10 @@ describe('bobby new', () => {
     expect(fs.existsSync(path.join(dir, 'server.js'))).toBe(false);
   });
 
-  test('handoff points at run plan then run feature', () => {
+  test('handoff points at define first, plan as the skip-ahead', () => {
     const out = run('new "a habit tracker for runners"');
+    expect(out).toContain('bobby run define TKT-001');
     expect(out).toContain('bobby run plan TKT-001');
-    expect(out).toContain('bobby run feature TKT-001');
   });
 
   test('rejects an unknown stack', () => {

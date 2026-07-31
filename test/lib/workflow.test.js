@@ -712,7 +712,7 @@ describe('workflow', () => {
 
   describe('listWorkflows', () => {
     test('returns the built-in workflows when none configured', () => {
-      expect(listWorkflows({})).toEqual(['default', 'secure', 'quick', 'design']);
+      expect(listWorkflows({})).toEqual(['default', 'secure', 'quick', 'design', 'define']);
     });
 
     test('includes custom workflow names plus default', () => {
@@ -812,5 +812,36 @@ describe('workflow', () => {
       expect(p).toContain('log a warning');
       expect(p).toMatch(/do not silently skip|do not silently move on/);
     });
+  });
+});
+
+describe('define workflow', () => {
+  test('resolves to four define stages with matching agents', () => {
+    const wf = resolveWorkflow({}, 'define');
+    expect(wf).toEqual([
+      { stage: 'define-brief', agent: 'bobby-define-brief' },
+      { stage: 'define-personas', agent: 'bobby-define-personas' },
+      { stage: 'define-journeys', agent: 'bobby-define-journeys' },
+      { stage: 'define-features', agent: 'bobby-define-features' },
+    ]);
+  });
+
+  test('orchestration terminates at planning, never shipping', () => {
+    const wf = resolveWorkflow({}, 'define');
+    const prompt = buildOrchestrationPrompt(['TKT-001'], wf, 3);
+    expect(prompt).toContain('bobby ticket move {TICKET_ID} define-personas');
+    expect(prompt).toContain('bobby ticket move {TICKET_ID} plan');
+    expect(prompt).not.toContain('move {TICKET_ID} ship');
+  });
+
+  test('single-agent prompt injects the product-context step only when hasProduct', () => {
+    const withIt = buildSingleAgentPrompt('bobby-build', 'TKT-002', '.bobby/tickets', '.claude/agents', false, true);
+    expect(withIt).toContain('feature-map.md');
+    expect(withIt).toContain('personas.md');
+    const without = buildSingleAgentPrompt('bobby-build', 'TKT-002', '.bobby/tickets', '.claude/agents', false, false);
+    expect(without).not.toContain('feature-map.md');
+    // Step numbering stays sequential either way.
+    expect(withIt).toContain('4. Follow the instructions');
+    expect(without).toContain('3. Follow the instructions');
   });
 });
