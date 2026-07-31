@@ -26,7 +26,14 @@ ticket_prefix: TKT
 health_checks: []
 
 # Feature areas for categorizing tickets. Used by `bobby ticket create --area`.
-areas: []
+areas:
+  - targets      # lib/targets/ — harness adapters (claude-code, cursor, cline…)
+  - dashboard    # lib/dashboard/ — orchestrator, executors, web UI
+  - audit        # lib/audit.js + packs scoring
+  - tickets      # ticket/sprint/idea/brief workflow commands
+  - packs        # packs/, pro licensing
+  - templates    # templates/ — skills, agents, commands, rules scaffolds
+  - cli          # bin/, command registration, init/refresh/upgrade
 
 # Shell commands Bobby uses for dev, test, lint, and build.
 commands:
@@ -48,10 +55,17 @@ max_retries: 3
 
 # Workflows — the ordered stages a ticket runs through. Built-in: default,
 # secure, quick. Add or override your own here, then: bobby run <name> <ticket>
-# workflows:
-#   default: [plan, build, review, test]
-#   secure: [plan, build, security, review, test]
-#   quick: [plan, build, test]
+#
+# bobbycode is a CLI library with no live app, so the built-in default's final
+# `test` stage (live-app verification via browser/API — its skill forbids
+# running specs) has nothing to observe and would strand every ticket at
+# testing. Override default to end at review, which runs the suite
+# independently — the correct verification for a library. TKT-013 tracks
+# fixing this upstream (built-in `library` workflow) so other CLI projects
+# don't need this override.
+workflows:
+  default: [plan, build, review]
+  secure: [plan, build, security, review]
 
 # Project-specific skills the build agent should follow.
 # These are non-bobby skills in your .claude/skills/ directory.
