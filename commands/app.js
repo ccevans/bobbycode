@@ -44,9 +44,11 @@ function resolveAppDir(repoRoot) {
   if (!pro.active) {
     return { dir: null, note: `Classic dashboard (free). The Bobby App is part of Bobby Pro: ${PRO_BUY_URL}` };
   }
+  // The Pro package carries the App in app/ (ui/ is its classic-dashboard
+  // add-on assets, mounted separately by the extension seam).
   const ext = findExtension(PRO_DASHBOARD_PACKAGE, { repoRoot });
-  if (ext && fs.existsSync(path.join(ext.dir, 'ui', 'index.html'))) {
-    return { dir: path.join(ext.dir, 'ui'), note: `Bobby App ${ext.version ? `v${ext.version} ` : ''}(Pro)` };
+  if (ext && fs.existsSync(path.join(ext.dir, 'app', 'index.html'))) {
+    return { dir: path.join(ext.dir, 'app'), note: `Bobby App ${ext.version ? `v${ext.version} ` : ''}(Pro)` };
   }
   return { dir: null, note: 'Pro is active but the app package is not installed — bobby pro install <tarball> (from your purchase).' };
 }
