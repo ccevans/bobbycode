@@ -87,19 +87,31 @@ tests.
 
 ## Out of Scope
 
-- Gemini CLI / Antigravity (mid-rename; revisit next quarter).
-- Dedicated Copilot, OpenCode, Windsurf, Zed adapters (agents-md covers the
-  rules layer; build dedicated adapters on demand).
 - Real-model eval harness (separate concern; wouldn't have caught any bug the
   matrix suite catches).
 - Cloud agents with no local process (Devin, Jules).
+- Aider (declining adoption, own conventions; no ticket until demand appears).
 
 ## Ticket Dependencies
 
+Tier 1 (build now, in order):
+
 | Order | Ticket | Depends on |
 |-------|--------|------------|
-| 1 | Target-matrix invariant test suite | — |
-| 2 | Codex CLI target adapter | 1 |
-| 3 | Codex dashboard executor (`codex exec`) | 2 |
-| 4 | Generic `agents-md` target | 1 |
-| 5 | Harness support matrix docs | 2, 3, 4 |
+| 1 | TKT-002 Target-matrix invariant test suite | — |
+| 2 | TKT-003 Codex CLI target adapter | TKT-002 |
+| 3 | TKT-004 Codex dashboard executor (`codex exec`) | TKT-003 |
+| 4 | TKT-005 Generic `agents-md` target | TKT-002 |
+| 5 | TKT-006 Harness support matrix docs | TKT-003–005 |
+
+Tier 2 (tracked, demand-driven — all depend on TKT-002 + TKT-005 landing
+first, and TKT-006 for their matrix rows):
+
+| Ticket | Note |
+|--------|------|
+| TKT-007 Copilot dedicated target | biggest install base, weakest delta over generic |
+| TKT-008 OpenCode dedicated target | open source — evidence bar is source citations |
+| TKT-009 OpenCode executor (`opencode run`) | after TKT-008 |
+| TKT-010 Windsurf spike → adapter or wontfix | "covered by generic" is a valid outcome |
+| TKT-011 Zed spike → adapter or wontfix | same shape as Windsurf |
+| TKT-012 Gemini/Antigravity re-evaluation | time-boxed hold, ~Oct 2026; do not build pre-rename |
