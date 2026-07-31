@@ -44,5 +44,6 @@ log (the dashboard tolerates this; the orchestrator reads stage from disk).
 - [ ] Stream handling decision (JSONL vs text) cited to OpenCode source
 - [ ] Dashboard banner and missing-binary warning cover opencode
 - [ ] README support matrix row updated with dashboard status
+- [ ] opencode flavor registered in the flag-drift canary (TKT-014) with both probes
 
 ## Comments

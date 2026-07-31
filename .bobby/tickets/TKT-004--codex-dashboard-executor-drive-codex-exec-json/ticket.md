@@ -51,5 +51,6 @@ structured output. Same integration shape as the other two flavors:
       but does not exit
 - [ ] Every flag cited to a real CLI run in the PR; none sourced from docs or
       help-text examples alone
+- [ ] codex flavor registered in the flag-drift canary (TKT-014) with both probes
 
 ## Comments
