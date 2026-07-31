@@ -300,7 +300,7 @@ max_retries: 3
 <summary>Optional configuration (commented out in generated file)</summary>
 
 ```yaml
-# Custom + override workflows (built-in: default, secure, quick)
+# Custom + override workflows (built-in: default, secure, quick, library, library-secure)
 workflows:
   default: [plan, build, review, test]
   secure: [plan, build, security, review, test]
@@ -978,14 +978,46 @@ Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can inv
 
 ## Custom Workflows
 
-Bobby ships three built-in workflows — `default`, `secure`, `quick`. Define your own (or override a built-in) in `.bobbyrc.yml`:
+Bobby ships five built-in workflows:
+
+| Workflow | Stages | For |
+|---|---|---|
+| `default` | plan → build → review → test | Apps with a UI or API to exercise |
+| `secure` | plan → build → security → review → test | Same, with a security audit |
+| `quick` | plan → build → test | Small changes |
+| `library` | plan → build → review | **CLIs, libraries, npm packages** |
+| `library-secure` | plan → build → security → review | Same, with a security audit |
+
+### Building a library or CLI?
+
+The `test` stage runs `bobby-test`, which verifies by *exercising a running
+application* — it is deliberately forbidden from running your test suite,
+because build and review already did that. A CLI or library has no live app for
+it to observe, so on those projects the test stage has nothing to do.
+
+`library` ends at review instead. Review runs your suite independently, which is
+the right verification for a library.
+
+**Bobby picks this for you.** `bobby init` infers it when your project declares
+no health checks and no dev command, and writes the choice visibly into
+`.bobbyrc.yml`:
+
+```yaml
+default_workflow: library
+```
+
+A stack can also declare it outright with `default_workflow` in its stack JSON.
+If a live-app agent is ever invoked on a project with nothing to observe, it now
+blocks the ticket with an actionable reason instead of stalling silently.
+
+Define your own workflow (or override a built-in) in `.bobbyrc.yml`:
 
 ```yaml
 workflows:
   thorough: [plan, build, review, security, test]
 ```
 
-Run a named workflow:
+Run a named workflow, which overrides the project default:
 
 ```bash
 bobby run workflow TKT-001 --workflow secure

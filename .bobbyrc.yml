@@ -49,23 +49,21 @@ testing_tools:
 # Max retry loops when review/test rejects code (per ticket)
 max_retries: 3
 
+# Workflow used when you do not pass --workflow.
+# bobbycode is a CLI with no dev server or health checks, so `library` is the
+# right default — it ends at review instead of the live-app `test` stage, which
+# would have nothing to observe. Review runs the test suite.
+default_workflow: library
+
 # ──────────────────────────────────────────────────────────
 # Optional configuration — uncomment and customize as needed
 # ──────────────────────────────────────────────────────────
 
 # Workflows — the ordered stages a ticket runs through. Built-in: default,
-# secure, quick. Add or override your own here, then: bobby run <name> <ticket>
-#
-# bobbycode is a CLI library with no live app, so the built-in default's final
-# `test` stage (live-app verification via browser/API — its skill forbids
-# running specs) has nothing to observe and would strand every ticket at
-# testing. Override default to end at review, which runs the suite
-# independently — the correct verification for a library. TKT-013 tracks
-# fixing this upstream (built-in `library` workflow) so other CLI projects
-# don't need this override.
-workflows:
-  default: [plan, build, review]
-  secure: [plan, build, security, review]
+# secure, quick, library, library-secure. Add your own here, then:
+# bobby run <name> <ticket>
+# workflows:
+#   fast: [build, review]
 
 # Project-specific skills the build agent should follow.
 # These are non-bobby skills in your .claude/skills/ directory.

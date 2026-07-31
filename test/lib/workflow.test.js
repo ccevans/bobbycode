@@ -712,7 +712,7 @@ describe('workflow', () => {
 
   describe('listWorkflows', () => {
     test('returns the built-in workflows when none configured', () => {
-      expect(listWorkflows({})).toEqual(['default', 'secure', 'quick', 'design']);
+      expect(listWorkflows({})).toEqual(['default', 'secure', 'quick', 'library', 'library-secure', 'design']);
     });
 
     test('includes custom workflow names plus default', () => {
