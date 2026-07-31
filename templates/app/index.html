@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101418">
+<title>Bobby</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+  <header id="topbar">
+    <span id="presence" class="presence" data-state="connecting"></span>
+    <span id="project-name" class="project-name">—</span>
+    <span class="wordmark small">BOBBY</span>
+  </header>
+
+  <nav id="nav">
+    <button data-route="home" class="nav-btn active">Home</button>
+    <button data-route="board" class="nav-btn">Board</button>
+    <a class="nav-link" href="/classic/" title="The classic workspace dashboard">Classic</a>
+  </nav>
+
+  <main id="main">
+    <section id="view-home" class="tab"></section>
+    <section id="view-board" class="tab" hidden></section>
+    <section id="view-ticket" class="tab" hidden></section>
+    <section id="view-workspace" class="tab" hidden></section>
+  </main>
+</div>
+
+<!-- Confirm sheet: nothing spends tokens without saying what it will do. -->
+<div id="confirm" class="sheet" hidden>
+  <div class="sheet-panel">
+    <h3 id="confirm-title" class="sheet-title">Run this?</h3>
+    <p id="confirm-body" class="sheet-body"></p>
+    <div class="sheet-actions">
+      <button id="confirm-cancel" class="btn">Cancel</button>
+      <button id="confirm-ok" class="btn btn-primary">Run</button>
+    </div>
+  </div>
+</div>
+
+<!-- Send-back sheet -->
+<div id="reject-sheet" class="sheet" hidden>
+  <div class="sheet-panel">
+    <h3 class="sheet-title">Send back</h3>
+    <textarea id="reject-reason" rows="3" placeholder="What should the builder change?"></textarea>
+    <div class="sheet-actions">
+      <button id="reject-cancel" class="btn">Cancel</button>
+      <button id="reject-ok" class="btn btn-danger">Send back</button>
+    </div>
+  </div>
+</div>
+
+<!-- New ticket sheet -->
+<div id="ticket-sheet" class="sheet" hidden>
+  <div class="sheet-panel">
+    <h3 class="sheet-title">New ticket</h3>
+    <input id="nt-title" type="text" placeholder="What needs doing?" autocomplete="off">
+    <textarea id="nt-desc" rows="3" placeholder="Details (optional)"></textarea>
+    <div class="nt-row">
+      <select id="nt-priority">
+        <option value="low">low</option>
+        <option value="medium" selected>medium</option>
+        <option value="high">high</option>
+        <option value="critical">critical</option>
+      </select>
+    </div>
+    <div class="sheet-actions">
+      <button id="nt-cancel" class="btn">Cancel</button>
+      <button id="nt-ok" class="btn btn-primary">Create</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js" type="module"></script>
+</body>
+</html>
