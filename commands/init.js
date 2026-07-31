@@ -11,6 +11,7 @@ import { detectServices, aggregateAreas, aggregateHealthChecks } from '../lib/se
 import { runLocalProfileWizard, saveLocalProfile } from './local-init.js';
 import { detectProjectContext, detectGitIdentity } from '../lib/detect.js';
 import { mergeRulesContent, isBobbyGenerated } from '../lib/rules-merge.js';
+import { stackDefaultWorkflow } from '../lib/workflow.js';
 import { execSync } from 'child_process';
 
 // Load stack configs
@@ -718,6 +719,11 @@ export function registerInit(program) {
           build_skills: buildSkills.length > 0 ? buildSkills : undefined,
           testing_tools: stack.testing_tools || ['curl'],
           max_retries: 3,
+          // A stack with nothing to serve gets the library workflow, which ends
+          // at review — the live-app `test` stage has nothing to observe and
+          // would block every ticket. Written into .bobbyrc.yml so the choice
+          // is visible rather than implicit.
+          default_workflow: stackDefaultWorkflow(stack),
         };
 
         // Aggregate areas and health checks from services
