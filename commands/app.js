@@ -1,13 +1,19 @@
 // commands/app.js
 //
-// `bobby app` — the Bobby app: your whole team in one simple page.
+// `bobby app` — one command, two tiers, no hostages:
 //
-// Same server and API as the classic dashboard, serving templates/app/ — the
-// full-loop UI (brief, do-this-next, board, needs-you queue) instead of the
-// workspace monitor. The classic UI stays at /classic/ for one release.
+//   Free (no key): serves the classic dashboard at / — exactly what
+//     `bobby dashboard` always served, free forever as published.
+//   Bobby Pro: serves the Bobby App — the full-loop UI (brief,
+//     do-this-next, board, needs-you queue) — with classic at /classic/.
+//
+// The app UI ships in @bobbycode/pro-dashboard (installed by
+// `bobby pro install`), never in this MIT package — a paywall on MIT-licensed
+// files would be theatre. BOBBY_APP_DIR overrides the UI location for
+// development of the app itself.
 
+import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir } from '../lib/config.js';
 import { getTarget } from '../lib/targets/index.js';
@@ -16,13 +22,34 @@ import { SSEHub } from '../lib/dashboard/sse.js';
 import { Orchestrator } from '../lib/dashboard/orchestrator.js';
 import { buildServer } from '../lib/dashboard/server.js';
 import { resolveExecutor, commandExists, EXECUTOR_NAMES } from '../lib/dashboard/executor.js';
-import { loadDashboardPlugins, pluginStatusLine } from '../lib/dashboard/plugins.js';
+import { loadDashboardPlugins, pluginStatusLine, findExtension, PRO_DASHBOARD_PACKAGE } from '../lib/dashboard/plugins.js';
 import { isGitRepo } from '../lib/dashboard/worktree.js';
+import { checkPro, PRO_BUY_URL } from '../lib/license.js';
 import { resolveWorkflow } from './run.js';
 import { bold, dim, success, error, warn } from '../lib/colors.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const APP_DIR = path.resolve(__dirname, '../templates/app');
+/**
+ * Where the Bobby App UI lives, or null → free tier (classic dashboard).
+ * Returns { dir, note } — note is the one line we print about the decision.
+ */
+function resolveAppDir(repoRoot) {
+  if (process.env.BOBBY_APP_DIR) {
+    const dir = path.resolve(process.env.BOBBY_APP_DIR);
+    if (fs.existsSync(path.join(dir, 'index.html'))) {
+      return { dir, note: `App UI from BOBBY_APP_DIR (dev): ${dir}` };
+    }
+    return { dir: null, note: `BOBBY_APP_DIR set but no index.html in it — serving the classic dashboard.` };
+  }
+  const pro = checkPro();
+  if (!pro.active) {
+    return { dir: null, note: `Classic dashboard (free). The Bobby App is part of Bobby Pro: ${PRO_BUY_URL}` };
+  }
+  const ext = findExtension(PRO_DASHBOARD_PACKAGE, { repoRoot });
+  if (ext && fs.existsSync(path.join(ext.dir, 'ui', 'index.html'))) {
+    return { dir: path.join(ext.dir, 'ui'), note: `Bobby App ${ext.version ? `v${ext.version} ` : ''}(Pro)` };
+  }
+  return { dir: null, note: 'Pro is active but the app package is not installed — bobby pro install <tarball> (from your purchase).' };
+}
 
 function openInBrowser(url) {
   const cmd = process.platform === 'darwin' ? 'open'
@@ -89,9 +116,10 @@ export function registerApp(program) {
         });
 
         const { plugins, status: pluginStatus } = await loadDashboardPlugins({ repoRoot: root });
+        const app = resolveAppDir(root);
         const server = buildServer({
           orchestrator, store, sseHub, config, repoRoot: root, ticketsDir,
-          plugins, pluginStatus, appDir: APP_DIR, sprintsDir,
+          plugins, pluginStatus, appDir: app.dir, sprintsDir,
         });
 
         server.listen(port, host, () => {
@@ -100,9 +128,10 @@ export function registerApp(program) {
           console.log(`  ${bold('Bobby')} — ${config.project || path.basename(root)}`);
           console.log(`  ${dim(`Executor: ${executor.bin}${executorReady ? '' : ' — NOT FOUND'}`)}`);
           console.log(`  ${dim(pluginStatusLine(pluginStatus))}`);
+          console.log(`  ${dim(app.note)}`);
           console.log('');
           success(`  Running at ${url}`);
-          console.log(`  ${dim(`Classic dashboard: ${url}/classic/`)}`);
+          if (app.dir) console.log(`  ${dim(`Classic dashboard: ${url}/classic/`)}`);
           console.log(`  ${dim('Press Ctrl+C to stop')}`);
           console.log('');
           if (opts.open !== false) openInBrowser(url);

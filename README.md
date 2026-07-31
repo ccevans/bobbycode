@@ -159,9 +159,14 @@ running app and files tickets. This skill *creates*; that one *reviews*.
 
 Bobby is free forever — the whole loop, all 23 agents (design included), the
 audit, and the packs above are MIT and always will be. **Bobby Pro** is the
-shelf on top: every paid pack (now and every one released later), Pro
-specialists beyond the free 23, and the work of keeping them current as Claude
-Code and the models move.
+shelf on top:
+
+- **The Bobby App** — your whole team in one page: where you left off, one
+  "Do this next" button, the amber needs-you queue, live agent logs. Run
+  `bobby app` and the browser is your engineering org.
+- **Every paid pack** — now and every one released later.
+- **Pro specialists** beyond the free 23, kept current as Claude Code and the
+  models move.
 
 ```bash
 bobby pro                    # status, and what it unlocks here
@@ -490,6 +495,24 @@ The `cursor-agent` CLI is a separate install from the Cursor app:
 
 **Everything above is free, forever.** The dashboard is MIT like the rest of
 Bobby — there is no gated route and no feature that checks a license.
+
+### The Bobby App (Pro)
+
+`bobby app` is the same server wearing its best face — the whole loop in one
+simple page, part of [Bobby Pro](#bobby-pro):
+
+- **Home** — where you left off, the one **"Do this next"** button (the same
+  brain as `bobby go`), and the amber **needs-you queue**: Approve, Send back,
+  or Look first, at thumb size.
+- **Board** — tickets by stage; create one with a sentence; start the full
+  workflow from the ticket.
+- **Live workspaces** — streaming agent logs, the diff one tap away.
+- Nothing runs without a confirm sheet saying exactly what will happen — and
+  that it uses your machine and your Claude subscription.
+
+Without a Pro key, `bobby app` (and `bobby dashboard`, its old name) serves the
+classic dashboard above — free forever, nothing taken away. With Pro, the same
+command serves the app and keeps classic at `/classic/`.
 
 ### From your phone — `bobby remote`
 
