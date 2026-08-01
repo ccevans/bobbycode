@@ -7,9 +7,25 @@ All notable changes to Bobby are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **`bobby blueprint` — see the whole plan before you build it.** One page,
+  generated from the locked definition and the board: the outcome and the
+  success metric, who it's for, the headline journey with **the crux marked**
+  (the step a human named as their give-up point, and the feature that serves
+  it), every Must feature and its ticket grouped into build tracks and
+  traceable back to a journey step and a persona, and what's deliberately out
+  of scope. It also runs a **drift check the documents can't**: every Must row
+  must have exactly one ticket, and every ticket's `feature:` ref must exist in
+  the map — reported in the terminal and on the page. Deterministic and local
+  (no model calls, no network, no token cost); the page is self-contained with
+  no scripts or CDNs, so it opens from the filesystem, works offline, themes
+  light/dark, and prints. `--json` for the model, `--out` to place the file.
+  It runs as the fifth define stage (`define-blueprint`) so every definition
+  ends by showing the human what they're about to build, and the page is
+  regenerated, never hand-edited.
 - **The define pipeline — how the pros go from idea to buildable tickets.**
   `bobby run define <epicId>` takes the MVP epic through the artifact chain a
-  real product team runs: **brief → personas → journeys → feature map**, one
+  real product team runs: **brief → personas → journeys → feature map →
+  blueprint**, one
   interviewing agent per stage (one question at a time, bracketed tags, a
   question budget) and a ⛳ human gate after each. Artifacts are locked and
   committed in `.bobby/product/` with design-spec-style Locked/Deviations/

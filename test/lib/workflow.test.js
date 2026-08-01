@@ -816,13 +816,14 @@ describe('workflow', () => {
 });
 
 describe('define workflow', () => {
-  test('resolves to four define stages with matching agents', () => {
+  test('resolves to five define stages with matching agents', () => {
     const wf = resolveWorkflow({}, 'define');
     expect(wf).toEqual([
       { stage: 'define-brief', agent: 'bobby-define-brief' },
       { stage: 'define-personas', agent: 'bobby-define-personas' },
       { stage: 'define-journeys', agent: 'bobby-define-journeys' },
       { stage: 'define-features', agent: 'bobby-define-features' },
+      { stage: 'define-blueprint', agent: 'bobby-define-blueprint' },
     ]);
   });
 
@@ -830,6 +831,7 @@ describe('define workflow', () => {
     const wf = resolveWorkflow({}, 'define');
     const prompt = buildOrchestrationPrompt(['TKT-001'], wf, 3);
     expect(prompt).toContain('bobby ticket move {TICKET_ID} define-personas');
+    expect(prompt).toContain('bobby ticket move {TICKET_ID} define-blueprint');
     expect(prompt).toContain('bobby ticket move {TICKET_ID} plan');
     expect(prompt).not.toContain('move {TICKET_ID} ship');
   });

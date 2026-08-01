@@ -2,8 +2,8 @@
 import { STAGES, TRANSITIONS, isValidStage, stageColor, stageIndex, resolveTransition } from '../../lib/stages.js';
 
 describe('stages', () => {
-  test('STAGES has 16 entries', () => {
-    expect(STAGES).toHaveLength(16);
+  test('STAGES has 17 entries', () => {
+    expect(STAGES).toHaveLength(17);
   });
 
   test('STAGES starts with backlog and ends with blocked', () => {
@@ -14,7 +14,7 @@ describe('stages', () => {
   test('STAGES contains all expected stages', () => {
     expect(STAGES).toEqual([
       'backlog',
-      'define-brief', 'define-personas', 'define-journeys', 'define-features',
+      'define-brief', 'define-personas', 'define-journeys', 'define-features', 'define-blueprint',
       'planning',
       'design-research', 'design-analyze', 'design-mockup', 'design-spec',
       'building', 'reviewing',
@@ -114,5 +114,6 @@ describe('stage invariants (every pipeline, forever)', () => {
     expect(resolveTransition('personas')).toBe('define-personas');
     expect(resolveTransition('journeys')).toBe('define-journeys');
     expect(resolveTransition('features')).toBe('define-features');
+    expect(resolveTransition('blueprint')).toBe('define-blueprint');
   });
 });

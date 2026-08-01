@@ -14,8 +14,7 @@ Follow **Step 4** of `<%= paths.skills %>/bobby-define/SKILL.md` in full, includ
 1. Read `.bobby/product/journeys.md`. Walk every step; derive the capabilities it needs. A feature serving no step goes back to the journey or out — not into the map.
 2. Build the map per the skill's skeleton: `F<j>.<seq>` IDs keyed to journeys, journey-step and persona columns, MoSCoW. **v1 = the Must rows.** Every Never row cites a brief Non-goal (`F0.x` for cross-cutting rows).
 3. ⛳ Gate (verbatim): "The **Must** column is the whole of v1. Strike one thing from it — or tell me why nothing can go."
-4. After the gate: set `Locked/Status: approved` on all four artifacts; `git add .bobby/product && git commit -m "product: definition locked for {EPIC}"`; `bobby ticket move {EPIC} plan`; comment (`--by bobby-define-features`) with the one-line summary.
-5. Print the handoff: "Definition locked. Next: `bobby go` — bobby-plan decomposes against the feature map, one ticket per Must row, each carrying its feature ref."
+4. After the gate: set `Locked/Status: approved` on all four artifacts; `git add .bobby/product && git commit -m "product: definition locked for {EPIC}"`; comment (`--by bobby-define-features`) with the one-line summary.
 
 ## Hard rules
 
@@ -24,7 +23,7 @@ Follow **Step 4** of `<%= paths.skills %>/bobby-define/SKILL.md` in full, includ
 
 ## Completing Work
 
-The definition is locked, committed, and the epic is in `planning`. **bobby-plan** (Product-Aware Epic Mode) takes it from here.
+The definition is locked and committed. Hand off to **bobby-define-blueprint**, which generates the page that lets the human see the whole plan before anyone builds it.
 
 ## Project overrides
 
