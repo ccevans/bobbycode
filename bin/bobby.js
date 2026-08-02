@@ -41,9 +41,11 @@ import { registerBlueprint } from '../commands/blueprint.js';
 import { registerPro } from '../commands/pro.js';
 import { registerSkill } from '../commands/skill.js';
 import { registerRemote } from '../commands/remote.js';
+import { registerWorkspace } from '../commands/workspace.js';
 import { touchProject } from '../lib/studio.js';
 
 const initCmd = registerInit(program);
+registerWorkspace(program);
 registerLocalInit(initCmd); // bobby init local
 registerDo(program);
 registerVet(program);
@@ -99,6 +101,17 @@ program.hook('preAction', () => {
   if (process.env.BOBBY_NO_REGISTRY) return;
   try { touchProject(); } catch { /* never block a command on registry writes */ }
 });
+
+// v2: a global `--project <name>` selects the active project for this one
+// command without changing the workspace default. Parsed here so every ticket
+// command picks it up via config resolution (BOBBY_PROJECT), no per-command wiring.
+{
+  const i = process.argv.indexOf('--project');
+  if (i !== -1 && process.argv[i + 1] && !process.env.BOBBY_PROJECT) {
+    process.env.BOBBY_PROJECT = process.argv[i + 1];
+    process.argv.splice(i, 2);
+  }
+}
 
 // Natural-language front door: `bobby "add a health endpoint"` (or unquoted words)
 // with a first token that isn't a command/flag is treated as `bobby do <request>`,

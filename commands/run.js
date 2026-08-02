@@ -9,6 +9,7 @@ import { findTicket } from '../lib/tickets.js';
 import { VALID_AGENTS } from '../lib/agent-registry.js';
 import { bold, dim, error } from '../lib/colors.js';
 import { getTarget } from '../lib/targets/index.js';
+import { overlayPromptClause, repoTargetingClause } from '../lib/skills.js';
 import { initSession } from '../lib/session.js';
 
 /**
@@ -180,6 +181,11 @@ Modes:
             process.exit(1);
           }
         }
+
+        // v2: tell the agent to honor this project's skill overlay. Appended
+        // centrally so every `bobby run` variant gets it without touching the
+        // individual prompt builders.
+        if (built && built.prompt) built.prompt += repoTargetingClause(config) + overlayPromptClause(config);
 
         // Print header + prompt
         console.log('');
