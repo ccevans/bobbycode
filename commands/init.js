@@ -521,6 +521,7 @@ export function registerInit(program) {
               { name: 'Cursor — scaffolds to .cursor/ (skills, commands, agents) + AGENTS.md', value: 'cursor' },
               { name: 'Codex CLI — scaffolds to .codex/ (skills, prompts, agents) + AGENTS.md', value: 'codex' },
               { name: 'Cline (VS Code) — scaffolds to .clinerules/ (agents, skills, workflows)', value: 'cline' },
+              { name: 'Other (AGENTS.md) — Copilot, Windsurf, Zed, opencode, Jules… rules + skills only', value: 'agents-md' },
             ],
             default: existingConfig?.target || 'claude-code',
           }]));
