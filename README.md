@@ -360,18 +360,66 @@ Bobby auto-detects your tech stack during `bobby init` and configures commands, 
 
 **Custom stacks:** Create `.bobby/stacks/<name>.json` with your own commands, areas, and health checks. Custom stacks appear at the top of the `bobby init` selection menu. See [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) for the JSON schema.
 
-## Editors: Claude Code, Cursor, Cline
+## Editors and agents Bobby supports
 
 Bobby's CLI never calls a model itself — tickets, audits, scoring, sprints, and
 `bobby vet` are all deterministic local code. The AI half is a set of markdown
 files (rules, agents, skills, commands) scaffolded into whatever your editor
 reads. Set that with `target` in `.bobbyrc.yml`, or pick it in `bobby init --custom`:
 
-| `target` | Rules | Skills | Commands | Agents | Subagents |
-|---|---|---|---|---|---|
-| `claude-code` | `CLAUDE.md` | `.claude/skills/` | `.claude/commands/` | `.claude/agents/` | Yes |
-| `cursor` | `AGENTS.md` | `.cursor/skills/` | `.cursor/commands/` | `.cursor/agents/` | Yes (3.13+) |
-| `cline` | `.clinerules/rules.md` | `.clinerules/skills/` | `.clinerules/workflows/` | `.clinerules/agents/` | No |
+| `target` | Rules | Skills | Commands | Agents | Subagents | Dashboard executor |
+|---|---|---|---|---|---|---|
+| `claude-code` | `CLAUDE.md` | `.claude/skills/` | `.claude/commands/` | `.claude/agents/` | Yes | `claude` |
+| `cursor` | `AGENTS.md` | `.cursor/skills/` | `.cursor/commands/` | `.cursor/agents/` | Yes (3.13+) | `cursor-agent` |
+| `codex` | `AGENTS.md` | `.codex/skills/` | `.codex/prompts/` | `.codex/agents/` | No | `codex` |
+| `cline` | `.clinerules/rules.md` | `.clinerules/skills/` | `.clinerules/workflows/` | `.clinerules/agents/` | No | — |
+| `agents-md` | `AGENTS.md` | `.agents/skills/` | `.agents/commands/` | `.agents/agents/` | No | — |
+
+### How far each one is actually verified
+
+Bobby has shipped wrong claims about harnesses before — a model name copied from
+a CLI's own stale `--help` text, and a "no subagent registry" line that a newer
+build contradicted. Both came from trusting documentation. So this table records
+*how* each row was checked, not just what it says:
+
+| `target` | Verification |
+|---|---|
+| `claude-code` | **Live.** Bobby's own development runs on it; the dashboard drives `claude` end to end. |
+| `cursor` | **Live.** A real ticket worked start to finish by `cursor-agent` (Composer 2.5) in an isolated worktree — stage advanced, 258 stream events parsed. Paths read out of Cursor 3.13's shipped binary. |
+| `codex` | **Live argv.** Bobby's exact command line runs against real `@openai/codex` 0.146.0 and starts a turn. Paths and the AGENTS.md spec read out of the shipped binary. Project-level `.codex/skills/` auto-loading is **not** confirmed — skills there are referenced by path, which works regardless. |
+| `cline` | **Unverified.** Paths follow Cline's published convention; no live run. Treat as best-effort. |
+| `agents-md` | **Paths verified, tools not.** `.agents/skills/` appears in Cursor 3.13's skill-root array and `AGENTS.md` in both the Cursor and Codex binaries. Individual tools in the ecosystem have not been run. |
+
+Executor flags are re-checked weekly by a [scheduled canary](.github/workflows/flag-canary.yml)
+that runs Bobby's real argv against each CLI, so a renamed flag surfaces as an
+issue rather than a broken run.
+
+### The `agents-md` tier — what it does and does not give you
+
+`AGENTS.md` is a Linux Foundation-stewarded standard read natively by Copilot,
+Windsurf, Zed, opencode, Jules, Amp, Factory and others. Picking `agents-md`
+gets Bobby's **rules and skills** into any of them without a dedicated adapter.
+
+It deliberately does not claim more. There is no subagent dispatch (no
+cross-tool convention exists — prompts reference agents by path instead), and
+it derives **no dashboard executor**, because the tier names a file format
+rather than a specific CLI. Where a dedicated target exists, prefer it.
+
+### Adding a target
+
+An adapter is about 40 lines — copy [`lib/targets/cursor.js`](lib/targets/cursor.js),
+which is the most complete example, and register it in `lib/targets/index.js`.
+
+The acceptance bar is `test/lib/target-matrix.test.js`: it runs one shared
+contract against every registered target, so a new adapter inherits ~19
+invariants from registration alone and needs no hand-written suite. That suite
+exists because per-target tests previously let the same bug live in one target
+and not another.
+
+One rule for contributions: **no path, flag, or convention ships without being
+verified against a real CLI run or the tool's shipped code, cited in the PR.**
+Documentation alone is not sufficient — every wrong claim Bobby has shipped came
+from a docs page or a `--help` example.
 
 To switch, set `target:` and run `bobby init --refresh`. Your tickets, sessions,
 and `.local` files carry over untouched — they live in `.bobby/`, which is
