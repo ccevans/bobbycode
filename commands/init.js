@@ -520,6 +520,7 @@ export function registerInit(program) {
               { name: 'Claude Code — scaffolds to .claude/ (agents, skills, commands, CLAUDE.md)', value: 'claude-code' },
               { name: 'Cursor — scaffolds to .cursor/ (skills, commands, agents) + AGENTS.md', value: 'cursor' },
               { name: 'Cline (VS Code) — scaffolds to .clinerules/ (agents, skills, workflows)', value: 'cline' },
+              { name: 'Other (AGENTS.md) — Copilot, Windsurf, Zed, opencode, Jules… rules + skills only', value: 'agents-md' },
             ],
             default: existingConfig?.target || 'claude-code',
           }]));
