@@ -43,7 +43,14 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+/*
+ * The script is INSTALLED under .claude/skills/bobby-lighthouse/, but the PROJECT it audits
+ * is wherever the user runs it from. So every project-relative path (the .lighthouse output,
+ * .bobby/tickets, .bobbyrc.yml) resolves from process.cwd(), NOT from the script's location.
+ * Resolving from the script dir wrote output into the skills folder and read tickets from the
+ * wrong place, which is exactly the kind of thing that only shows up once a tool ships.
+ */
+const ROOT = process.cwd();
 const OUT_DIR = path.join(ROOT, '.lighthouse');
 /*
  * Walk up looking for .bobby/tickets rather than assuming it sits one level above.
@@ -119,8 +126,10 @@ export function readBaseFromConfig(root) {
 }
 
 function pagesFromConfig(root) {
-  const rc = path.join(root, '..', '.bobbyrc.yml');
-  if (!existsSync(rc)) return null;
+  const rc = [root, path.join(root, '..'), path.join(root, '..', '..')]
+    .map((d) => path.join(d, '.bobbyrc.yml'))
+    .find((f) => existsSync(f));
+  if (!rc) return null;
   const text = readFileSync(rc, 'utf8');
   const block = text.match(/^lighthouse:\s*$([\s\S]*?)(?=^\S|\Z)/m);
   if (!block) return null;
@@ -276,29 +285,50 @@ function existingTickets(override) {
     const stage = (body.match(/^stage:\s*(\S+)/m) || [])[1] || 'unknown';
     tickets.push({ id: (dir.match(/^(TKT-\d+)/) || [])[1] || dir, stage, body: body.toLowerCase() });
   }
+  // Sort by numeric ticket id so a gap that legitimately appears in more than one ticket
+  // always dedupes to the same, lowest-numbered one. readdirSync order is not guaranteed,
+  // and without this the "already ticketed" attribution flips between otherwise-identical
+  // runs, which reads as a bug even though the dedupe verdict is correct.
+  tickets.sort((a, b) => {
+    const na = Number((a.id.match(/\d+/) || [])[0] ?? Infinity);
+    const nb = Number((b.id.match(/\d+/) || [])[0] ?? Infinity);
+    return na - nb || a.id.localeCompare(b.id);
+  });
   return tickets;
 }
 
 export function findDuplicate(tickets, auditId, pageName, pagePath = '') {
   /*
-   * Match on the audit id plus ANY identifying token for the section. Matching on the
-   * template name alone is not enough: sitemap discovery names a section after its first
-   * URL segment (say "products") while the human who filed the ticket may have called it
-   * something else ("store", "catalog"). So the URL path is tried too, since a well-written
-   * ticket almost always quotes the path it is about. Without this the audit re-proposes a
-   * gap that is already tracked, which is the fastest way to make the report ignored.
+   * A ticket is a duplicate when it is ABOUT this audit on this section. Two traps sit on
+   * either side of that, both caught by running against a real backlog.
+   *
+   * Too strict: matching the section by the discovered template name only. Sitemap
+   * discovery names a section after its first URL segment (say "products") while the human
+   * who filed the ticket called it "store" or "catalog". So the URL path segments are
+   * matched too, since a good ticket quotes the path it is about.
+   *
+   * Too loose: matching the audit id anywhere in the body AND a section token anywhere in
+   * the body. A ticket about the blog's IMAGES might mention "unused-javascript" once as an
+   * aside, and a ticket about a DIFFERENT section might carry a comparison table with a
+   * "blog" row. Either coincidence then suppressed a real, untracked gap, which is worse
+   * than a duplicate because the work silently never gets proposed. So the audit id and a
+   * section token must appear NEAR each other, not merely both somewhere in the document.
    */
-  const tokens = [
-    ...pageName.split(/[\s/-]+/),
-    ...pagePath.split('/').filter(Boolean),
-  ]
+  const id = auditId.toLowerCase();
+  const tokens = [...pageName.split(/[\s/-]+/), ...pagePath.split('/').filter(Boolean)]
     .map((w) => w.toLowerCase())
     .filter((w) => w.length > 3);
   if (!tokens.length) return undefined;
 
-  return tickets.find(
-    (t) => t.stage !== 'done' && t.body.includes(auditId.toLowerCase()) && tokens.some((w) => t.body.includes(w))
-  );
+  const WINDOW = 120; // chars either side of an audit-id mention that count as "about it"
+  return tickets.find((t) => {
+    if (t.stage === 'done') return false;
+    for (let idx = t.body.indexOf(id); idx !== -1; idx = t.body.indexOf(id, idx + 1)) {
+      const around = t.body.slice(Math.max(0, idx - WINDOW), idx + id.length + WINDOW);
+      if (tokens.some((w) => around.includes(w))) return true;
+    }
+    return false;
+  });
 }
 
 // Importing this module (for tests) must not launch a sweep, so the CLI body lives

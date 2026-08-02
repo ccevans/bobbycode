@@ -139,3 +139,21 @@ describe('lighthouse-audit: never re-file what is already open', () => {
     expect(findDuplicate(tickets, 'color-contrast', 'guides', '/guides/x')).toBeUndefined();
   });
 });
+
+describe('lighthouse-audit: dedupe requires the audit and section to be ABOUT each other', () => {
+  test('does not match when the audit id and section token are far apart in the body', () => {
+    // A real over-match caught against a live backlog: a homeowners-directory ticket
+    // carried a comparison table with a "blog" row and mentioned unused-javascript in a
+    // separate paragraph. Matching both anywhere wrongly suppressed a real blog gap, which
+    // is worse than a duplicate because the work then silently never gets proposed.
+    const far = 'homeowner directory accessibility. ' + 'x'.repeat(400) +
+      ' comparison table: | blog | 96 | ' + 'y'.repeat(400) + ' perf: unused-javascript about 26 kb.';
+    const tickets = [{ id: 'TKT-292', stage: 'backlog', body: far.toLowerCase() }];
+    expect(findDuplicate(tickets, 'unused-javascript', 'blog', '/blog/x')).toBeUndefined();
+  });
+
+  test('still matches when the audit id and section token are close together', () => {
+    const tickets = [{ id: 'TKT-282', stage: 'backlog', body: 'blog pages: remaining color-contrast failures'.toLowerCase() }];
+    expect(findDuplicate(tickets, 'color-contrast', 'blog', '/blog/x')?.id).toBe('TKT-282');
+  });
+});
