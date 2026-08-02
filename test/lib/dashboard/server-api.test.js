@@ -7,13 +7,14 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { buildServer } from '../../../lib/dashboard/server.js';
-import { createTicket, findTicket } from '../../../lib/tickets.js';
+import { createTicket, findTicket, getFeatureTickets } from '../../../lib/tickets.js';
 
 let tmp;
 let ticketsDir;
 let server;
 let base;
 let orchestratorCalls;
+let featureProgressDir;
 
 const stubOrchestrator = () => ({
   readLatestSessionFile: () => null,
@@ -23,6 +24,14 @@ const stubOrchestrator = () => ({
   },
   async runAgent(id) {
     orchestratorCalls.push(['run', id]);
+  },
+  // The real method reads the workspace's worktree; the stub reads whatever
+  // dir the test points it at (featureProgressDir), defaulting to the main
+  // tickets dir — same seam, no git required.
+  featureProgress(id) {
+    const [, ticketId] = /^ws-(.+)-feature$/.exec(id) || [];
+    if (!ticketId) throw new Error(`Workspace ${id} not found`);
+    return getFeatureTickets(featureProgressDir || ticketsDir, ticketId);
   },
   store: { get: (id) => ({ id, status: 'running' }) },
 });
@@ -55,6 +64,7 @@ beforeEach(async () => {
   ticketsDir = path.join(tmp, '.bobby', 'tickets');
   fs.mkdirSync(ticketsDir, { recursive: true });
   orchestratorCalls = [];
+  featureProgressDir = null;
   await start();
 });
 
@@ -159,5 +169,78 @@ describe('workflows', () => {
 
     expect(status).toBe(200);
     expect(body.workflows).toEqual(expect.arrayContaining(['default', 'secure', 'quick']));
+  });
+
+  it('describes each workflow as stage/agent steps', async () => {
+    const { body } = await api('GET', '/api/workflows');
+
+    expect(body.stages.default.map((s) => s.stage)).toEqual(['planning', 'building', 'reviewing', 'testing']);
+    expect(body.stages.quick.map((s) => s.agent)).toEqual(['bobby-plan', 'bobby-build', 'bobby-test']);
+  });
+});
+
+describe('feature routes', () => {
+  const seedEpic = () => {
+    createTicket(ticketsDir, { prefix: 'TKT', title: 'Payments', type: 'epic', description: 'Take money.' });
+    createTicket(ticketsDir, { prefix: 'TKT', title: 'Checkout form', parent: 'TKT-001' });
+    createTicket(ticketsDir, { prefix: 'TKT', title: 'Stripe webhook', parent: 'TKT-001' });
+  };
+
+  it('GET /api/features lists epics with child counts and a stage summary', async () => {
+    seedEpic();
+    createTicket(ticketsDir, { prefix: 'TKT', title: 'Loose ticket' }); // not an epic
+
+    const { status, body } = await api('GET', '/api/features');
+
+    expect(status).toBe(200);
+    expect(body.features).toHaveLength(1);
+    expect(body.features[0].id).toBe('TKT-001');
+    expect(body.features[0].childCount).toBe(2);
+    expect(body.features[0].stageSummary).toBe('2 backlog');
+  });
+
+  it('GET /api/features/:id returns the epic with content and its children', async () => {
+    seedEpic();
+
+    const { status, body } = await api('GET', '/api/features/TKT-001');
+
+    expect(status).toBe(200);
+    expect(body.epic.id).toBe('TKT-001');
+    expect(body.epic.content).toContain('Take money.');
+    expect(body.children.map((c) => c.id)).toEqual(['TKT-002', 'TKT-003']);
+  });
+
+  it('GET /api/features/:id → 404 unknown, 400 non-epic', async () => {
+    createTicket(ticketsDir, { prefix: 'TKT', title: 'Just a ticket' });
+
+    expect((await api('GET', '/api/features/TKT-099')).status).toBe(404);
+    expect((await api('GET', '/api/features/TKT-001')).status).toBe(400);
+  });
+
+  it('GET /api/workspaces/:id/feature reads child stages from the worktree, not the main checkout', async () => {
+    seedEpic();
+    // A "worktree" where the builder has already advanced TKT-002.
+    const worktreeTickets = path.join(tmp, 'worktree', '.bobby', 'tickets');
+    fs.mkdirSync(path.dirname(worktreeTickets), { recursive: true });
+    fs.cpSync(ticketsDir, worktreeTickets, { recursive: true });
+    const child = findTicket(worktreeTickets, 'TKT-002');
+    fs.writeFileSync(
+      path.join(child.path, 'ticket.md'),
+      fs.readFileSync(path.join(child.path, 'ticket.md'), 'utf8').replace('stage: backlog', 'stage: building')
+    );
+    featureProgressDir = worktreeTickets;
+
+    const { status, body } = await api('GET', '/api/workspaces/ws-TKT-001-feature/feature');
+
+    expect(status).toBe(200);
+    const stages = Object.fromEntries(body.children.map((c) => [c.id, c.stage]));
+    expect(stages['TKT-002']).toBe('building');
+    expect(stages['TKT-003']).toBe('backlog');
+    // The main checkout still says backlog — the route must not read it.
+    expect(findTicket(ticketsDir, 'TKT-002').data.stage).toBe('backlog');
+  });
+
+  it('GET /api/workspaces/:id/feature → 404 for an unknown workspace', async () => {
+    expect((await api('GET', '/api/workspaces/nope/feature')).status).toBe(404);
   });
 });
