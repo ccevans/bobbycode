@@ -37,9 +37,13 @@ export function registerWorkflow(program) {
         console.log(`  ${bold('Workflows')}`);
         console.log('');
         console.log(`  ${dim('Built-in:')}`);
-        for (const [name, steps] of Object.entries(BUILT_IN_WORKFLOWS)) {
+        const projectDefault = config.default_workflow || 'default';
+        for (const [name, builtInSteps] of Object.entries(BUILT_IN_WORKFLOWS)) {
+          // Show the steps that actually run, not the shadowed built-in ones.
+          const steps = userDefined[name] || builtInSteps;
           const overridden = userDefined[name] ? dim(' (overridden)') : '';
-          console.log(`    ${bold(name)}${overridden}  ${dim(steps.join(' → '))}`);
+          const isDefault = name === projectDefault ? dim(' ← default') : '';
+          console.log(`    ${bold(name)}${overridden}${isDefault}  ${dim(steps.join(' → '))}`);
         }
         const custom = Object.entries(userDefined).filter(([n]) => !BUILT_IN_WORKFLOWS[n]);
         if (custom.length > 0) {

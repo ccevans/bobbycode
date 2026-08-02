@@ -159,9 +159,14 @@ running app and files tickets. This skill *creates*; that one *reviews*.
 
 Bobby is free forever — the whole loop, all 23 agents (design included), the
 audit, and the packs above are MIT and always will be. **Bobby Pro** is the
-shelf on top: every paid pack (now and every one released later), Pro
-specialists beyond the free 23, and the work of keeping them current as Claude
-Code and the models move.
+shelf on top:
+
+- **The Bobby App** — your whole team in one page: where you left off, one
+  "Do this next" button, the amber needs-you queue, live agent logs. Run
+  `bobby app` and the browser is your engineering org.
+- **Every paid pack** — now and every one released later.
+- **Pro specialists** beyond the free 23, kept current as Claude Code and the
+  models move.
 
 ```bash
 bobby pro                    # status, and what it unlocks here
@@ -295,7 +300,7 @@ max_retries: 3
 <summary>Optional configuration (commented out in generated file)</summary>
 
 ```yaml
-# Custom + override workflows (built-in: default, secure, quick)
+# Custom + override workflows (built-in: default, secure, quick, library, library-secure)
 workflows:
   default: [plan, build, review, test]
   secure: [plan, build, security, review, test]
@@ -355,18 +360,66 @@ Bobby auto-detects your tech stack during `bobby init` and configures commands, 
 
 **Custom stacks:** Create `.bobby/stacks/<name>.json` with your own commands, areas, and health checks. Custom stacks appear at the top of the `bobby init` selection menu. See [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) for the JSON schema.
 
-## Editors: Claude Code, Cursor, Cline
+## Editors and agents Bobby supports
 
 Bobby's CLI never calls a model itself — tickets, audits, scoring, sprints, and
 `bobby vet` are all deterministic local code. The AI half is a set of markdown
 files (rules, agents, skills, commands) scaffolded into whatever your editor
 reads. Set that with `target` in `.bobbyrc.yml`, or pick it in `bobby init --custom`:
 
-| `target` | Rules | Skills | Commands | Agents | Subagents |
-|---|---|---|---|---|---|
-| `claude-code` | `CLAUDE.md` | `.claude/skills/` | `.claude/commands/` | `.claude/agents/` | Yes |
-| `cursor` | `AGENTS.md` | `.cursor/skills/` | `.cursor/commands/` | `.cursor/agents/` | Yes (3.13+) |
-| `cline` | `.clinerules/rules.md` | `.clinerules/skills/` | `.clinerules/workflows/` | `.clinerules/agents/` | No |
+| `target` | Rules | Skills | Commands | Agents | Subagents | Dashboard executor |
+|---|---|---|---|---|---|---|
+| `claude-code` | `CLAUDE.md` | `.claude/skills/` | `.claude/commands/` | `.claude/agents/` | Yes | `claude` |
+| `cursor` | `AGENTS.md` | `.cursor/skills/` | `.cursor/commands/` | `.cursor/agents/` | Yes (3.13+) | `cursor-agent` |
+| `codex` | `AGENTS.md` | `.codex/skills/` | `.codex/prompts/` | `.codex/agents/` | No | `codex` |
+| `cline` | `.clinerules/rules.md` | `.clinerules/skills/` | `.clinerules/workflows/` | `.clinerules/agents/` | No | — |
+| `agents-md` | `AGENTS.md` | `.agents/skills/` | `.agents/commands/` | `.agents/agents/` | No | — |
+
+### How far each one is actually verified
+
+Bobby has shipped wrong claims about harnesses before — a model name copied from
+a CLI's own stale `--help` text, and a "no subagent registry" line that a newer
+build contradicted. Both came from trusting documentation. So this table records
+*how* each row was checked, not just what it says:
+
+| `target` | Verification |
+|---|---|
+| `claude-code` | **Live.** Bobby's own development runs on it; the dashboard drives `claude` end to end. |
+| `cursor` | **Live.** A real ticket worked start to finish by `cursor-agent` (Composer 2.5) in an isolated worktree — stage advanced, 258 stream events parsed. Paths read out of Cursor 3.13's shipped binary. |
+| `codex` | **Live argv.** Bobby's exact command line runs against real `@openai/codex` 0.146.0 and starts a turn. Paths and the AGENTS.md spec read out of the shipped binary. Project-level `.codex/skills/` auto-loading is **not** confirmed — skills there are referenced by path, which works regardless. |
+| `cline` | **Unverified.** Paths follow Cline's published convention; no live run. Treat as best-effort. |
+| `agents-md` | **Paths verified, tools not.** `.agents/skills/` appears in Cursor 3.13's skill-root array and `AGENTS.md` in both the Cursor and Codex binaries. Individual tools in the ecosystem have not been run. |
+
+Executor flags are re-checked weekly by a [scheduled canary](.github/workflows/flag-canary.yml)
+that runs Bobby's real argv against each CLI, so a renamed flag surfaces as an
+issue rather than a broken run.
+
+### The `agents-md` tier — what it does and does not give you
+
+`AGENTS.md` is a Linux Foundation-stewarded standard read natively by Copilot,
+Windsurf, Zed, opencode, Jules, Amp, Factory and others. Picking `agents-md`
+gets Bobby's **rules and skills** into any of them without a dedicated adapter.
+
+It deliberately does not claim more. There is no subagent dispatch (no
+cross-tool convention exists — prompts reference agents by path instead), and
+it derives **no dashboard executor**, because the tier names a file format
+rather than a specific CLI. Where a dedicated target exists, prefer it.
+
+### Adding a target
+
+An adapter is about 40 lines — copy [`lib/targets/cursor.js`](lib/targets/cursor.js),
+which is the most complete example, and register it in `lib/targets/index.js`.
+
+The acceptance bar is `test/lib/target-matrix.test.js`: it runs one shared
+contract against every registered target, so a new adapter inherits ~19
+invariants from registration alone and needs no hand-written suite. That suite
+exists because per-target tests previously let the same bug live in one target
+and not another.
+
+One rule for contributions: **no path, flag, or convention ships without being
+verified against a real CLI run or the tool's shipped code, cited in the PR.**
+Documentation alone is not sufficient — every wrong claim Bobby has shipped came
+from a docs page or a `--help` example.
 
 To switch, set `target:` and run `bobby init --refresh`. Your tickets, sessions,
 and `.local` files carry over untouched — they live in `.bobby/`, which is
@@ -490,6 +543,24 @@ The `cursor-agent` CLI is a separate install from the Cursor app:
 
 **Everything above is free, forever.** The dashboard is MIT like the rest of
 Bobby — there is no gated route and no feature that checks a license.
+
+### The Bobby App (Pro)
+
+`bobby app` is the same server wearing its best face — the whole loop in one
+simple page, part of [Bobby Pro](#bobby-pro):
+
+- **Home** — where you left off, the one **"Do this next"** button (the same
+  brain as `bobby go`), and the amber **needs-you queue**: Approve, Send back,
+  or Look first, at thumb size.
+- **Board** — tickets by stage; create one with a sentence; start the full
+  workflow from the ticket.
+- **Live workspaces** — streaming agent logs, the diff one tap away.
+- Nothing runs without a confirm sheet saying exactly what will happen — and
+  that it uses your machine and your Claude subscription.
+
+Without a Pro key, `bobby app` (and `bobby dashboard`, its old name) serves the
+classic dashboard above — free forever, nothing taken away. With Pro, the same
+command serves the app and keeps classic at `/classic/`.
 
 ### From your phone — `bobby remote`
 
@@ -955,14 +1026,46 @@ Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can inv
 
 ## Custom Workflows
 
-Bobby ships three built-in workflows — `default`, `secure`, `quick`. Define your own (or override a built-in) in `.bobbyrc.yml`:
+Bobby ships five built-in workflows:
+
+| Workflow | Stages | For |
+|---|---|---|
+| `default` | plan → build → review → test | Apps with a UI or API to exercise |
+| `secure` | plan → build → security → review → test | Same, with a security audit |
+| `quick` | plan → build → test | Small changes |
+| `library` | plan → build → review | **CLIs, libraries, npm packages** |
+| `library-secure` | plan → build → security → review | Same, with a security audit |
+
+### Building a library or CLI?
+
+The `test` stage runs `bobby-test`, which verifies by *exercising a running
+application* — it is deliberately forbidden from running your test suite,
+because build and review already did that. A CLI or library has no live app for
+it to observe, so on those projects the test stage has nothing to do.
+
+`library` ends at review instead. Review runs your suite independently, which is
+the right verification for a library.
+
+**Bobby picks this for you.** `bobby init` infers it when your project declares
+no health checks and no dev command, and writes the choice visibly into
+`.bobbyrc.yml`:
+
+```yaml
+default_workflow: library
+```
+
+A stack can also declare it outright with `default_workflow` in its stack JSON.
+If a live-app agent is ever invoked on a project with nothing to observe, it now
+blocks the ticket with an actionable reason instead of stalling silently.
+
+Define your own workflow (or override a built-in) in `.bobbyrc.yml`:
 
 ```yaml
 workflows:
   thorough: [plan, build, review, security, test]
 ```
 
-Run a named workflow:
+Run a named workflow, which overrides the project default:
 
 ```bash
 bobby run workflow TKT-001 --workflow secure

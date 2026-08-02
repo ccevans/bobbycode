@@ -7,6 +7,27 @@ All notable changes to Bobby are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **`bobby app` — the Bobby App (Pro), with the classic dashboard staying free.**
+  One command, two tiers, no hostages: without a Pro key, `bobby app` (and
+  `bobby dashboard`, now an alias) serves the classic dashboard exactly as
+  before — free forever, as published. With Bobby Pro, the same command serves
+  the App: Home with the brief, one "Do this next" button (the same brain as
+  `bobby go`, via new `POST /api/go`), the amber needs-you queue
+  (Approve / Send back / Look first), a ticket Board, and live workspace logs
+  with the diff a tap away. Nothing runs without a confirm sheet naming exactly
+  what will run. The App UI ships in `@bobbycode/pro-dashboard` via
+  `bobby pro install` — never in this MIT package, because a license check on
+  MIT-licensed files would be theatre. Classic stays reachable at `/classic/`
+  when the App is active. `BOBBY_APP_DIR` overrides the UI location for
+  development.
+  - New loop API for the App (MIT, also serves the classic UI and the relay):
+    `GET /api/brief`, `POST /api/go`, ticket writes
+    (`POST /api/tickets`, `/move` with reject/block/unblock aliases, `PATCH`,
+    `/comments`), `GET /api/workflows`, `GET /api/config`.
+  - Fixed: a workspace's recorded workflow (`pipeline: 'quick'`) was ignored —
+    approve() always advanced through the server-default workflow.
+  - Fixed: an EventSource opened during page load kept the window load event
+    (and the tab spinner) hanging forever.
 - **`bobby remote` — run your team from your phone.** Starts the dashboard on a
   loopback-only ephemeral port, then opens ONE outbound, end-to-end-encrypted
   WebSocket to a relay; scan the printed QR (or paste the code) and the Bobby HQ
