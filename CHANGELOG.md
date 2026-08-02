@@ -7,6 +7,22 @@ All notable changes to Bobby are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Pair once, for the whole studio.** `bobby remote` pairing is now per
+  device, not per project: one channel+key for the whole machine lives in
+  `~/.bobby/remote/studio.yml` (0600), so one QR scan enrols a phone for every
+  project — five projects no longer mean five scans. Frames inside the
+  encrypted protocol are addressed by `projectId` (name slug + short path
+  hash); a new `{t:'who'}` frame returns a roster of `{t:'hi', project,
+  projectId, version}` entries so a late-joining phone can enumerate projects.
+  `bobby remote --studio` (also the default outside a project) serves every
+  registered project from ONE daemon — the relay allows one host per channel,
+  so multi-project is multiplexed on one tunnel, each project's dashboard on
+  its own loopback port; unbootable projects are skipped with a warning.
+  `--new-code` rotates the studio identity: all projects cut over together,
+  deliberately and rarely. An existing per-project pairing is migrated as the
+  studio identity on first run, so already-paired phones keep working, and
+  frames without a `project` field still route when exactly one project is
+  served.
 - **`bobby remote` — run your team from your phone.** Starts the dashboard on a
   loopback-only ephemeral port, then opens ONE outbound, end-to-end-encrypted
   WebSocket to a relay; scan the printed QR (or paste the code) and the Bobby HQ

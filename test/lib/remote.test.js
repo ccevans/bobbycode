@@ -141,11 +141,21 @@ describe('tunnel request proxy', () => {
   });
   beforeEach(() => { seen = []; });
 
+  const PID = 'demo-0123abcd';
+
+  // Wait for the response instead of sleeping a fixed interval — on a loaded
+  // machine the local round trip can outlive any guessed delay.
+  const waitFor = async (cond, ms = 2000) => {
+    const deadline = Date.now() + ms;
+    while (!cond() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 5));
+  };
+
   function tunnelWithCapturedFrames() {
     const { key } = newPairing();
     const sent = [];
     const tunnel = new RemoteTunnel({
       relayUrl: 'ws://unused.invalid', channel: 'test', key, localPort,
+      project: 'demo', projectId: PID,
     });
     tunnel.sendFrame = (obj) => sent.push(obj); // capture instead of network
     return { tunnel, sent };
@@ -154,26 +164,35 @@ describe('tunnel request proxy', () => {
   it('proxies an allowed request and returns the response', async () => {
     const { tunnel, sent } = tunnelWithCapturedFrames();
 
-    await tunnel.handleFrame({ t: 'req', id: 'r1', method: 'GET', path: '/api/health' });
-    await new Promise((r) => setTimeout(r, 50));
+    await tunnel.handleFrame({ t: 'req', id: 'r1', project: PID, method: 'GET', path: '/api/health' });
+    await waitFor(() => sent.length >= 1);
 
     expect(seen).toEqual([{ method: 'GET', url: '/api/health' }]);
-    expect(sent).toEqual([{ t: 'res', id: 'r1', status: 200, body: { ok: true } }]);
+    expect(sent).toEqual([{ t: 'res', id: 'r1', project: PID, status: 200, body: { ok: true } }]);
+  });
+
+  it('still serves a frame without a project field — pre-pair-once phones', async () => {
+    const { tunnel, sent } = tunnelWithCapturedFrames();
+
+    await tunnel.handleFrame({ t: 'req', id: 'r1', method: 'GET', path: '/api/health' });
+    await waitFor(() => sent.length >= 1);
+
+    expect(sent).toEqual([{ t: 'res', id: 'r1', project: PID, status: 200, body: { ok: true } }]);
   });
 
   it('refuses a disallowed path without touching the local server', async () => {
     const { tunnel, sent } = tunnelWithCapturedFrames();
 
-    await tunnel.handleFrame({ t: 'req', id: 'r2', method: 'GET', path: '/etc/passwd' });
+    await tunnel.handleFrame({ t: 'req', id: 'r2', project: PID, method: 'GET', path: '/etc/passwd' });
 
     expect(seen).toEqual([]);
-    expect(sent).toEqual([{ t: 'res', id: 'r2', status: 403, body: { error: 'not allowed' } }]);
+    expect(sent).toEqual([{ t: 'res', id: 'r2', project: PID, status: 403, body: { error: 'not allowed' } }]);
   });
 
   it('refuses non-GET/POST methods', async () => {
     const { tunnel, sent } = tunnelWithCapturedFrames();
 
-    await tunnel.handleFrame({ t: 'req', id: 'r3', method: 'DELETE', path: '/api/health' });
+    await tunnel.handleFrame({ t: 'req', id: 'r3', project: PID, method: 'DELETE', path: '/api/health' });
 
     expect(seen).toEqual([]);
     expect(sent[0].status).toBe(403);
