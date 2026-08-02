@@ -80,6 +80,20 @@ describe('studio registry', () => {
     expect(raw.projects).toHaveLength(1);
   });
 
+  test('a corrupt registry does not throw — it is treated as empty and self-heals', () => {
+    // Simulate a torn concurrent write (the July 2026 corruption): trailing
+    // garbage that makes the YAML unparseable.
+    fs.mkdirSync(path.join(tmpHome, '.bobby'), { recursive: true });
+    fs.writeFileSync(registryFile(), 'projects:\n  - name: a\n    path: /x\nZ\n');
+    // Reads must not throw...
+    expect(() => listProjects()).not.toThrow();
+    // ...and the next write repairs the file so registration works again.
+    expect(() => touchProject(projA)).not.toThrow();
+    expect(listProjects().map(p => p.name)).toContain('alpha');
+    // File is now valid YAML.
+    expect(() => YAML.parse(fs.readFileSync(registryFile(), 'utf8'))).not.toThrow();
+  });
+
   test('touchProject picks up a renamed project on next touch', () => {
     touchProject(projA);
     const rc = YAML.parse(fs.readFileSync(path.join(projA, '.bobbyrc.yml'), 'utf8'));

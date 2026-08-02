@@ -92,13 +92,16 @@ describe('counter', () => {
     expect(result.id).toBe('TKT-004');
   });
 
-  test('nextId throws after exhausting MAX_RETRIES', () => {
-    // Pre-create 21 directories (counter at 0, tries 1-20 all taken)
+  test('nextId self-heals past existing dirs when the counter is stale/rewound', () => {
+    // A rewound counter (0) with 21 tickets already on disk must NOT fail to
+    // allocate — it heals to the highest existing id and issues the next one.
     for (let i = 1; i <= 21; i++) {
       fs.mkdirSync(path.join(tmpDir, `TKT-${String(i).padStart(3, '0')}--taken`));
     }
     fs.writeFileSync(path.join(tmpDir, '.counter'), '0');
-    expect(() => nextId(tmpDir, 'TKT', 'new')).toThrow('Failed to claim ticket ID after');
+    const result = nextId(tmpDir, 'TKT', 'new');
+    expect(result.id).toBe('TKT-022');
+    expect(fs.readFileSync(path.join(tmpDir, '.counter'), 'utf8')).toBe('22');
   });
 
   test('nextId works when counter file is missing', () => {
