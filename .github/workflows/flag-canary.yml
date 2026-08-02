@@ -1,0 +1,97 @@
+name: Flag drift canary
+
+# Agent CLIs ship weekly. Per-PR verification proves Bobby's argv is correct at
+# merge time and nothing after that, so this probes the real binaries on a
+# schedule. It is a canary, not a gate: it never runs on push or pull_request,
+# and a failure here must never block a PR.
+#
+# See scripts/flag-canary.mjs for the probe mechanism (parse-vs-auth, plus a
+# control probe so a CLI that ignores unknown flags can't produce a vacuous pass).
+
+on:
+  schedule:
+    - cron: '17 6 * * 1' # Mondays 06:17 UTC — off the hour to dodge scheduler pileups
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write # to file/update a drift report
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # one CLI drifting must not hide another's result
+      matrix:
+        include:
+          - flavor: claude
+            install: npm i -g @anthropic-ai/claude-code
+          - flavor: cursor-agent
+            install: curl https://cursor.com/install -fsS | bash
+          - flavor: codex
+            install: npm i -g @openai/codex
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install ${{ matrix.flavor }}
+        id: install
+        continue-on-error: true
+        run: |
+          ${{ matrix.install }}
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Probe ${{ matrix.flavor }}
+        id: probe
+        continue-on-error: true
+        run: node scripts/flag-canary.mjs ${{ matrix.flavor }} | tee probe.log
+
+      - name: Report drift
+        if: steps.probe.outcome == 'failure'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const log = fs.readFileSync('probe.log', 'utf8').slice(0, 5000);
+            const flavor = '${{ matrix.flavor }}';
+            const title = `flag drift: ${flavor}`;
+            const body = [
+              `The scheduled canary found that \`${flavor}\` no longer accepts an argument Bobby sends.`,
+              '',
+              'Bobby builds argv from the executor flavor in `lib/dashboard/executor.js`.',
+              'If the CLI renamed a flag, update `buildArgs` for that flavor and add a',
+              'regression test asserting the new argv.',
+              '',
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              '',
+              '```',
+              log,
+              '```',
+            ].join('\n');
+
+            // Idempotent: update the existing open issue rather than piling up
+            // a new one every week the drift persists.
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'flag-drift',
+            });
+            const existing = open.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: existing.number, body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ['flag-drift'],
+              });
+            }
+
+      - name: Fail the job if drift was detected
+        if: steps.probe.outcome == 'failure'
+        run: |
+          echo "Drift detected for ${{ matrix.flavor }} — see the filed issue."
+          exit 1
