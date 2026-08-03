@@ -62,6 +62,42 @@ describe('lighthouse-audit: which findings become tickets', () => {
     });
     expect(failingAudits(r, 'accessibility').map((a) => a.id)).toEqual(['heavy', 'light']);
   });
+
+  test('captures per-opportunity savings so perf can rank by size, not just node count', () => {
+    // A 700 KB image opportunity and a 3 KB unused-JS opportunity both score < 1 and both
+    // carry one resource item. Only the savings tells them apart. If the runner drops the
+    // savings, a trivial gap on many pages outranks a real one — the perf-pillar trap.
+    const r = {
+      categories: {
+        performance: { auditRefs: [{ id: 'img', weight: 0 }, { id: 'js', weight: 0 }] },
+        accessibility: { auditRefs: [{ id: 'a11y', weight: 7 }] },
+      },
+      audits: {
+        img: { title: 'Properly size images', score: 0.2, numericUnit: 'byte', details: { items: [{ url: 'x.jpg' }], overallSavingsBytes: 716800, overallSavingsMs: 900 } },
+        js: { title: 'Reduce unused JavaScript', score: 0.5, details: { items: [{ url: 'y.js' }], overallSavingsBytes: 3072 } },
+        a11y: { title: 'Contrast', score: 0, details: { items: [{ node: { snippet: '<p>' } }] } },
+      },
+    };
+    const perf = failingAudits(r, 'performance').reduce((m, a) => ({ ...m, [a.id]: a }), {});
+    expect(perf.img.savingsBytes).toBe(716800);
+    expect(perf.img.savingsMs).toBe(900);
+    expect(perf.js.savingsBytes).toBe(3072);
+    // a node-only accessibility audit has no savings and must not invent one
+    const a11y = failingAudits(r, 'accessibility').find((a) => a.id === 'a11y');
+    expect(a11y.savingsBytes).toBe(0);
+    expect(a11y.savingsMs).toBe(0);
+  });
+
+  test('reads a byte-valued diagnostic that reports numericValue, not overallSavingsBytes', () => {
+    // total-byte-weight has no "saving"; its size lives in numericValue with a byte unit.
+    const r = {
+      categories: { performance: { auditRefs: [{ id: 'total-byte-weight', weight: 0 }] } },
+      audits: {
+        'total-byte-weight': { title: 'Avoid enormous network payloads', score: 0.4, numericUnit: 'byte', numericValue: 2097152, details: { items: [{ url: 'a' }] } },
+      },
+    };
+    expect(failingAudits(r, 'performance')[0].savingsBytes).toBe(2097152);
+  });
 });
 
 describe('lighthouse-audit: template discovery from the sitemap', () => {

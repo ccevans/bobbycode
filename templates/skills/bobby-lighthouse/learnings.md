@@ -37,6 +37,31 @@ looked new. A dedupe that matches nothing is worse than none: it looks like it w
 **Fix:** The runner walks up to find `.bobby/tickets`, warns loudly when it finds none, and
 takes `--tickets=<dir>` for layouts where the project is a sibling rather than an ancestor.
 
+### Ranking performance gaps by page count (seed)
+**Pattern:** Applying the accessibility priority rule — most pages affected wins — to the
+performance pillar. Accessibility failures are template-uniform, so blast radius is right. But
+a perf opportunity has a size, so a 3 KB unused-JS gap on 500 pages floated above a 700 KB
+image on 9, and the report told people to fix the wrong thing first.
+**Fix:** The runner captures each opportunity's savings (`overallSavingsBytes`/`Ms`, or a
+byte-unit `numericValue`) and ranks perf proposals by per-page savings, above the other
+pillars. Shared-shell perf savings are a max across templates, not a sum: a user pays the
+shell once.
+
+### Claiming a lab pass means real users pass CWV (seed)
+**Pattern:** Reading "0 failing audits" off this lab runner and reporting that Core Web Vitals
+are fine. PSI leads with CrUX **field** data; this tool only runs the Lighthouse lab pass. A
+page can pass the lab and fail the field.
+**Fix:** Keep lab and field claims separate. For "are real users failing CWV", read CrUX or
+Search Console. This runner answers "what specific thing is wrong in the lab", not "what do
+real users experience".
+
+### Trusting one sampled URL for byte weight (seed)
+**Pattern:** The runner samples one URL per template. For accessibility that is complete; for
+byte weight it is not — one blog post ships a 450 KB hero and its neighbour ships none. A perf
+ticket written off the default sample can miss the pages that actually carry the weight.
+**Fix:** When a perf gap is about content weight, name the specific heavy URL and re-run with
+`--page=<template>` against a known-heavy path, rather than trusting the first sitemap entry.
+
 ## Best Practices
 
 ### Report what you did not file

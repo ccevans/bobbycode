@@ -250,11 +250,22 @@ export function failingAudits(report, category) {
     // Not every audit's details.items is an array: some carry `debugdata` or an object,
     // and assuming array shape here crashed the first run.
     const items = Array.isArray(a.details?.items) ? a.details.items : [];
+    // Performance opportunities carry a savings magnitude the other pillars do not. A
+    // failing accessibility audit is ranked by how many pages it hits, but a failing perf
+    // opportunity has a size: 3 KB of unused JS and 700 KB of unshrunk image both score
+    // < 1, and treating them the same is how a trivial gap outranks a real one. Capture the
+    // savings so the ranking can use it. overallSavingsBytes/Ms is the opportunity shape;
+    // numericBytes covers diagnostics like total-byte-weight that report a size, not a saving.
+    const d = a.details || {};
+    const savingsBytes = Number(d.overallSavingsBytes ?? d.numericBytes ?? (a.numericUnit === 'byte' ? a.numericValue : 0)) || 0;
+    const savingsMs = Number(d.overallSavingsMs ?? (a.numericUnit === 'millisecond' ? a.numericValue : 0)) || 0;
     out.push({
       id: ref.id,
       title: a.title,
       weight: ref.weight,
       nodes: items.length,
+      savingsBytes,
+      savingsMs,
       // A couple of real selectors make the difference between a ticket someone can
       // act on and one they have to re-investigate from scratch.
       samples: items
@@ -435,18 +446,41 @@ async function main() {
      */
     const byAudit = new Map();
     for (const g of fresh) {
-      if (!byAudit.has(g.id)) byAudit.set(g.id, { ...g, templates: [], totalPages: 0 });
+      if (!byAudit.has(g.id)) byAudit.set(g.id, { ...g, templates: [], totalPages: 0, totalSavingsBytes: 0, totalSavingsMs: 0 });
       const e = byAudit.get(g.id);
       e.templates.push(`${g.page} (${g.pages_affected ?? '?'})`);
       e.totalPages += g.pages_affected || 0;
+      // Savings is per page load, not per URL, so a shared-shell perf gap's bytes are the
+      // same on every template. Take the max across templates rather than summing: what a
+      // single user pays is the honest number, and summing would double-count the shell.
+      e.totalSavingsBytes = Math.max(e.totalSavingsBytes, g.savingsBytes || 0);
+      e.totalSavingsMs = Math.max(e.totalSavingsMs, g.savingsMs || 0);
       e.samples = [...new Set([...e.samples, ...g.samples])].slice(0, 4);
     }
-    const proposals = [...byAudit.values()].sort((a, b) => b.totalPages - a.totalPages);
+    /*
+     * Two pillars, two honest priority axes. Accessibility/SEO/best-practices gaps are
+     * template-uniform, so blast radius (pages affected) is the right order. Performance
+     * opportunities each carry a size, and a 700 KB image on 9 pages beats 3 KB of unused JS
+     * on 500, so perf ranks by per-page savings. Perf proposals are ordered above the rest
+     * because a mobile audit is almost always there to move performance; bytes and pages are
+     * not comparable, so they are not interleaved.
+     */
+    const kb = (b) => `${Math.round((b || 0) / 1024)} KB`;
+    const isPerf = (g) => g.pillar === 'performance';
+    const proposals = [...byAudit.values()].sort((a, b) => {
+      if (isPerf(a) !== isPerf(b)) return isPerf(a) ? -1 : 1;
+      if (isPerf(a)) return b.totalSavingsBytes - a.totalSavingsBytes || b.totalSavingsMs - a.totalSavingsMs;
+      return b.totalPages - a.totalPages;
+    });
 
     console.log(`\nNEEDS A TICKET: ${proposals.length} distinct issue(s) from ${fresh.length} template-level finding(s)\n`);
     for (const g of proposals) {
       const shared = g.templates.length > 1 ? '   [SHARED SHELL: one fix covers all]' : '';
-      console.log(`  [${g.pillar}] ${g.id}  ~${g.totalPages} pages${shared}`);
+      // Perf gaps lead with the savings that ranked them; the others lead with blast radius.
+      const impact = isPerf(g)
+        ? `~${kb(g.totalSavingsBytes)}${g.totalSavingsMs ? ` / ${Math.round(g.totalSavingsMs)} ms` : ''} savings, ~${g.totalPages} pages`
+        : `~${g.totalPages} pages`;
+      console.log(`  [${g.pillar}] ${g.id}  ${impact}${shared}`);
       console.log(`     ${g.title}`);
       console.log(`     templates: ${g.templates.join(', ')}`);
       for (const s of g.samples) console.log(`       ${s}`);

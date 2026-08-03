@@ -64,13 +64,21 @@ is a specific assertion about a specific thing, and it does not move without a c
   auditor and it destroys trust in the report.
 </gap_rules>
 
-## Step 3: Rank by blast radius, not by score
+## Step 3: Rank by the axis that fits the pillar
 
-The runner discovers templates from the sitemap and sorts proposals by summed pages
-affected, because that is the honest priority order. A 2-point accessibility gap on a
-template behind 500 URLs outranks a 10-point gap on the homepage. Shared-shell issues that
-fail on every template are grouped into one proposal labelled `SHARED SHELL`, because one
-fix covers them all.
+Two pillars, two honest priority orders, and the runner applies each automatically:
+
+- **Accessibility, SEO, best-practices** rank by **blast radius** — summed pages affected.
+  These failures are template-uniform, so a 2-point contrast gap on a template behind 500
+  URLs outranks a 10-point gap on the homepage.
+- **Performance** ranks by **per-page savings** (bytes, then ms), and perf proposals sort
+  above the rest. A perf opportunity has a size: 700 KB of unshrunk image on 9 pages beats
+  3 KB of unused JS on 500, even though the second hits more pages. Ranking perf by page
+  count alone — the trap this pillar sets — floats trivial gaps to the top.
+
+Shared-shell issues that fail on every template are grouped into one proposal labelled
+`SHARED SHELL`, because one fix covers them all. For perf, shared-shell savings are the
+per-load bytes (a max across templates), not a sum, because one user only pays once.
 
 ## Step 4: Write tickets that do not need re-investigation
 
@@ -95,6 +103,23 @@ State separately: what you measured with run counts, what you proposed and why e
 the bar, what you deliberately did not propose, and anything production-only you could not
 verify. A clean audit is a real result. Inventing work to look productive is the fastest way
 to make the next audit ignored.
+
+## Known boundaries
+
+This is a **lab** sweep. Two limits follow from that, and a ticket should not claim more than
+the tool can see:
+
+- **No field data.** PageSpeed Insights leads with the Core Web Vitals *Assessment* — real
+  Chrome-user (CrUX) field data — and only then shows the Lighthouse lab run. This runner is
+  lab only. Passing every lab audit is not the same as real users passing CWV; a page can
+  pass one and fail the other. When the concern is "are real users failing CWV", read CrUX or
+  Search Console, not this report.
+- **One URL per template.** The runner samples the first sitemap URL in each group. That is
+  right for template-uniform failures (accessibility, SEO), but **byte weight is per content**:
+  one blog post ships a 450 KB hero, its neighbour ships none. A perf gap that lives on
+  specific pages can be missed if the sampled URL is not one of them. When a perf ticket is
+  about content weight, name the specific heavy URL, and consider `--page=<template>` against
+  a known-heavy path rather than trusting the default sample.
 
 ## Configuring templates (optional)
 
