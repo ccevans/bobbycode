@@ -6,7 +6,7 @@
 // nothing. These cases pin the classification logic the runner is built on. They exercise
 // the pure exports only — no browser, no network — so they run in CI like any unit test.
 
-import { pagesFromSitemap, failingAudits, findDuplicate } from '../../templates/skills/bobby-lighthouse/lighthouse-audit.mjs';
+import { pagesFromSitemap, failingAudits, findDuplicate, isDiagnostic, rankProposals } from '../../templates/skills/bobby-lighthouse/lighthouse-audit.mjs';
 
 /** Minimal Lighthouse-shaped report. */
 function report(auditRefs, audits) {
@@ -191,5 +191,73 @@ describe('lighthouse-audit: dedupe requires the audit and section to be ABOUT ea
   test('still matches when the audit id and section token are close together', () => {
     const tickets = [{ id: 'TKT-282', stage: 'backlog', body: 'blog pages: remaining color-contrast failures'.toLowerCase() }];
     expect(findDuplicate(tickets, 'color-contrast', 'blog', '/blog/x')?.id).toBe('TKT-282');
+  });
+});
+
+describe('lighthouse-audit: diagnostic audits describe, they do not prescribe', () => {
+  test('treats the Lighthouse -insight duplicates as diagnostic', () => {
+    // render-blocking-insight restates render-blocking-resources; proposing both is the same
+    // fix filed twice. The whole -insight family is diagnostic.
+    expect(isDiagnostic('render-blocking-insight')).toBe(true);
+    expect(isDiagnostic('legacy-javascript-insight')).toBe(true);
+    expect(isDiagnostic('lcp-discovery-insight')).toBe(true);
+  });
+
+  test('treats descriptive audits as diagnostic', () => {
+    // These carry nodes that describe the page (work split, the LCP element, DOM count)
+    // rather than name a fixable resource.
+    expect(isDiagnostic('mainthread-work-breakdown')).toBe(true);
+    expect(isDiagnostic('largest-contentful-paint-element')).toBe(true);
+    expect(isDiagnostic('dom-size')).toBe(true);
+  });
+
+  test('does NOT treat actionable opportunities as diagnostic', () => {
+    // The classic opportunities and real binary failures must still become gaps. In
+    // particular lcp-lazy-loaded looks LCP-ish but is a concrete, fixable defect.
+    for (const id of ['unused-javascript', 'legacy-javascript', 'render-blocking-resources', 'uses-responsive-images', 'lcp-lazy-loaded', 'uses-rel-preconnect', 'color-contrast']) {
+      expect(isDiagnostic(id)).toBe(false);
+    }
+  });
+});
+
+describe('lighthouse-audit: ranking the axis that fits the pillar', () => {
+  const perf = (id, bytes, ms) => ({ id, pillar: 'performance', totalSavingsBytes: bytes, totalSavingsMs: ms, totalPages: 1 });
+  const a11y = (id, pages) => ({ id, pillar: 'accessibility', totalSavingsBytes: 0, totalSavingsMs: 0, totalPages: pages });
+
+  test('a large-ms zero-byte perf gap outranks a small-byte zero-ms one (the byte-primary trap)', () => {
+    // Under the old byte-primary sort a 0-byte / 2000 ms gap sorted BELOW a 5 KB / 0 ms one,
+    // because bytes were compared first. The blend must rank the big-ms gap higher. A third
+    // byte-dominant gap keeps small-bytes off the byte-max so the comparison is unambiguous.
+    const ranked = rankProposals([
+      perf('small-bytes', 5000, 0),
+      perf('big-ms', 0, 2000),
+      perf('byte-dominant', 100000, 0),
+    ]).map((p) => p.id);
+    expect(ranked.indexOf('big-ms')).toBeLessThan(ranked.indexOf('small-bytes'));
+  });
+
+  test('a gap that leads on either axis ranks above one that leads on neither', () => {
+    const ranked = rankProposals([
+      perf('mid', 3000, 100), // leads on neither
+      perf('max-bytes', 100000, 50),
+      perf('max-ms', 0, 3000),
+    ]).map((p) => p.id);
+    expect(ranked[2]).toBe('mid');
+    expect(ranked.slice(0, 2).sort()).toEqual(['max-bytes', 'max-ms']);
+  });
+
+  test('perf proposals sort above the other pillars, which rank by blast radius', () => {
+    const ranked = rankProposals([
+      a11y('contrast-500', 500),
+      perf('tiny-perf', 100, 0),
+      a11y('contrast-9', 9),
+    ]).map((p) => p.id);
+    expect(ranked[0]).toBe('tiny-perf'); // any perf gap sorts above a11y
+    expect(ranked.slice(1)).toEqual(['contrast-500', 'contrast-9']); // a11y by pages
+  });
+
+  test('is stable when there are no perf proposals (maxBytes/maxMs guard against empty)', () => {
+    const ranked = rankProposals([a11y('a', 3), a11y('b', 10)]).map((p) => p.id);
+    expect(ranked).toEqual(['b', 'a']);
   });
 });

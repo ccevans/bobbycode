@@ -43,9 +43,23 @@ performance pillar. Accessibility failures are template-uniform, so blast radius
 a perf opportunity has a size, so a 3 KB unused-JS gap on 500 pages floated above a 700 KB
 image on 9, and the report told people to fix the wrong thing first.
 **Fix:** The runner captures each opportunity's savings (`overallSavingsBytes`/`Ms`, or a
-byte-unit `numericValue`) and ranks perf proposals by per-page savings, above the other
-pillars. Shared-shell perf savings are a max across templates, not a sum: a user pays the
-shell once.
+byte-unit `numericValue`) and ranks perf proposals by a BLENDED impact, above the other
+pillars. Bytes alone buried a 300 ms render-blocking gap behind a trivial one; ms alone would
+bury a 133 KB image behind a 70 ms one. So each of bytes and ms is normalized against the
+largest gap in the set and summed, so a gap leading on either axis ranks high. Shared-shell
+perf savings are a max across templates, not a sum: a user pays the shell once.
+
+### Proposing diagnostic audits as if they were fixes (seed)
+**Pattern:** `mainthread-work-breakdown`, `largest-contentful-paint-element`, `dom-size` and
+the Lighthouse 12 `*-insight` audits all carry `details.items`, so `items.length > 0` promoted
+them to actionable gaps. But they DESCRIBE the page (work split by category, which element is
+the LCP) or DUPLICATE a classic opportunity (`render-blocking-insight` restates
+`render-blocking-resources`). They are also noisy: main-thread and DOM-size scored 1 on one run
+and 0 on the next in the same sitting. Filing them is busywork, and the `-insight` duplicates
+double-file the same fix.
+**Fix:** `isDiagnostic` routes any `-insight` audit plus a small set of descriptive audits to
+REPORTED, NOT PROPOSED. Fix the classic opportunity they point at, not the diagnostic. Keep
+genuinely actionable audits that only look diagnostic (`lcp-lazy-loaded`, `bf-cache`) as gaps.
 
 ### Claiming a lab pass means real users pass CWV (seed)
 **Pattern:** Reading "0 failing audits" off this lab runner and reporting that Core Web Vitals
