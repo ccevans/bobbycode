@@ -94,6 +94,66 @@ function isNotOurs(auditId, samples) {
 }
 
 /*
+ * DIAGNOSTIC AUDITS DESCRIBE, THEY DO NOT PRESCRIBE.
+ *
+ * A gap must name a specific thing to change. Some audits carry `details.items` that only
+ * DESCRIBE the page: the main-thread work split by category, the identified LCP element, the
+ * DOM node count, the network dependency tree. `items.length > 0` wrongly promotes these to
+ * actionable gaps, and they are noisy on top of it (main-thread and DOM-size scored 1 on one
+ * run and 0 on the next in the same sitting). They are context, never a ticket.
+ *
+ * Lighthouse 12 also added an `-insight` audit set that DUPLICATES the classic opportunities
+ * (`render-blocking-insight` restates `render-blocking-resources`, `legacy-javascript-insight`
+ * restates `legacy-javascript`, and so on). Proposing both is the same fix filed twice, so the
+ * whole `-insight` family is treated as diagnostic and the classic audit is the one that
+ * carries the proposal.
+ */
+const DIAGNOSTIC_AUDITS = new Set([
+  'largest-contentful-paint-element',
+  'mainthread-work-breakdown',
+  'bootup-time',
+  'dom-size',
+  'layout-shift-elements',
+  'long-tasks',
+  'network-requests',
+  'network-rtt',
+  'network-server-latency',
+  'critical-request-chains',
+  'resource-summary',
+  'third-party-summary',
+]);
+
+function isDiagnostic(auditId) {
+  return auditId.endsWith('-insight') || DIAGNOSTIC_AUDITS.has(auditId);
+}
+
+const isPerfPillar = (g) => g.pillar === 'performance';
+
+/*
+ * Two pillars, two honest priority axes. Accessibility/SEO/best-practices gaps are
+ * template-uniform, so blast radius (pages affected) is the right order. Performance gaps
+ * each carry a size, and neither bytes nor milliseconds alone is the whole story: ranking by
+ * bytes floated a 3 KB gap over a 700 KB one, and ranking by ms would bury a 133 KB image
+ * behind a 70 ms one. So perf gaps rank by a BLENDED impact: each of bytes and ms normalized
+ * against the largest in the set, then summed, so a gap that leads on either axis ranks high.
+ * Perf proposals sort above the rest because a mobile audit is almost always there to move
+ * performance; bytes and pages are not comparable, so the two groups are not interleaved.
+ */
+export function rankProposals(proposals) {
+  const perf = proposals.filter(isPerfPillar);
+  const maxBytes = Math.max(1, ...perf.map((p) => p.totalSavingsBytes || 0));
+  const maxMs = Math.max(1, ...perf.map((p) => p.totalSavingsMs || 0));
+  const impact = (p) => (p.totalSavingsBytes || 0) / maxBytes + (p.totalSavingsMs || 0) / maxMs;
+  return [...proposals].sort((a, b) => {
+    if (isPerfPillar(a) !== isPerfPillar(b)) return isPerfPillar(a) ? -1 : 1;
+    if (isPerfPillar(a)) return impact(b) - impact(a);
+    return (b.totalPages || 0) - (a.totalPages || 0);
+  });
+}
+
+export { isDiagnostic };
+
+/*
  * TEMPLATE DISCOVERY
  *
  * A template is a group of URLs rendered by the same code. Auditing one URL per
@@ -392,13 +452,16 @@ async function main() {
       for (const a of failingAudits(last, c)) {
         const dup = findDuplicate(tickets, a.id, page.name, page.path);
         const entry = { ...a, pillar: c, page: page.name, url, pages_affected: counts[page.name], existing_ticket: dup ? dup.id : null };
-        // Design rule 1, applied one level deeper. Audits with zero nodes are derived
-        // from timings rather than asserting anything about the document:
-        // `interactive` and `max-potential-fid` "fail" on a page with no defect at all,
-        // purely because the run was slow. Ticketing those manufactures busywork and
-        // trains people to ignore the report. They are reported, never proposed.
+        // Design rule 1, applied one level deeper. Two classes of audit fail without
+        // pointing at a fixable thing, and both are reported, never proposed:
+        //   - Zero-node timing audits (`interactive`, `max-potential-fid`) "fail" on a slow
+        //     run with no defect present.
+        //   - Diagnostic audits (main-thread breakdown, LCP element, DOM size, and the
+        //     Lighthouse `-insight` duplicates) carry nodes that DESCRIBE the page rather
+        //     than name something to change. See isDiagnostic.
         const artifact = isNotOurs(a.id, a.samples);
         if (artifact) suppressed.push({ ...entry, why: artifact.why });
+        else if (isDiagnostic(a.id)) informational.push(entry);
         else if (a.nodes > 0) gaps.push(entry);
         else informational.push(entry);
       }
@@ -457,21 +520,11 @@ async function main() {
       e.totalSavingsMs = Math.max(e.totalSavingsMs, g.savingsMs || 0);
       e.samples = [...new Set([...e.samples, ...g.samples])].slice(0, 4);
     }
-    /*
-     * Two pillars, two honest priority axes. Accessibility/SEO/best-practices gaps are
-     * template-uniform, so blast radius (pages affected) is the right order. Performance
-     * opportunities each carry a size, and a 700 KB image on 9 pages beats 3 KB of unused JS
-     * on 500, so perf ranks by per-page savings. Perf proposals are ordered above the rest
-     * because a mobile audit is almost always there to move performance; bytes and pages are
-     * not comparable, so they are not interleaved.
-     */
+    // Ranked by the axis that fits the pillar: perf by blended byte+ms impact, everything
+    // else by blast radius. See rankProposals.
     const kb = (b) => `${Math.round((b || 0) / 1024)} KB`;
-    const isPerf = (g) => g.pillar === 'performance';
-    const proposals = [...byAudit.values()].sort((a, b) => {
-      if (isPerf(a) !== isPerf(b)) return isPerf(a) ? -1 : 1;
-      if (isPerf(a)) return b.totalSavingsBytes - a.totalSavingsBytes || b.totalSavingsMs - a.totalSavingsMs;
-      return b.totalPages - a.totalPages;
-    });
+    const isPerf = isPerfPillar;
+    const proposals = rankProposals([...byAudit.values()]);
 
     console.log(`\nNEEDS A TICKET: ${proposals.length} distinct issue(s) from ${fresh.length} template-level finding(s)\n`);
     for (const g of proposals) {
@@ -500,8 +553,10 @@ async function main() {
   const info = results.flatMap((r) => r.informational);
   if (info.length) {
     const ids = [...new Set(info.map((g) => g.id))];
-    console.log(`\nREPORTED, NOT PROPOSED (${info.length} timing-derived audit(s), no DOM nodes): ${ids.join(', ')}`);
-    console.log('  These fail on a slow run, not on a defect. Investigate only alongside a real byte or node gap.');
+    console.log(`\nREPORTED, NOT PROPOSED (${info.length} timing-derived or diagnostic audit(s)): ${ids.join(', ')}`);
+    console.log('  Timing audits fail on a slow run, not on a defect. Diagnostic audits (main-thread');
+    console.log('  breakdown, LCP element, DOM size, and the Lighthouse -insight duplicates) describe the');
+    console.log('  page rather than name a fix. Investigate only alongside a real byte or node gap.');
   }
 
   const reportFile = path.join(OUT_DIR, `four-pillar-audit-${formFactor}.json`);
