@@ -7,6 +7,17 @@ All notable changes to Bobby are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **`bobby-lighthouse` — a Lighthouse audit that proposes tickets, not noise.**
+  Sweeps Performance, Accessibility, Best Practices and SEO across page
+  *templates* (discovered from the sitemap, ranked by how many live URLs each
+  covers), then classifies what is worth a ticket. It proposes only on audits
+  that fail with real DOM nodes, never on a score (which is noisy run to run) and
+  never on a timing-derived audit that merely reflects a slow run. It dedupes
+  against open tickets by audit id and section, groups shared-shell findings into
+  one proposal, and refuses to trust a report that measured the wrong URL. Ships
+  a runner (`lighthouse-audit.mjs`, no install — shells out to
+  `npx lighthouse@12`) plus the `bobby run lighthouse` agent. Distinct from
+  `bobby audit`, which scores codebase readiness from source.
 - **`bobby remote` — run your team from your phone.** Starts the dashboard on a
   loopback-only ephemeral port, then opens ONE outbound, end-to-end-encrypted
   WebSocket to a relay; scan the printed QR (or paste the code) and the Bobby HQ
