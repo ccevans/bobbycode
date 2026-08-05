@@ -11,6 +11,9 @@ import {
   initStudio, createProject, setActiveProject, addRepo, readProjectConfig,
   setupRepos, readStudioConfig,
 } from '../../lib/studio.js';
+import {
+  isStudio, promoteV1ToStudio, getActiveProject,
+} from '../../lib/studio.js';
 import { createTicket, readTicket } from '../../lib/tickets.js';
 
 describe('studio', () => {
@@ -151,5 +154,58 @@ describe('studio', () => {
     } finally {
       fs.rmSync(external, { recursive: true, force: true });
     }
+  });
+});
+
+describe('one model: single-board project grows into a studio', () => {
+  let root;
+  // A legacy single-board (v1) project, built by hand — no studio key.
+  const makeV1 = () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-v1-'));
+    fs.writeFileSync(path.join(dir, '.bobbyrc.yml'),
+      'project: myapp\nstack: generic\nticket_prefix: TKT\ntickets_dir: .bobby/tickets\n');
+    fs.mkdirSync(path.join(dir, '.bobby', 'tickets', 'TKT-001--seed'), { recursive: true });
+    fs.writeFileSync(path.join(dir, '.bobby', 'tickets', 'TKT-001--seed', 'ticket.md'), '---\nid: TKT-001\n---\nseed\n');
+    fs.writeFileSync(path.join(dir, '.bobby', 'tickets', '.counter'), '1');
+    return dir;
+  };
+  beforeEach(() => { delete process.env.BOBBY_PROJECT; root = makeV1(); });
+  afterEach(() => { delete process.env.BOBBY_PROJECT; fs.rmSync(root, { recursive: true, force: true }); });
+
+  test('a v1 project reads correctly with no studio (back-compat)', () => {
+    const cfg = readConfig(root);
+    expect(cfg.studio).toBeFalsy();
+    expect(resolveTicketsDir(root, cfg)).toBe(path.join(root, '.bobby', 'tickets'));
+  });
+
+  test('promoteV1ToStudio makes it a studio, preserving the board as the first project', () => {
+    expect(isStudio(root)).toBe(false);
+    const first = promoteV1ToStudio(root);
+    expect(first).toBe('myapp');
+    expect(isStudio(root)).toBe(true);
+    expect(listStudioProjects(root)).toEqual(['myapp']);
+    expect(getActiveProject(root)).toBe('myapp');
+    // existing ticket moved into the first project — not lost
+    expect(fs.existsSync(path.join(root, '.bobby', 'myapp', 'tickets', 'TKT-001--seed', 'ticket.md'))).toBe(true);
+    // old top-level board is gone
+    expect(fs.existsSync(path.join(root, '.bobby', 'tickets'))).toBe(false);
+    // and resolution now points at the project board
+    expect(resolveTicketsDir(root, readConfig(root))).toBe(path.join(root, '.bobby', 'myapp', 'tickets'));
+  });
+
+  test('promote is idempotent', () => {
+    promoteV1ToStudio(root);
+    expect(promoteV1ToStudio(root)).toBe('myapp');   // no-op, returns existing
+    expect(listStudioProjects(root)).toEqual(['myapp']);
+  });
+
+  test('adding a second project promotes then coexists (sole-project auto-select preserved for one)', () => {
+    // simulate `bobby project new`: grow then create
+    if (!isStudio(root)) promoteV1ToStudio(root);
+    createProject(root, 'billing', { prefix: 'BL', repos: [] });
+    expect(listStudioProjects(root).sort()).toEqual(['billing', 'myapp']);
+    // the promoted board's ticket still resolvable via its project
+    process.env.BOBBY_PROJECT = 'myapp';
+    expect(resolveTicketsDir(root, readConfig(root))).toBe(path.join(root, '.bobby', 'myapp', 'tickets'));
   });
 });

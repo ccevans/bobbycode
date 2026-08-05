@@ -1,16 +1,29 @@
 // commands/studio.js — studio / project / repo commands.
 import path from 'path';
-import { findProjectRoot, listStudioProjects } from '../lib/config.js';
+import { findProjectRoot, listStudioProjects, configExists } from '../lib/config.js';
 import { listTickets } from '../lib/tickets.js';
 import {
   initStudio, createProject, setActiveProject, getActiveProject,
-  addRepo, listRepos, isStudio, readProjectConfig, setupRepos,
+  addRepo, listRepos, isStudio, readProjectConfig, readStudioConfig, setupRepos,
+  promoteV1ToStudio,
 } from '../lib/studio.js';
 import { success, error, bold, dim, warn } from '../lib/colors.js';
 
+// Read-only / management commands: require a studio that already exists.
 function studioRoot() {
   const root = findProjectRoot();
-  if (!isStudio(root)) throw new Error('This is not a studio. Run `bobby init` to set one up.');
+  if (!isStudio(root)) {
+    throw new Error('Single-project setup. Add a second project (`bobby project new <name>`) or a repo (`bobby repo add …`) and it becomes a studio.');
+  }
+  return root;
+}
+
+// Growth commands (project new / repo add): auto-promote a single-board project
+// into a studio in place, preserving its board as the first project. This is
+// the "one model" collapse — no separate setup step.
+function growStudioRoot() {
+  const root = findProjectRoot();
+  if (!isStudio(root)) promoteV1ToStudio(root);
   return root;
 }
 
@@ -21,11 +34,13 @@ export function registerStudio(program) {
     .action(() => {
       try {
         // A studio is created in the current directory — bootstrap from an empty
-        // dir, or upgrade an existing single-board project in place.
+        // dir, or promote an existing single-board project (preserving its board).
         let root;
         try { root = findProjectRoot(); } catch { root = process.cwd(); }
-        const cfg = initStudio(root);
-        success(`Studio '${cfg.studio}' ready`);
+        if (isStudio(root)) { success(`Already a studio ('${readStudioConfig(root).studio}')`); return; }
+        if (configExists(root)) promoteV1ToStudio(root);   // legacy project → first project
+        else initStudio(root);                             // empty dir → fresh studio
+        success(`Studio '${readStudioConfig(root).studio}' ready`);
         console.log(`  ${dim('repos/ created · add repos with `bobby repo add`, then `bobby project new`')}`);
       } catch (e) { error(e.message); process.exit(1); }
     });
@@ -53,7 +68,7 @@ export function registerStudio(program) {
     .option('--repos <names>', 'Comma-separated repos from the group this project uses')
     .action((name, opts) => {
       try {
-        const root = studioRoot();
+        const root = growStudioRoot();
         const repos = opts.repos ? opts.repos.split(',').map(s => s.trim()).filter(Boolean) : [];
         const { config } = createProject(root, name, { prefix: opts.prefix, repos });
         if (!getActiveProject(root)) setActiveProject(root, name);
@@ -95,7 +110,7 @@ export function registerStudio(program) {
     .option('--test <cmd>', 'Test command for this repo')
     .action((name, target, opts) => {
       try {
-        const root = studioRoot();
+        const root = growStudioRoot();
         const entry = addRepo(root, name, target, { stack: opts.stack, test: opts.test });
         success(`Repo '${name}' added → ${entry.path}`);
       } catch (e) { error(e.message); process.exit(1); }
