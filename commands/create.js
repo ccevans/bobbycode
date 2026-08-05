@@ -31,7 +31,7 @@ export function registerCreate(program) {
         // default to the project's whole repo subset. Validate against it so a
         // typo can't point work at a repo the project doesn't use.
         let repos = null;
-        if (config.layout === 'v2') {
+        if (config.studio) {
           const allowed = config.project_repos || [];
           repos = opts.repos ? opts.repos.split(',').map(s => s.trim()).filter(Boolean) : allowed;
           const bad = repos.filter(r => !allowed.includes(r));

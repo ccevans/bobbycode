@@ -1,7 +1,7 @@
 // commands/brief.js
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSprintsDir, resolveProductDir } from '../lib/config.js';
 import { buildBrief } from '../lib/brief.js';
-import { listProjects } from '../lib/studio.js';
+import { listProjects } from '../lib/registry.js';
 import { stageColor } from '../lib/stages.js';
 import { bold, dim, error } from '../lib/colors.js';
 

@@ -1,4 +1,4 @@
-// test/lib/skills.test.js — v2 per-project skill overlays.
+// test/lib/skills.test.js — studio per-project skill overlays.
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -24,8 +24,8 @@ describe('per-project skill overlays', () => {
       .toEqual(['SKILL.md', 'learnings.md']);
   });
 
-  test('v2 with project: overlay files layer on last, nearest-wins', () => {
-    const cfg = { layout: 'v2', _project: 'robinoffer' };
+  test('studio with project: overlay files layer on last, nearest-wins', () => {
+    const cfg = { studio: 's', _project: 'robinoffer' };
     // no overlay files yet → same as shared
     expect(resolveSkillLayers(root, cfg, 'bobby-build')).toHaveLength(2);
     // add project overlay files
@@ -40,16 +40,16 @@ describe('per-project skill overlays', () => {
   });
 
   test('overlayPromptClause names the project and points at the overlay dir', () => {
-    const clause = overlayPromptClause({ layout: 'v2', _project: 'robinoffer' });
+    const clause = overlayPromptClause({ studio: 's', _project: 'robinoffer' });
     expect(clause).toContain('project: robinoffer');
     expect(clause).toContain(path.join('.bobby', 'robinoffer', 'skills'));
     expect(clause).toContain('WIN over the shared skill');
   });
 
-  test('repoTargetingClause fires only for v2 with a repo group', () => {
+  test('repoTargetingClause fires only for a studio with a repo group', () => {
     expect(repoTargetingClause({})).toBe('');
-    expect(repoTargetingClause({ layout: 'v2', repo_group: {} })).toBe('');
-    const c = repoTargetingClause({ layout: 'v2', repo_group: { app: { path: 'repos/app' } } });
+    expect(repoTargetingClause({ studio: 's', repo_group: {} })).toBe('');
+    const c = repoTargetingClause({ studio: 's', repo_group: { app: { path: 'repos/app' } } });
     expect(c).toContain("ticket's `repos` frontmatter");
     expect(c).toContain("Do NOT touch repos the ticket doesn't list");
   });

@@ -41,11 +41,11 @@ import { registerBlueprint } from '../commands/blueprint.js';
 import { registerPro } from '../commands/pro.js';
 import { registerSkill } from '../commands/skill.js';
 import { registerRemote } from '../commands/remote.js';
-import { registerWorkspace } from '../commands/workspace.js';
-import { touchProject } from '../lib/studio.js';
+import { registerStudio } from '../commands/studio.js';
+import { touchProject } from '../lib/registry.js';
 
 const initCmd = registerInit(program);
-registerWorkspace(program);
+registerStudio(program);
 registerLocalInit(initCmd); // bobby init local
 registerDo(program);
 registerVet(program);
@@ -102,8 +102,8 @@ program.hook('preAction', () => {
   try { touchProject(); } catch { /* never block a command on registry writes */ }
 });
 
-// v2: a global `--project <name>` selects the active project for this one
-// command without changing the workspace default. Parsed here so every ticket
+// Studio: a global `--project <name>` selects the active project for this one
+// command without changing the studio default. Parsed here so every ticket
 // command picks it up via config resolution (BOBBY_PROJECT), no per-command wiring.
 {
   const i = process.argv.indexOf('--project');

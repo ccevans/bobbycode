@@ -1,7 +1,7 @@
 // commands/idea.js
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveIdeasFile } from '../lib/config.js';
 import { addIdea, listIdeas, findIdea, markPromoted, removeIdea } from '../lib/ideas.js';
-import { inboxFile } from '../lib/studio.js';
+import { inboxFile } from '../lib/registry.js';
 import { createTicket } from '../lib/tickets.js';
 import { tryLogEntry } from '../lib/session.js';
 import { success, warn, error, bold, dim } from '../lib/colors.js';

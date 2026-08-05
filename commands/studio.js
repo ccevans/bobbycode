@@ -1,40 +1,40 @@
-// commands/workspace.js — v2 workspace/project/repo commands.
+// commands/studio.js — studio / project / repo commands.
 import path from 'path';
-import { findProjectRoot, listWorkspaceProjects } from '../lib/config.js';
+import { findProjectRoot, listStudioProjects } from '../lib/config.js';
 import { listTickets } from '../lib/tickets.js';
 import {
-  upgradeToV2, createProject, setActiveProject, getActiveProject,
-  addRepo, listRepos, isV2, readProjectConfig, setupRepos,
-} from '../lib/workspace.js';
+  initStudio, createProject, setActiveProject, getActiveProject,
+  addRepo, listRepos, isStudio, readProjectConfig, setupRepos,
+} from '../lib/studio.js';
 import { success, error, bold, dim, warn } from '../lib/colors.js';
 
-function workspaceRoot() {
+function studioRoot() {
   const root = findProjectRoot();
-  if (!isV2(root)) throw new Error('This is not a v2 workspace. Run `bobby workspace init` to enable projects.');
+  if (!isStudio(root)) throw new Error('This is not a studio. Run `bobby init` to set one up.');
   return root;
 }
 
-export function registerWorkspace(program) {
-  const ws = program.command('workspace').description('Manage the v2 workspace (a group of repos, many projects)');
-  ws.command('init')
-    .description('Turn the current directory into a v2 workspace (adds repos/ and project support)')
+export function registerStudio(program) {
+  const studio = program.command('studio').description('Manage the studio (a group of repos, many projects)');
+  studio.command('init')
+    .description('Turn the current directory into a studio (adds repos/ and project support)')
     .action(() => {
       try {
-        // A workspace is created in the current directory — bootstrap from an
-        // empty dir, or upgrade an existing v1 project in place.
+        // A studio is created in the current directory — bootstrap from an empty
+        // dir, or upgrade an existing single-board project in place.
         let root;
         try { root = findProjectRoot(); } catch { root = process.cwd(); }
-        const cfg = upgradeToV2(root);
-        success(`Workspace '${cfg.workspace}' ready (layout v2)`);
+        const cfg = initStudio(root);
+        success(`Studio '${cfg.studio}' ready`);
         console.log(`  ${dim('repos/ created · add repos with `bobby repo add`, then `bobby project new`')}`);
       } catch (e) { error(e.message); process.exit(1); }
     });
 
-  ws.command('setup')
+  studio.command('setup')
     .description('Restore the repo group on a fresh checkout — clone any missing repo that has a url')
     .action(() => {
       try {
-        const root = workspaceRoot();
+        const root = studioRoot();
         const results = setupRepos(root);
         console.log('');
         for (const r of results) {
@@ -46,14 +46,14 @@ export function registerWorkspace(program) {
       } catch (e) { error(e.message); process.exit(1); }
     });
 
-  const project = program.command('project').description('Projects in this workspace (each has its own board)');
+  const project = program.command('project').description('Projects in this studio (each has its own board)');
   project.command('new <name>')
     .description('Create a project')
     .option('--prefix <prefix>', 'Ticket ID prefix (e.g. RO)')
     .option('--repos <names>', 'Comma-separated repos from the group this project uses')
     .action((name, opts) => {
       try {
-        const root = workspaceRoot();
+        const root = studioRoot();
         const repos = opts.repos ? opts.repos.split(',').map(s => s.trim()).filter(Boolean) : [];
         const { config } = createProject(root, name, { prefix: opts.prefix, repos });
         if (!getActiveProject(root)) setActiveProject(root, name);
@@ -63,16 +63,16 @@ export function registerWorkspace(program) {
   project.command('use <name>')
     .description('Set the active project')
     .action((name) => {
-      try { const root = workspaceRoot(); setActiveProject(root, name); success(`Active project → ${name}`); }
+      try { const root = studioRoot(); setActiveProject(root, name); success(`Active project → ${name}`); }
       catch (e) { error(e.message); process.exit(1); }
     });
   project.command('list')
     .description('List projects with board summary')
     .action(() => {
       try {
-        const root = workspaceRoot();
+        const root = studioRoot();
         const active = getActiveProject(root);
-        const names = listWorkspaceProjects(root);
+        const names = listStudioProjects(root);
         console.log('');
         console.log(`  ${bold('Projects')}`);
         if (!names.length) { console.log(`  ${dim('None yet. Create one: bobby project new <name>')}`); console.log(''); return; }
@@ -95,7 +95,7 @@ export function registerWorkspace(program) {
     .option('--test <cmd>', 'Test command for this repo')
     .action((name, target, opts) => {
       try {
-        const root = workspaceRoot();
+        const root = studioRoot();
         const entry = addRepo(root, name, target, { stack: opts.stack, test: opts.test });
         success(`Repo '${name}' added → ${entry.path}`);
       } catch (e) { error(e.message); process.exit(1); }
@@ -104,7 +104,7 @@ export function registerWorkspace(program) {
     .description('List repos in the group')
     .action(() => {
       try {
-        const root = workspaceRoot();
+        const root = studioRoot();
         const repos = listRepos(root);
         console.log('');
         console.log(`  ${bold('Repo group')}`);

@@ -12,7 +12,7 @@ export function registerLearn(program) {
     .command('learn <skill> <pattern> <description>')
     .description('Add an anti-pattern to a skill\'s learnings')
     .option('--source <retroId>', 'Source retrospective ID')
-    .option('--workspace', 'Write to the shared workspace learnings, not the active project (v2)')
+    .option('--studio', 'Write to the shared studio learnings, not the active project')
     .action((skill, pattern, description, opts) => {
       try {
         const root = findProjectRoot();
@@ -30,11 +30,11 @@ export function registerLearn(program) {
         }
 
         // v2: a learning defaults to the active project so a lesson from one
-        // project doesn't leak into its siblings. `--workspace` forces the
+        // project doesn't leak into its siblings. `--studio` forces the
         // shared overlay. v1 (or no active project) always writes shared.
         // Both `learnings.md` files are shipped/replaced on upgrade, so we only
         // ever write the user-owned `.local` variant.
-        const project = (config.layout === 'v2' && !opts.workspace) ? resolveActiveProject(root) : null;
+        const project = (config.studio && !opts.studio) ? resolveActiveProject(root) : null;
         let learningsFile;
         if (project) {
           learningsFile = projectLearningsFile(root, project, skill);
@@ -63,7 +63,7 @@ export function registerLearn(program) {
         fs.writeFileSync(learningsFile, content, 'utf8');
         autoSync(root);
 
-        const scope = project ? `project ${project}` : 'workspace';
+        const scope = project ? `project ${project}` : 'studio';
         success(`Added learning to ${skill} (${scope}): ${pattern}`);
       } catch (e) {
         error(e.message);
