@@ -1,7 +1,10 @@
 # Design Spec — Bobby App, Feature view
 
 **Locked:** 2026-08-06 · **Direction:** "Track to finish" · **Status:** approved by CC
-**Scope:** the Feature view (an epic + its child tickets moving through a workflow).
+**Scope:** the Feature view (an epic + its child tickets moving through a workflow),
+and — since 2026-08-07 — **Home**, the **Board**, **ticket detail** and the
+**Workspace** (live log + diff), built as its siblings from the same parts. All five
+share one CSS class (`.appview`) rather than parallel copies, so they cannot drift.
 This spec does **not** govern the marketing homepage — that is `design-spec.md`
 (direction R1 "Stage"), a separate surface with its own tokens.
 
@@ -106,6 +109,101 @@ No transforms. No pulsing status dots — retired by construction
   the ≥44px tap-target rule.
 - Current-step glyph (blue ring + centre dot) is **invented** — Devin's checklist has
   only done and not-started. This is the one glyph without provenance.
+- **`--mono` on a literal shell command** (Home's "Next" section, `.cmd`) despite the
+  one-face rule. The rule bans a decorative display/body pairing; quoting a terminal
+  string is content, and monospace is what makes the ticket id and the argument
+  boundaries legible. Exactly one node on the page. Set in `--ink`, not `--ink-2` —
+  it is the payload of the button beneath it, so it must not be quieter than the
+  plain-language reason above it.
+- **`.btn-quiet` border is `--dot-muted` `#8F8F8F`, not `--hairline`.** The edge is what
+  identifies the secondary as a control; `--hairline` is 1.22:1 on the ground and left
+  "Send back" reading as floating text. Same reason the spec already lifts this colour
+  for the not-started ring.
+- **Form-control borders are `--dot-muted` `#8F8F8F`, not `--hairline`** (`textarea`,
+  `input[type=text]`, `select`). Identical reasoning to `.btn-quiet` one line above, plus
+  WCAG 1.4.11, which requires 3:1 on the boundary of an input. `#8F8F8F` measures
+  **3.23:1** on `--surface`; `--hairline` measures 1.22:1 and left a field reading as
+  empty space.
+- **Sheet titles are 15px/600, not the 22px H1.** A sheet is a page head by role, but its
+  title is prose the caller passes in (`Build ${epic.id} — ${epic.title}?`), which ran to
+  three lines and 38% of the panel at 22px. Hierarchy is carried by weight and colour
+  against the `--ink-2` body — which is what the flat 13/14/15 scale is for.
+- **Form controls are 15px, below the 16px at which iOS zooms on focus.** 15px is the
+  spec's body size; 16px is not on the scale. Recorded rather than silently resolved:
+  the scale wins, and the zoom is the cost. See Open below.
+
+### The live log and the diff — the instrument decision (TKT-010)
+
+The Workspace view's two panes were the last near-black surfaces in the app
+(`#0b0e11` with syntax tints). A terminal log and a code diff are the one place a dark
+surface can honestly be argued for inside a light product: they are instruments, not
+documents, and every tool the user already knows draws them dark.
+
+**Decision: they go light.** The reasoning, in the order it decided the question:
+
+1. This surface is light *by decision, not by default* — CC: *"I hate dark mode"*, and
+   the Vetted section drops dark mode entirely. A dark pane is not an exception to a
+   preference; on a page that has none, it is a second theme.
+2. Two black rectangles halfway down an otherwise white page do not read as deliberate
+   instruments. They read as the parts nobody converted — which is exactly what they
+   were, and a design that looks unfinished is unfinished.
+3. The claim "a log must be dark" is about a *terminal*, where the surface is the
+   application. Here the log is one section of a page, sitting between a decision block
+   and a facts grid. Its neighbours set the ground; it does not get to set its own.
+
+**But not white either.** A wall of log output on `#FFFFFF` is harsh at length, and a
+white pane would be the same material as the `.list` containers, which are rows you tap.
+The panes are drawn as **quiet instrument panels**, recessed rather than raised:
+
+| Property | Value | Why |
+|---|---|---|
+| Surface | `--fill-active` `#F5F5F5` | One step under the `#F8F8F8` ground, so the pane sinks. Not `--surface`: white is the material of things you tap. |
+| Edge | `1px solid --hairline` `#E2E2E2` | What separates every container in this system. A white `.list` on the ground measures 1.06:1; fill contrast has never drawn these edges. |
+| Radius | `--r-container` `12px` | Container, not row. |
+| Type | `--mono`, **13px**/1.5, `tabular-nums` | The floor. The old pane ran 11.5px. |
+| Log — context | `--ink-2` `#6E6E6E` | **4.68:1** on `#F5F5F5`. |
+| Log — tool calls | `--ink` `#191919` | **16.13:1**. Tool calls are the structural beats of a run, so they take full strength rather than a hue. |
+| Log — errors | `--bad` `#B42318` | **6.03:1**. |
+| Diff — adds | `--ok` `#0F7B3E` | **4.91:1**. |
+| Diff — removes | `--bad` `#B42318` | **6.03:1**. |
+| Diff — hunk headers | `--ink` | **16.13:1**. |
+
+- **`--fill-active` `#F5F5F5` over `--fill-track` `#EDEDED`** — the other honest
+  candidate, and the choice is a measurement, not a preference. On `#EDEDED` the diff's
+  `--ok` lands at **4.57:1** and the log's `--ink-2` context lines at **4.36:1**, which is
+  under the AA floor. On `#F5F5F5` they are 4.91 and 4.68. `#EDEDED` is the token for a
+  *track a bar runs in*, where nothing is set in type; these panes are nothing but type.
+  No new token was invented.
+- **No tinted add/remove row fills in the diff**, though the brief permitted them.
+  Three reasons: the spec bans tinted status fills; `--ok` has 0.4 of headroom over AA on
+  this surface, so any tint darker than the pane breaks it and any tint lighter re-lights
+  the recess and makes one pane read as two grounds; and the `+` / `-` git already put at
+  the head of every line is a non-colour carrier that is *in the content*, so nothing here
+  is carried by colour alone.
+- **No `--blue` in the log**, though the brief named it for tool lines. It measures
+  **3.58:1** on `#F5F5F5` — correct for a graphic under the spec's ≥3:1 rule, and below
+  the 4.5 floor for text. This system has never set blue as type, and the exception is not
+  worth making for a rank that `--ink` already carries. Recorded rather than silently
+  dropped. No pulse either — the spec retired those by construction.
+- **Pane height is `340px` (`480px` above 900px), not the old `52dvh`.** The reason is the
+  phone, not embedding: at 420px the pane ran to the bottom edge of a 390×844 screen, so
+  the page appeared to end at the log and the "Changes" heading below it was never seen.
+  340px is ~17 lines and leaves the next section reachable. A fixed height also makes the
+  pane's own size independent of the window, which is what a scrolling instrument wants —
+  `52dvh` meant the log grew when you resized and the number of lines you could see was
+  never the same twice. The desktop step-up is the enhancement; the phone value is the
+  base. *(An earlier draft of this entry justified it by frame embedding. That was wrong
+  on two counts — `dvh` resolves against the viewport whatever the ancestor sizing, and
+  nothing in this app is framed. The decision stands on the reason above.)*
+- **The Workspace's back glyph is a chevron, not the siblings' board panel.** The panel
+  is a *destination* glyph — on Feature and ticket detail it always means "the board". A
+  workspace's honest "up" is the ticket or the feature it is working on (you arrive here
+  from one of those or from Home, never from the board), so painting the panel and landing
+  somewhere else would be a control that lies. A chevron claims only "back", and the page
+  it returns to is the one this page's own h1 names. Home stays the fallback.
+- **The Workspace's log and diff panes are focusable (`tabindex="0"`, `role="region"`).**
+  They scroll; a region that scrolls and cannot be reached by keyboard cannot be read by
+  keyboard. `min-height: 44px` keeps an empty one off the tap floor.
 
 ---
 
@@ -119,6 +217,30 @@ No transforms. No pulsing status dots — retired by construction
 - Renders fully with **JavaScript disabled**. `prefers-reduced-motion` honoured.
 
 ---
+
+## Open — known, not yet resolved
+
+- **iOS zooms on focusing a control below 16px.** Ours are 15px, because 16px is not on
+  the scale. Either the scale gains a control-only size or the zoom is accepted.
+- **Pre-existing values outside this spec's surfaces**, found during the TKT-027 review.
+  Most are now resolved, because the Workspace was the last surface off the system and
+  taking it on made the code that held them dead: `.next-reason` (16px), `.backlink`
+  (39px, under the tap floor), `--radius: 10px`, `.card-head` / `.card-id` / `.card-stage`
+  / `.lamp`, `.meta-grid`, `.detail-actions`, `.rail-head`, `.btn-row`, `.log-pane`,
+  `.diff-pane`, the `--lamp-*` trio, `--attn`, and the `--surface-2` / `--ink-dim` /
+  `--ink-faint` aliases are all deleted, along with `STAGE_LAMP`, `workspaceLamp` and
+  `STATUS_LABEL` in `lib/ui.js`. Still open: `#2B2B2B` / `#1F1F1F` / `#F0F0F0` untokenised
+  greys; the global `:focus-visible { border-radius: 4px }`; the base `.btn` block, which
+  renders 15px and is now reached by nothing (every button in the app is inside `.appview`
+  or `.sheet`) but is left as the default for anything added outside them.
+- **A code diff in a 440px column scrolls horizontally.** The spec's canvas is 440px at
+  any width, which leaves the diff pane ~408px — narrow for code. It scrolls inside its
+  own container so the page never does, but a wide diff on a 1440px screen is a worse read
+  than it needs to be. Widening the column for one section would break the five-view
+  register, so the canvas wins and the cost is recorded. If it is ever revisited, the fix
+  is a full-width reading mode for the diff, not a wider page.
+- **"Renders fully with JavaScript disabled"** in the floor below is aspirational for this
+  surface — the app is client-rendered and ships a `<noscript>` fallback instead.
 
 ## Provenance
 
@@ -142,3 +264,25 @@ Eight earlier mockups put status in a bordered card with a tinted stripe; that w
 
 - 2026-08-06 — Spec created and locked. Direction "Track to finish" chosen by CC over
   the bolder no-connector variant.
+- 2026-08-07 — The three modal sheets brought onto the system (TKT-027), and the bottom
+  nav moved after `<main>` in the DOM so content is reached first (TKT-032). The sheets
+  are governed from here on: they share `.appview`'s button rules via added `.sheet`
+  selectors rather than owning a copy. Three deviations recorded above (form-control
+  border, 15px sheet title, 15px control text). `--bad` left the routine send-back and
+  stop controls entirely; `.btn-danger` is deleted.
+- 2026-08-07 — Home brought onto the system (TKT-007). Status left its cards for bare
+  rows in one container; the three-button row became primary + outline secondary, with
+  "look first" carried by the row itself; the mono wordmark and the global topbar are
+  hidden on both views. Feature's selectors moved from `#view-feature` to a shared
+  `.appview`. Two deviations recorded above (`--mono` command, `.btn-quiet` border);
+  the latter changes the Feature view's "Send back" too, which is intended — the two
+  views move together or they are not one system.
+- 2026-08-07 — The **Workspace** brought onto the system (TKT-010), the last view on the
+  old chrome. Its live log and diff go light as recessed instrument panels on
+  `--fill-active`; the decision, the contrast that chose that token over `--fill-track`,
+  and the three things the brief permitted that measurement ruled out (tinted diff rows,
+  blue tool lines, a `dvh` pane height) are all in Deviations above. Its status words are
+  Home's and the ticket page's, not a second vocabulary — `STATUS_LABEL` is deleted. Its
+  back control is a chevron rather than the board glyph, also recorded. Taking this view
+  on made ten CSS blocks and three `lib/ui.js` exports dead; they are gone, which closes
+  most of the TKT-027 "pre-existing values" list under Open.

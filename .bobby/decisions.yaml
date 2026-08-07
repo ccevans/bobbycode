@@ -15,12 +15,154 @@
 
 ---
 
-# Example (delete and replace with real decisions after running `bobby run arch`):
-#
-# - id: no-direct-db-in-components
-#   fact: "Never call the database directly from UI components."
-#   decided: "2025-01-01"
-#   ticket: arch
-#   why: "Breaks separation of concerns and makes testing hard. Use a service layer."
-#   supersedes: null
-#   invalidated: null
+- id: worktree-per-workspace
+  fact: "Every dashboard/app workspace runs in its own git worktree on its own branch; nothing an agent does touches the main checkout until an explicit merge."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "Parallel agents in one checkout collide on the index and on each other's edits. Isolation also means every run produces a reviewable branch diff instead of unreviewable in-place changes, which is what the approve gate reviews. Evidence: lib/dashboard/worktree.js header; Orchestrator.createWorkspace."
+  supersedes: null
+  invalidated: null
+
+- id: worktrees-fork-from-main
+  fact: "Workspace worktrees are always created from the repo's main/master branch, never from the branch you are standing on."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "Orchestrator.createWorkspace calls createWorktree without baseBranch, so detectMainBranch(repoRoot) decides. It makes every workspace diff comparable against one base — and it means unmerged work (including .bobby/architecture-wakeup.md itself) is invisible to every agent the app launches until it lands on main."
+  supersedes: null
+  invalidated: null
+
+- id: tickets-resolve-to-main-worktree
+  fact: "resolveTicketsDir and resolveSessionsDir always redirect to the MAIN worktree's copy, whatever directory the command was invoked from."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "One board per repository. Without it, every worktree would fork the ticket board and IDs would collide. The cost is a real trap: `bobby ticket create` run inside a worktree writes to the main checkout's branch, and `bobby ticket move` cannot reach an agent that is re-reading its own worktree copy. Evidence: lib/config.js findMainWorktreeRoot / resolveTicketsDir."
+  supersedes: null
+  invalidated: null
+
+- id: stage-advance-is-the-success-signal
+  fact: "An agent run counts as successful only when it exits 0 AND the ticket's stage in the worktree differs from the workspace's recorded stage; a clean exit with no stage change returns the workspace to idle."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "The executor stream is passed through untouched and nothing downstream inspects it, so exit code is the only signal the CLI gives — and an agent that did nothing also exits 0. Reading the stage off disk is the one check that distinguishes work from a no-op. Evidence: Orchestrator._onExit; executor.js header."
+  supersedes: null
+  invalidated: null
+
+- id: approval-gate-before-next-agent
+  fact: "The next agent never starts automatically; a run that advanced a stage parks in awaiting_approval until approve() or a dashboard.auto_approve_stages entry releases it."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "Every agent run spends real tokens on the user's own Claude subscription, and a wrong plan multiplied down a workflow is expensive. The human gate is opt-out per stage, not opt-in per run. Evidence: Orchestrator._onExit / approve; the App's confirm sheet is the same guardrail on the client."
+  supersedes: null
+  invalidated: null
+
+- id: merge-mutates-the-main-checkout
+  fact: "mergeToMain stashes the main checkout, checks out main, merges --no-ff, then pops — so the main checkout changes branch and working tree for the duration of a merge."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "A no-ff merge in the real checkout is what makes the result inspectable with ordinary git afterwards, and the auto-stash stops a merge clobbering in-progress work. The consequence is a hard invariant: nothing else may read or write the main checkout while a merge runs. merge() already refuses a running workspace for this reason; TKT-014's repo runs need the same guard."
+  supersedes: null
+  invalidated: null
+
+- id: one-prompt-door
+  fact: "buildPromptFor() in lib/workflow.js is the only place an agent prompt is constructed, and executeGoAction() is the only place a brief nextAction is executed."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "The CLI and the local server are two front ends over one engine. When each built its own prompt or its own action mapping they drifted, and a stage meant something different depending on where you started it. One function each means the CLI and the app can disagree about display but never about meaning. Evidence: lib/dashboard/actions.js header."
+  supersedes: null
+  invalidated: null
+
+- id: agents-live-in-the-registry
+  fact: "A new agent is an entry in AGENT_REGISTRY with promptHeader + promptSteps; dispatch flags (requiresTicket, cowork, freeform, custom) drive everything else."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "Adding an agent used to mean touching the registry, the prompt builder, and the CLI dispatch. The generic builder collapsed that to one edit, which is why only ship/workflow/feature/next still have bespoke builders."
+  supersedes: null
+  invalidated: null
+
+- id: ticket-ids-claimed-by-mkdir
+  fact: "Ticket IDs are claimed by fs.mkdirSync on the ticket directory; EEXIST means another agent won the race and the next number is tried. .counter is a hint, repairable from directory names."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "Multiple agents create tickets concurrently (bobby-ux and bobby-pm both file findings). A read-increment-write counter loses IDs under that; mkdir is the atomic primitive the filesystem already provides. Never hand-write .counter or a ticket directory — that reintroduces the collision. Evidence: lib/counter.js."
+  supersedes: null
+  invalidated: null
+
+- id: paid-code-never-ships-in-the-mit-package
+  fact: "No paid capability's code is in bobbycode. Paid features live in separately distributed packages (@bobbycode/pro-dashboard) loaded through the plugins seam; the App UI is one of them."
+  decided: "2026-07-29"
+  ticket: arch
+  why: "Verbatim from lib/dashboard/plugins.js: gating code that ships in an MIT npm tarball is theatre — the source is on disk and `npm i bobbycode@<older>` is a version pin away. Distribution is the lock, not the license check. Corollary the code enforces: everything already published as MIT stays free forever, so a paywall may only ever be net-new content."
+  supersedes: null
+  invalidated: null
+
+- id: extension-routes-namespaced-and-fail-soft
+  fact: "Dashboard extensions may only register routes under /api/pro/, and a plugin that throws during register() is skipped with a console error rather than taking the server down."
+  decided: "2026-07-29"
+  ticket: arch
+  why: "Reserving the namespace means a future core route can never collide with a paid add-on's, and core routes are registered first so they always win the match. Fail-soft because a paid add-on must never be able to break the free dashboard the user is entitled to. Evidence: lib/dashboard/server.js plugin loop; loadDashboardPlugins never throws."
+  supersedes: null
+  invalidated: null
+
+- id: local-server-is-loopback-and-unauthenticated
+  fact: "The dashboard/app HTTP server has no authentication and binds 127.0.0.1 by default; binding elsewhere prints an explicit warning."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "Every /api/* verb can start an agent with write access to the repo, so reachability IS authorization. Rather than build an auth system for a single-user local tool, the surface is kept on loopback and the phone case is solved by an outbound encrypted tunnel instead of by opening a port. Evidence: commands/app.js host warning."
+  supersedes: null
+  invalidated: null
+
+- id: relay-is-a-dumb-pipe
+  fact: "bobby remote opens ONE outbound WebSocket; every frame is AES-256-GCM under a key delivered out of band inside the pairing code, and the tunnel accepts only GET/POST on /^\\/api\\/[A-Za-z0-9\\/_.-]*$/. Inference never leaves the user's machine or subscription."
+  decided: "2026-07-31"
+  ticket: arch
+  why: "The channel can run agents on the user's machine, so the relay operator must not be a party you have to trust. No handshake, no accounts, nothing stored server-side; a frame that fails authentication is dropped in silence so a prober learns nothing. Nothing listens on the network, so NAT stays closed. Evidence: lib/remote/crypto.js and tunnel.js headers."
+  supersedes: null
+  invalidated: null
+
+- id: pairing-key-lives-in-home-per-project
+  fact: "A remote pairing is stored at ~/.bobby/remote/<sha256(repoRoot)[:16]>.yml with mode 0600 — one channel per project root, never inside the repo."
+  decided: "2026-07-31"
+  ticket: arch
+  why: ".bobby/ is committed on purpose (tickets are meant to be shared), so a channel key placed there would eventually be pushed. Keying the file by project root also means each project gets its own channel and `--new-code` can cut old phones off one project at a time. Evidence: lib/remote/pairing-store.js."
+  supersedes: null
+  invalidated: null
+
+- id: overlay-shipped-vs-local
+  fact: "For every scaffolded file, X.ext is Bobby's and is regenerated on upgrade; X.local.ext is the user's, seeded once and never written again. Readers must load both and let .local win."
+  decided: "2026-07-27"
+  ticket: arch
+  why: "Upgrades used to overwrite customized skills and agent files silently, destroying work with no diff to notice. The contract is pinned by test/lib/overlay.test.js precisely because breaking it is invisible until a user's edits are already gone."
+  supersedes: null
+  invalidated: null
+
+- id: app-ui-is-light-only
+  fact: "The Bobby App UI is light-only — no dark mode and no dark panes, including the live log and the diff, which are drawn as recessed #F5F5F5 instrument panels."
+  decided: "2026-08-07"
+  ticket: TKT-010
+  why: "CC: 'I hate dark mode', and the vetted section of the spec drops dark mode entirely. The log/diff panes were argued for as instruments, but two black rectangles on an otherwise white page read as the parts nobody converted — which is what they were. #F5F5F5 over #EDEDED is a measurement, not a preference: on #EDEDED the diff's --ok lands at 4.57:1 and log context at 4.36:1, under AA. Evidence: .bobby/design/design-spec-feature-view.md."
+  supersedes: null
+  invalidated: null
+
+- id: app-motion-is-near-none
+  fact: "The App has one 120ms background-color transition on row hover. No transforms, no pulsing status dots, no shadows, no gradients, no tinted status fills."
+  decided: "2026-08-06"
+  ticket: arch
+  why: "Five reference teardowns all record 'no pulse'; pulsing was retired by construction rather than by taste. Shadows and tinted fills were dropped in the same pass — CC on the richer options: 'little too much'. Evidence: .bobby/design/design-spec-feature-view.md, Motion and Vetted sections."
+  supersedes: null
+  invalidated: null
+
+- id: app-type-floor-13px
+  fact: "Nothing in the App renders below 13px, and blue (#467AF6) is never a button fill — it means live / needs attention only."
+  decided: "2026-08-06"
+  ticket: arch
+  why: "The reference runs 12px; our floor wins, and the spec logs the consequences it forces (57px ticket rows rather than the reference's 44px) as deviations rather than silently absorbing them. Blue is the single accent and is reserved for state; primary buttons are --btn #363636. Evidence: .bobby/design/design-spec-feature-view.md, Type and Colour."
+  supersedes: null
+  invalidated: null
+
+- id: bobbycode-default-workflow-ends-at-review
+  fact: "In this repository, the `default` workflow is [plan, build, review] — the built-in trailing `test` stage is removed."
+  decided: "2026-08-05"
+  ticket: TKT-013
+  why: "bobbycode is a CLI library with no live app. The built-in test stage verifies through a running app and its skill forbids running specs, so it has nothing to observe and would strand every ticket in testing. review runs the suite independently, which is the correct verification for a library. TKT-013 tracks a built-in `library` workflow upstream so other CLI projects need no override. Evidence: .bobbyrc.yml workflows block."
+  supersedes: null
+  invalidated: null
