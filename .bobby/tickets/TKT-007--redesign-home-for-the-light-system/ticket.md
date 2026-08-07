@@ -1,7 +1,7 @@
 ---
 id: TKT-007
 title: Redesign Home for the light system
-stage: backlog
+stage: done
 type: feature
 priority: high
 area: ui
