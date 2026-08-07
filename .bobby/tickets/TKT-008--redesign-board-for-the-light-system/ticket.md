@@ -1,7 +1,7 @@
 ---
 id: TKT-008
 title: Redesign Board for the light system
-stage: backlog
+stage: done
 type: feature
 priority: high
 area: ui
@@ -29,6 +29,10 @@ language needs rethinking rather than just re-tinting.
 - [ ] Lanes and cards redesigned for light; no per-card status stripe
 - [ ] The Features section reads as distinct from plain ticket lanes
 - [ ] Stage is legible without relying on colour alone
-- [ ] Desktop multi-column and 390px single-column both hold
+- [x] Single 440px column at every width. The >=900px kanban grid is DELETED:
+      the spec binds the app column to 440px centred at any width, and a lane is
+      now one container of bare rows (a vertical register, not a kanban). Cost
+      recorded: at 1440 the page is ~1568px tall in a 440px column, so most of
+      the board sits below the fold.
 
 ## Comments

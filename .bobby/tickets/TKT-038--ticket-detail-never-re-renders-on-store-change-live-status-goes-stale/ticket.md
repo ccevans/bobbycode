@@ -1,8 +1,6 @@
 ---
-id: TKT-027
-title: >-
-  Home: the Send-back sheet is off-system and still red — 4 spec-conformance
-  failures one tap into the Home flow
+id: TKT-038
+title: Ticket detail never re-renders on store change — live status goes stale
 stage: done
 type: bug
 priority: high

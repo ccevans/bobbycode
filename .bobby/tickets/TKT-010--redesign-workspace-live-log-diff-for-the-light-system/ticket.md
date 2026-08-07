@@ -1,7 +1,7 @@
 ---
 id: TKT-010
 title: Redesign Workspace (live log + diff) for the light system
-stage: backlog
+stage: done
 type: feature
 priority: medium
 area: ui

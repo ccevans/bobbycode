@@ -1,7 +1,7 @@
 ---
 id: TKT-032
 title: Tab order puts the bottom nav bar before page content on every view
-stage: backlog
+stage: done
 type: bug
 priority: medium
 area: ui

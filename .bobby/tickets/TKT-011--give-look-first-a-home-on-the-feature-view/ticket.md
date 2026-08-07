@@ -1,7 +1,7 @@
 ---
 id: TKT-011
 title: Give "Look first" a home on the Feature view
-stage: backlog
+stage: done
 type: improvement
 priority: medium
 area: ui

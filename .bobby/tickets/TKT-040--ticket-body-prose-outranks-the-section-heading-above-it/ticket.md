@@ -1,11 +1,9 @@
 ---
-id: TKT-027
-title: >-
-  Home: the Send-back sheet is off-system and still red — 4 spec-conformance
-  failures one tap into the Home flow
+id: TKT-040
+title: Ticket body prose outranks the section heading above it
 stage: done
 type: bug
-priority: high
+priority: medium
 area: ui
 author: unknown
 assigned: null

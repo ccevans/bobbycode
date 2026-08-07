@@ -1,11 +1,9 @@
 ---
-id: TKT-027
-title: >-
-  Home: the Send-back sheet is off-system and still red — 4 spec-conformance
-  failures one tap into the Home flow
+id: TKT-042
+title: Ticket file scaffolding leaks into page headings and metadata values
 stage: done
 type: bug
-priority: high
+priority: low
 area: ui
 author: unknown
 assigned: null

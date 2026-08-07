@@ -1,11 +1,11 @@
 ---
-id: TKT-027
+id: TKT-044
 title: >-
-  Home: the Send-back sheet is off-system and still red — 4 spec-conformance
-  failures one tap into the Home flow
-stage: done
+  Workspace: the diff pane's non-diff lines bypass .ph — empty state and every
+  fetch error render as mono diff context
+stage: backlog
 type: bug
-priority: high
+priority: medium
 area: ui
 author: unknown
 assigned: null

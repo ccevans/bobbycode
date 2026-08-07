@@ -1,7 +1,7 @@
 ---
 id: TKT-009
 title: Redesign Ticket detail for the light system
-stage: backlog
+stage: done
 type: feature
 priority: medium
 area: ui

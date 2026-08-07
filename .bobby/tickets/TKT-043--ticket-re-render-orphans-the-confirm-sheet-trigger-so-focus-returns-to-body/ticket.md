@@ -1,11 +1,9 @@
 ---
-id: TKT-027
-title: >-
-  Home: the Send-back sheet is off-system and still red — 4 spec-conformance
-  failures one tap into the Home flow
+id: TKT-043
+title: Ticket re-render orphans the confirm-sheet trigger so focus returns to body
 stage: done
 type: bug
-priority: high
+priority: medium
 area: ui
 author: unknown
 assigned: null

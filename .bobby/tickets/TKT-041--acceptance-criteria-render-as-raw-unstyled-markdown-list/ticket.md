@@ -1,11 +1,9 @@
 ---
-id: TKT-027
-title: >-
-  Home: the Send-back sheet is off-system and still red — 4 spec-conformance
-  failures one tap into the Home flow
+id: TKT-041
+title: Acceptance criteria render as raw unstyled markdown list
 stage: done
 type: bug
-priority: high
+priority: medium
 area: ui
 author: unknown
 assigned: null

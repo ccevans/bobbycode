@@ -1,11 +1,11 @@
 ---
-id: TKT-027
+id: TKT-045
 title: >-
-  Home: the Send-back sheet is off-system and still red — 4 spec-conformance
-  failures one tap into the Home flow
-stage: done
+  Workspace: a failed diff fetch has no error treatment — renders in --ink-2
+  while the log pane right above it uses --bad
+stage: backlog
 type: bug
-priority: high
+priority: medium
 area: ui
 author: unknown
 assigned: null

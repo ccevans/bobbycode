@@ -1,11 +1,11 @@
 ---
-id: TKT-027
+id: TKT-046
 title: >-
-  Home: the Send-back sheet is off-system and still red — 4 spec-conformance
-  failures one tap into the Home flow
-stage: done
+  Workspace: Show diff has no loading state and stays enabled during the fetch —
+  the page is inert and a second click shells out to git again
+stage: backlog
 type: bug
-priority: high
+priority: medium
 area: ui
 author: unknown
 assigned: null

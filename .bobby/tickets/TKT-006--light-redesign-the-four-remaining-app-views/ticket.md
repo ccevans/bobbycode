@@ -1,7 +1,7 @@
 ---
 id: TKT-006
 title: 'Light redesign: the four remaining app views'
-stage: backlog
+stage: done
 type: epic
 priority: high
 area: ui
