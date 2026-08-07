@@ -49,13 +49,17 @@ _Plan is stored as `plan.md` in this ticket's folder._
 
 ---
 
-## Steps to Reproduce (bugs only)
+<%# locals.type, not type: this file may be rendered by a directory walk whose
+    data has no `type`, and a bare reference would throw at init. -%>
+<% if (locals.type === 'bug') { -%>
+## Steps to Reproduce
 
 1. [Step 1]
 2. [Step 2]
 3. [Expected vs actual result]
 
 ---
+<% } -%>
 
 ## Dev Notes
 
