@@ -3,7 +3,7 @@ id: TKT-053
 title: >-
   Sprint prompts use a relative sprints path that does not resolve inside a
   worktree
-stage: backlog
+stage: done
 type: bug
 priority: medium
 area: orchestrator

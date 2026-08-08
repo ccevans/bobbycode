@@ -1,7 +1,7 @@
 ---
 id: TKT-016
 title: Commit the Playwright e2e suite for the app
-stage: backlog
+stage: done
 type: feature
 priority: high
 area: test
@@ -14,7 +14,7 @@ blocked_reason: null
 previous_stage: null
 parent: null
 created: '2026-08-07'
-updated: '2026-08-07'
+updated: '2026-08-08'
 ---
 
 ## Description
