@@ -166,3 +166,27 @@
   why: "bobbycode is a CLI library with no live app. The built-in test stage verifies through a running app and its skill forbids running specs, so it has nothing to observe and would strand every ticket in testing. review runs the suite independently, which is the correct verification for a library. TKT-013 tracks a built-in `library` workflow upstream so other CLI projects need no override. Evidence: .bobbyrc.yml workflows block."
   supersedes: null
   invalidated: null
+
+- id: workspace-stage-is-the-stage-now-in
+  fact: "`workspace.stage` means the stage the ticket is NOW IN — the stage whose agent runs next — never the stage the ticket just left. The next agent is therefore a direct lookup (the step whose stage === workspace.stage), never an index offset."
+  decided: "2026-08-08"
+  ticket: TKT-047
+  why: "Orchestrator._onExit copies the stage straight off the worktree's ticket.md, and every agent hands the ticket to the stage the NEXT agent works in (plan lands it in building, build lands it in reviewing). The two conventions were mixed: _onExit wrote 'the stage now in' while _resolveNextAgent read it as 'the stage just completed' and returned pipeline[idx + 1], which skipped an agent at every step of the default workflow and returned null after review — reporting ready-to-merge without test ever running. lib/workflow.js resolveNextAgent already did the direct lookup, so the orchestrator now delegates to it and there is one definition of the convention. Evidence: Orchestrator._resolveNextAgent; test/lib/dashboard/orchestrator-fsm.test.js."
+  supersedes: null
+  invalidated: null
+
+- id: forward-stage-comes-from-the-workflow-not-the-agent-file
+  fact: "An agent file may never name the stage it moves a ticket forward to; that stage is computed from the ticket's resolved workflow and injected into the agent's task prompt, which wins over anything the agent file or its skill says. Non-forward transitions (reject, block, done) stay as literals."
+  decided: "2026-08-08"
+  ticket: TKT-048
+  why: "A literal is only correct for `default`. On `quick` (planning -> building -> testing) a bobby-build that hardcodes `move {ID} review` parks the ticket in a stage the workflow does not contain, the stage lookup misses, and the orchestrator declares the run finished — so a quick feature never tests and still reports ready-to-merge. Same breakage for `secure` and every user workflow under `workflows:`. nextStageForAgent derives the target from the AGENT's position in the workflow rather than the ticket's current stage, so a build re-run after a rejection still targets correctly. Evidence: lib/workflow.js nextStageForAgent / buildSingleAgentPrompt; templates/agents/*.md.ejs Handoff sections."
+  supersedes: null
+  invalidated: null
+
+- id: concurrency-cap-refuses-per-server-process
+  fact: "dashboard.max_concurrent (default 4) caps agents in flight per Orchestrator — one per `bobby app`/`bobby dashboard` process serving one repo, so per project per server process. Exceeding it REFUSES the run with an error naming what is already running; it never queues."
+  decided: "2026-08-08"
+  ticket: TKT-015
+  why: "Every running agent is a CLI subprocess spending real tokens on the user's own subscription, and a mis-click on a large epic could start ten. A queue is worse than a refusal here: it starts work minutes later, unattended, after the user has forgotten they asked. Refusal keeps the human in the loop, so the message names the holders of the slots and the config key to raise. Known gap: nothing coordinates across processes, so two servers on the same repo each get their own budget. Evidence: Orchestrator._assertConcurrencyHeadroom; surfaced as a 400 through POST /api/workspaces/:id/run."
+  supersedes: null
+  invalidated: null

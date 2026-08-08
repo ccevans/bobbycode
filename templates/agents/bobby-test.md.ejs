@@ -21,8 +21,17 @@ Read these in parallel:
 
 - If you wrote or modified test files: `git add` and `git commit` with `TKT-{ID}: add/update tests`
 - If you discovered anything non-obvious or a pattern future testing should catch: `bobby learn bobby-test "pattern" "description"`
-- If all tests pass: `bobby ticket move {ID} ship` then output `<bobby:done ticket="{ID}" stage="shipping" />`
+- If all tests pass: hand the ticket on — see Handoff below
 - If tests fail: `bobby ticket move {ID} reject "test failure details"` then output `<bobby:done ticket="{ID}" stage="building" />`
+
+## Handoff
+
+Passing is the only forward step, and your task prompt names the stage it goes to.
+Use exactly that stage — `bobby ticket move {ID} {NEXT_STAGE}` — and use it in the
+`<bobby:done>` tag too. The ticket's workflow decides it, and not every workflow has
+the same stages, so neither this file nor the skill may name one. If either does, your
+task prompt wins. If no stage is named there, leave the stage alone and report the
+result. Rejection is not workflow-relative — it stays as written above.
 
 ## Project overrides
 

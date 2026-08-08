@@ -329,6 +329,9 @@ dashboard:
   port: 7777
   worktree_root: ../bobby-wt
   auto_approve_stages: []
+  max_concurrent: 4               # Agents in flight at once; past the cap a run
+                                  # is refused (with the running ones named),
+                                  # never queued.
 
 # Parallel isolation for batch operations
 parallel_isolation: none         # none | worktree

@@ -15,33 +15,56 @@ function bareOrchestrator(config = {}) {
   });
 }
 
+// These assert PIPELINE SELECTION — that a workspace advances through the
+// workflow it was created with rather than the server default. They previously
+// also encoded an off-by-one (`ws.stage` read as "the stage just completed", so
+// the next agent was pipeline[idx + 1]); ws.stage is the stage the ticket is NOW
+// IN, so the agent that owns that stage is the one that runs next (TKT-047).
+// The workspaces below are therefore keyed on the stage whose agent we expect.
 describe('per-workspace pipeline', () => {
-  it('a quick workspace skips review: building → testing', () => {
+  it('a quick workspace skips review: after build, testing not reviewing', () => {
     const o = bareOrchestrator();
 
-    // default: building → reviewing; quick: building → testing
-    expect(o._resolveNextAgent({ stage: 'building', pipeline: 'default' })).toBe('review');
-    expect(o._resolveNextAgent({ stage: 'building', pipeline: 'quick' })).toBe('test');
+    // Both workflows put a built ticket in the stage their next agent owns.
+    // default: reviewing → bobby-review. quick has no reviewing stage at all,
+    // so bobby-build lands the ticket in testing → bobby-test.
+    expect(o._resolveNextAgent({ stage: 'reviewing', pipeline: 'default' })).toBe('review');
+    expect(o._resolveNextAgent({ stage: 'testing', pipeline: 'quick' })).toBe('test');
+
+    // The selection, stated as the difference it makes: the same stage resolves
+    // to an agent under default and to nothing under quick.
+    expect(o._resolveNextAgent({ stage: 'reviewing', pipeline: 'quick' })).toBeNull();
   });
 
   it('no recorded pipeline falls back to the server default', () => {
     const o = bareOrchestrator();
 
-    expect(o._resolveNextAgent({ stage: 'planning' })).toBe('build');
+    expect(o._resolveNextAgent({ stage: 'planning' })).toBe('plan');
+    expect(o._resolveNextAgent({ stage: 'building' })).toBe('build');
   });
 
   it('a custom workflow from config is honored', () => {
     const o = bareOrchestrator({
-      workflows: { thorough: ['plan', 'build', 'review', 'security', 'test'] },
+      workflows: { thorough: ['plan', 'build', 'security', 'test'] },
     });
 
+    // `security` maps to the reviewing stage, which the default workflow gives
+    // to bobby-review — so this resolves differently only because the
+    // workspace's own workflow is consulted.
     expect(o._resolveNextAgent({ stage: 'reviewing', pipeline: 'thorough' })).toBe('security');
+    expect(o._resolveNextAgent({ stage: 'reviewing', pipeline: 'default' })).toBe('review');
   });
 
   it('a workflow deleted from config degrades to the default instead of stranding', () => {
     const o = bareOrchestrator();
 
-    expect(o._resolveNextAgent({ stage: 'building', pipeline: 'gone-from-config' })).toBe('review');
+    expect(o._resolveNextAgent({ stage: 'reviewing', pipeline: 'gone-from-config' })).toBe('review');
+  });
+
+  it('returns null past the end of the workflow', () => {
+    const o = bareOrchestrator();
+
+    expect(o._resolveNextAgent({ stage: 'shipping', pipeline: 'default' })).toBeNull();
   });
 });
 
