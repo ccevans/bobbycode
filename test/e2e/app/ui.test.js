@@ -31,7 +31,7 @@ import path from 'path';
 import { createRequire } from 'module';
 // Jest's ESM runtime does not inject the `jest` global — it has to be imported.
 import { jest } from '@jest/globals';
-import { moveTicket } from '../../../lib/tickets.js';
+import { moveTicket, updateTicket } from '../../../lib/tickets.js';
 import { startApp, waitFor } from './harness.js';
 
 const require_ = createRequire(import.meta.url);
@@ -393,7 +393,17 @@ describeUi(SKIP_REASON ? `E2E: the Bobby App UI (skipped — ${SKIP_REASON})` : 
   });
 
   /* ---------------------------------------------------------------- *
-   * TKT-050 — a known bug, pinned so fixing it is visible
+   * TKT-050 — no ticket may be drawn nowhere
+   *
+   * The Pro UI's views/board.js used to filter tickets against a literal
+   * BOARD_ORDER of eight stage names. lib/stages.js has thirteen. A ticket in
+   * one of the four `design-*` stages matched no lane and was not blocked and
+   * not an epic, so nothing on the page claimed it — it rendered NOWHERE. The
+   * board derives its lanes from the stage list now (served by /api/config),
+   * and anything the list does not name gets a lane of its own at the end.
+   *
+   * These three tests are the guard on that: a listed stage, a stage that was
+   * missed, and a stage nobody has ever heard of.
    * ---------------------------------------------------------------- */
 
   describe('every stage a ticket can be in has somewhere to appear on the board', () => {
@@ -409,25 +419,51 @@ describeUi(SKIP_REASON ? `E2E: the Bobby App UI (skipped — ${SKIP_REASON})` : 
     };
 
     // The control. If the fixture or the board itself breaks, this goes red —
-    // which is what stops the pinned test below from passing for the wrong
-    // reason (a `.failing` test passes on ANY throw).
-    it('draws a ticket whose stage BOARD_ORDER does list', async () => {
+    // which is what stops the two tests below from passing for the wrong reason.
+    it('draws a ticket whose stage is early in the pipeline', async () => {
       const { building } = await seedBoard();
       expect(await page.locator(`#view-board .row[href="#/ticket/${building}"]`).count()).toBe(1);
     });
 
-    // TKT-050 — KNOWN BUG. BOARD_ORDER in the Pro UI's views/board.js lists
-    // eight stages. The four `design-*` stages are real stages in
-    // lib/stages.js, and the `design` workflow parks tickets in them, but they
-    // match no lane and are not "blocked" or an epic — so the ticket is drawn
-    // nowhere and disappears from the board entirely. The server is not at
-    // fault: api-loop.test.js asserts /api/tickets returns it.
-    //
-    // `test.failing` passes while the bug is present and fails the moment it is
-    // fixed. When TKT-050 lands, delete the `.failing` and this goes green.
-    it.failing('draws a ticket whose stage BOARD_ORDER does not list (TKT-050)', async () => {
+    // The bug itself. Was `it.failing` while BOARD_ORDER was hardcoded.
+    it('draws a ticket in a design-pipeline stage (TKT-050)', async () => {
       const { designed } = await seedBoard();
       expect(await page.locator(`#view-board .row[href="#/ticket/${designed}"]`).count()).toBe(1);
+    });
+
+    // The regression guard that outlives the four stages this ticket was
+    // about. Deriving lanes from the stage list fixes every stage that IS in
+    // the list; it does nothing for one that is not, and a ticket file is text
+    // a human can edit. `updateTicket` rather than `moveTicket` on purpose —
+    // `moveTicket` validates against STAGES and would refuse to write this,
+    // which is exactly the door this test comes through.
+    it('draws a ticket whose stage is in no list at all', async () => {
+      app = await startApp({ appDir: APP_DIR });
+      const stray = app.ticket({ title: 'Filed under something new' });
+      updateTicket(app.ticketsDir, stray, { stage: 'archaeology' });
+      await open('#/board');
+      await page.locator('#view-board h1').waitFor();
+      expect(await page.locator(`#view-board .row[href="#/ticket/${stray}"]`).count()).toBe(1);
+      // In a lane that names it, not swept into an unlabelled bucket.
+      expect(await page.locator('#view-board h2', { hasText: 'Archaeology' }).count()).toBe(1);
+    });
+
+    // Lanes run in pipeline order, which is the one thing deriving them could
+    // plausibly have cost. `design-spec` sits before `building` in
+    // lib/stages.js, so it must sit before it here — and an unknown stage goes
+    // last, after every stage the list does name.
+    it('orders its lanes by the pipeline, not the alphabet', async () => {
+      app = await startApp({ appDir: APP_DIR });
+      const designed = app.ticket({ title: 'Out at design' });
+      const building = app.ticket({ title: 'Being built' });
+      const stray = app.ticket({ title: 'Filed under something new' });
+      moveTicket(app.ticketsDir, designed, 'design-spec', 'bobby-design-spec');
+      moveTicket(app.ticketsDir, building, 'building', 'bobby-build');
+      updateTicket(app.ticketsDir, stray, { stage: 'archaeology' });
+      await open('#/board');
+      await page.locator('#view-board h1').waitFor();
+      const lanes = await page.locator('#view-board .sec h2').allTextContents();
+      expect(lanes).toEqual(['Design Spec', 'Building', 'Archaeology']);
     });
   });
 });
