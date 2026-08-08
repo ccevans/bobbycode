@@ -15,12 +15,14 @@
 
 ---
 
-# Example (delete and replace with real decisions after running `bobby run arch`):
-#
-# - id: no-direct-db-in-components
-#   fact: "Never call the database directly from UI components."
-#   decided: "2025-01-01"
-#   ticket: arch
-#   why: "Breaks separation of concerns and makes testing hard. Use a service layer."
-#   supersedes: null
-#   invalidated: null
+- id: auto-sync-scoped-paths
+  fact: "autoSync stages only caller-declared paths, not all Bobby-managed paths."
+  decided: "2026-08-08"
+  ticket: TKT-061
+  why: >
+    autoSync previously staged all Bobby-managed paths (getBobbyPaths), which
+    silently committed unrelated in-flight work by other agents. New callers must
+    declare which files they wrote. Forgetting to pass a path means that file
+    won't be auto-committed — preferable to sweeping up someone else's work.
+  supersedes: null
+  invalidated: null
