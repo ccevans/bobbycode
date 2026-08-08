@@ -94,3 +94,14 @@ max_retries: 3
 # Conductor.build integration (set to false to skip conductor.json generation)
 # conductor: false
 
+
+# Agents launched by `bobby app` run inside an isolated git worktree, so the
+# worktree IS the sandbox. Left unset, claude -p stops to ask before every
+# write — and in a headless subprocess nobody can answer, so the agent burns
+# turns retrying and exits 0 having written nothing. See TKT-062.
+dashboard:
+  # bypassPermissions, not acceptEdits: acceptEdits allows file writes but NOT
+  # bash, and the whole workflow depends on the agent running `bobby ticket
+  # move`. Without bash it hand-edits ticket.md inside its own worktree, which
+  # the orchestrator correctly ignores. See TKT-062.
+  permission_mode: bypassPermissions
