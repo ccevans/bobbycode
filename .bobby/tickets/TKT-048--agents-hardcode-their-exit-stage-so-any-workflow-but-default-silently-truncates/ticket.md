@@ -3,7 +3,7 @@ id: TKT-048
 title: >-
   Agents hardcode their exit stage, so any workflow but 'default' silently
   truncates
-stage: backlog
+stage: done
 type: bug
 priority: high
 area: orchestrator

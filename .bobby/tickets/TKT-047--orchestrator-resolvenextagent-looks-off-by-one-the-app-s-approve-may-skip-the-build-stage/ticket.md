@@ -3,7 +3,7 @@ id: TKT-047
 title: >-
   Orchestrator _resolveNextAgent looks off by one — the app's approve may skip
   the build stage
-stage: backlog
+stage: done
 type: bug
 priority: high
 area: orchestrator
@@ -16,7 +16,7 @@ blocked_reason: null
 previous_stage: null
 parent: null
 created: '2026-08-07'
-updated: '2026-08-07'
+updated: '2026-08-08'
 ---
 
 ## Description
