@@ -15,7 +15,7 @@
 import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
-import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir, resolveIdeasFile } from '../lib/config.js';
 import { getTarget } from '../lib/targets/index.js';
 import { WorkspaceStore } from '../lib/dashboard/state.js';
 import { SSEHub } from '../lib/dashboard/sse.js';
@@ -122,6 +122,10 @@ export function registerApp(program) {
         const server = buildServer({
           orchestrator, store, sseHub, config, repoRoot: root, ticketsDir,
           plugins, pluginStatus, appDir: app.dir, sprintsDir,
+          // One ideas list per repository, like the ticket board: resolved
+          // against the MAIN worktree so `bobby app` run from inside a worktree
+          // still shows and writes the ideas `bobby idea` captured (TKT-018).
+          ideasFile: resolveIdeasFile(root, config),
         });
 
         server.listen(port, host, () => {

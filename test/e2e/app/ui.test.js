@@ -28,6 +28,7 @@
 // Nothing here spawns `claude`: the orchestrator is stubbed in harness.js.
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { createRequire } from 'module';
 // Jest's ESM runtime does not inject the `jest` global — it has to be imported.
 import { jest } from '@jest/globals';
@@ -456,11 +457,19 @@ describeUi(SKIP_REASON ? `E2E: the Bobby App UI (skipped — ${SKIP_REASON})` : 
   it('never scrolls sideways, and never renders text under 13px, at 375/390/768/1440', async () => {
     app = await startApp({ appDir: APP_DIR });
     const epic = seedFeature();
+    // Ideas is measured with rows on it AND at its longest sentence — a
+    // captured idea is free text, and the note under the list quotes it back.
+    await app.api('POST', '/api/ideas', {
+      text: 'let the board filter by area, and remember the filter between sessions',
+    });
     await open('#/');
 
     const routes = [
       ['home', '#/', () => page.locator('#view-home .appcol').waitFor()],
       ['board', '#/board', () => page.locator('#view-board h1').waitFor()],
+      // The Delete button is the LAST node this page draws, so waiting on it
+      // means the whole column — head, list, note and decision — is up.
+      ['ideas', '#/ideas', () => page.locator('#view-ideas .actions .btn-quiet').waitFor()],
       ['feature', `#/feature/${epic}`, () => waitForSteps(5)],
       ['ticket', '#/ticket/TKT-002', () => page.locator('#view-ticket .decision .btn').waitFor()],
     ];
@@ -494,6 +503,229 @@ describeUi(SKIP_REASON ? `E2E: the Bobby App UI (skipped — ${SKIP_REASON})` : 
         expect(`${where}: ${JSON.stringify(tooSmall)}`).toBe(`${where}: []`);
       }
     }
+  });
+
+  /* ---------------------------------------------------------------- *
+   * TKT-012 — the sublabel names the repo, not the project slug
+   *
+   * The spec's Feature head reads `ccevans/bobbycode · TKT-001`. The API had
+   * only the project NAME — a slug someone typed at `bobby init` — so the page
+   * said `e2e-app · TKT-001`. /api/config carries `repo` now, and it is null
+   * whenever nothing can honestly answer.
+   * ---------------------------------------------------------------- */
+
+  describe('the Feature sublabel', () => {
+    // The remote has to exist before the page boots: /api/config is fetched
+    // once, in the boot block, and the sublabel is drawn from what it said.
+    const withOrigin = (url) => execSync(`git init -q . && git remote add origin ${url}`, {
+      cwd: app.repoRoot, stdio: 'pipe', shell: '/bin/sh',
+    });
+
+    it('shows owner/repo when the repo has an origin remote', async () => {
+      app = await startApp({ appDir: APP_DIR });
+      withOrigin('git@github.com:ccevans/bobbycode.git');
+      const epic = seedFeature();
+
+      await open(`#/feature/${epic}`);
+      await waitForSteps(5);
+
+      expect(await text('#view-feature .sub')).toBe(`ccevans/bobbycode · ${epic}`);
+    });
+
+    // The degrade. A project `bobby new` just made has a git repo and no
+    // remote, and that must read as it always did rather than as a gap.
+    it('falls back to the project name when there is no remote', async () => {
+      app = await startApp({ appDir: APP_DIR });
+      const epic = seedFeature();
+
+      await open(`#/feature/${epic}`);
+      await waitForSteps(5);
+
+      expect(await text('#view-feature .sub')).toBe(`e2e-app · ${epic}`);
+    });
+  });
+
+  /* ---------------------------------------------------------------- *
+   * TKT-013 follow-up — the merge time the API already returned
+   *
+   * TKT-017/013/019 put `mergedAt` on every child of /api/features/:id as a
+   * valid ISO string or null, and deliberately stopped there. The row still
+   * read "Done · merged".
+   * ---------------------------------------------------------------- */
+
+  describe('a merged child row', () => {
+    const seedMerged = async (mergedAt) => {
+      app = await startApp({ appDir: APP_DIR });
+      const epic = seedFeature();
+      moveTicket(app.ticketsDir, 'TKT-002', 'building', 'bobby-build');
+      updateTicket(app.ticketsDir, 'TKT-002', { stage: 'done', mergedAt });
+      await open(`#/feature/${epic}`);
+      await page.locator('#view-feature .row[href="#/ticket/TKT-002"]').waitFor();
+      return text('#view-feature .row[href="#/ticket/TKT-002"] .s');
+    };
+
+    it('says how long ago it merged', async () => {
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      expect(await seedMerged(twoHoursAgo)).toBe('Done · merged 2h ago');
+    });
+
+    // Every ticket merged before the field existed. The row says what it always
+    // said — never "Invalid Date", and never a 1970 epoch.
+    it('degrades to plain “merged” with no timestamp', async () => {
+      expect(await seedMerged(null)).toBe('Done · merged');
+    });
+
+    it('degrades to plain “merged” when the timestamp is nonsense', async () => {
+      expect(await seedMerged('last tuesday')).toBe('Done · merged');
+    });
+  });
+
+  /* ---------------------------------------------------------------- *
+   * TKT-018 — Ideas
+   *
+   * `bobby idea "…"` writes to .bobby/ideas.yml and was invisible in the app.
+   * The page is Home's and the Board's sibling on the same `.appview` chrome:
+   * bare rows in one container, the decision under the container acting on the
+   * selected row, and an empty state that says what an idea IS and hands over
+   * the control that makes one.
+   * ---------------------------------------------------------------- */
+
+  describe('the Ideas view', () => {
+    const capture = (text_) => app.api('POST', '/api/ideas', { text: text_ });
+    const openIdeas = async () => {
+      await open('#/ideas');
+      await page.locator('#view-ideas h1').waitFor();
+    };
+    const openRows = () => page.locator('#view-ideas .sec', {
+      has: page.locator('h2', { hasText: 'Open' }),
+    }).locator('.row');
+
+    it('is reachable from the nav and lists what the CLI captured', async () => {
+      app = await startApp({ appDir: APP_DIR });
+      await capture('let the board filter by area');
+      await capture('a keyboard shortcut for approve');
+      await open('#/');
+
+      await page.locator('.nav-btn[data-route="ideas"]').click();
+      await page.locator('#view-ideas h1').waitFor();
+
+      expect(await text('#view-ideas h1')).toBe('Ideas');
+      expect(await text('#view-ideas .sub')).toBe('2 ideas waiting');
+      expect(await openRows().locator('.t').allTextContents())
+        .toEqual(['let the board filter by area', 'a keyboard shortcut for approve']);
+      // The number the CLI addresses an idea by is on screen, so `bobby idea
+      // rm 1` and this page are one vocabulary.
+      // A date, not a relative time: `created` is date-only, so "2h ago"
+      // would be precision the field does not carry (see capturedLine).
+      expect(await openRows().first().locator('.s').textContent())
+        .toMatch(/^#1 · captured \d{4}-\d{2}-\d{2}$/);
+    });
+
+    // The empty state is the common case — a fresh project has no ideas — so it
+    // has to teach and to hand over a control, not just say "none".
+    it('explains what ideas are for when there are none, and offers the way in', async () => {
+      app = await startApp({ appDir: APP_DIR });
+      await openIdeas();
+
+      expect(await text('#view-ideas .sub')).toBe('Nothing captured yet');
+      const empty = await text('#view-ideas .quiet-state');
+      expect(empty).toContain('An idea is a thought');
+      expect(empty).toContain('promote it into a ticket');
+      // A sentence with nothing to press is the failure mode this guards.
+      expect(await text('#view-ideas .actions .btn-primary')).toBe('Capture an idea');
+    });
+
+    it('captures an idea through the sheet', async () => {
+      app = await startApp({ appDir: APP_DIR });
+      await openIdeas();
+
+      await page.locator('#view-ideas .actions .btn-primary').click();
+      await page.locator('#idea-sheet').waitFor();
+      expect(await activeElementId()).toBe('ni-text');
+      await page.locator('#ni-text').fill('ship the ideas tab');
+      await page.locator('#ni-ok').click();
+      await page.locator('#idea-sheet').waitFor({ state: 'hidden' });
+
+      await page.waitForFunction(() => globalThis.document
+        .querySelectorAll('#view-ideas .row').length === 1);
+      expect(await openRows().locator('.t').textContent()).toBe('ship the ideas tab');
+      expect((await app.api('GET', '/api/ideas')).body.ideas.map((i) => i.text))
+        .toEqual(['ship the ideas tab']);
+    });
+
+    // The decision belongs to the SELECTED row and sits under the container —
+    // Home's grammar. Two buttons per row would put ten controls on a page of
+    // five ideas.
+    it('moves the decision onto whichever idea you select', async () => {
+      app = await startApp({ appDir: APP_DIR });
+      await capture('first thought');
+      await capture('second thought');
+      await openIdeas();
+
+      // The first is selected by default, and says so in more than colour.
+      expect(await openRows().nth(0).getAttribute('aria-current')).toBe('true');
+      expect(await text('#view-ideas .saidby')).toContain('first thought');
+
+      await openRows().nth(1).click();
+      await page.waitForFunction(() => globalThis.document
+        .querySelector('#view-ideas .saidby')?.textContent.includes('second thought'));
+      expect(await openRows().nth(1).getAttribute('aria-current')).toBe('true');
+      expect(await openRows().nth(0).getAttribute('aria-current')).toBeNull();
+    });
+
+    it('promotes an idea into a ticket and lands on it', async () => {
+      app = await startApp({ appDir: APP_DIR });
+      await capture('let the board filter by area');
+      await openIdeas();
+
+      await page.locator('#view-ideas .actions .btn-primary', { hasText: 'Promote to ticket' }).click();
+      await page.locator('#view-ticket h1').waitFor();
+
+      // The ticket is real, and it is the one the idea named.
+      expect(await text('#view-ticket h1')).toBe('let the board filter by area');
+      const tickets = (await app.api('GET', '/api/tickets')).body.tickets;
+      expect(tickets.map((t) => t.title)).toEqual(['let the board filter by area']);
+      expect(tickets[0].stage).toBe('backlog');
+    });
+
+    // Promoted ideas do not vanish: an idea that disappears gives you no way to
+    // see that the thing you captured is now real. The row links to the ticket.
+    it('keeps a promoted idea, as a link to the ticket it became', async () => {
+      app = await startApp({ appDir: APP_DIR });
+      await capture('let the board filter by area');
+      const promoted = await app.api('POST', '/api/ideas/1/promote', {});
+      const id = promoted.body.ticket.id;
+      await openIdeas();
+
+      const row = page.locator(`#view-ideas .row[href="#/ticket/${id}"]`);
+      expect(await row.count()).toBe(1);
+      expect(await row.locator('.s').textContent()).toMatch(new RegExp(`^${id} · promoted \\d{4}-`));
+      // It is out of the Open section, so it cannot be promoted twice.
+      expect(await openRows().count()).toBe(0);
+    });
+
+    // Deleting has no undo, so it takes the confirm sheet — and cancelling has
+    // to leave the idea exactly where it was.
+    it('deletes an idea only after the sheet is confirmed', async () => {
+      app = await startApp({ appDir: APP_DIR });
+      await capture('a thought I will change my mind about');
+      await openIdeas();
+
+      const del = page.locator('#view-ideas .actions .btn-quiet');
+      await del.click();
+      await page.locator('#confirm').waitFor();
+      expect(await text('#confirm-title')).toBe('Delete this idea?');
+      await page.locator('#confirm-cancel').click();
+      await page.locator('#confirm').waitFor({ state: 'hidden' });
+      expect((await app.api('GET', '/api/ideas')).body.ideas).toHaveLength(1);
+
+      await del.click();
+      await page.locator('#confirm').waitFor();
+      await page.locator('#confirm-ok').click();
+      await page.waitForFunction(() => globalThis.document
+        .querySelectorAll('#view-ideas .row').length === 0);
+      expect((await app.api('GET', '/api/ideas')).body.ideas).toEqual([]);
+    });
   });
 
   /* ---------------------------------------------------------------- *
