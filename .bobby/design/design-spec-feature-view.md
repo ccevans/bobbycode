@@ -66,11 +66,25 @@ primary buttons and ink. **The blue is never a button fill.**
   `default` draws the five this spec was written against — Plan · Build · Review ·
   Test · **Merge**. `secure` draws six, `quick` four, `design` seven (Design
   Research · Design Analyze · Design Mockup · Design Spec · Design Build · Design
-  Check · **Merge**). Step names are the stage as words, never as an id:
-  "Design Research", not `design-research`.
+  Check · **Merge**).
   The list is vertical, so length costs height and never width — seven steps at
   the 34px pitch is 238px, and 390px is unaffected. Nothing is condensed,
   wrapped, scrolled or truncated.
+- **A step is named after the step, not after the stage it parks a ticket in** —
+  spelled out as words, never as an id: "Design Research", not `design-research`.
+  The stage cannot do this job: two `design` steps park their tickets in stages
+  that are not theirs (`design-build` writes `building`, `design-check` writes
+  `reviewing` — `STAGE_MAP` in `lib/workflow.js`), so reading the stage would
+  print "Building" and "Reviewing" in the middle of the design route and lose
+  two of the seven names listed above. **The rows beneath take their word from
+  the step**, so one stage is one word everywhere on this view — the pipeline
+  said "Build" over a row reading "Building · in progress" for every `default`
+  feature until TKT-059. Off the track — backlog, done, shipping, or a stage
+  this workflow has no step for — no step has named it and the stage's own
+  words stand. Every word on the page goes through one formatter (`stageWords`).
+  The Board cannot do this and does not: it draws every workflow at once, so
+  there a stage has no single step and the stage's own words are the only
+  honest name.
 - Glyphs, 18px box, 34px row pitch:
   - done → filled `--blue` circle, white check
   - current → `--blue` ring with `--blue` centre dot
@@ -85,10 +99,24 @@ primary buttons and ink. **The blue is never a button fill.**
   Exactly one step carries `aria-current="step"` — the run's, or the earliest
   parked one.
 - **The count is steps *cleared*, and a step is cleared only when the least
-  advanced ticket has left it.** The epic's own stage answers whenever the track
-  names it (that is the field a run advances, and the decision button reads its
-  next step from the same number); when it cannot — a backlog epic, or a stage
-  this workflow has no step for — the children answer instead.
+  advanced ticket has left it.** That is the whole rule, and the **tickets** are
+  what answer it: the count is the minimum over the children, never the epic's
+  own stage. An epic can run ahead of a child — a send-back, or a run that
+  advanced the epic while a child stayed put — and when it did, the page put
+  done checks on steps no ticket had reached and ran the blue road out of a
+  glyph it was simultaneously drawing as current (TKT-057). A blocked child is
+  not counted: its row says "Blocked", not "in progress", and one stuck ticket
+  must not freeze the route at zero. The epic's stage stands in only when no
+  ticket can answer — no children yet, or none at a stage this workflow has a
+  step for. Whatever number arrives, it is finally clamped to the first step a
+  ticket is standing on, so the count, the bar and the blue length cannot
+  contradict the glyphs even in principle.
+- **Where the *run* is is a different number, and it is the epic's own stage.**
+  That is the field a run advances, so it is what the decision button and the
+  note read — "Approve — send to review" is a statement about the run, not about
+  how far the least advanced ticket has got. Keeping the two apart is what lets
+  the count be honest without the button going wrong; collapsing them into one
+  number is what produced the contradiction above.
 - **Connector:** hairline running down the glyph column, terminating at the chequer.
   Completed segments `--blue` (3.68:1); segments ahead `--hairline` (decorative
   connective tissue — the glyphs carry state, so it is not a state carrier).
@@ -106,12 +134,24 @@ primary buttons and ink. **The blue is never a button fill.**
   (`TKT-002`, not `Design Research · TKT-002`). Outside a stage lane the word
   stays, because nothing else supplies it: **Blocked** (whose heading is not a
   stage), **Features**, Home, and the ticket page.
-- **Every lane heading is unique in words and in `id`.** Stage ids come off disk
-  and both the prettifier and the slugifier are many-to-one, so uniqueness is
-  made rather than assumed: the `id` takes a numeric suffix on collision, and two
-  lanes that prettify to the same phrase both fall back to the raw stage string
+- **Every section heading on the Board is unique in words and in `id` — across
+  the whole page, not just among the lanes.** Stage ids come off disk and both
+  the prettifier and the slugifier are many-to-one, so uniqueness is made rather
+  than assumed: the `id` takes a numeric suffix on collision, and two lanes that
+  prettify to the same phrase both fall back to the raw stage string
   (`design-spec` beside `Design Spec`). `aria-labelledby` resolves to the first
   element with an id — a duplicate is one lane announced as another.
+  **`Features` and `Blocked` are in that set.** They are the page's two fixed
+  sections and their ids are constants, so a lane is measured against them too:
+  a hand-typed stage of `Blocked` slugs onto `lane-blocked-head`, which the
+  Blocked section already owns, and the lane was announced as that section
+  (TKT-058). Uniqueness is decided against the sections actually drawn, so a
+  board with no epics reserves nothing for Features.
+  Against a fixed section the raw-stage fallback is no help — `Blocked` reads as
+  `Blocked` however it was written — so there the **lane** is qualified,
+  `Blocked (stage)`, and the section is left alone: the section is a state the
+  board groups by, the lane is a stage someone typed, and the qualifier is the
+  page saying which is which. It never appears on a board nobody has hand-edited.
 
 ### Motion
 
@@ -248,7 +288,13 @@ The panes are drawn as **quiet instrument panels**, recessed rather than raised:
 - All text AA. Worst case `--ink-2` at **5.10:1** on white.
 - Meaningful non-text graphics ≥3:1: blue graphics 3.91 vs white; muted dot 3.23;
   chequer 11.38 on ground.
-- Tap targets ≥44px. Visible `:focus-visible` on every interactive element.
+- Tap targets ≥44px — **the rule, with two measured exceptions still open**:
+  `a.pill` in the top bar is 62×28 / 94×28 on every view, and the desktop rail's
+  `.nav-btn` / `.nav-link` are 199×43 above 1000px. Everything else clears it
+  (ticket rows 57px, the blocked row 74px, every button). Recorded here rather
+  than claimed as verified, because this section is only worth anything if what
+  it says is measured — see **TKT-060** under Open.
+- Visible `:focus-visible` on every interactive element.
 - `scrollWidth == clientWidth` at 375 / 390 / 768 / 1440.
 - Renders fully with **JavaScript disabled**. `prefers-reduced-motion` honoured.
 
@@ -258,6 +304,12 @@ The panes are drawn as **quiet instrument panels**, recessed rather than raised:
 
 - **iOS zooms on focusing a control below 16px.** Ours are 15px, because 16px is not on
   the scale. Either the scale gains a control-only size or the zoom is accepted.
+- **The top-bar pill (28px) and the desktop nav items (43px) are under the 44px tap
+  floor** — TKT-060, filed and not yet worked. The nav's 43px is a padding value rather
+  than a decision and is a one-line fix; the pill is not, because a 44px lozenge changes
+  the proportion of the top bar on all five views, and that is a design decision with a
+  round of its own rather than something to slip into a conformance fix. Left whole, and
+  the floor above stops claiming to be verified until it is done.
 - **Pre-existing values outside this spec's surfaces**, found during the TKT-027 review.
   Most are now resolved, because the Workspace was the last surface off the system and
   taking it on made the code that held them dead: `.next-reason` (16px), `.backlink`
@@ -340,3 +392,21 @@ Eight earlier mockups put status in a bordered card with a tinted stripe; that w
   was pushed behind a word already on screen), and lane headings and ids are made unique
   rather than assumed unique (TKT-054 — two lanes shared one id, so `aria-labelledby`
   announced one lane as another).
+- 2026-08-08 — **Three conformance failures from the check on that work, and the two
+  places this spec was arguing with itself.** (1) The count had two rules written a
+  sentence apart — "the least advanced ticket" and "the epic's own stage answers
+  whenever the track names it" — and the code implemented the second, so an epic ahead
+  of a child drew "3 of 7", two done checks on steps no ticket had reached, and blue road
+  running out of a glyph drawn as current (TKT-057). One rule now: the tickets answer,
+  the epic's stage answers the separate question of where the *run* is, and the count is
+  clamped to the first parked step so the two can never contradict the glyphs.
+  (2) Heading uniqueness stopped at the lane boundary: `Features` and `Blocked` are fixed
+  sections with fixed ids, and a hand-typed `Blocked` stage minted `lane-blocked-head`
+  twice over, so a lane was announced as the Blocked section — exactly what TKT-054 was
+  filed to prevent (TKT-058). Uniqueness is now decided against every section drawn, and
+  a lane whose words collide with a fixed section is qualified `Blocked (stage)`.
+  (3) Step names were said here to be "the stage as words" and were not — they come from
+  the step, and they have to, because `design-build` and `design-check` park in
+  `building` and `reviewing`. The spec now describes that, and the rows take the step's
+  word rather than a second one (TKT-059). The tap-target floor stops claiming to be
+  verified while TKT-060 is open.
