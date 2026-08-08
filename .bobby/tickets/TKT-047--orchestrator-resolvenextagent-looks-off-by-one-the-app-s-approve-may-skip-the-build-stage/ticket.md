@@ -62,6 +62,37 @@ _resolveNextAgent). The CLI's `bobby run workflow` path builds one
 orchestration prompt instead, so it does not go through here — which is
 probably why this has not been noticed.
 
+Traced against the real workflows (resolveWorkflow + each agent's hardcoded
+exit move):
+
+    default: planning -> building -> reviewing -> testing
+      after plan   lands in building   code(+1) -> review   direct -> build
+      after build  lands in reviewing  code(+1) -> test     direct -> review
+      after review lands in testing    code(+1) -> null     direct -> test
+
+The current `+1` is wrong at EVERY step of the default workflow: approving
+after plan runs review (build never runs), approving after build runs test
+(review never runs), and after review it returns null, so the run is declared
+ready-to-merge without test ever running.
+
+`direct` — find the step whose stage === ws.stage and return ITS agent, which
+is what lib/workflow.js already does — is correct at every step.
+
+Evidence that `direct` is the intended convention: every agent moves the ticket
+TO the stage the next agent works in. bobby-plan ends `move {ID} build`,
+bobby-build ends `move {ID} review`, bobby-review ends `move {ID} test`. So
+workspace.stage means "the stage the ticket is now in" — the stage whose agent
+runs next. CC could not recall the intent; the code answers it.
+
+test/lib/dashboard/orchestrator-pipeline.test.js asserts the +1 form and is
+therefore asserting the bug. Its real intent was per-workspace PIPELINE
+SELECTION (that a 'quick' workspace uses the quick workflow), which is
+orthogonal and must be preserved when the assertions are corrected.
+
+NOTE: fixing this alone is not enough — see TKT-048. Agents hardcode their exit
+stage, so `direct` still returns null mid-run on any workflow but `default`.
+Land them together or `quick` stays broken either way.
+
 Found by bobby-arch while writing .bobby/architecture.md; recorded there as
 pitfall 6/7.
 
