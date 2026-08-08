@@ -3,7 +3,7 @@ id: TKT-045
 title: >-
   Workspace: a failed diff fetch has no error treatment — renders in --ink-2
   while the log pane right above it uses --bad
-stage: backlog
+stage: done
 type: bug
 priority: medium
 area: ui
@@ -19,7 +19,7 @@ parent: null
 feature: null
 persona: null
 created: '2026-08-07'
-updated: '2026-08-07'
+updated: '2026-08-08'
 ---
 
 ## Description

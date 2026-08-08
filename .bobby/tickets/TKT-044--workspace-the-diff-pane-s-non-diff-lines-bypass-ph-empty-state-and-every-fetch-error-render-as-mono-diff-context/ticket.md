@@ -3,7 +3,7 @@ id: TKT-044
 title: >-
   Workspace: the diff pane's non-diff lines bypass .ph — empty state and every
   fetch error render as mono diff context
-stage: backlog
+stage: done
 type: bug
 priority: medium
 area: ui
@@ -19,7 +19,7 @@ parent: null
 feature: null
 persona: null
 created: '2026-08-07'
-updated: '2026-08-07'
+updated: '2026-08-08'
 ---
 
 ## Description

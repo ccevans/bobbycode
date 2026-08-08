@@ -3,7 +3,7 @@ id: TKT-046
 title: >-
   Workspace: Show diff has no loading state and stays enabled during the fetch —
   the page is inert and a second click shells out to git again
-stage: backlog
+stage: done
 type: bug
 priority: medium
 area: ui
@@ -19,7 +19,7 @@ parent: null
 feature: null
 persona: null
 created: '2026-08-07'
-updated: '2026-08-07'
+updated: '2026-08-08'
 ---
 
 ## Description

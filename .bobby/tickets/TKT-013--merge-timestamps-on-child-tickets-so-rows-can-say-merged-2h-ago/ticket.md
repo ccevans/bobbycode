@@ -1,7 +1,7 @@
 ---
 id: TKT-013
 title: Merge timestamps on child tickets so rows can say "merged 2h ago"
-stage: backlog
+stage: done
 type: improvement
 priority: low
 area: api
@@ -14,7 +14,7 @@ blocked_reason: null
 previous_stage: null
 parent: null
 created: '2026-08-07'
-updated: '2026-08-07'
+updated: '2026-08-08'
 ---
 
 ## Description

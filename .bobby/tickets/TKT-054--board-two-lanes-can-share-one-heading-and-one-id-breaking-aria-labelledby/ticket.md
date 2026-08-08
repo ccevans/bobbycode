@@ -1,7 +1,7 @@
 ---
 id: TKT-054
 title: 'Board: two lanes can share one heading and one id, breaking aria-labelledby'
-stage: backlog
+stage: done
 type: bug
 priority: low
 area: ui

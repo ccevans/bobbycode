@@ -1,7 +1,7 @@
 ---
 id: TKT-005
 title: Feature view design — app UI light theme
-stage: backlog
+stage: done
 type: feature
 priority: medium
 area: ui
@@ -14,7 +14,7 @@ blocked_reason: null
 previous_stage: null
 parent: null
 created: '2026-08-02'
-updated: '2026-08-02'
+updated: '2026-08-08'
 ---
 
 ## Description

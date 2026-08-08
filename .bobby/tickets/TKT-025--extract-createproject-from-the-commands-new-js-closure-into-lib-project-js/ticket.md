@@ -1,7 +1,7 @@
 ---
 id: TKT-025
 title: Extract createProject from the commands/new.js closure into lib/project.js
-stage: backlog
+stage: building
 type: improvement
 priority: low
 area: null
@@ -14,7 +14,7 @@ blocked_reason: null
 previous_stage: null
 parent: TKT-020
 created: '2026-08-07'
-updated: '2026-08-07'
+updated: '2026-08-08'
 ---
 
 ## Description

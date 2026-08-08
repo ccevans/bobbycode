@@ -1,7 +1,7 @@
 ---
 id: TKT-056
 title: Board rows repeat the lane heading in every sublabel
-stage: backlog
+stage: done
 type: bug
 priority: low
 area: ui

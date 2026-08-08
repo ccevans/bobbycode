@@ -1,7 +1,7 @@
 ---
 id: TKT-017
 title: /api/runs — run history as a first-class resource
-stage: backlog
+stage: done
 type: feature
 priority: medium
 area: api
@@ -14,7 +14,7 @@ blocked_reason: null
 previous_stage: null
 parent: null
 created: '2026-08-07'
-updated: '2026-08-07'
+updated: '2026-08-08'
 ---
 
 ## Description

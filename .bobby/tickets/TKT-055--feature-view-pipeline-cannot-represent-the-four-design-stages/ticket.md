@@ -1,7 +1,7 @@
 ---
 id: TKT-055
 title: Feature view pipeline cannot represent the four design-* stages
-stage: backlog
+stage: done
 type: bug
 priority: medium
 area: ui

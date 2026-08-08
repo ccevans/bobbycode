@@ -1,7 +1,7 @@
 ---
 id: TKT-012
 title: Show owner/repo in the Feature sublabel (expose git remote in the API)
-stage: backlog
+stage: building
 type: improvement
 priority: low
 area: api

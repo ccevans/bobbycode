@@ -1,7 +1,7 @@
 ---
 id: TKT-019
 title: Per-run cost from claude total_cost_usd
-stage: backlog
+stage: done
 type: feature
 priority: medium
 area: orchestrator
@@ -14,7 +14,7 @@ blocked_reason: null
 previous_stage: null
 parent: null
 created: '2026-08-07'
-updated: '2026-08-07'
+updated: '2026-08-08'
 ---
 
 ## Description
