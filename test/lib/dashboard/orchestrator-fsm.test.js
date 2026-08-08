@@ -75,6 +75,26 @@ function plantStaleWorktreeCopy(o, worktreePath, ticketId, stage) {
 }
 
 /**
+ * Pull the ticket-file path a prompt tells the agent to read, then resolve it
+ * the way the agent would: from ITS cwd, expanding the `TKT-001*` glob segment.
+ * Returns the real file path, or null if nothing matches from there.
+ *
+ * Deliberately not a string comparison — the question is whether the agent can
+ * open the file, and only the filesystem answers that (TKT-052).
+ */
+function resolveTicketPathFromPrompt(prompt, ticketId, cwd) {
+  const m = new RegExp('`([^`]*' + ticketId + '\\*/ticket\\.md)`').exec(prompt);
+  if (!m) return null;
+  const abs = path.resolve(cwd, m[1]);              // <parent>/TKT-001*/ticket.md
+  const parent = path.dirname(path.dirname(abs));
+  if (!fs.existsSync(parent)) return null;
+  const hit = fs.readdirSync(parent).find(e => e.startsWith(ticketId));
+  if (!hit) return null;
+  const file = path.join(parent, hit, 'ticket.md');
+  return fs.existsSync(file) ? file : null;
+}
+
+/**
  * An orchestrator wired to real files but a fake executor. `behaviour` decides
  * what the fake agent does on each run; the default obeys the prompt.
  */
@@ -296,6 +316,35 @@ describe('tickets are shared state, worktrees isolate code only (TKT-051)', () =
     // wrong copy again.
     expect(fs.readdirSync(worktreeTicketsDir(ws.worktreePath))).toEqual([]);
     expect(o.launched.every(r => r.worktreePath === ws.worktreePath)).toBe(true);
+  });
+
+  // TKT-052: starting the run was only half of it. The prompt still handed the
+  // agent a relative `.bobby/tickets/...`, which resolves against the agent's
+  // cwd — its worktree — where an unmerged ticket does not exist.
+  it('the prompt names a ticket path the agent can actually open from its worktree', async () => {
+    const o = makeOrchestrator({ behaviour: 'manual' });
+    const ws = seedWorkspace(o, { id: 'ws1', ticketId: 'TKT-001', stage: 'planning', pipeline: 'default' });
+
+    // Precondition: the worktree genuinely has no copy of this ticket.
+    expect(findTicket(worktreeTicketsDir(ws.worktreePath), 'TKT-001')).toBeNull();
+
+    await o.runAgent('ws1', { agentOverride: 'plan' });
+
+    const file = resolveTicketPathFromPrompt(o.launched[0].prompt, 'TKT-001', ws.worktreePath);
+    expect(file).not.toBeNull();
+    expect(fs.readFileSync(file, 'utf8')).toContain('TKT-001');
+  });
+
+  it('the prompt path is the same board the orchestrator reads and an agent writes', async () => {
+    const o = makeOrchestrator({ behaviour: 'manual' });
+    const ws = seedWorkspace(o, { id: 'ws1', ticketId: 'TKT-002', stage: 'building', pipeline: 'default' });
+
+    await o.runAgent('ws1', { agentOverride: 'build' });
+
+    // Not just "some readable file" — the agent's plan.md/progress.md writes
+    // have to land in the folder the orchestrator reads the stage back from.
+    const file = resolveTicketPathFromPrompt(o.launched[0].prompt, 'TKT-002', ws.worktreePath);
+    expect(path.dirname(file)).toBe(path.join(o.ticketsDir, findTicket(o.ticketsDir, 'TKT-002').dirname));
   });
 
   it('a genuinely missing ticket names branch topology, not just "not found"', async () => {

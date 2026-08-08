@@ -251,7 +251,9 @@ export function registerSprint(program) {
         const sprintPlanPath = `${config.sprints_dir}/${path.basename(sprint.path)}/sprint-plan.md`;
         const prompt = buildSprintPrompt(d, sprintTickets, pipeline, {
           maxRetries,
-          ticketsDir: config.tickets_dir,
+          // Absolute, main-rooted: a sprint runs in an isolated worktree, which
+          // does not contain tickets created on a feature branch (TKT-052).
+          ticketsDir,
           maxIterations,
           agentsPath,
           hasServices,

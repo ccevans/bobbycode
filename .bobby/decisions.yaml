@@ -55,6 +55,14 @@
   supersedes: stage-advance-is-the-success-signal
   invalidated: null
 
+- id: prompts-name-the-tickets-dir-absolutely
+  fact: "Every generated agent prompt names the tickets directory as the RESOLVED, main-worktree-rooted ABSOLUTE path — `ticketsPath` in buildPromptFor's ctx, supplied as `this.ticketsDir` by the orchestrator and `resolveTicketsDir(root, config)` by the CLI. Never `config.tickets_dir`. Prompts are therefore machine-specific, which is safe: they are built per run, handed to a local subprocess, and never stored or shared."
+  decided: "2026-08-08"
+  ticket: TKT-052
+  why: "TKT-051 made the orchestrator READ tickets from the shared board, so a run starts for an unmerged ticket — but buildPromptFor still received the relative `.bobby/tickets`, so step 1 of every agent prompt (\"read the ticket\") pointed at a path that does not exist in the agent's cwd. The agent's cwd is its worktree; a worktree forks from main and has no copy of a ticket created on a feature branch, so the agent started blind on exactly the tickets the app exists to run. Two alternatives were rejected. Copying the ticket folder into the worktree keeps the sandbox real but goes stale mid-run and gives the agent a second copy it can write and lose. Instructing `bobby ticket view` instead of a file path is the shape of the TKT-048 fix and was the ticket's own preference, but it is read-ONLY: bobby-plan writes plan.md and test-cases.md and bobby-build writes and deletes progress.md, and no CLI covers those writes. An absolute path is not a new hole in the isolation model — resolveTicketsDir already sends every `bobby ticket` command to the main root (tickets-resolve-to-main-worktree), so the prompt now merely states what was already true: tickets are shared state, worktrees isolate CODE only. The trade-off accepted: the sandbox boundary is advisory for the ticket folder specifically, and a prompt is no longer portable between machines. The CLI path was moved to the same absolute value even though its relative path happened to work (cwd is usually the main checkout) — one behaviour beats two. Evidence: lib/workflow.js buildPromptFor; Orchestrator.runAgent; commands/run.js, commands/sprint.js; test/lib/dashboard/orchestrator-fsm.test.js and test/e2e/lifecycle.test.js, which open the file the prompt names rather than matching its text."
+  supersedes: null
+  invalidated: null
+
 - id: approval-gate-before-next-agent
   fact: "The next agent never starts automatically; a run that advanced a stage parks in awaiting_approval until approve() or a dashboard.auto_approve_stages entry releases it."
   decided: "2026-07-24"
