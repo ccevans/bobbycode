@@ -320,5 +320,23 @@ describe('E2E: full ticket lifecycle', () => {
 
       expect(openFromPrompt(prompt, 'TKT-001', os.tmpdir())).toContain('Workflow path check');
     });
+
+    // TKT-053: the same bug one directory over. A sprint runs in an isolated
+    // worktree and its prompt tells the agent to read the sprint plan, so that
+    // path has to resolve from somewhere other than the main checkout too.
+    test('bobby sprint run emits a sprint-plan path that resolves from an unrelated cwd', () => {
+      run('ticket create -t "Sprint path check"');
+      const created = run('sprint new "Path sprint" TKT-001');
+      const sprintId = (/\b(SPR-\d+)\b/.exec(created) || [])[1];
+      expect(sprintId).toBeTruthy();
+
+      const prompt = run(`sprint run ${sprintId}`);
+
+      const m = /`([^`]*sprint-plan\.md)`/.exec(prompt);
+      expect(m).toBeTruthy();
+      // Resolved from a foreign cwd, the way a worktree-confined agent would.
+      const planPath = path.resolve(os.tmpdir(), m[1]);
+      expect(fs.existsSync(planPath)).toBe(true);
+    });
   });
 });
