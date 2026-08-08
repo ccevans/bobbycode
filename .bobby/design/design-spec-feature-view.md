@@ -20,7 +20,7 @@ Source of truth for the build: `.bobby/design/mockups/devin-white-fin-2.html`.
 | **Direction** | "Track to finish" — Devin's white mobile register, pipeline drawn as a route |
 | **Reference** | app.devin.ai on iPhone, photographed by CC (4 screenshots, see Provenance) |
 | **Canvas** | Phone-first at 390px; app column `max-width: 440px` centred on the ground at any width |
-| **Signature move** | A hairline connector runs down through the step glyphs and **terminates in a chequered finish** at Merge. The pipeline is a route, not a checklist. |
+| **Signature move** | A hairline connector runs down through the step glyphs and **terminates in a chequered finish** at Merge. The pipeline is a route, not a checklist. The route's *length* is the epic's own workflow (five steps on `default`, seven on `design`); the connector and the chequered terminus are what do not vary. |
 | **Structure** | Top bar → title + repo sublabel → status line → Pipeline → note → decision buttons → Tickets |
 
 ### Colour — every value pixel-sampled from the reference photos
@@ -62,12 +62,33 @@ primary buttons and ink. **The blue is never a button fill.**
 
 ### The pipeline (the signature)
 
-- Five steps: Plan · Build · Review · Test · **Merge**
+- **One step per stage of the epic's own workflow, then `Merge` as the terminus.**
+  `default` draws the five this spec was written against — Plan · Build · Review ·
+  Test · **Merge**. `secure` draws six, `quick` four, `design` seven (Design
+  Research · Design Analyze · Design Mockup · Design Spec · Design Build · Design
+  Check · **Merge**). Step names are the stage as words, never as an id:
+  "Design Research", not `design-research`.
+  The list is vertical, so length costs height and never width — seven steps at
+  the 34px pitch is 238px, and 390px is unaffected. Nothing is condensed,
+  wrapped, scrolled or truncated.
 - Glyphs, 18px box, 34px row pitch:
   - done → filled `--blue` circle, white check
   - current → `--blue` ring with `--blue` centre dot
   - not started → hollow `--dot-muted` ring, 1.5px
   - **finish (Merge) → 20×20 chequer, 5×5 grid at 4px cells, `--btn` `#363636`**
+- **"Current" means work sits at this step** — a run is on it, or a ticket is
+  parked there. More than one step may be current at once, because children can
+  be spread across stages, and when they are the drawing says so. A step a ticket
+  is standing on is never drawn "done" and never drawn "not started": that test
+  runs before the count is consulted, because the pipeline contradicting the rows
+  an inch beneath it is the one failure this section exists to prevent.
+  Exactly one step carries `aria-current="step"` — the run's, or the earliest
+  parked one.
+- **The count is steps *cleared*, and a step is cleared only when the least
+  advanced ticket has left it.** The epic's own stage answers whenever the track
+  names it (that is the field a run advances, and the decision button reads its
+  next step from the same number); when it cannot — a backlog epic, or a stage
+  this workflow has no step for — the children answer instead.
 - **Connector:** hairline running down the glyph column, terminating at the chequer.
   Completed segments `--blue` (3.68:1); segments ahead `--hairline` (decorative
   connective tissue — the glyphs carry state, so it is not a state carrier).
@@ -76,6 +97,21 @@ primary buttons and ink. **The blue is never a button fill.**
 - Grid parity matters: **odd grids only.** 5×5 has filled corners and reads as a
   flag; 6×6 leaves opposite corners empty and serrates into a diamond.
 - Cells on whole-pixel boundaries, `shape-rendering="crispEdges"`.
+
+### Rows and the headings above them (the Board)
+
+- **A row names its stage unless the heading directly above it already has.**
+  Stage is never carried by position or colour alone — but inside a stage lane
+  the `<h2>` is the stage, so the sublabel opens with the id instead
+  (`TKT-002`, not `Design Research · TKT-002`). Outside a stage lane the word
+  stays, because nothing else supplies it: **Blocked** (whose heading is not a
+  stage), **Features**, Home, and the ticket page.
+- **Every lane heading is unique in words and in `id`.** Stage ids come off disk
+  and both the prettifier and the slugifier are many-to-one, so uniqueness is
+  made rather than assumed: the `id` takes a numeric suffix on collision, and two
+  lanes that prettify to the same phrase both fall back to the raw stage string
+  (`design-spec` beside `Design Spec`). `aria-labelledby` resolves to the first
+  element with an id — a duplicate is one lane announced as another.
 
 ### Motion
 
@@ -286,3 +322,21 @@ Eight earlier mockups put status in a bordered card with a tinted stripe; that w
   back control is a chevron rather than the board glyph, also recorded. Taking this view
   on made ten CSS blocks and three `lib/ui.js` exports dead; they are gone, which closes
   most of the TKT-027 "pre-existing values" list under Open.
+- 2026-08-08 — **The pipeline's length is the workflow's, and the spec now says so**
+  (TKT-055). The five steps were never in the code: it has always drawn one node per
+  stage of `/api/workflows`, and `default` is simply what resolves to five. What was
+  missing is that nothing ever *selected* the workflow — with no `workflow:` in the
+  epic's frontmatter it fell through to `default`, so a design epic was drawn against a
+  vocabulary that has no word for where it is: "0 of 5", every glyph hollow, above four
+  children plainly underway. The workflow is now inferred from the stages actually in
+  play when the file is silent (conservatively — only a stage `default` cannot name can
+  move a feature off it), and **"current" is defined as *work sits here* rather than *a
+  run owns this***, so a step a ticket is standing on is never drawn done or
+  not-started. The chequered terminus is untouched; seven steps cost 238px of height and
+  no width at 390; nothing is condensed, wrapped or truncated. The "Decided" row now
+  names the connector-and-flag as the invariant rather than the number five.
+  Two Board rules arrived with it: a row drops the stage word wherever the lane heading
+  already says it (TKT-056 — twelve lanes since TKT-050 meant twelve echoes, and the id
+  was pushed behind a word already on screen), and lane headings and ids are made unique
+  rather than assumed unique (TKT-054 — two lanes shared one id, so `aria-labelledby`
+  announced one lane as another).

@@ -144,6 +144,88 @@ describe('runClaude', () => {
   });
 });
 
+// TKT-019. The claude CLI reports what a run cost on its final stream-json
+// event. Until now every event was forwarded verbatim and inspected by nothing,
+// so the number was parsed and dropped on the floor.
+//
+// The distinction these tests exist to hold: a cost of 0 is a FACT ("this run
+// was free"); a missing cost is the ABSENCE of one, and must stay null so no
+// total can quietly understate itself by counting it as zero.
+describe('per-run cost from total_cost_usd (TKT-019)', () => {
+  const resultEvent = (extra) => `${JSON.stringify({ type: 'result', subtype: 'success', ...extra })}\n`;
+
+  test('captures total_cost_usd off the result event', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+    spawn.child.stdout.emit('data', Buffer.from('{"type":"assistant"}\n'));
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ total_cost_usd: 0.0432 })));
+    spawn.child.emit('exit', 0, null);
+
+    expect((await handle.done).costUsd).toBe(0.0432);
+  });
+
+  test('captures it from a final line that never got a trailing newline', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+    // The result event is the LAST thing a CLI writes, so it is exactly the
+    // line most likely to arrive unterminated and be flushed at exit.
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ total_cost_usd: 1.25 }).trimEnd()));
+    spawn.child.emit('exit', 0, null);
+
+    expect((await handle.done).costUsd).toBe(1.25);
+  });
+
+  test('reports null — not 0 — when the CLI never mentions cost', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ num_turns: 3 })));
+    spawn.child.emit('exit', 0, null);
+
+    const result = await handle.done;
+    expect(result.costUsd).toBeNull();
+    expect(result.costUsd).not.toBe(0);
+  });
+
+  test('keeps a genuinely-reported zero as zero', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ total_cost_usd: 0 })));
+    spawn.child.emit('exit', 0, null);
+
+    expect((await handle.done).costUsd).toBe(0);
+  });
+
+  test('ignores a non-numeric total_cost_usd rather than passing junk on', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ total_cost_usd: 'unknown' })));
+    spawn.child.emit('exit', 0, null);
+
+    expect((await handle.done).costUsd).toBeNull();
+  });
+
+  test('the last reported figure wins — total_cost_usd is cumulative', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ total_cost_usd: 0.1 })));
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ total_cost_usd: 0.3 })));
+    spawn.child.emit('exit', 0, null);
+
+    expect((await handle.done).costUsd).toBe(0.3);
+  });
+
+  test('a cost reported before a crash still survives on the error result', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ total_cost_usd: 0.5 })));
+    spawn.child.emit('error', new Error('ENOENT'));
+
+    const result = await handle.done;
+    expect(result.error).toContain('ENOENT');
+    expect(result.costUsd).toBe(0.5);
+  });
+});
+
 describe('resolveExecutor', () => {
   test('defaults to claude when nothing is configured', () => {
     expect(resolveExecutor({}).name).toBe('claude');

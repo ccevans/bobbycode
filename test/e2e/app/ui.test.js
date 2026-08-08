@@ -127,6 +127,28 @@ describeUi(SKIP_REASON ? `E2E: the Bobby App UI (skipped — ${SKIP_REASON})` : 
     (count) => globalThis.document.querySelectorAll('#view-feature .pipeline .steps li').length === count,
     n,
   );
+  /** Each step as "state:Label" — the glyph and the word it belongs to. */
+  const stepStates = () => page.evaluate(() => [...globalThis.document
+    .querySelectorAll('#view-feature .pipeline .steps li')]
+    .map((li) => `${li.className}:${li.querySelector('.label').textContent}`));
+
+  /**
+   * An epic whose four children sit one in each design stage, declaring no
+   * workflow of its own — the TKT-055 repro exactly.
+   */
+  const seedDesignFeature = ({ workflow = null } = {}) => {
+    const epic = app.ticket({ title: 'Design the feature view', type: 'epic', workflow });
+    const at = (title, stage, agent) => {
+      const id = app.ticket({ title, parent: epic });
+      moveTicket(app.ticketsDir, id, stage, agent);
+      return id;
+    };
+    at('Gather the references', 'design-research', 'bobby-design-research');
+    at('Tear each reference down', 'design-analyze', 'bobby-design-analyze');
+    at('Build the options', 'design-mockup', 'bobby-design-mockup');
+    at('Lock the spec', 'design-spec', 'bobby-design-spec');
+    return epic;
+  };
 
   /* ---------------------------------------------------------------- *
    * Navigation
@@ -195,6 +217,88 @@ describeUi(SKIP_REASON ? `E2E: the Bobby App UI (skipped — ${SKIP_REASON})` : 
     await go(`#/feature/${secure}`, () => waitForSteps(6));
     expect(await stepLabels()).toEqual(['Plan', 'Build', 'Security', 'Review', 'Test', 'Merge']);
     expect(await text('#view-feature .pipeline .sechead .count')).toBe('0 of 6');
+  });
+
+  /* ---------------------------------------------------------------- *
+   * TKT-055 — the pipeline had no vocabulary for the design stages
+   *
+   * The track has always come from /api/workflows; nothing ever SELECTED the
+   * workflow, so an epic with no `workflow:` fell through to `default` and a
+   * design feature was drawn as "0 of 5" with every glyph hollow, above four
+   * children the very next section described as in progress.
+   * ---------------------------------------------------------------- */
+
+  describe('a design-workflow feature', () => {
+    it('draws the design workflow’s seven steps even when the epic declares no workflow', async () => {
+      app = await startApp({ appDir: APP_DIR });
+      const epic = seedDesignFeature();
+
+      await open(`#/feature/${epic}`);
+      await waitForSteps(7);
+
+      expect(await stepLabels()).toEqual([
+        'Design Research', 'Design Analyze', 'Design Mockup', 'Design Spec',
+        'Design Build', 'Design Check', 'Merge',
+      ]);
+      // Stage names as words, never as ids.
+      expect((await stepLabels()).some((l) => l.includes('-'))).toBe(false);
+      // The signature survives the longer route.
+      expect(await page.locator('#view-feature .pipeline .steps li.finish .flagmark').count()).toBe(1);
+    });
+
+    // The contradiction itself: no step a ticket is standing on may be hollow,
+    // and the Pipeline's count must agree with the Tickets header beneath it.
+    it('never says nothing has started while its own rows say in progress', async () => {
+      app = await startApp({ appDir: APP_DIR });
+      const epic = seedDesignFeature();
+
+      await open(`#/feature/${epic}`);
+      await waitForSteps(7);
+
+      expect(await stepStates()).toEqual([
+        'now:Design Research', 'now:Design Analyze', 'now:Design Mockup', 'now:Design Spec',
+        'todo:Design Build', 'todo:Design Check', 'finish:Merge',
+      ]);
+      expect(await text('#view-feature .pipeline .sechead .count')).toBe('0 of 7');
+      expect(await text('#view-feature .tickets .sechead .count')).toBe('0 of 4 done');
+      // Every row that reads "in progress" has a step drawn as current.
+      const rows = await page.locator('#view-feature .tickets .row .s').allTextContents();
+      expect(rows.filter((r) => r.endsWith('· in progress'))).toHaveLength(4);
+      // One step only is announced as current, however many are drawn so.
+      expect(await page.locator('#view-feature .pipeline [aria-current="step"]').count()).toBe(1);
+    });
+
+    it('marks the steps behind the least advanced ticket done, and the parked ones current', async () => {
+      app = await startApp({ appDir: APP_DIR });
+      const epic = app.ticket({ title: 'Design the marketing site', type: 'epic', workflow: 'design' });
+      const a = app.ticket({ title: 'Style tiles', parent: epic });
+      const b = app.ticket({ title: 'Token sheet', parent: epic });
+      moveTicket(app.ticketsDir, a, 'design-mockup', 'bobby-design-mockup');
+      moveTicket(app.ticketsDir, b, 'design-spec', 'bobby-design-spec');
+
+      await open(`#/feature/${epic}`);
+      await waitForSteps(7);
+
+      expect(await stepStates()).toEqual([
+        'done:Design Research', 'done:Design Analyze', 'now:Design Mockup', 'now:Design Spec',
+        'todo:Design Build', 'todo:Design Check', 'finish:Merge',
+      ]);
+      expect(await text('#view-feature .pipeline .sechead .count')).toBe('2 of 7');
+    });
+
+    // The inference is deliberately conservative: a board `default` can name in
+    // full is default, so an ordinary feature can never be promoted onto
+    // another workflow by accident.
+    it('leaves an ordinary feature on the default workflow', async () => {
+      app = await startApp({ appDir: APP_DIR });
+      const epic = seedFeature();
+      moveTicket(app.ticketsDir, 'TKT-002', 'building', 'bobby-build');
+      moveTicket(app.ticketsDir, 'TKT-003', 'reviewing', 'bobby-review');
+
+      await open(`#/feature/${epic}`);
+      await waitForSteps(5);
+      expect(await stepLabels()).toEqual(['Plan', 'Build', 'Review', 'Test', 'Merge']);
+    });
   });
 
   /* ---------------------------------------------------------------- *
@@ -464,6 +568,110 @@ describeUi(SKIP_REASON ? `E2E: the Bobby App UI (skipped — ${SKIP_REASON})` : 
       await page.locator('#view-board h1').waitFor();
       const lanes = await page.locator('#view-board .sec h2').allTextContents();
       expect(lanes).toEqual(['Design Spec', 'Building', 'Archaeology']);
+    });
+  });
+
+  /* ---------------------------------------------------------------- *
+   * TKT-054 — a lane heading is what names its section to a screen
+   * reader, so no two of them may share an id.
+   *
+   * `stageWords` and `stageSlug` are both many-to-one: `Design Spec` and
+   * `design-spec` prettified to one phrase and slugged to one id, and `!!!`
+   * and `???` both slugged to `unnamed`. `aria-labelledby` resolves to the
+   * FIRST element with the id, so one lane was announced as another.
+   *
+   * `updateTicket` rather than `moveTicket` throughout: `moveTicket` validates
+   * against STAGES and would refuse to write these, which is exactly the door
+   * a hand-edited ticket file comes through.
+   * ---------------------------------------------------------------- */
+
+  describe('lane headings are unique, however the stage was written', () => {
+    const seedAwkwardBoard = async () => {
+      app = await startApp({ appDir: APP_DIR });
+      const canonical = app.ticket({ title: 'Lock the spec' });
+      moveTicket(app.ticketsDir, canonical, 'design-spec', 'bobby-design-spec');
+      for (const [title, stage] of [
+        ['Spec written by hand', 'Design Spec'],
+        ['Filed under bangs', '!!!'],
+        ['Filed under queries', '???'],
+      ]) {
+        updateTicket(app.ticketsDir, app.ticket({ title }), { stage });
+      }
+      await open('#/board');
+      await page.locator('#view-board .sec').first().waitFor();
+    };
+
+    it('gives every lane an id of its own', async () => {
+      await seedAwkwardBoard();
+      const ids = await page.locator('#view-board .sec h2').evaluateAll((hs) => hs.map((h) => h.id));
+      expect(ids).toHaveLength(4);
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it('resolves every aria-labelledby to that lane’s own heading', async () => {
+      await seedAwkwardBoard();
+      const wrong = await page.evaluate(() => [...globalThis.document.querySelectorAll('#view-board .sec')]
+        .filter((s) => globalThis.document.getElementById(s.getAttribute('aria-labelledby')) !== s.querySelector('h2'))
+        .map((s) => s.querySelector('h2').textContent));
+      expect(wrong).toEqual([]);
+    });
+
+    // Two lanes that prettify to one phrase both fall back to the raw stage,
+    // so the page itself says why "Design Spec" appears twice.
+    it('tells two lanes apart on screen when their words collide', async () => {
+      await seedAwkwardBoard();
+      const headings = await page.locator('#view-board .sec h2').allTextContents();
+      expect(headings).toEqual(['design-spec', '!!!', '???', 'Design Spec']);
+    });
+  });
+
+  /* ---------------------------------------------------------------- *
+   * TKT-056 — a row must not repeat the heading an inch above it
+   * ---------------------------------------------------------------- */
+
+  describe('rows say what their heading does not', () => {
+    const seedMixedBoard = async () => {
+      app = await startApp({ appDir: APP_DIR });
+      const epic = seedFeature();
+      const designed = app.ticket({ title: 'Out at design' });
+      moveTicket(app.ticketsDir, designed, 'design-research', 'bobby-design-research');
+      const stuck = app.ticket({ title: 'Publish the HQ relay' });
+      moveTicket(app.ticketsDir, stuck, 'testing', 'bobby-test');
+      moveTicket(app.ticketsDir, stuck, 'blocked', 'ccevans', 'waiting on the hosting account');
+      await open('#/board');
+      await page.locator('#view-board .sec').first().waitFor();
+      return { epic, designed, stuck };
+    };
+
+    it('opens a stage lane’s rows with the id, not with the lane’s own word', async () => {
+      const { designed } = await seedMixedBoard();
+      const lane = page.locator('#view-board .sec', { has: page.locator('h2', { hasText: 'Design Research' }) });
+      expect(await lane.locator('.row .s').textContent()).toBe(designed);
+    });
+
+    it('never restates a lane heading in the rows beneath it', async () => {
+      await seedMixedBoard();
+      const echoes = await page.evaluate(() => [...globalThis.document.querySelectorAll('#view-board .sec')]
+        .flatMap((s) => {
+          const heading = s.querySelector('h2').textContent;
+          if (heading === 'Features' || heading === 'Blocked') return [];   // not stages
+          return [...s.querySelectorAll('.row .s')]
+            .map((n) => n.textContent)
+            .filter((t) => t.startsWith(heading))
+            .map((t) => `${heading} → ${t}`);
+        }));
+      expect(echoes).toEqual([]);
+    });
+
+    // The two sections where the stage word is new information keep it.
+    it('still names the stage under Blocked and under Features', async () => {
+      const { stuck } = await seedMixedBoard();
+      const blocked = page.locator('#view-board .sec', { has: page.locator('h2', { hasText: 'Blocked' }) });
+      expect(await blocked.locator('.row .s').textContent())
+        .toBe(`Testing · ${stuck} · waiting on the hosting account`);
+
+      const features = page.locator('#view-board .sec', { has: page.locator('h2', { hasText: 'Features' }) });
+      expect(await features.locator('.row .s').textContent()).toBe('Backlog · 0 of 2 done');
     });
   });
 });
