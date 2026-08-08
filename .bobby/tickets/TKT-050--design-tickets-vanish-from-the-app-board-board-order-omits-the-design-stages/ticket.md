@@ -3,7 +3,7 @@ id: TKT-050
 title: >-
   Design tickets vanish from the app board — BOARD_ORDER omits the design-*
   stages
-stage: backlog
+stage: done
 type: bug
 priority: medium
 area: ui
