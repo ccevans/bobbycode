@@ -7,14 +7,13 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { buildServer } from '../../../lib/dashboard/server.js';
-import { createTicket, findTicket, getFeatureTickets } from '../../../lib/tickets.js';
+import { createTicket, findTicket, getFeatureTickets, moveTicket } from '../../../lib/tickets.js';
 
 let tmp;
 let ticketsDir;
 let server;
 let base;
 let orchestratorCalls;
-let featureProgressDir;
 
 const stubOrchestrator = () => ({
   readLatestSessionFile: () => null,
@@ -25,13 +24,12 @@ const stubOrchestrator = () => ({
   async runAgent(id) {
     orchestratorCalls.push(['run', id]);
   },
-  // The real method reads the workspace's worktree; the stub reads whatever
-  // dir the test points it at (featureProgressDir), defaulting to the main
-  // tickets dir — same seam, no git required.
+  // Mirrors the real method: resolve the workspace's ticket, then read the
+  // shared board. No git required.
   featureProgress(id) {
     const [, ticketId] = /^ws-(.+)-feature$/.exec(id) || [];
     if (!ticketId) throw new Error(`Workspace ${id} not found`);
-    return getFeatureTickets(featureProgressDir || ticketsDir, ticketId);
+    return getFeatureTickets(ticketsDir, ticketId);
   },
   store: { get: (id) => ({ id, status: 'running' }) },
 });
@@ -64,7 +62,6 @@ beforeEach(async () => {
   ticketsDir = path.join(tmp, '.bobby', 'tickets');
   fs.mkdirSync(ticketsDir, { recursive: true });
   orchestratorCalls = [];
-  featureProgressDir = null;
   await start();
 });
 
@@ -217,18 +214,14 @@ describe('feature routes', () => {
     expect((await api('GET', '/api/features/TKT-001')).status).toBe(400);
   });
 
-  it('GET /api/workspaces/:id/feature reads child stages from the worktree, not the main checkout', async () => {
+  // Was: "reads child stages from the worktree, not the main checkout". A child
+  // only ever advances via `bobby ticket move`, which writes to the main
+  // checkout from inside any worktree — so the worktree copy was frozen and
+  // this route was reading progress that could not exist (TKT-051).
+  it('GET /api/workspaces/:id/feature reports live child stages from the shared board', async () => {
     seedEpic();
-    // A "worktree" where the builder has already advanced TKT-002.
-    const worktreeTickets = path.join(tmp, 'worktree', '.bobby', 'tickets');
-    fs.mkdirSync(path.dirname(worktreeTickets), { recursive: true });
-    fs.cpSync(ticketsDir, worktreeTickets, { recursive: true });
-    const child = findTicket(worktreeTickets, 'TKT-002');
-    fs.writeFileSync(
-      path.join(child.path, 'ticket.md'),
-      fs.readFileSync(path.join(child.path, 'ticket.md'), 'utf8').replace('stage: backlog', 'stage: building')
-    );
-    featureProgressDir = worktreeTickets;
+    // The builder advances TKT-002 the only way an agent can.
+    moveTicket(ticketsDir, 'TKT-002', 'building', 'bobby-build');
 
     const { status, body } = await api('GET', '/api/workspaces/ws-TKT-001-feature/feature');
 
@@ -236,8 +229,6 @@ describe('feature routes', () => {
     const stages = Object.fromEntries(body.children.map((c) => [c.id, c.stage]));
     expect(stages['TKT-002']).toBe('building');
     expect(stages['TKT-003']).toBe('backlog');
-    // The main checkout still says backlog — the route must not read it.
-    expect(findTicket(ticketsDir, 'TKT-002').data.stage).toBe('backlog');
   });
 
   it('GET /api/workspaces/:id/feature → 404 for an unknown workspace', async () => {

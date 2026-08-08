@@ -45,6 +45,14 @@
   ticket: arch
   why: "The executor stream is passed through untouched and nothing downstream inspects it, so exit code is the only signal the CLI gives — and an agent that did nothing also exits 0. Reading the stage off disk is the one check that distinguishes work from a no-op. Evidence: Orchestrator._onExit; executor.js header."
   supersedes: null
+  invalidated: "2026-08-08"
+
+- id: orchestrator-reads-tickets-from-the-shared-board
+  fact: "The orchestrator reads every ticket through the resolved, main-worktree-rooted tickets dir (`this.ticketsDir`) — prompt building, the existence check, feature children, and the stage re-read on exit. A worktree's own .bobby/tickets is never consulted. A run is successful only when it exits 0 AND the ticket's stage ON THAT SHARED BOARD differs from the workspace's recorded stage."
+  decided: "2026-08-08"
+  ticket: TKT-051
+  why: "Tickets are shared state; worktrees isolate CODE only. That is not a new choice — resolveTicketsDir has always redirected to the main checkout, so `bobby ticket move` run inside a worktree writes there and an agent has no way to write its own worktree's copy. The orchestrator contradicted it in two places and both were bugs. Reading the worktree when BUILDING the prompt meant any ticket not merged to main threw `Ticket X not found` — i.e. every ticket created on a feature branch, the normal way anyone works. Reading it when DETECTING advancement was worse and silent: the copy is a checkout frozen at fork time, so stageAdvanced was always false for a real run, awaiting_approval was unreachable, and the approve → next-agent chain had never once fired outside tests whose stub wrote into the worktree file. The trade-off accepted: two workspaces on one ticket now see each other's stage moves, and a run's ticket state is not rolled back by discarding its worktree — the price of one board per repository, which is the same trade-off tickets-resolve-to-main-worktree already made. Evidence: Orchestrator.runAgent/_onExit/featureProgress/_requireTicket; test/lib/dashboard/orchestrator-fsm.test.js, whose fake agent now moves tickets only via moveTicket on the shared board."
+  supersedes: stage-advance-is-the-success-signal
   invalidated: null
 
 - id: approval-gate-before-next-agent

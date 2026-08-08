@@ -13,7 +13,7 @@ LAYOUT:
     API is here (lib/dashboard/server.js). Visual contract: .bobby/design/design-spec-feature-view.md
 
 FLOW: browser → /api/* → Orchestrator → git worktree → spawn `claude -p` → stdout JSONL
-  → session .jsonl + SSE. Ticket stage re-read FROM THE WORKTREE on exit.
+  → session .jsonl + SSE. Ticket stage re-read FROM THE SHARED BOARD on exit.
 
 AUTH: none. 127.0.0.1 only. `bobby remote` = outbound WS, AES-256-GCM, GET/POST /api/* only.
 
@@ -23,9 +23,9 @@ TESTS: npm test (jest, ESM flag) · npm run lint · no Docker · CI = lint+test 
   Use fs.mkdtempSync + real git; inject `spawn` into runAgent; never launch a real CLI.
 
 PITFALLS:
-  - Tickets ALWAYS resolve to the MAIN worktree root; a running agent reads its own
-    worktree copy. `bobby ticket move` does not reach it.
-  - New worktrees fork from main/master, not your branch. Unmerged work is invisible.
+  - Tickets are SHARED state: always the MAIN worktree root, from anywhere. Worktrees
+    isolate CODE only — never read <worktree>/.bobby/tickets, it is frozen at fork.
+  - New worktrees fork from main/master, not your branch. Unmerged CODE is invisible.
   - Stage done ≠ agent exited. Success = exit 0 AND stage changed, then awaits approval.
   - mergeToMain stashes + checks out main IN the main checkout — races any repo work.
   - _resolveNextAgent is likely off-by-one (skips build); AGENT_STAGE_MAP is dead code.

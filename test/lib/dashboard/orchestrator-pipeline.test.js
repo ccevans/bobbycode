@@ -71,17 +71,23 @@ describe('per-workspace pipeline', () => {
 });
 
 describe('featureProgress', () => {
-  // featureProgress needs only config, ticketsDir, and a store — no git.
+  // featureProgress needs only ticketsDir and a store — no git, no worktree.
   const wire = (o, { ws, ticketsDir }) => Object.assign(o, {
     ticketsDir,
     store: { get: (id) => (id === ws.id ? ws : null) },
   });
 
-  it('reads child stages from the worktree when it exists, main tickets dir when it is gone', async () => {
+  // This used to assert the opposite — that the WORKTREE copy wins while a run
+  // is in flight, because "that is where children advance". They never advance
+  // there: a child advances when an agent runs `bobby ticket move`, which
+  // resolveTicketsDir sends to the main checkout from inside any worktree. The
+  // worktree copy is frozen at fork time, so preferring it served stages that
+  // could only go stale — and hid a child's real progress (TKT-051).
+  it('reads child stages from the shared board, never the worktree copy', async () => {
     const fs = (await import('fs')).default;
     const os = (await import('os')).default;
     const path = (await import('path')).default;
-    const { createTicket } = await import('../../../lib/tickets.js');
+    const { createTicket, moveTicket } = await import('../../../lib/tickets.js');
 
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-fp-'));
     try {
@@ -90,22 +96,25 @@ describe('featureProgress', () => {
       createTicket(mainTickets, { prefix: 'TKT', title: 'Epic', type: 'epic' });
       createTicket(mainTickets, { prefix: 'TKT', title: 'Child', parent: 'TKT-001' });
 
-      // Worktree copy where the child has advanced.
+      // A worktree copy frozen at fork time, still saying backlog.
       const worktree = path.join(tmp, 'wt');
       const wtTickets = path.join(worktree, '.bobby', 'tickets');
       fs.mkdirSync(path.dirname(wtTickets), { recursive: true });
       fs.cpSync(mainTickets, wtTickets, { recursive: true });
-      const childFile = path.join(wtTickets, fs.readdirSync(wtTickets).find((d) => d.startsWith('TKT-002')), 'ticket.md');
-      fs.writeFileSync(childFile, fs.readFileSync(childFile, 'utf8').replace('stage: backlog', 'stage: reviewing'));
 
       const ws = { id: 'ws1', ticketId: 'TKT-001', worktreePath: worktree };
       const o = wire(bareOrchestrator(), { ws, ticketsDir: mainTickets });
 
+      expect(o.featureProgress('ws1').children[0].stage).toBe('backlog');
+
+      // The child advances the only way it can: `bobby ticket move`, i.e. a
+      // write to the main checkout. The stale worktree copy must not mask it.
+      moveTicket(mainTickets, 'TKT-002', 'reviewing', 'bobby-build');
       expect(o.featureProgress('ws1').children[0].stage).toBe('reviewing');
 
-      // Worktree removed (merged/discarded) → falls back to the main checkout.
+      // And a removed worktree (merged/discarded) changes nothing.
       fs.rmSync(worktree, { recursive: true });
-      expect(o.featureProgress('ws1').children[0].stage).toBe('backlog');
+      expect(o.featureProgress('ws1').children[0].stage).toBe('reviewing');
 
       expect(() => o.featureProgress('nope')).toThrow(/not found/);
     } finally {

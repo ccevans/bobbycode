@@ -11,9 +11,17 @@
 //
 // The fake agent is what makes the second one visible: it does what a real
 // subagent does — reads the stage out of `bobby ticket move <id> <stage>` in
-// its own prompt and writes that stage into the worktree's ticket.md. So if
+// its own prompt and runs that move. A real `bobby ticket move` writes to the
+// MAIN checkout's board (resolveTicketsDir redirects there from inside any
+// worktree), so the fake writes there too and never touches the worktree. If
 // the prompt does not name the workflow's stage, the chain stalls here exactly
 // as it does in production.
+//
+// TKT-051: this harness used to write the stage into the WORKTREE's ticket.md,
+// which no real agent can do — so the whole approve → next-agent chain was
+// green here and dead in production. Every fixture below now models the real
+// shape: the ticket lives on the shared board, and the worktree holds no
+// tickets at all (it forked from a branch the ticket was never on).
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -21,24 +29,27 @@ import { Orchestrator, DEFAULT_MAX_CONCURRENT } from '../../../lib/dashboard/orc
 import { WorkspaceStore, newWorkspace } from '../../../lib/dashboard/state.js';
 import { resolveWorkflow, nextStageForAgent } from '../../../lib/workflow.js';
 import { STAGES } from '../../../lib/stages.js';
-import { createTicket, findTicket, writeTicket } from '../../../lib/tickets.js';
+import { createTicket, findTicket, moveTicket, writeTicket } from '../../../lib/tickets.js';
 
 let tmp;
 
-/** A workspace whose "worktree" is a plain directory holding a ticket board. */
-function seedWorkspace(store, { id, ticketId, stage, pipeline }) {
+/**
+ * A workspace whose ticket lives on the SHARED board in the main checkout, and
+ * whose worktree contains an empty `.bobby/tickets` — exactly what a worktree
+ * forked from main looks like for a ticket created on a feature branch.
+ */
+function seedWorkspace(o, { id, ticketId, stage, pipeline }) {
+  // Seed the counter so createTicket mints exactly the requested id.
+  fs.writeFileSync(path.join(o.ticketsDir, '.counter'), String(Number(ticketId.split('-')[1]) - 1));
+  createTicket(o.ticketsDir, { prefix: 'TKT', title: `Work for ${id}`, author: 'dev', area: '' });
+  moveTicket(o.ticketsDir, ticketId, stage, 'test');
+
   const worktreePath = path.join(tmp, 'wt', id);
-  const wtTickets = path.join(worktreePath, '.bobby', 'tickets');
-  fs.mkdirSync(wtTickets, { recursive: true });
-  // Seed the counter so createTicket mints exactly the requested id — each
-  // workspace has its own board, so they would all start at TKT-001 otherwise.
-  fs.writeFileSync(path.join(wtTickets, '.counter'), String(Number(ticketId.split('-')[1]) - 1));
-  createTicket(wtTickets, { prefix: 'TKT', title: `Work for ${id}`, author: 'dev', area: '' });
-  setWorktreeStage(worktreePath, ticketId, stage);
+  fs.mkdirSync(worktreeTicketsDir(worktreePath), { recursive: true });
 
   const ws = newWorkspace({ id, ticketId, worktreePath, branch: `bobby/${id}`, agent: null, pipeline });
   ws.stage = stage;
-  store.create(ws);
+  o.store.create(ws);
   return ws;
 }
 
@@ -46,14 +57,21 @@ function worktreeTicketsDir(worktreePath) {
   return path.join(worktreePath, '.bobby', 'tickets');
 }
 
-function setWorktreeStage(worktreePath, ticketId, stage) {
-  const dir = worktreeTicketsDir(worktreePath);
-  const found = findTicket(dir, ticketId);
-  writeTicket(found.path, { ...found.data, stage }, found.content);
+/** Read the stage off the shared board — the only copy anything may trust. */
+function readBoardStage(o, ticketId) {
+  return findTicket(o.ticketsDir, ticketId).data.stage;
 }
 
-function readWorktreeStage(worktreePath, ticketId) {
-  return findTicket(worktreeTicketsDir(worktreePath), ticketId).data.stage;
+/**
+ * Plant a stale copy of a ticket inside a worktree, at a stage the board does
+ * not have. Production code that reads the worktree fails loudly against this.
+ */
+function plantStaleWorktreeCopy(o, worktreePath, ticketId, stage) {
+  const dir = worktreeTicketsDir(worktreePath);
+  const found = findTicket(o.ticketsDir, ticketId);
+  const dest = path.join(dir, found.dirname);
+  fs.mkdirSync(dest, { recursive: true });
+  writeTicket(dest, { ...found.data, stage }, found.content);
 }
 
 /**
@@ -86,15 +104,18 @@ function makeOrchestrator({ config = {}, pipelineName = 'default', behaviour } =
     // Which agent this is, and where its prompt tells it to leave the ticket.
     const agent = /Run the bobby-(\S+) agent/.exec(prompt)?.[1] || 'unknown';
     const movedTo = /bobby ticket move \S+ ([a-z-]+)/.exec(prompt)?.[1] || null;
-    const record = { agent, prompt, movedTo };
+    const record = { agent, prompt, movedTo, worktreePath };
     o.launched.push(record);
 
     const ticketId = /on ticket (\S+)\./.exec(prompt)?.[1];
     const finish = () => {
-      // A real agent obeys its prompt. If the prompt names no stage, it falls
-      // back to whatever its agent file says — which is the bug under test, so
-      // the fake simply leaves the ticket where it is.
-      if (movedTo) setWorktreeStage(worktreePath, ticketId, movedTo);
+      // A real agent obeys its prompt by running `bobby ticket move`, which
+      // lands on the MAIN checkout's board no matter which worktree it is
+      // invoked from. The worktree copy is never written — nothing an agent
+      // can do reaches it. If the prompt names no stage, the agent falls back
+      // to whatever its agent file says — the bug TKT-048 was about — so the
+      // fake simply leaves the ticket where it is.
+      if (movedTo) moveTicket(o.ticketsDir, ticketId, movedTo, `bobby-${agent}`);
       return { exitCode: 0, signal: null };
     };
 
@@ -163,7 +184,7 @@ afterEach(() => {
 describe('the FSM drives the default workflow one stage at a time (TKT-047)', () => {
   it('runs plan → build → review → test, then has nothing left', async () => {
     const o = makeOrchestrator();
-    seedWorkspace(o.store, { id: 'ws1', ticketId: 'TKT-001', stage: 'planning', pipeline: 'default' });
+    seedWorkspace(o, { id: 'ws1', ticketId: 'TKT-001', stage: 'planning', pipeline: 'default' });
 
     const ran = await driveToEnd(o, 'ws1', 'plan');
 
@@ -173,12 +194,13 @@ describe('the FSM drives the default workflow one stage at a time (TKT-047)', ()
 
   it('approving after each agent queues the next one, never the one after it', async () => {
     const o = makeOrchestrator();
-    const ws = seedWorkspace(o.store, { id: 'ws1', ticketId: 'TKT-001', stage: 'planning', pipeline: 'default' });
+    const ws = seedWorkspace(o, { id: 'ws1', ticketId: 'TKT-001', stage: 'planning', pipeline: 'default' });
 
     // after plan → build (not review)
     await o.runAgent('ws1', { agentOverride: 'plan' });
     await settle(o);
-    expect(readWorktreeStage(ws.worktreePath, 'TKT-001')).toBe('building');
+    expect(readBoardStage(o, 'TKT-001')).toBe('building');
+    expect(findTicket(worktreeTicketsDir(ws.worktreePath), 'TKT-001')).toBeNull();
     expect(o.store.get('ws1').status).toBe('awaiting_approval');
     expect(o._resolveNextAgent(o.store.get('ws1'))).toBe('build');
 
@@ -201,7 +223,7 @@ describe('the FSM drives the default workflow one stage at a time (TKT-047)', ()
 
   it('the CLI-facing agent chain for default is unchanged: the same four stages', async () => {
     const o = makeOrchestrator();
-    seedWorkspace(o.store, { id: 'ws1', ticketId: 'TKT-001', stage: 'planning', pipeline: 'default' });
+    seedWorkspace(o, { id: 'ws1', ticketId: 'TKT-001', stage: 'planning', pipeline: 'default' });
 
     await driveToEnd(o, 'ws1', 'plan');
 
@@ -210,10 +232,88 @@ describe('the FSM drives the default workflow one stage at a time (TKT-047)', ()
   });
 });
 
+// Tickets are SHARED state living in the main checkout; a worktree isolates
+// CODE only. Everything below states that from the orchestrator's side — the
+// symptom (a run that would not start) and the root cause (a stage change no
+// agent could ever make visible).
+describe('tickets are shared state, worktrees isolate code only (TKT-051)', () => {
+  it('starts a run for a ticket that is on the board but not in the worktree', async () => {
+    // 'manual' keeps the agent in flight, so `running` is the status of a run
+    // that genuinely started rather than one that already finished.
+    const o = makeOrchestrator({ behaviour: 'manual' });
+    const ws = seedWorkspace(o, { id: 'ws1', ticketId: 'TKT-001', stage: 'planning', pipeline: 'default' });
+
+    // The exact shape that failed: worktrees fork from main, so a ticket created
+    // on a feature branch is simply not in the worktree.
+    expect(findTicket(worktreeTicketsDir(ws.worktreePath), 'TKT-001')).toBeNull();
+
+    await expect(o.runAgent('ws1', { agentOverride: 'plan' })).resolves.toBeDefined();
+    expect(o.launched[0].prompt).toContain('TKT-001');
+    expect(o.store.get('ws1').status).toBe('running');
+  });
+
+  it('detects a stage change written the way `bobby ticket move` writes it, and approving queues the next agent', async () => {
+    const o = makeOrchestrator();
+    seedWorkspace(o, { id: 'ws1', ticketId: 'TKT-001', stage: 'planning', pipeline: 'default' });
+
+    await o.runAgent('ws1', { agentOverride: 'plan' });
+    await settle(o);
+
+    // The move went to the shared board — and that is where advancement is read.
+    expect(readBoardStage(o, 'TKT-001')).toBe('building');
+    expect(o.store.get('ws1').stage).toBe('building');
+    expect(o.store.get('ws1').status).toBe('awaiting_approval');
+
+    await o.approve('ws1');
+    expect(o.launched.map(r => r.agent)).toEqual(['plan', 'build']);
+  });
+
+  it('a stale ticket copy left inside the worktree is ignored', async () => {
+    const o = makeOrchestrator();
+    const ws = seedWorkspace(o, { id: 'ws1', ticketId: 'TKT-001', stage: 'planning', pipeline: 'default' });
+    // A worktree forked when the ticket was already at `done` would otherwise
+    // send the run straight to ready_to_merge without an agent doing anything.
+    plantStaleWorktreeCopy(o, ws.worktreePath, 'TKT-001', 'done');
+
+    await o.runAgent('ws1', { agentOverride: 'plan' });
+    await settle(o);
+
+    expect(o.store.get('ws1').stage).toBe('building');
+    expect(o.store.get('ws1').status).toBe('awaiting_approval');
+  });
+
+  it('drives plan → build → review → test with an executor that only ever touches the shared board', async () => {
+    const o = makeOrchestrator();
+    const ws = seedWorkspace(o, { id: 'ws1', ticketId: 'TKT-001', stage: 'planning', pipeline: 'default' });
+
+    const ran = await driveToEnd(o, 'ws1', 'plan');
+
+    expect(ran).toEqual(['plan', 'build', 'review', 'test']);
+    expect(readBoardStage(o, 'TKT-001')).toBe('shipping');
+    expect(o.store.get('ws1').status).toBe('ready_to_merge');
+    // The worktree's board stayed empty for the whole run. If this ever needs
+    // seeding to make the chain advance, the production code is reading the
+    // wrong copy again.
+    expect(fs.readdirSync(worktreeTicketsDir(ws.worktreePath))).toEqual([]);
+    expect(o.launched.every(r => r.worktreePath === ws.worktreePath)).toBe(true);
+  });
+
+  it('a genuinely missing ticket names branch topology, not just "not found"', async () => {
+    const o = makeOrchestrator();
+    seedWorkspace(o, { id: 'ws1', ticketId: 'TKT-001', stage: 'planning', pipeline: 'default' });
+    o.store.update('ws1', { ticketId: 'TKT-404' });
+
+    await expect(o.runAgent('ws1', { agentOverride: 'plan' }))
+      .rejects.toThrow(/TKT-404 not found[\s\S]*branch/i);
+    await expect(async () => o.createWorkspace({ ticketId: 'TKT-404' }))
+      .rejects.toThrow(/TKT-404 not found[\s\S]*branch/i);
+  });
+});
+
 describe('non-default workflows run to the end (TKT-048)', () => {
   it('a quick ticket runs plan → build → test and does NOT stop after build', async () => {
     const o = makeOrchestrator({ pipelineName: 'default' });
-    seedWorkspace(o.store, { id: 'wsq', ticketId: 'TKT-001', stage: 'planning', pipeline: 'quick' });
+    seedWorkspace(o, { id: 'wsq', ticketId: 'TKT-001', stage: 'planning', pipeline: 'quick' });
 
     const ran = await driveToEnd(o, 'wsq', 'plan');
 
@@ -223,7 +323,7 @@ describe('non-default workflows run to the end (TKT-048)', () => {
 
   it('a quick build is told to move to testing, not the reviewing stage quick lacks', async () => {
     const o = makeOrchestrator();
-    seedWorkspace(o.store, { id: 'wsq', ticketId: 'TKT-001', stage: 'building', pipeline: 'quick' });
+    seedWorkspace(o, { id: 'wsq', ticketId: 'TKT-001', stage: 'building', pipeline: 'quick' });
 
     await o.runAgent('wsq', { agentOverride: 'build' });
     await settle(o);
@@ -236,7 +336,7 @@ describe('non-default workflows run to the end (TKT-048)', () => {
 
   it('a secure ticket runs plan → build → security → review → test end to end', async () => {
     const o = makeOrchestrator();
-    seedWorkspace(o.store, { id: 'wss', ticketId: 'TKT-001', stage: 'planning', pipeline: 'secure' });
+    seedWorkspace(o, { id: 'wss', ticketId: 'TKT-001', stage: 'planning', pipeline: 'secure' });
 
     const ran = await driveToEnd(o, 'wss', 'plan');
 
@@ -255,7 +355,7 @@ describe('non-default workflows run to the end (TKT-048)', () => {
   // test asserts the fix from the other side.
   it('security and review each own their stage, and security hands off to review', async () => {
     const o = makeOrchestrator();
-    seedWorkspace(o.store, { id: 'wss', ticketId: 'TKT-001', stage: 'security', pipeline: 'secure' });
+    seedWorkspace(o, { id: 'wss', ticketId: 'TKT-001', stage: 'security', pipeline: 'secure' });
 
     const secure = resolveWorkflow({}, 'secure');
     expect(secure.filter(s => s.stage === 'reviewing').map(s => s.agent)).toEqual(['bobby-review']);
@@ -280,7 +380,7 @@ describe('non-default workflows run to the end (TKT-048)', () => {
   // diff (['plan','build','security','security',…]) instead of hanging the suite.
   it('auto-approving every stage drives secure to the end instead of looping (TKT-049)', async () => {
     const o = makeOrchestrator({ config: { dashboard: { auto_approve_stages: STAGES } } });
-    seedWorkspace(o.store, { id: 'wsa', ticketId: 'TKT-001', stage: 'planning', pipeline: 'secure' });
+    seedWorkspace(o, { id: 'wsa', ticketId: 'TKT-001', stage: 'planning', pipeline: 'secure' });
 
     await o.runAgent('wsa', { agentOverride: 'plan' });
     await settleUntilQuiet(o);
@@ -293,7 +393,7 @@ describe('non-default workflows run to the end (TKT-048)', () => {
     const o = makeOrchestrator({
       config: { workflows: { thorough: ['plan', 'build', 'security', 'test'] } },
     });
-    seedWorkspace(o.store, { id: 'wst', ticketId: 'TKT-001', stage: 'planning', pipeline: 'thorough' });
+    seedWorkspace(o, { id: 'wst', ticketId: 'TKT-001', stage: 'planning', pipeline: 'thorough' });
 
     const ran = await driveToEnd(o, 'wst', 'plan');
 
@@ -305,7 +405,7 @@ describe('dashboard.max_concurrent caps agents in flight (TKT-015)', () => {
   const seedRunning = (o, n) => {
     for (let i = 1; i <= n; i += 1) {
       const id = `ws${i}`;
-      seedWorkspace(o.store, { id, ticketId: `TKT-00${i}`, stage: 'building', pipeline: 'default' });
+      seedWorkspace(o, { id, ticketId: `TKT-00${i}`, stage: 'building', pipeline: 'default' });
     }
   };
 

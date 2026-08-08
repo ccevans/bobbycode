@@ -118,7 +118,7 @@ App:   browser ─▶ http://127.0.0.1:7777
                                                     --output-format stream-json --verbose`
                                              cwd = the worktree
                           each stdout line ─▶ session JSONL + SSEHub.broadcast
-                          on exit          ─▶ re-read ticket stage FROM THE WORKTREE
+                          on exit          ─▶ re-read ticket stage FROM THE SHARED BOARD
                                              commitCheckpoint, set status, maybe auto-approve
          /api/events, /api/workspaces/:id/events ─▶ SSE (lib/dashboard/sse.js)
 
@@ -138,7 +138,7 @@ There is no database. State lives in: `.bobby/tickets/**/ticket.md` (frontmatter
 stateDiagram-v2
   [*] --> idle: createWorkspace (git worktree add)
   idle --> running: runAgent / approve
-  running --> awaiting_approval: exit 0 AND ticket stage advanced
+  running --> awaiting_approval: exit 0 AND ticket stage advanced on the shared board
   running --> idle: exit 0, stage unchanged
   running --> ready_to_merge: exit 0 AND new stage is shipping|done
   running --> failed: non-zero exit
@@ -150,7 +150,7 @@ stateDiagram-v2
 ```
 
 The transition rule lives in `_onExit`: **exit code 0 alone is not success.** Success is
-`exitCode === 0` *and* the ticket's stage in the worktree differing from
+`exitCode === 0` *and* the ticket's stage on the shared board differing from
 `workspace.stage`. A clean exit with no stage change lands back in `idle`, not
 `awaiting_approval` — which is what an agent that silently did nothing looks like.
 
@@ -250,12 +250,15 @@ tolerant readers are the compatibility layer.
 
 ## Common Pitfalls
 
-1. **`bobby ticket move` does not reach a running agent.** `resolveTicketsDir` sends
-   CLI writes to the **main checkout**, while the orchestrator re-reads the ticket from
-   `<worktreePath>/.bobby/tickets` both when picking the prompt (`runAgent`) and when
-   detecting success (`_onExit`). The two copies only reconcile at merge.
-   `/api/features/:id` reads the main copy; `/api/workspaces/:id/feature` reads the
-   worktree copy — that is why both endpoints exist.
+1. **Tickets are shared state; only CODE is isolated per worktree.** `resolveTicketsDir`
+   sends every CLI write to the **main checkout**, and since TKT-051 the orchestrator
+   reads there too — prompt building, the existence check, feature children, and the
+   stage re-read on exit all go through `this.ticketsDir`. A worktree's own
+   `.bobby/tickets` is a checkout frozen at fork time; nothing may read it. It used to,
+   which is why a ticket not merged to main could not be run at all (`Ticket X not
+   found`) and why no real agent's stage change was ever detected. `/api/features/:id`
+   and `/api/workspaces/:id/feature` now return the same data from the same board; the
+   latter is a workspace-keyed alias kept only because the Pro UI calls it first.
 
 2. **Tickets always resolve to the main worktree root, whatever directory you are in.**
    `resolveTicketsDir` / `resolveSessionsDir` call `findMainWorktreeRoot` and redirect.
@@ -269,7 +272,7 @@ tolerant readers are the compatibility layer.
    file — is invisible to every agent the app launches until it lands there.
 
 4. **A stage is not done when the agent exits.** Success = exit 0 **and** a stage change
-   read from the worktree. Status then sits at `awaiting_approval` until `approve()` (or
+   read from the shared board. Status then sits at `awaiting_approval` until `approve()` (or
    a `dashboard.auto_approve_stages` entry) advances it. Do not treat `run_end` as
    completion.
 
