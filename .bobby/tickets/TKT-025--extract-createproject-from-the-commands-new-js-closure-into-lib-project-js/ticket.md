@@ -1,7 +1,7 @@
 ---
 id: TKT-025
 title: Extract createProject from the commands/new.js closure into lib/project.js
-stage: building
+stage: done
 type: improvement
 priority: low
 area: null

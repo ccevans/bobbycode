@@ -1,7 +1,7 @@
 ---
 id: TKT-018
 title: Ideas tab — surface bobby idea in the app
-stage: building
+stage: done
 type: feature
 priority: medium
 area: ui
