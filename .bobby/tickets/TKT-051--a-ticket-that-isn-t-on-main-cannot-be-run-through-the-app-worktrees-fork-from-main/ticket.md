@@ -3,7 +3,7 @@ id: TKT-051
 title: >-
   A ticket that isn't on main cannot be run through the app — worktrees fork
   from main
-stage: backlog
+stage: done
 type: bug
 priority: critical
 area: orchestrator
@@ -53,8 +53,51 @@ why this has survived.
 The error message makes it look like the ticket is missing, so the natural
 reaction is to go looking for a typo rather than at branch topology.
 
-THE FIX IS A DESIGN CHOICE, not a one-liner. Three candidates, each with a
-real cost:
+## THE ROOT CAUSE IS BIGGER THAN THE SYMPTOM
+
+Investigating the fix revealed the actual model, and that the orchestrator
+contradicts it. `lib/config.js` resolves tickets, sessions AND sprints to the
+MAIN worktree root, always:
+
+    export function resolveTicketsDir(root, config) {
+      const mainRoot = findMainWorktreeRoot();
+      const effectiveRoot = (mainRoot && mainRoot !== root) ? mainRoot : root;
+      return path.join(effectiveRoot, config.tickets_dir);
+    }
+
+So the design is: **tickets are shared; only code is isolated per worktree.**
+An agent running inside a worktree that invokes `bobby ticket move` writes to
+the MAIN checkout — by design.
+
+But `Orchestrator._onExit` reads the WORKTREE's copy to detect advancement:
+
+    const worktreeTicketsDir = path.join(ws.worktreePath, ...);
+    const ticket = findTicket(worktreeTicketsDir, ws.ticketId);
+    const newStage = ticket?.data?.stage || null;
+    const stageAdvanced = newStage && newStage !== ws.stage;
+
+The worktree copy is a git checkout frozen at fork time and nothing the agent
+does ever changes it. Therefore `stageAdvanced` is ALWAYS false for a real
+run, `nextStatus` stays `idle`, and the workspace never reaches
+`awaiting_approval`.
+
+**The approve -> next-agent chain has never fired from a real agent run.** It
+only worked in tests and demos where a stub wrote directly into the worktree's
+ticket file. That is why every verification of this loop to date has used a
+stub.
+
+This also explains TKT-047/048 surviving so long: the path they live on is
+reached only after `awaiting_approval`, which nothing could reach.
+
+## THE FIX
+
+Make the orchestrator obey the model the rest of Bobby already follows: read
+and write tickets through the RESOLVED tickets dir (`this.ticketsDir`, already
+main-rooted), and let worktrees isolate code only. That fixes the symptom
+(prompt building) and the root cause (stage detection) with one coherent
+change, and removes the need to choose between the three patches below.
+
+Superseded candidates, kept for the record:
 
 (a) Fork worktrees from the CURRENT branch instead of main. Most intuitive and
     fixes it at the root, but changes isolation semantics — work would build on
