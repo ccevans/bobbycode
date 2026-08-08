@@ -5,7 +5,7 @@ import { STAGES, stageColor } from '../lib/stages.js';
 import { listTickets, backlogHealth } from '../lib/tickets.js';
 import { bold, dim, warn, error } from '../lib/colors.js';
 
-const ACTIVE_STAGES = ['planning', 'building', 'reviewing', 'testing'];
+const ACTIVE_STAGES = ['planning', 'building', 'security', 'reviewing', 'testing'];
 
 function renderBoard(ticketsDir, filterStages, opts, config) {
   const filters = {};
@@ -121,7 +121,7 @@ export function registerList(program) {
     .description('Show ticket board (optionally filter by stages)')
     .option('--blocked', 'Show only blocked tickets')
     .option('--epic <id>', 'Show children of an epic')
-    .option('--active', 'Show active stages: planning, building, reviewing, testing')
+    .option('--active', `Show active stages: ${ACTIVE_STAGES.join(', ')}`)
     .option('--area <area>', 'Filter by feature area')
     .option('-p, --priority <priority>', 'Filter by priority (critical, high, medium, low)')
     .option('--type <type>', 'Filter by ticket type (bug, feature, improvement, task, epic)')

@@ -20,6 +20,7 @@ import path from 'path';
 import { Orchestrator, DEFAULT_MAX_CONCURRENT } from '../../../lib/dashboard/orchestrator.js';
 import { WorkspaceStore, newWorkspace } from '../../../lib/dashboard/state.js';
 import { resolveWorkflow, nextStageForAgent } from '../../../lib/workflow.js';
+import { STAGES } from '../../../lib/stages.js';
 import { createTicket, findTicket, writeTicket } from '../../../lib/tickets.js';
 
 let tmp;
@@ -136,6 +137,21 @@ async function settle(o) {
   return o;
 }
 
+/**
+ * Settle repeatedly until a round launches nothing new — how a run that
+ * auto-approves itself reaches its end without anyone calling approve().
+ * `maxRounds` is the loop guard: a stage that hands off to itself never goes
+ * quiet, so the cap turns a hang into a failed assertion on `o.launched`.
+ */
+async function settleUntilQuiet(o, maxRounds = 50) {
+  let last = -1;
+  for (let i = 0; i < maxRounds && o.launched.length !== last; i += 1) {
+    last = o.launched.length;
+    await settle(o);
+  }
+  return o;
+}
+
 beforeEach(() => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-fsm-'));
 });
@@ -218,38 +234,59 @@ describe('non-default workflows run to the end (TKT-048)', () => {
     expect(build.prompt).not.toContain('bobby ticket move TKT-001 reviewing');
   });
 
-  it('a secure ticket reaches its security stage', async () => {
+  it('a secure ticket runs plan → build → security → review → test end to end', async () => {
     const o = makeOrchestrator();
     seedWorkspace(o.store, { id: 'wss', ticketId: 'TKT-001', stage: 'planning', pipeline: 'secure' });
 
     const ran = await driveToEnd(o, 'wss', 'plan');
 
-    expect(ran.slice(0, 3)).toEqual(['plan', 'build', 'security']);
+    expect(ran).toEqual(['plan', 'build', 'security', 'review', 'test']);
+    expect(o.store.get('wss').status).toBe('ready_to_merge');
+    expect(o.launched.map(r => r.movedTo))
+      .toEqual(['building', 'security', 'reviewing', 'testing', 'shipping']);
   });
 
-  // KNOWN LIMITATION, not a consequence of TKT-047/048. STAGE_MAP sends both
-  // `security` and `review` to the `reviewing` stage, so the built-in `secure`
-  // workflow has two steps sharing one stage:
-  //   planning/plan, building/build, reviewing/SECURITY, reviewing/review, testing/test
-  // A stage-keyed FSM cannot tell those two apart: the lookup always finds the
-  // first, so a secure run reaches security (asserted above) and then cannot get
-  // past it — security's own handoff stage is `reviewing`, the stage it is
-  // already in. Fixing it means giving security a stage of its own in
-  // lib/stages.js, which is a schema change well outside these tickets.
-  // Locked down here so the next person meets it as a documented boundary
-  // rather than a mystery, and so a fix flips this test loudly.
-  it('secure cannot yet advance PAST security — the security/review stage collision', async () => {
+  // Was a pinned KNOWN LIMITATION (TKT-049). STAGE_MAP used to send both
+  // `security` and `review` to the `reviewing` stage, so `secure` had two steps
+  // sharing one stage. A stage-keyed FSM cannot tell those apart — the lookup
+  // finds the first — so a secure run reached security and could never leave:
+  // security's own handoff stage computed to `reviewing`, the stage it already
+  // occupied. `security` now has a stage of its own in lib/stages.js, and this
+  // test asserts the fix from the other side.
+  it('security and review each own their stage, and security hands off to review', async () => {
     const o = makeOrchestrator();
-    seedWorkspace(o.store, { id: 'wss', ticketId: 'TKT-001', stage: 'reviewing', pipeline: 'secure' });
+    seedWorkspace(o.store, { id: 'wss', ticketId: 'TKT-001', stage: 'security', pipeline: 'secure' });
 
     const secure = resolveWorkflow({}, 'secure');
-    expect(secure.filter(s => s.stage === 'reviewing').map(s => s.agent))
-      .toEqual(['bobby-security', 'bobby-review']);
+    expect(secure.filter(s => s.stage === 'reviewing').map(s => s.agent)).toEqual(['bobby-review']);
+    expect(secure.filter(s => s.stage === 'security').map(s => s.agent)).toEqual(['bobby-security']);
 
-    // So the reviewing stage resolves to security, and security's handoff is
-    // the stage it already occupies — a self-loop, never bobby-review.
+    // The security stage resolves to security, whose handoff is the NEXT stage
+    // — never itself. That is what makes bobby-review reachable.
     expect(o._resolveNextAgent(o.store.get('wss'))).toBe('security');
     expect(nextStageForAgent('bobby-security', secure)).toBe('reviewing');
+    expect(nextStageForAgent('bobby-security', secure)).not.toBe('security');
+
+    // And the reviewing stage now resolves to review, not to security.
+    o.store.update('wss', { stage: 'reviewing' });
+    expect(o._resolveNextAgent(o.store.get('wss'))).toBe('review');
+  });
+
+  // THE SHARP EDGE this ticket existed for. With `dashboard.auto_approve_stages`
+  // set, nothing waits for a human between stages, so a stage that hands off to
+  // itself re-launches the same agent forever and spends real tokens. The
+  // concurrency cap does not bound it — the loop is sequential, one agent at a
+  // time. Bounded here by settle rounds so the loop shape fails as a readable
+  // diff (['plan','build','security','security',…]) instead of hanging the suite.
+  it('auto-approving every stage drives secure to the end instead of looping (TKT-049)', async () => {
+    const o = makeOrchestrator({ config: { dashboard: { auto_approve_stages: STAGES } } });
+    seedWorkspace(o.store, { id: 'wsa', ticketId: 'TKT-001', stage: 'planning', pipeline: 'secure' });
+
+    await o.runAgent('wsa', { agentOverride: 'plan' });
+    await settleUntilQuiet(o);
+
+    expect(o.launched.map(r => r.agent)).toEqual(['plan', 'build', 'security', 'review', 'test']);
+    expect(o.store.get('wsa').status).toBe('ready_to_merge');
   });
 
   it('a custom workflow from .bobbyrc.yml runs its extra stage', async () => {

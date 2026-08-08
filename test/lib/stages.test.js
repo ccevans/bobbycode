@@ -2,8 +2,8 @@
 import { STAGES, TRANSITIONS, isValidStage, stageColor, stageIndex, resolveTransition } from '../../lib/stages.js';
 
 describe('stages', () => {
-  test('STAGES has 12 entries', () => {
-    expect(STAGES).toHaveLength(12);
+  test('STAGES has 13 entries', () => {
+    expect(STAGES).toHaveLength(13);
   });
 
   test('STAGES starts with backlog and ends with blocked', () => {
@@ -15,7 +15,7 @@ describe('stages', () => {
     expect(STAGES).toEqual([
       'backlog', 'planning',
       'design-research', 'design-analyze', 'design-mockup', 'design-spec',
-      'building', 'reviewing',
+      'building', 'security', 'reviewing',
       'testing', 'shipping', 'done', 'blocked',
     ]);
   });
@@ -52,6 +52,22 @@ describe('stages', () => {
     // design stages sit between planning and building
     expect(stageIndex('design-research')).toBeGreaterThan(stageIndex('planning'));
     expect(stageIndex('design-spec')).toBeLessThan(stageIndex('building'));
+  });
+
+  // Position, not just membership: stageIndex is an ordering comparison in the
+  // parent-epic auto-advance (lib/tickets.js), so a child that has cleared
+  // security must read as further along than one still building and less far
+  // than one in review. Dropping `security` at the end of STAGES would pass a
+  // membership check and silently advance epics wrong.
+  test('security sits between building and reviewing', () => {
+    expect(stageIndex('security')).toBeGreaterThan(stageIndex('building'));
+    expect(stageIndex('security')).toBeLessThan(stageIndex('reviewing'));
+  });
+
+  test('security is reachable by `bobby ticket move <id> security`', () => {
+    expect(TRANSITIONS.security).toBe('security');
+    expect(resolveTransition('security')).toBe('security');
+    expect(isValidStage('security')).toBe(true);
   });
 
   test('TRANSITIONS maps aliases to stage names', () => {

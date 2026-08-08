@@ -6,8 +6,10 @@ import {
   buildPerformancePrompt, buildWatchdogPrompt, buildVetPrompt, buildStrategyPrompt,
   buildSprintPrompt,
   resolveNextAgent, DEFAULT_WORKFLOW, resolveWorkflow, listWorkflows,
+  BUILT_IN_WORKFLOWS, STAGE_MAP, nextStageForAgent,
 } from '../../lib/workflow.js';
 import { createTicket, moveTicket, findTicket, writeTicket } from '../../lib/tickets.js';
+import { isValidStage } from '../../lib/stages.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -658,7 +660,7 @@ describe('workflow', () => {
       const config = { workflows: { secure: ['plan', 'build', 'security', 'review', 'test'] } };
       const result = resolveWorkflow(config, 'secure');
       expect(result).toHaveLength(5);
-      expect(result[2]).toEqual({ stage: 'reviewing', agent: 'bobby-security' });
+      expect(result[2]).toEqual({ stage: 'security', agent: 'bobby-security' });
     });
 
     test('throws for unknown workflow name', () => {
@@ -812,5 +814,80 @@ describe('workflow', () => {
       expect(p).toContain('log a warning');
       expect(p).toMatch(/do not silently skip|do not silently move on/);
     });
+  });
+});
+
+// TKT-049. The bug this guards is a CLASS, not an instance: every resolver in
+// the orchestrator is a first-match lookup — `resolveNextAgent` finds the first
+// step whose `stage` matches, `nextStageForAgent` the first whose `agent`
+// matches. So any workflow with two steps on one stage makes the second step
+// unreachable and can hand a stage off to itself, which under
+// `dashboard.auto_approve_stages` is an unattended infinite loop spending real
+// tokens. These run over every built-in workflow, so adding a colliding entry
+// to STAGE_MAP or BUILT_IN_WORKFLOWS later fails here rather than in production.
+describe('built-in workflows are structurally sound (TKT-049)', () => {
+  const names = Object.keys(BUILT_IN_WORKFLOWS);
+
+  test('there are built-in workflows to check', () => {
+    expect(names.length).toBeGreaterThan(0);
+  });
+
+  test.each(names)('%s gives every step a distinct stage', (name) => {
+    const stages = resolveWorkflow({}, name).map(s => s.stage);
+    expect(stages).toEqual([...new Set(stages)]);
+  });
+
+  test.each(names)('%s gives every step a distinct agent', (name) => {
+    const agents = resolveWorkflow({}, name).map(s => s.agent);
+    expect(agents).toEqual([...new Set(agents)]);
+  });
+
+  test.each(names)('%s maps every step to a stage that really exists', (name) => {
+    for (const step of resolveWorkflow({}, name)) {
+      expect({ step: step.agent, stage: step.stage, valid: isValidStage(step.stage) })
+        .toEqual({ step: step.agent, stage: step.stage, valid: true });
+    }
+  });
+
+  test.each(names)('%s never hands a stage off to itself', (name) => {
+    const steps = resolveWorkflow({}, name);
+    for (const step of steps) {
+      expect({ agent: step.agent, from: step.stage, to: nextStageForAgent(step.agent, steps) })
+        .not.toEqual({ agent: step.agent, from: step.stage, to: step.stage });
+    }
+  });
+
+  test('every STAGE_MAP target is a real stage', () => {
+    for (const [step, stage] of Object.entries(STAGE_MAP)) {
+      expect({ step, stage, valid: isValidStage(stage) })
+        .toEqual({ step, stage, valid: true });
+    }
+  });
+
+  test('the security step has a stage of its own, not the review stage', () => {
+    expect(STAGE_MAP.security).toBe('security');
+    expect(STAGE_MAP.security).not.toBe(STAGE_MAP.review);
+  });
+
+  test('secure resolves to five steps on five different stages', () => {
+    expect(resolveWorkflow({}, 'secure')).toEqual([
+      { stage: 'planning', agent: 'bobby-plan' },
+      { stage: 'building', agent: 'bobby-build' },
+      { stage: 'security', agent: 'bobby-security' },
+      { stage: 'reviewing', agent: 'bobby-review' },
+      { stage: 'testing', agent: 'bobby-test' },
+    ]);
+  });
+
+  // The design workflow was audited in the same pass. design-build and
+  // design-check reuse the `building` and `reviewing` stages, but each is used
+  // exactly once within `design`, so there is no collision to fix — the shared
+  // generic tests above are what keep that true.
+  test('design reuses building and reviewing but only once each', () => {
+    const stages = resolveWorkflow({}, 'design').map(s => s.stage);
+    expect(stages).toEqual([
+      'design-research', 'design-analyze', 'design-mockup', 'design-spec',
+      'building', 'reviewing',
+    ]);
   });
 });

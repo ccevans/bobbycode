@@ -48,10 +48,12 @@ describe('per-workspace pipeline', () => {
       workflows: { thorough: ['plan', 'build', 'security', 'test'] },
     });
 
-    // `security` maps to the reviewing stage, which the default workflow gives
-    // to bobby-review — so this resolves differently only because the
-    // workspace's own workflow is consulted.
-    expect(o._resolveNextAgent({ stage: 'reviewing', pipeline: 'thorough' })).toBe('security');
+    // `security` has a stage of its own (TKT-049), so `thorough` resolves it to
+    // bobby-security and has no reviewing stage at all — while `default` still
+    // gives reviewing to bobby-review. Both only because the workspace's own
+    // workflow is consulted.
+    expect(o._resolveNextAgent({ stage: 'security', pipeline: 'thorough' })).toBe('security');
+    expect(o._resolveNextAgent({ stage: 'reviewing', pipeline: 'thorough' })).toBeNull();
     expect(o._resolveNextAgent({ stage: 'reviewing', pipeline: 'default' })).toBe('review');
   });
 
