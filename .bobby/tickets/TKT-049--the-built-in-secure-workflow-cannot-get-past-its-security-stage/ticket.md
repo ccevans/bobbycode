@@ -1,7 +1,7 @@
 ---
 id: TKT-049
 title: The built-in 'secure' workflow cannot get past its security stage
-stage: backlog
+stage: done
 type: bug
 priority: high
 area: orchestrator
