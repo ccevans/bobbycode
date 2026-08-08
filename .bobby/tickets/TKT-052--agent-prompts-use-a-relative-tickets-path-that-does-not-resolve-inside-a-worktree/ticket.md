@@ -3,7 +3,7 @@ id: TKT-052
 title: >-
   Agent prompts use a relative tickets path that does not resolve inside a
   worktree
-stage: backlog
+stage: done
 type: bug
 priority: high
 area: orchestrator
