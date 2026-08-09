@@ -42,3 +42,10 @@
   why: "The log had no writer at all: init seeded it, bobby-review read it in prose, and every entry was hand-typed by an agent. The seed's own header pointed them at `bobby learn`, which has never opened the file. Freehand edits to a structured file did what they always do — one append deleted the commented format block that documented the entry shape, the next had to repair the previous entry's missing supersedes/invalidated keys. The format documentation now lives above the '---' marker where an append cannot reach it. lib/studio.js separately seeded 'decisions: []' (a mapping) while init seeded a list, two shapes under one filename that nothing noticed because nothing parsed the file; legacy mapping files are still read and appended in place rather than rewritten. bobby decision add deliberately does NOT call autoSync — that stages every Bobby-managed path and would sweep up unrelated in-flight work (TKT-061)."
   supersedes: null
   invalidated: null
+- id: one-frontend-two-transports
+  fact: "Views speak to the machine only through the transport seam — request(method, path, body) → {status, body}, subscribe(path, onEvent) → unsubscribe, on('status'|'presence', fn). LocalTransport and RelayTransport are the only implementations, and no behavioural difference between them may be observable from a view: same resolution shape, same error semantics, and streams that recover on their own in both."
+  decided: "2026-08-09"
+  ticket: TKT-023
+  why: "One frontend serves the desktop and the phone (TKT-023) precisely because the views cannot tell which side of the seam they are on. HQ's separate frontend existed only because this seam did not — any transport-observable difference recreates the drift the seam was built to end."
+  supersedes: null
+  invalidated: null
