@@ -14,7 +14,7 @@ blocked_reason: null
 previous_stage: null
 parent: TKT-020
 created: '2026-08-07'
-updated: '2026-08-07'
+updated: '2026-08-09'
 ---
 
 ## Description
@@ -34,3 +34,4 @@ Do NOT do this until the App has shipped a release and the light redesign
 - [ ] No dead references remain in docs, commands/app.js, or the plugin seam
 
 ## Comments
+- [2026-08-09] claude: Scope amended per bobby-review on TKT-023: this ticket also owns retiring hq/web (the duplicate phone frontend in bobbycode-pro). The App over RelayTransport replaces it — verified live — so when /classic goes, hq/web goes with it: relay keeps serving app/app via WEB_DIR, hq/PUSH.md's privacy model moves to the app (PRO-005). TKT-023's AC4 points here.
