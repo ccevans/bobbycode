@@ -1,5 +1,84 @@
 # Review — TKT-023
 
+## Round 3 (commit bf4a2e6) — Verdict: Rejected (one item: the committed test does not pass)
+
+Delta review as scoped in round 2. **The production code is now clean — both
+round-2 fixes are correct and I proved them independently. The only remaining
+defect is in the committed test itself, which fails on the fixed code.**
+
+### Verified correct (production)
+
+- **R2-1** — `resub()` sends `{t:'unsub', id: h.id}` before rotating
+  (relay-transport.js:171–178). The old id is read synchronously when the
+  frame object is built, before the rotation. The host-restart race the
+  coordinator asked about is safe: tunnel.js's unsub handler is
+  `subs.get(id); if (stop) stop()` — an id the new tunnel never knew is a
+  no-op. Even if the new sub frame's encryption resolves before the unsub's
+  and they reorder on the wire, they name different ids — harmless.
+- **R2-2** — the end-retry captures `endedId` at schedule time (line 128);
+  after an intervening rotation `subs.get(endedId)` is undefined and the
+  retry stands down. View-unsubscribe remains covered. Correct.
+
+### The finding: the committed R2-1 test assertion is race-broken — it fails on the FIXED code
+
+`transport.ws.close()` is followed by `await until(() => transport.online)` —
+but `online` is still `true` at that moment (the close event hasn't fired
+yet), so the wait passes **vacuously**, and the fixed `wait(500)` then races
+the 400–800ms jittered reconnect backoff. When reconnect lands after the
+500ms window (most of the time), `api.push({ n: 3 })` fires while the client
+socket is still down; the event is lost (SSE has no replay — by the
+transport's own documented design), `seen` never reaches 3, and the test
+fails. **Measured: the committed test failed 6 of 6 runs on bf4a2e6** with
+`timed out waiting for event after client bounce` — and without
+`--test-force-exit` the failure path skips all cleanup (no try/finally), so
+the open relay/api/socket handles hang the runner indefinitely.
+
+**The fix is one line** — make the harness see the disconnect before waiting
+for the reconnect:
+
+```js
+transport.ws.close();
+await until(() => !transport.online, 'offline after client bounce');   // ← add
+await until(() => transport.online, 'reconnected after client bounce');
+```
+
+**Evidence this exact fix is complete:** I ran a sequencing-corrected copy of
+the harness (only that line added; repo modules imported unchanged):
+- against bf4a2e6 (fixed transport): **4/4 runs pass 2/2** — including the
+  leak assertion (`api.streams.size === 1` with the unsub landed) and the
+  post-bounce event;
+- against 7f2d41e (rotation without unsub) in a throwaway worktree: **3/3
+  runs fail with exactly `host-side streams leaked: 2`** — the assertion
+  catches the leak, for the right reason, once sequenced correctly.
+
+So the leak test's *idea* is right and its red→green story is real — only the
+committed sequencing is wrong. Recommend also wrapping the tail cleanup in
+try/finally (or running the suite with `--test-force-exit`) so a failing
+assertion cannot hang the runner.
+
+### R3 record — accepted
+
+- TKT-026 carries an explicit scope-amendment comment owning hq/web
+  retirement (relay keeps serving app/app via WEB_DIR; PRO-005 push moves to
+  the app), with AC4 pointing there. Accepted — with the note that TKT-026's
+  AC list still names only /classic; an AC line for hq/web would prevent the
+  ticket closing with its boxes checked and hq/web still alive.
+- TKT-067 filed under TKT-020 with a specific, correct title. Accepted — with
+  the note that its Description/ACs are still template placeholders and must
+  be filled at planning.
+- TKT-023's body has the Descope notes section pointing AC4→TKT-026 and
+  AC5→TKT-067. The AC set now passes under the recorded descope.
+
+### On approval readiness
+
+Once the one-line harness fix lands and the suite passes where it runs, this
+ticket is approve-ready from review's perspective: production transport code
+has no open findings across three rounds, the crypto contract is verified,
+the decision `one-frontend-two-transports` is recorded and honoured, and the
+descope is on the record.
+
+---
+
 ## Round 2 (commit 7f2d41e) — Verdict: Rejected (narrowly — three small items)
 
 Re-review of the rejection fixes. All five code claims were verified rather
