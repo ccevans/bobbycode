@@ -1,11 +1,9 @@
 ---
 id: TKT-060
-title: >-
-  Top-bar project pill is 28px tall and the desktop nav items are 43px, under
-  the spec's 44px tap floor
+title: 'Desktop nav items are 43px, 1px under the spec''s 44px tap floor'
 stage: backlog
 type: bug
-priority: medium
+priority: low
 area: ui
 author: unknown
 assigned: null
@@ -19,7 +17,7 @@ parent: null
 feature: null
 persona: null
 created: '2026-08-08'
-updated: '2026-08-08'
+updated: '2026-08-09'
 ---
 
 ## Description
@@ -62,3 +60,4 @@ Either the targets come up to 44px or the spec's floor stops claiming to be veri
 3. Expected: >=44px tall. Actual: 28px.
 
 ## Comments
+- [2026-08-09] review: FALSE POSITIVE on the pill, half-valid on the nav. `.appview .pill::after { content:''; position:absolute; inset:-8px }` expands the 28px drawn box to a 44px touch target, with a comment saying exactly that. It landed in 16e7874 on 2026-08-07 — a day BEFORE this ticket was filed. The design check measured getBoundingClientRect() on the element, which returns the painted box and never sees a pseudo-element hit area, so it reported a pass as a failure. The nav finding stands: .nav-btn/.nav-link are padding 14px/12px around a 13px line = 43px, with no ::after expander and no deliberate comment — a padding value, not a decision. Narrowing this ticket to the nav.

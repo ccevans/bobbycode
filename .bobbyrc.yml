@@ -104,4 +104,10 @@ dashboard:
   # bash, and the whole workflow depends on the agent running `bobby ticket
   # move`. Without bash it hand-edits ticket.md inside its own worktree, which
   # the orchestrator correctly ignores. See TKT-062.
-  permission_mode: bypassPermissions
+  # Ticket runs happen in a throwaway worktree, so that copy is the sandbox.
+  # Repo runs touch this checkout and keep the conservative default.
+  worktree_permission_mode: bypassPermissions
+  # This repo lives in the bobby workspace at ~/Repos/bobby: repos/ holds the
+  # checkouts, worktrees/ holds every worktree of every repo. The default
+  # (../bobby-wt) would scatter them inside repos/.
+  worktree_root: ../../worktrees
