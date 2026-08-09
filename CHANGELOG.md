@@ -145,6 +145,26 @@ All notable changes to Bobby are documented here. The format is based on
   nothing decoded `%2f` into a separator.)
 
 ### Fixed
+- **Out of the box, the app's agents could not write anything.** No permission
+  mode was set, and for a headless `claude -p` that means "ask before writing"
+  with nobody there to answer. Measured on a real run: 88 turns, 9m14s, $2.97,
+  zero files written, ticket never moved — and exit code 0, so the app reported
+  it as a finished stage. Three changes, all of which matter separately:
+  - **Posture is now set per kind of run**, because the two kinds are not
+    equally risky. `dashboard.worktree_permission_mode` (default
+    `bypassPermissions`) covers ticket runs, which happen in a throwaway git
+    worktree — that copy *is* the sandbox. `dashboard.repo_permission_mode`
+    (default `acceptEdits`) covers freeform runs (`ux`, `arch`, `docs`, `ship`,
+    …), which work in your real checkout, where that reasoning does not apply:
+    edits go through, arbitrary commands do not. Both are overridable; the older
+    single `permission_mode` still works and overrides both.
+  - **An agent that is being refused is now stopped** after three refusals,
+    with a message naming the config key — instead of retrying for nine minutes.
+  - **A run that changed nothing is no longer recorded as `completed`.** A
+    worktree run that exits cleanly having moved no stage and left its branch on
+    the same commit is recorded as `no_op`, on both the run and the workspace,
+    with a message naming the likely cause. Repo runs are exempt — several of
+    those agents are supposed to write nothing.
 - **Scaffolded agents and skills referenced `CLAUDE.md` literally**, so on any
   non-Claude-Code target they pointed at a file that is never written — most
   importantly `bobby-build` and `bobby-ship`, whose "follow the Safety Rules in

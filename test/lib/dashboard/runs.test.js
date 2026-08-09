@@ -65,8 +65,17 @@ function makeOrchestrator({ config = {} } = {}) {
 
   o.costQueue = [];
   o.exitQueue = [];   // { exitCode, signal } per launch; defaults to a clean exit
+  o.launchCount = 0;  // makes each fake agent's output differ from the last
 
-  o._runExecutor = () => {
+  o._runExecutor = ({ worktreePath }) => {
+    // A real agent leaves something behind, and since TKT-062 that is the
+    // difference between a `completed` run and a `no_op` one. A fake that wrote
+    // nothing would quietly turn every fixture here into the silent-burn case
+    // and stop being a fixture for run history at all. Worktree runs only — a
+    // repo run's cwd is the user's own checkout, which nothing here may dirty.
+    if (worktreePath && worktreePath !== repoRoot) {
+      fs.writeFileSync(path.join(worktreePath, 'work.txt'), `${o.launchCount++}\n`);
+    }
     const outcome = o.exitQueue.length ? o.exitQueue.shift() : { exitCode: 0, signal: null };
     const result = { ...outcome };
     // Present only when the executor actually reported a figure — an executor

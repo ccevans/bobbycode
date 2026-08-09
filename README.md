@@ -411,9 +411,9 @@ pasting anything:
    This is how `bobby run` behaves on *every* target, Claude Code included.
 3. **`bobby dashboard` — headless.** Each workspace spawns its own `cursor-agent`
    subprocess in an isolated git worktree, streaming tool calls and diffs to the
-   web UI. Requires `cursor-agent` on your `PATH`. For it to run start-to-finish
-   without stopping to ask about file edits, set `dashboard.permission_mode`
-   (see [Dashboard](#dashboard)) — unset, each CLI keeps its own default posture.
+   web UI. Requires `cursor-agent` on your `PATH`. It runs start-to-finish
+   without stopping to ask about file edits by default — see
+   [Dashboard](#dashboard) for the two permission keys and how to tighten them.
 
 Agent definitions land in `.cursor/agents/`, which Cursor 3.13+ reads as
 workspace-scoped **subagents** — it keys their identity on the `name` frontmatter
@@ -462,15 +462,35 @@ model with `dashboard.model`:
 dashboard:
   executor: cursor-agent           # claude | cursor-agent | /abs/path/to/a/binary
   model: composer-2.5              # optional — passed through as --model
-  permission_mode: bypassPermissions   # optional — see below
+  worktree_permission_mode: bypassPermissions   # ticket runs — see below
+  repo_permission_mode: acceptEdits             # freeform runs — see below
 ```
 
-`permission_mode` is what makes a run unattended. Left unset, each CLI keeps its
-own default posture and may stop to ask before editing files — which in a
-headless subprocess means the run stalls or denies itself. `bypassPermissions`
-(or `acceptEdits`) maps to `--permission-mode` for `claude` and `--force` for
-`cursor-agent`. Worktrees isolate each agent to its own checkout, but this still
-grants write access without prompting, so it's opt-in rather than the default.
+**Permission posture — two keys, because the two kinds of run aren't equally
+risky.** These map to `--permission-mode` for `claude` and `--force` for
+`cursor-agent`.
+
+- `worktree_permission_mode` (default `bypassPermissions`) covers **ticket
+  runs**, which happen inside a throwaway git worktree. That copy *is* the
+  sandbox: if an agent goes wrong you delete the directory and your checkout
+  never saw it. Anything stricter doesn't make a headless agent careful, it
+  makes it useless — there's no terminal to answer a permission prompt, so the
+  agent retries until it gives up and exits successfully having written nothing.
+- `repo_permission_mode` (default `acceptEdits`) covers **repo runs** — the
+  freeform agents (`ux`, `arch`, `docs`, `ship`, …), which work in your *real*
+  checkout, where none of that sandbox reasoning applies. File edits go through
+  (git can review and revert them); arbitrary commands don't. An agent that
+  genuinely needs a shell there — `ship`, for one — needs you to raise this key
+  on purpose.
+
+Either key takes `bypassPermissions`, `acceptEdits`, `plan`, or `default`
+("ask", which headless means "refuse"). The older single `permission_mode` still
+works and overrides both.
+
+**When a run does nothing.** An agent that's being refused is stopped after three
+refusals rather than left to spend, and a run that exits cleanly having written
+nothing and moved no stage is recorded as `no_op` — never `completed` — with a
+message naming the likely cause. A clean exit is not evidence of work.
 
 `dashboard.model` is passed through verbatim, so get the valid names from the CLI
 itself rather than guessing — `cursor-agent --list-models` (after `agent login`).
