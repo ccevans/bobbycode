@@ -1,6 +1,110 @@
 # Review — TKT-023
 
-## Verdict: Rejected
+## Round 2 (commit 7f2d41e) — Verdict: Rejected (narrowly — three small items)
+
+Re-review of the rejection fixes. All five code claims were verified rather
+than trusted; the substance of round 1 is fixed and proven, but the id-rotation
+approach introduced one real host-side defect, its 2s retry guard has a race,
+and the R3 descope is legitimate in substance but unrecorded — the tickets it
+defers to either don't cover the deferred scope or don't exist.
+
+### Verified fixed (independently, not from the claims)
+
+- **R1** — resubscribe is now keyed to presence offline→online
+  (relay-transport.js:97–104), which correctly covers fresh attach, relay
+  bounce, and host restart on a live socket; `t:'end'` re-opens after 2s.
+  A useful property of the design: a `resub` frame dropped while the host is
+  absent is always recovered by the next presence arrival.
+- **R2** — `connect()` clears `retryTimer`, detaches all four handlers on the
+  prior socket and closes it, and every handler guards `this.ws !== ws`
+  (lines 65–83). Traced the CLOSING-socket interleaving from round 1: the old
+  socket's `onclose` is nulled, so no presence flap, no third socket, no
+  duplicate delivery.
+- **N1** — request timeout closes the socket (line 191), handing recovery to
+  `onclose → scheduleReconnect`. The iOS zombie-OPEN path now self-heals.
+- **N2** — a `res` frame sets online (line 117). Ordering with resubscribe is
+  safe: a `res` implies the host was attached when the `req` was routed, and
+  the relay's presence frame precedes it on the same ordered socket.
+- **N4** — a failing fragment is cleared from the address bar and its reason
+  surfaces via `takePairingFromUrl.lastError` → `showPairing(...)`.
+- **Test** — `app/test/relay-transport.test.js` is a faithful R1 reproduction:
+  real relay (`hq/relay/server.js`), real `RemoteTunnel`, stub dashboard with a
+  live SSE stream, host killed and restarted while the client socket stays up,
+  and the assertions are data-level (`seen == [1, 2]`) plus a request
+  round-trip. **Ran it: 2/2 pass on 7f2d41e. Ran it against the pre-fix
+  transport (6c4d55a) in a throwaway worktree: fails (`not ok`, pass 0) —
+  the red→green claim is genuine.**
+
+### R2-1 (major, new in this commit) — id rotation leaks orphan streams host-side on every client reconnect
+
+`resub()` (lines 169–174) rotates to a fresh id but never sends `unsub` for
+the old one. The comment claims the host's "socket-close cleanup reaps" the
+orphan — but that cleanup runs on the **host's** socket closing (tunnel.js
+`stopAllSubs` on its own `ws close`), and in the most common reconnect shape —
+phone wakes, **client** socket died, host and relay stayed up — the host's
+socket never closes. The host still holds the old sub (tunnel.js reaps subs
+only on unsub, stream end, or its own socket close), so each client reconnect
+leaks one open SSE connection tunnel→dashboard per subscription, each pumping
+encrypted `ev` frames onto the channel forever; the phone decrypts and drops
+every one (unknown id). iOS kills background sockets on most suspends —
+dozens of reconnects a day against a `bobby remote` that runs for days.
+Pre-fix this path was accidentally clean (same-id resub → host's duplicate-id
+refusal left the original stream serving the still-matching client id); the
+rotation fixed the host-restart case and traded it for this leak.
+
+**Fix (one line):** in `resub()`, before rotating:
+`this.sendFrame({ t: 'unsub', id: h.id }).catch(() => {});` — harmless when
+the host lost its state, reaps the orphan when it didn't.
+
+**Test suggestion:** the existing harness catches this directly — bounce the
+CLIENT socket (host up), then assert `api.streams.size` returns to exactly 1;
+today it would be 2.
+
+### R2-2 (minor but real) — the `end`-retry guard doesn't survive an intervening rotation
+
+Line 128: `setTimeout(() => { if (this.subs.get(h.id) === h) this.resub(h); }, 2000)`
+reads `h.id` at **fire** time, but `resub()` mutates `h.id` in place — so if a
+presence-keyed resubscribe rotates the handle during the 2s window, the guard
+still passes (`subs.get(newId) === h`) and the handle is resubbed a second
+time: duplicate sub churn plus one more orphan (compounding R2-1). Capture the
+id at schedule time: `const id = h.id; setTimeout(() => { if (this.subs.get(id) === h) this.resub(h); }, 2000);`
+— after a rotation `subs.get(oldId)` is undefined and the retry correctly
+stands down. (View-unsubscribe is already handled correctly by the guard.)
+
+### R3 ruling — descope legitimate in substance, not yet legitimate on the record
+
+- **AC4** (hq/web retired/reduced) deferred to TKT-026: TKT-026's actual text
+  owns deleting **`/classic/` in bobbycode** (route, templates, tiering
+  promise) — it does not mention `hq/web` in bobbycode-pro anywhere. As
+  written, the deferred work has no home. Amend TKT-026's scope/ACs to name
+  hq/web, or file a dedicated ticket.
+- **AC5** (multi-project pair-once addressing) deferred "to its own ticket":
+  that ticket **does not exist** — `pair-once`/`multi-project` appear nowhere
+  in `.bobby/tickets/` outside TKT-023 itself. The parent epic TKT-020 covers
+  multi-project only at the "every child shipped or explicitly deferred with a
+  reason recorded" level. File the ticket under TKT-020.
+- Substantively the descope is sound: both items are separable from the
+  transport work, and AC5 was epic-scope leakage into a child ticket. Once
+  (a) both deferrals have named tickets and (b) TKT-023's AC4/AC5 are
+  annotated with the deferral pointers, this ruling flips to accepted —
+  it is minutes of ticket work, but it must exist before this AC set can pass.
+
+### Round-2 notes (non-blocking)
+
+- Pairing regression edge: `takePairingFromUrl` now calls `replaceState` on
+  decode failure, so a hand-typed slash-less route hash (`#board` — which
+  `currentRoute()` accepts) is eaten on the local app and lands on Home;
+  pre-fix it survived. Nav buttons always write `#/board`, so hand-typed only.
+- `takePairingFromUrl.lastError` as function-property state works but a module
+  local with an accessor would be cleaner.
+- N3 (≠32-byte key saved, relay blamed) and N5 (no-timeout local probe) remain
+  open as acknowledged — still non-blocking.
+- Round-1 note on pending requests waiting their full 15s across a disconnect
+  also still stands, softened by N1's socket close.
+
+---
+
+## Round 1 (commits e6c2e0d, 6c4d55a) — Verdict: Rejected
 
 Reviewed commits e6c2e0d and 6c4d55a on bobbycode-pro `feat/relay-transport`
 (app/ only; app/test/analytics.test.js excluded as unrelated recovery).
