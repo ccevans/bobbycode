@@ -220,5 +220,16 @@
   decided: "2026-08-08"
   ticket: TKT-014
   why: "Each verb was decided, not defaulted. Checkpointing is the sharpest: commitCheckpoint runs `git add -A && git commit`, harmless bookkeeping in a throwaway worktree but a sweep of the user's unrelated in-progress work into a commit on whatever branch they are standing on if aimed at the main checkout. discard is the second: the run's output IS the working tree now, so a 'discard' that reverted it would be a delete button disguised as a cleanup. merge/approve/reject/featureProgress have no meaning without a branch or a ticket and say so, because a route that throws a stack trace teaches the user nothing. diff/files DO have a meaning — the same question asked of the only place the work exists — so they answer it rather than refuse; untracked files are listed with null counts because `git diff` cannot show content git has never seen and `add -N` would mutate the user's index to fake it. `kind` is an explicit field: nothing infers repo-ness from a null worktreePath, and records written before it existed default to 'worktree', which is what they all were. Evidence: lib/dashboard/state.js newRepoRun/isRepoRun; Orchestrator._onRepoRunExit, discard, getDiff."
+- id: auto-sync-scoped-paths
+  fact: "autoSync stages only caller-declared paths, not all Bobby-managed paths."
+  decided: "2026-08-08"
+  ticket: TKT-061
+  why: >
+    autoSync previously staged all Bobby-managed paths (getBobbyPaths), which
+    silently committed unrelated in-flight work by other agents. New callers must
+    declare which files they wrote. Forgetting to pass a path means that file
+    won't be auto-committed — preferable to sweeping up someone else's work.
+  supersedes: null
+  invalidated: null
   supersedes: null
   invalidated: null

@@ -36,6 +36,7 @@ export function registerTriage(program) {
         console.log('');
 
         const summary = { kept: 0, prioritized: 0, planned: 0, archived: 0, skipped: 0 };
+        const modifiedPaths = new Set();
 
         for (const t of tickets) {
           const age = daysBetween(t.updated || t.created);
@@ -72,14 +73,17 @@ export function registerTriage(program) {
             }]);
             updateTicket(ticketsDir, t.id, { priority: newPriority });
             addComment(ticketsDir, t.id, 'system', `Reprioritized to ${newPriority} during triage`);
+            modifiedPaths.add(path.relative(root, path.join(t.path, 'ticket.md')));
             summary.prioritized++;
           } else if (action === 'plan') {
             updateTicket(ticketsDir, t.id, { stage: 'planning' });
             addComment(ticketsDir, t.id, 'system', 'Moved to planning during triage');
+            modifiedPaths.add(path.relative(root, path.join(t.path, 'ticket.md')));
             summary.planned++;
           } else if (action === 'archive') {
             updateTicket(ticketsDir, t.id, { stage: 'done', archived: true });
             addComment(ticketsDir, t.id, 'system', `Archived during triage (stale ${age} days)`);
+            modifiedPaths.add(path.relative(root, path.join(t.path, 'ticket.md')));
             summary.archived++;
           } else {
             summary.skipped++;
@@ -99,7 +103,7 @@ export function registerTriage(program) {
         if (summary.skipped > 0) parts.push(`${summary.skipped} skipped`);
         console.log(`  ${parts.join(' · ')}`);
         console.log('');
-        autoSync(root);
+        autoSync(root, [...modifiedPaths]);
       } catch (e) {
         error(e.message);
         process.exit(1);

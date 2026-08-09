@@ -49,7 +49,7 @@ export function registerLearn(program) {
           content = `${content.replace(/\s*$/, '')}\n\n${HEADING}\n\n${entry}\n`;
         }
         fs.writeFileSync(learningsFile, content, 'utf8');
-        autoSync(root);
+        autoSync(root, [path.relative(root, learningsFile)]);
 
         success(`Added learning to ${skill}: ${pattern}`);
       } catch (e) {
