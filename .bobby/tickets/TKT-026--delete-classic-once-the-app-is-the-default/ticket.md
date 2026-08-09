@@ -29,6 +29,8 @@ Do NOT do this until the App has shipped a release and the light redesign
 
 ## Acceptance Criteria
 
+- [ ] hq/web is deleted with /classic — the App over RelayTransport is the only phone frontend (scope amended per bobby-review on TKT-023)
+
 - [ ] The /classic route and its templates are removed
 - [ ] The free-tier promise is honoured or explicitly renegotiated and documented
 - [ ] No dead references remain in docs, commands/app.js, or the plugin seam
