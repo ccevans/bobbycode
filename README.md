@@ -295,7 +295,7 @@ max_retries: 3
 <summary>Optional configuration (commented out in generated file)</summary>
 
 ```yaml
-# Custom + override workflows (built-in: default, secure, quick)
+# Custom + override workflows (built-in: default, secure, quick, freewill, design, define)
 workflows:
   default: [plan, build, review, test]
   secure: [plan, build, security, review, test]
@@ -892,8 +892,9 @@ Focused agents for specific concerns:
 | **bobby-watchdog** | Post-deploy verification — smoke tests, uptime, console errors |
 | **bobby-arch** | Architecture discovery — documents codebase structure and decisions |
 | **bobby-ticket-intake** | Converts PM specs into structured Bobby tickets |
+| **bobby-freewill** | One agent, whole ticket, deliberately few instructions — for Opus 5 / Fable 5 |
 
-## Skills (22)
+## Skills (24)
 
 Each agent is backed by a **skill** — a detailed instruction set in `.claude/skills/bobby-{name}/SKILL.md`. Skills also accumulate learnings over time, so agents get smarter as your project evolves.
 
@@ -939,7 +940,7 @@ workflows:
 
 Updates are explicit and safe: `bobby upgrade` installs the latest and refreshes shipped files (refusing to clobber uncommitted edits), `bobby upgrade --to 1.2.0` pins or rolls back, and your `.local` files, tickets, and data survive in every direction. Details in [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md).
 
-## Slash Commands (20)
+## Slash Commands (22)
 
 Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can invoke agents directly from Claude:
 
@@ -950,12 +951,13 @@ Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can inv
 /bobby-qe            /bobby-vet           /bobby-strategy
 /bobby-security      /bobby-debug         /bobby-docs
 /bobby-performance   /bobby-watchdog      /bobby-arch
-/bobby-ticket-intake /bobby-local
+/bobby-ticket-intake /bobby-local         /bobby-define
+/bobby-freewill
 ```
 
 ## Custom Workflows
 
-Bobby ships three built-in workflows — `default`, `secure`, `quick`. Define your own (or override a built-in) in `.bobbyrc.yml`:
+Bobby ships built-in workflows — `default`, `secure`, `quick`, `freewill`, plus the `design` and `define` pipelines. Define your own (or override a built-in) in `.bobbyrc.yml`:
 
 ```yaml
 workflows:

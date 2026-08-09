@@ -82,7 +82,7 @@ describe('bobby init (scaffolding)', () => {
     expect(config).toContain('test-app-v2');
   });
 
-  test('scaffoldProject creates all 15 agent definition files', () => {
+  test('scaffoldProject creates all 16 agent definition files', () => {
     scaffoldProject(tmpDir, {
       project: 'test-app', stack: 'nextjs',
       health_checks: [{ name: 'app', url: 'http://localhost:3000', description: 'Next.js' }],
@@ -94,6 +94,7 @@ describe('bobby init (scaffolding)', () => {
       'bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship',
       'bobby-ux', 'bobby-pm', 'bobby-qe', 'bobby-vet', 'bobby-strategy',
       'bobby-security', 'bobby-debug', 'bobby-docs', 'bobby-performance', 'bobby-watchdog',
+      'bobby-freewill',
     ];
     for (const agent of agents) {
       expect(fs.existsSync(path.join(tmpDir, '.claude', 'agents', `${agent}.md`))).toBe(true);

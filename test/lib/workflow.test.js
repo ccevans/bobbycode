@@ -186,6 +186,14 @@ describe('workflow', () => {
       expect(prompt).toContain('.claude/agents/bobby-debug.md');
     });
 
+    test('the single-stage freewill workflow hands off straight to shipping', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', resolveWorkflow({}, 'freewill'));
+      expect(prompt).toContain('bobby-freewill');
+      expect(prompt).toContain('bobby ticket move {TICKET_ID} shipping');
+      // Nothing stands between the one agent and shipping — that is the point.
+      expect(prompt).not.toContain('bobby-review');
+    });
+
     test('includes final status reporting', () => {
       const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
       expect(prompt).toContain('report the final status');
@@ -640,6 +648,12 @@ describe('workflow', () => {
       expect(result.map(s => s.agent)).toEqual(['bobby-plan', 'bobby-build', 'bobby-test']);
     });
 
+    test('resolves the built-in freewill workflow without any config', () => {
+      const result = resolveWorkflow({}, 'freewill');
+      // One agent covers plan through test; the board shows the ticket as building.
+      expect(result).toEqual([{ stage: 'building', agent: 'bobby-freewill' }]);
+    });
+
     test('config can override a built-in workflow by name', () => {
       const result = resolveWorkflow({ workflows: { quick: ['build'] } }, 'quick');
       expect(result).toEqual([{ stage: 'building', agent: 'bobby-build' }]);
@@ -712,7 +726,7 @@ describe('workflow', () => {
 
   describe('listWorkflows', () => {
     test('returns the built-in workflows when none configured', () => {
-      expect(listWorkflows({})).toEqual(['default', 'secure', 'quick', 'design', 'define']);
+      expect(listWorkflows({})).toEqual(['default', 'secure', 'quick', 'design', 'define', 'freewill']);
     });
 
     test('includes custom workflow names plus default', () => {

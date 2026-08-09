@@ -84,7 +84,7 @@ All agents must follow these rules. Violations are treated as critical failures.
 
 ## Workflows
 
-A workflow is the ordered set of stages a ticket runs through. Built-in: **default** (plan→build→review→test), **secure** (adds a security stage), **quick** (plan→build→test).
+A workflow is the ordered set of stages a ticket runs through. Built-in: **default** (plan→build→review→test), **secure** (adds a security stage), **quick** (plan→build→test), **freewill** (one agent does all four on few instructions — Opus 5 / Fable 5 only).
 
 - **Run one:** `bobby run workflow TKT-001` — auto-chains the default workflow
 - **Named workflow:** `bobby run secure TKT-001` (or `--workflow secure`) — built-in or your own
@@ -112,6 +112,9 @@ it to the right capability below and run it; don't make them name the command.
 | add / fix / change / build a specific thing | **Create a ticket and build it:** `bobby go "<the task>"`. Pick the workflow — add `--workflow secure` for anything touching auth/payments/secrets/user-data, `--workflow quick` for a tiny low-risk change, else default. |
 | just keep going / what's next | `bobby go` |
 | start a new project / new app from an idea | `bobby new "<idea>"` |
+| define the product / brief / personas / journeys / feature map / scope v1 | `bobby run define <epicId>` |
+| show me the plan / what are we building / overview before building | `bobby blueprint` |
+| design a page / make it look good / it looks generic | load `.claude/skills/bobby-design/SKILL.md` |
 | is this a good idea / should I build this / pressure-test it | `bobby vet "<idea>"` |
 | is this production-ready / safe to launch / harden it | `bobby audit` (add `--tickets` to turn every gap into work) |
 | remember this / note it / idea for later | `bobby idea "<text>"` |
@@ -121,6 +124,7 @@ it to the right capability below and run it; don't make them name the command.
 | test it / does it work in the app | bobby-test |
 | security audit / is it safe | bobby-security |
 | debug / why is this broken | bobby-debug |
+| skip the stages / one agent / just do the whole ticket / freewill | bobby-freewill |
 | review the design / UX | bobby-ux |
 | product review / what's missing | bobby-pm |
 | ship it / open a PR | bobby-ship |
@@ -134,6 +138,13 @@ question only when genuinely ambiguous. `bobby do "<request>"` prints this same
 routing if you ever want it explicitly.
 
 ## Agents
+
+### Product Definer (bobby-define-brief → -personas → -journeys → -features)
+When told to "define the product", "write the brief", "personas", "journeys", or
+"feature map", load `.claude/skills/bobby-define/SKILL.md`.
+- Brief → personas → journeys → feature map → blueprint, one ⛳ human gate per stage
+- Artifacts locked in `.bobby/product/`; the epic then moves to planning
+- Run the chain with `bobby run define <epicId>` (resumes mid-pipeline)
 
 ### Planner (bobby-plan)
 When told to "plan", "refine", or "brainstorm", load `.claude/skills/bobby-plan/SKILL.md`.
@@ -175,6 +186,12 @@ When told to "security audit" or "security review", load `.claude/skills/bobby-s
 When told to "debug" or "investigate", load `.claude/skills/bobby-debug/SKILL.md`.
 - Systematic root-cause debugging: Reproduce → Hypothesize → Trace → Verify → Fix
 - Scope-locked: only fixes the bug, never refactors
+
+### Freewill (bobby-freewill)
+When told to "freewill", "skip the stages", or "just do the whole ticket", load `.claude/skills/bobby-freewill/SKILL.md`.
+- One agent takes the ticket from start to shipping on deliberately few instructions
+- Built for Opus 5 / Fable 5 — a goal plus its invariants, no procedure
+- No fresh-eyes reviewer: security-sensitive, underspecified, and epic-sized tickets go back to `default`/`secure`
 
 ### Documentation (bobby-docs)
 When told to "update docs" or "document release", load `.claude/skills/bobby-docs/SKILL.md`.
@@ -227,6 +244,8 @@ Each skill has a `learnings.md` file that accumulates anti-patterns. Always chec
 ```
 bobby ticket create -t "Title" --type bug -p high   # Create ticket
 bobby ticket create -t "Epic" --epic                # Create epic (breaks down)
+bobby run define TKT-001                            # Product definition: brief → personas → journeys → features → blueprint
+bobby blueprint                                     # See the whole plan on one page before building
 bobby ticket list                                   # Show board
 bobby ticket list --blocked                         # Show blocked tickets
 bobby ticket view TKT-001                           # View ticket

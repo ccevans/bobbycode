@@ -114,7 +114,7 @@ All agents must follow these rules. Violations are treated as critical failures.
 
 ## Workflows
 
-A workflow is the ordered set of stages a ticket runs through. Built-in: **default** (plan→build→review→test), **secure** (adds a security stage), **quick** (plan→build→test).
+A workflow is the ordered set of stages a ticket runs through. Built-in: **default** (plan→build→review→test), **secure** (adds a security stage), **quick** (plan→build→test), **freewill** (one agent does all four on few instructions — Opus 5 / Fable 5 only).
 
 - **Run one:** `bobby run workflow TKT-001` — auto-chains the default workflow
 - **Named workflow:** `bobby run secure TKT-001` (or `--workflow secure`) — built-in or your own
@@ -154,6 +154,7 @@ it to the right capability below and run it; don't make them name the command.
 | test it / does it work in the app | bobby-test |
 | security audit / is it safe | bobby-security |
 | debug / why is this broken | bobby-debug |
+| skip the stages / one agent / just do the whole ticket / freewill | bobby-freewill |
 | review the design / UX | bobby-ux |
 | product review / what's missing | bobby-pm |
 | ship it / open a PR | bobby-ship |
@@ -215,6 +216,12 @@ When told to "security audit" or "security review", load `<%= paths.skills %>/bo
 When told to "debug" or "investigate", load `<%= paths.skills %>/bobby-debug/SKILL.md`.
 - Systematic root-cause debugging: Reproduce → Hypothesize → Trace → Verify → Fix
 - Scope-locked: only fixes the bug, never refactors
+
+### Freewill (bobby-freewill)
+When told to "freewill", "skip the stages", or "just do the whole ticket", load `<%= paths.skills %>/bobby-freewill/SKILL.md`.
+- One agent takes the ticket from start to shipping on deliberately few instructions
+- Built for Opus 5 / Fable 5 — a goal plus its invariants, no procedure
+- No fresh-eyes reviewer: security-sensitive, underspecified, and epic-sized tickets go back to `default`/`secure`
 
 ### Documentation (bobby-docs)
 When told to "update docs" or "document release", load `<%= paths.skills %>/bobby-docs/SKILL.md`.

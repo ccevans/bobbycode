@@ -7,6 +7,20 @@ All notable changes to Bobby are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **`bobby-freewill` — one agent, the whole ticket, deliberately few
+  instructions.** `bobby run freewill <id>` (or `--workflow freewill`) collapses
+  plan → build → review → test into a single agent that gets the goal and the
+  invariants and nothing else. It exists because Opus 5 and Fable 5 do better
+  from a brief than from a script: a long procedure spends their attention on
+  compliance, produces an agent that finishes the checklist rather than the
+  ticket, and caps the work at whatever the procedure's author imagined. The
+  skill is short on purpose and says so — corrections go to
+  `bobby learn bobby-freewill`, not into new steps, and a registry test keeps the
+  dispatch prompt from growing back into a checklist. The trade-off is stated
+  rather than hidden: collapsing the stages removes the reviewer who didn't write
+  the code, so freewill sends security-sensitive, underspecified, and epic-sized
+  tickets back to `default`/`secure`, does an adversarial pass on its own diff in
+  place of the review stage, and asks for the full chain on smaller models.
 - **`bobby blueprint` — see the whole plan before you build it.** One page,
   generated from the locked definition and the board: the outcome and the
   success metric, who it's for, the headline journey with **the crux marked**

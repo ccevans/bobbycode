@@ -41,6 +41,7 @@ Modes:
   Strategy:   bobby run strategy [id]    — strategic validation gate
   Security:   bobby run security <id>    — OWASP + STRIDE audit
   Debug:      bobby run debug <id>       — root-cause investigation
+  Freewill:   bobby run freewill <id>    — one agent, whole ticket, few instructions (Opus 5 / Fable 5)
   Freeform:   bobby run docs|performance|watchdog — no ticket required
   Workflow:   bobby run <workflow-name> <id> — run a named workflow (default, secure, quick, or your own)`)
     .option('--max-retries <n>', 'Max retry loops on rejection per ticket', '3')

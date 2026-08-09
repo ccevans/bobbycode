@@ -19,6 +19,7 @@ argument-hint: "<ticket ID to plan>"
 Before creating any plan:
 - Read the ticket's title, description, and acceptance criteria fully
 - If the ticket has a `parent` field, read the parent epic's ticket.md and plan.md
+- If the ticket has a `feature` field, read `.bobby/product/feature-map.md` (that row and the journey step(s) it serves) and `.bobby/product/personas.md` — the AC must satisfy the journey step, and test-cases.md should exercise it as the persona
 - Read any existing `feature-plan.md` to understand cross-cutting decisions already made
 - If you are unsure about the scope of an AC, improve the AC text rather than guessing
 - Explore the codebase to understand existing patterns before proposing new ones
@@ -27,9 +28,66 @@ Before creating any plan:
 
 ## Mode Detection
 
+- If the ticket has `type: epic` AND `.bobby/product/feature-map.md` exists → **Product-Aware Epic Mode** (decompose against the locked definition)
 - If the ticket has `type: epic` → **Epic Mode** (break down into child tickets)
 - If the ticket is in `planning` stage AND has a `parent` field (belongs to an epic) → **Feature-Aware Refine Mode** (plan with sibling context)
 - If the ticket is in `planning` stage with no `parent` → **Refine Mode** (create plan + test cases)
+
+---
+
+## Product-Aware Epic Mode
+
+The epic went through the define pipeline: `.bobby/product/` holds a locked
+brief, personas, journeys, and feature map. **Scope was decided at the human
+gates — you do not re-decide WHAT to build.** Approach scoring still applies to
+HOW.
+
+### Step 0: Read the locked chain, in order
+
+1. `.bobby/product/feature-map.md` — its Binding rules apply to you: IDs copied
+   never retyped; a v1 ticket without a `feature:` ref is drift; the map
+   outranks your taste.
+2. `.bobby/product/journeys.md` — the steps each feature serves.
+3. `.bobby/product/personas.md` and `.bobby/product/brief.md` — who and why.
+
+### Step 1: Write the epic spec (`plan.md`)
+
+The standard sections (Problem from the brief, solution, technical approach,
+out of scope = the map's Later + Never rows), plus:
+
+```markdown
+## Traceability
+| Ticket | Feature | Journey step(s) | Persona |
+|---|---|---|---|
+| TKT-00X | F1.1 | J1.S1–S2 | P1 |
+```
+
+Fill the Ticket column as you create children in Step 2.
+
+### Step 2: One ticket per Must row
+
+Ordered by journey sequence (J1.S1 before J1.S3). Should rows only if the human
+said "v1 if time allows" at the gate. Title = the feature name **copied
+verbatim** from the map.
+
+```
+bobby ticket create -t "<F1.1 name>" --type feature -p high --parent {EPIC_ID} --feature F1.1 --persona P1
+```
+
+Acceptance criteria come from the journey step(s) the feature serves — the AC
+is "the persona can complete J1.S2", made concrete.
+
+### Step 3: Self-check (the drift gate)
+
+Before completing: every Must row has exactly one ticket; every created
+ticket's `feature:` exists in the map; no ticket exists for a Never row.
+A mismatch is yours to fix, not to ship.
+
+### Completing Product-Aware Epic Mode
+
+- `plan.md` with the Traceability table saved in the epic's folder
+- Children in backlog with `parent`, `feature`, and `persona` set
+- Comment: `bobby ticket comment {EPIC_ID} --by bobby-plan "Decomposed {N} Must features into {N} traceable tickets"`
 
 ---
 
