@@ -6,6 +6,24 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+- **`.bobby/decisions.yaml` finally has a writer (TKT-063).** Nothing in the
+  codebase ever appended to the architectural decision log — `bobby init` seeded
+  it, `bobby-review` read it in prose, and every entry was put there by an agent
+  hand-editing YAML. The file's own header made that worse by claiming it was
+  "Updated via `bobby learn`", a command that has never opened it. The result was
+  what you would expect from freehand edits to a structured file: one append
+  deleted the commented format block, another had to repair the previous entry's
+  missing `supersedes`/`invalidated` keys. `bobby decision add --id … --fact …
+  --why …` now parses the document, appends a validated seven-key entry, and
+  writes it back, so comments and prior entries survive; `bobby decision list`
+  reads it. Duplicate ids, non-kebab-case ids, and superseding a decision that
+  does not exist are refused, and a log that does not parse raises instead of
+  being overwritten. `bobby-arch` and `bobby-review` now use the command. Also
+  fixes the schema split behind the same filename: `lib/studio.js` seeded
+  `decisions: []` while `bobby init` seeded a bare list — both now use the one
+  seed, and pre-existing studio files are still read and appended in place.
+
 ### Added
 - **`bobby-freewill` — one agent, the whole ticket, deliberately few
   instructions.** `bobby run freewill <id>` (or `--workflow freewill`) collapses

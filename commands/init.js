@@ -11,6 +11,7 @@ import { detectServices, aggregateAreas, aggregateHealthChecks } from '../lib/se
 import { runLocalProfileWizard, saveLocalProfile } from './local-init.js';
 import { detectProjectContext, detectGitIdentity } from '../lib/detect.js';
 import { mergeRulesContent, isBobbyGenerated } from '../lib/rules-merge.js';
+import { seedDecisionsFile } from '../lib/decisions.js';
 import { execSync } from 'child_process';
 
 // Load stack configs
@@ -22,7 +23,6 @@ const COMMAND_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'commands'
 const SKILL_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'skills');
 const pkgVersion = createRequire(import.meta.url)('../package.json').version;
 const HOOKS_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'hooks');
-const BOBBY_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'bobby');
 
 export function loadStack(stackName, projectRoot, bobbyDir) {
   // Check project-local stacks first
@@ -209,13 +209,7 @@ export function scaffoldProject(rootDir, config) {
   }
 
   // Scaffold .bobby/decisions.yaml stub (if not already present)
-  const decisionsPath = path.join(rootDir, bobbyDir, 'decisions.yaml');
-  if (!fs.existsSync(decisionsPath)) {
-    const decisionsTemplate = path.join(BOBBY_TEMPLATES_DIR, 'decisions.yaml');
-    if (fs.existsSync(decisionsTemplate)) {
-      fs.copyFileSync(decisionsTemplate, decisionsPath);
-    }
-  }
+  seedDecisionsFile(path.join(rootDir, bobbyDir, 'decisions.yaml'));
 
   // Scaffold .bobby/architecture-wakeup.md stub (if not already present)
   const wakeupPath = path.join(rootDir, bobbyDir, 'architecture-wakeup.md');

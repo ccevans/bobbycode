@@ -691,6 +691,8 @@ Everything that touches a ticket lives under one namespace:
 | Command | Description |
 |---------|-------------|
 | `bobby learn <skill> "pattern" "desc"` | Record an anti-pattern or best practice to a skill's learnings |
+| `bobby decision add --id … --fact … --why …` | Record an architectural decision that `bobby-review` will enforce |
+| `bobby decision list` | Show active decisions (`--all` includes invalidated ones) |
 | `bobby retro` | Generate a weekly retrospective from session logs |
 
 ### Setup & Admin

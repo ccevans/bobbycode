@@ -1,26 +1,37 @@
 # Bobby Architectural Decision Log
 #
-# Seeded by `bobby run arch`. Updated via `bobby learn` or manually.
-# Format:
+# Seeded by `bobby run arch`. Appended by `bobby decision add` — use the command
+# rather than editing this file by hand. Hand-edits are how entries lost their
+# trailing keys and how this format block got deleted once already (TKT-063).
+#
+#   bobby decision add \
+#     --id no-direct-db-in-components \
+#     --fact "Never call the database directly from UI components." \
+#     --why "Breaks separation of concerns and makes testing hard. Use a service layer." \
+#     --ticket arch
+#
+# Entry format — the command writes all seven keys for you:
 #   id:          kebab-case unique identifier
 #   fact:        the decision or constraint as a declarative statement
-#   decided:     ISO date (approximate if unknown)
+#   decided:     ISO date (defaults to today)
 #   ticket:      TKT-XXXX if traceable, "arch" for structural decisions
 #   why:         the reason — include the incident or constraint that drove it
 #   supersedes:  id of the decision this replaces (null if none)
 #   invalidated: ISO date this decision was overturned (null if still active)
 #
-# To record a new decision: add an entry below
-# To invalidate: set invalidated to today's date and add a new superseding entry
-
----
-
-# Example (delete and replace with real decisions after running `bobby run arch`):
+# Which looks like this on disk:
 #
-# - id: no-direct-db-in-components
-#   fact: "Never call the database directly from UI components."
-#   decided: "2025-01-01"
-#   ticket: arch
-#   why: "Breaks separation of concerns and makes testing hard. Use a service layer."
-#   supersedes: null
-#   invalidated: null
+#   - id: no-direct-db-in-components
+#     fact: "Never call the database directly from UI components."
+#     decided: "2025-01-01"
+#     ticket: arch
+#     why: "Breaks separation of concerns and makes testing hard. Use a service layer."
+#     supersedes: null
+#     invalidated: null
+#
+# To retire a decision: set its `invalidated` to today's date, then add the
+# replacement with `--supersedes <old-id>`.
+#
+# `bobby run arch` seeds this file; `bobby-review` checks changed code against
+# every entry whose `invalidated` is still null.
+---

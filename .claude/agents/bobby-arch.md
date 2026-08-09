@@ -116,21 +116,24 @@ DECISIONS: see .bobby/decisions.yaml for active architectural decisions
 
 ## Step 6: Seed `.bobby/decisions.yaml`
 
-If `.bobby/decisions.yaml` doesn't exist, create it. If it exists, add any new decisions you discovered that aren't already documented.
+For each item in Common Pitfalls that represents a deliberate architectural decision (not
+just a bug), record it with the command — **never by editing the file**:
 
-For each item in Common Pitfalls that represents a deliberate architectural decision (not just a bug), add a YAML entry:
-
-```yaml
-- id: kebab-case-unique-id
-  fact: "Declarative statement of the constraint or choice"
-  decided: "YYYY-MM-DD"  # approximate if unknown
-  ticket: arch
-  why: "The reason — include the incident or constraint that drove it"
-  supersedes: null
-  invalidated: null
+```bash
+bobby decision add \
+  --id kebab-case-unique-id \
+  --fact "Declarative statement of the constraint or choice" \
+  --why "The reason — include the incident or constraint that drove it" \
+  --ticket arch
 ```
 
-Preserve all existing entries. Only add new ones. Do not modify existing ids.
+`bobby decision list` shows what is already recorded, so you can skip decisions that are
+already there; the command refuses a duplicate id anyway. Add `--supersedes <old-id>` when
+a decision replaces an earlier one, and `--decided YYYY-MM-DD` if you know the date.
+
+Hand-editing the file is how entries lost their trailing keys and how the format block got
+deleted (TKT-063). The command parses the log, appends, and writes it back, so existing
+entries and comments survive. Do not edit ids that are already there.
 
 ## Step 7: Finalize
 

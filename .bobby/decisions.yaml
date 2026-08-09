@@ -1,26 +1,44 @@
 # Bobby Architectural Decision Log
 #
-# Seeded by `bobby run arch`. Updated via `bobby learn` or manually.
-# Format:
+# Seeded by `bobby run arch`. Appended by `bobby decision add` — use the command
+# rather than editing this file by hand. Hand-edits are how entries lost their
+# trailing keys and how this format block got deleted once already (TKT-063).
+#
+#   bobby decision add \
+#     --id no-direct-db-in-components \
+#     --fact "Never call the database directly from UI components." \
+#     --why "Breaks separation of concerns and makes testing hard. Use a service layer." \
+#     --ticket arch
+#
+# Entry format — the command writes all seven keys for you:
 #   id:          kebab-case unique identifier
 #   fact:        the decision or constraint as a declarative statement
-#   decided:     ISO date (approximate if unknown)
+#   decided:     ISO date (defaults to today)
 #   ticket:      TKT-XXXX if traceable, "arch" for structural decisions
 #   why:         the reason — include the incident or constraint that drove it
 #   supersedes:  id of the decision this replaces (null if none)
 #   invalidated: ISO date this decision was overturned (null if still active)
 #
-# To record a new decision: add an entry below
-# To invalidate: set invalidated to today's date and add a new superseding entry
-
----
-
-# Example (delete and replace with real decisions after running `bobby run arch`):
+# Which looks like this on disk:
 #
-# - id: no-direct-db-in-components
-#   fact: "Never call the database directly from UI components."
-#   decided: "2025-01-01"
-#   ticket: arch
-#   why: "Breaks separation of concerns and makes testing hard. Use a service layer."
-#   supersedes: null
-#   invalidated: null
+#   - id: no-direct-db-in-components
+#     fact: "Never call the database directly from UI components."
+#     decided: "2025-01-01"
+#     ticket: arch
+#     why: "Breaks separation of concerns and makes testing hard. Use a service layer."
+#     supersedes: null
+#     invalidated: null
+#
+# To retire a decision: set its `invalidated` to today's date, then add the
+# replacement with `--supersedes <old-id>`.
+#
+# `bobby run arch` seeds this file; `bobby-review` checks changed code against
+# every entry whose `invalidated` is still null.
+---
+- id: decisions-log-has-one-writer
+  fact: "Entries in .bobby/decisions.yaml are appended only by `bobby decision add`, which round-trips the parsed YAML document. Agents never edit the file directly. Both `bobby init` and studio project creation seed it from templates/bobby/decisions.yaml, so there is one schema — a bare top-level list."
+  decided: "2026-08-09"
+  ticket: TKT-063
+  why: "The log had no writer at all: init seeded it, bobby-review read it in prose, and every entry was hand-typed by an agent. The seed's own header pointed them at `bobby learn`, which has never opened the file. Freehand edits to a structured file did what they always do — one append deleted the commented format block that documented the entry shape, the next had to repair the previous entry's missing supersedes/invalidated keys. The format documentation now lives above the '---' marker where an append cannot reach it. lib/studio.js separately seeded 'decisions: []' (a mapping) while init seeded a list, two shapes under one filename that nothing noticed because nothing parsed the file; legacy mapping files are still read and appended in place rather than rewritten. bobby decision add deliberately does NOT call autoSync — that stages every Bobby-managed path and would sweep up unrelated in-flight work (TKT-061)."
+  supersedes: null
+  invalidated: null

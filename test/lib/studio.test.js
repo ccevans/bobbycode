@@ -15,6 +15,7 @@ import {
   isStudio, promoteV1ToStudio, getActiveProject,
 } from '../../lib/studio.js';
 import { createTicket, readTicket } from '../../lib/tickets.js';
+import { appendDecision, readDecisions, seedText } from '../../lib/decisions.js';
 
 describe('studio', () => {
   let root;
@@ -40,6 +41,19 @@ describe('studio', () => {
     expect(listStudioProjects(root)).toContain('robinoffer');
     expect(readProjectConfig(root, 'robinoffer')).toMatchObject({ prefix: 'RO', repos: ['app'] });
     expect(fs.existsSync(path.join(root, '.bobby', 'robinoffer', 'tickets'))).toBe(true);
+  });
+
+  // A studio project used to seed `decisions: []` while `bobby init` seeded a
+  // bare list — two shapes under one filename, and nothing read the file, so
+  // nothing noticed. TKT-063.
+  test('a project decision log has the same shape as an init project decision log', () => {
+    createProject(root, 'robinoffer', { prefix: 'RO' });
+    const projectLog = path.join(root, '.bobby', 'robinoffer', 'decisions.yaml');
+    expect(fs.readFileSync(projectLog, 'utf8')).toBe(seedText());
+    expect(readDecisions(projectLog)).toEqual([]);
+
+    appendDecision(projectLog, { id: 'one-shape', fact: 'f', why: 'w' });
+    expect(readDecisions(projectLog).map(d => d.id)).toEqual(['one-shape']);
   });
 
   test('createProject rejects a repo not in the group', () => {

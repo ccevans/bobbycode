@@ -302,6 +302,8 @@ bobby run watchdog                            # Post-deploy health check
 bobby retro TKT-001 "pattern"              # Create retrospective
 bobby retro --weekly                        # Weekly retro with metrics
 bobby learn bobby-build "pattern" "desc"    # Add learning
+bobby decision add --id <id> --fact "..." --why "..."   # Record an architectural decision
+bobby decision list                         # Active decisions (bobby-review enforces these)
 bobby upgrade                               # Upgrade Bobby to latest version
 ```
 ## Shipped vs yours

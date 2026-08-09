@@ -1,7 +1,7 @@
 ---
 id: TKT-061
 title: bobby learn commits unrelated in-flight work as a side effect
-stage: reviewing
+stage: done
 type: bug
 priority: high
 area: cli
@@ -14,7 +14,7 @@ blocked_reason: null
 previous_stage: null
 parent: null
 created: '2026-08-08'
-updated: '2026-08-08'
+updated: '2026-08-09'
 ---
 
 ## Description

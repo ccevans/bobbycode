@@ -3,7 +3,7 @@ id: TKT-062
 title: >-
   Out of the box the app's agents cannot write — they burn tokens retrying a
   permission prompt nobody can answer
-stage: backlog
+stage: reviewing
 type: bug
 priority: critical
 area: orchestrator
@@ -16,7 +16,7 @@ blocked_reason: null
 previous_stage: null
 parent: null
 created: '2026-08-08'
-updated: '2026-08-08'
+updated: '2026-08-09'
 ---
 
 ## Description

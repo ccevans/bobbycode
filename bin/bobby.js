@@ -42,6 +42,7 @@ import { registerPro } from '../commands/pro.js';
 import { registerSkill } from '../commands/skill.js';
 import { registerRemote } from '../commands/remote.js';
 import { registerStudio } from '../commands/studio.js';
+import { registerDecision } from '../commands/decision.js';
 import { touchProject } from '../lib/registry.js';
 
 const initCmd = registerInit(program);
@@ -63,6 +64,7 @@ registerRun(program);
 registerWorkflow(program);
 registerRetro(program);
 registerLearn(program);
+registerDecision(program);
 registerSkill(program);
 registerProjects(program);
 registerSession(program);
