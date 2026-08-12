@@ -86,7 +86,9 @@ Don't just check that tests exist — check that they would actually catch bugs:
 
 ## Decisions Check
 
-If `.bobby/decisions.yaml` exists, scan the changed code for violations of active decisions (where `invalidated` is null). For each violation found, flag it by decision `id` in `review.md` under a "Decision Violations" section. A decision violation is a rejection reason.
+Run `bobby decision list` to see the active decisions (it hides invalidated ones). Scan the changed code for violations. For each violation found, flag it by decision `id` in `review.md` under a "Decision Violations" section. A decision violation is a rejection reason.
+
+If the change establishes a new constraint the codebase should be held to, record it with `bobby decision add --id … --fact … --why … --ticket {ID}` rather than editing `.bobby/decisions.yaml`.
 
 Examples of what to look for based on the decision `fact` field:
 - "Never call the database directly from UI components" → grep changed files for DB calls in component code

@@ -6,6 +6,24 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+- **`.bobby/decisions.yaml` finally has a writer (TKT-063).** Nothing in the
+  codebase ever appended to the architectural decision log — `bobby init` seeded
+  it, `bobby-review` read it in prose, and every entry was put there by an agent
+  hand-editing YAML. The file's own header made that worse by claiming it was
+  "Updated via `bobby learn`", a command that has never opened it. The result was
+  what you would expect from freehand edits to a structured file: one append
+  deleted the commented format block, another had to repair the previous entry's
+  missing `supersedes`/`invalidated` keys. `bobby decision add --id … --fact …
+  --why …` now parses the document, appends a validated seven-key entry, and
+  writes it back, so comments and prior entries survive; `bobby decision list`
+  reads it. Duplicate ids, non-kebab-case ids, and superseding a decision that
+  does not exist are refused, and a log that does not parse raises instead of
+  being overwritten. `bobby-arch` and `bobby-review` now use the command. Also
+  fixes the schema split behind the same filename: `lib/studio.js` seeded
+  `decisions: []` while `bobby init` seeded a bare list — both now use the one
+  seed, and pre-existing studio files are still read and appended in place.
+
 ### Added
 - **`bobby-lighthouse` — a Lighthouse audit that proposes tickets, not noise.**
   Sweeps Performance, Accessibility, Best Practices and SEO across page
@@ -18,6 +36,81 @@ All notable changes to Bobby are documented here. The format is based on
   a runner (`lighthouse-audit.mjs`, no install — shells out to
   `npx lighthouse@12`) plus the `bobby run lighthouse` agent. Distinct from
   `bobby audit`, which scores codebase readiness from source.
+- **`bobby-freewill` — one agent, the whole ticket, deliberately few
+  instructions.** `bobby run freewill <id>` (or `--workflow freewill`) collapses
+  plan → build → review → test into a single agent that gets the goal and the
+  invariants and nothing else. It exists because Opus 5 and Fable 5 do better
+  from a brief than from a script: a long procedure spends their attention on
+  compliance, produces an agent that finishes the checklist rather than the
+  ticket, and caps the work at whatever the procedure's author imagined. The
+  skill is short on purpose and says so — corrections go to
+  `bobby learn bobby-freewill`, not into new steps, and a registry test keeps the
+  dispatch prompt from growing back into a checklist. The trade-off is stated
+  rather than hidden: collapsing the stages removes the reviewer who didn't write
+  the code, so freewill sends security-sensitive, underspecified, and epic-sized
+  tickets back to `default`/`secure`, does an adversarial pass on its own diff in
+  place of the review stage, and asks for the full chain on smaller models.
+- **`bobby blueprint` — see the whole plan before you build it.** One page,
+  generated from the locked definition and the board: the outcome and the
+  success metric, who it's for, the headline journey with **the crux marked**
+  (the step a human named as their give-up point, and the feature that serves
+  it), every Must feature and its ticket grouped into build tracks and
+  traceable back to a journey step and a persona, and what's deliberately out
+  of scope. It also runs a **drift check the documents can't**: every Must row
+  must have exactly one ticket, and every ticket's `feature:` ref must exist in
+  the map — reported in the terminal and on the page. Deterministic and local
+  (no model calls, no network, no token cost); the page is self-contained with
+  no scripts or CDNs, so it opens from the filesystem, works offline, themes
+  light/dark, and prints. `--json` for the model, `--out` to place the file.
+  It runs as the fifth define stage (`define-blueprint`) so every definition
+  ends by showing the human what they're about to build, and the page is
+  regenerated, never hand-edited.
+- **The define pipeline — how the pros go from idea to buildable tickets.**
+  `bobby run define <epicId>` takes the MVP epic through the artifact chain a
+  real product team runs: **brief → personas → journeys → feature map →
+  blueprint**, one
+  interviewing agent per stage (one question at a time, bracketed tags, a
+  question budget) and a ⛳ human gate after each. Artifacts are locked and
+  committed in `.bobby/product/` with design-spec-style Locked/Deviations/
+  Changelog discipline; features are derived from journey steps, never
+  brainstormed; the Never column must cite a brief Non-goal. The workflow
+  terminates at `planning`, where **bobby-plan's new Product-Aware Epic Mode**
+  decomposes against the locked map — one ticket per Must row, each carrying
+  new `feature:`/`persona:` frontmatter refs (`--feature F1.1 --persona P1` on
+  `ticket create`/`update`, `--feature` filter on `list`, shown by `view`),
+  with a traceability table in the epic's plan.md and a self-check drift gate.
+  Build/test prompts automatically tell agents to read the feature-map row and
+  journey step their ticket serves. `bobby go` routes it all: a fresh epic with
+  no feature map → "define it first"; mid-definition → resume; map locked →
+  decompose; children → build. Say "just draft it" for the express path
+  (artifacts drafted with `(assumed)` marks, one combined gate).
+- **Pipeline stages are now visible to `bobby go`/`brief` — including design's.**
+  A ticket parked in any `design-*` stage now appears in-flight and resumes its
+  own stage agent; previously it was invisible and produced no next action. New
+  stage invariants (rank, color, workflow mapping for every stage) are enforced
+  by tests so a future pipeline can't reintroduce the gap. The design pipeline
+  also gained its missing `bobby do` routing entry and CLAUDE.md rows.
+- **`bobby app` — the Bobby App (Pro), with the classic dashboard staying free.**
+  One command, two tiers, no hostages: without a Pro key, `bobby app` (and
+  `bobby dashboard`, now an alias) serves the classic dashboard exactly as
+  before — free forever, as published. With Bobby Pro, the same command serves
+  the App: Home with the brief, one "Do this next" button (the same brain as
+  `bobby go`, via new `POST /api/go`), the amber needs-you queue
+  (Approve / Send back / Look first), a ticket Board, and live workspace logs
+  with the diff a tap away. Nothing runs without a confirm sheet naming exactly
+  what will run. The App UI ships in `@bobbycode/pro-dashboard` via
+  `bobby pro install` — never in this MIT package, because a license check on
+  MIT-licensed files would be theatre. Classic stays reachable at `/classic/`
+  when the App is active. `BOBBY_APP_DIR` overrides the UI location for
+  development.
+  - New loop API for the App (MIT, also serves the classic UI and the relay):
+    `GET /api/brief`, `POST /api/go`, ticket writes
+    (`POST /api/tickets`, `/move` with reject/block/unblock aliases, `PATCH`,
+    `/comments`), `GET /api/workflows`, `GET /api/config`.
+  - Fixed: a workspace's recorded workflow (`pipeline: 'quick'`) was ignored —
+    approve() always advanced through the server-default workflow.
+  - Fixed: an EventSource opened during page load kept the window load event
+    (and the tab spinner) hanging forever.
 - **`bobby remote` — run your team from your phone.** Starts the dashboard on a
   loopback-only ephemeral port, then opens ONE outbound, end-to-end-encrypted
   WebSocket to a relay; scan the printed QR (or paste the code) and the Bobby HQ
@@ -135,6 +228,26 @@ All notable changes to Bobby are documented here. The format is based on
   nothing decoded `%2f` into a separator.)
 
 ### Fixed
+- **Out of the box, the app's agents could not write anything.** No permission
+  mode was set, and for a headless `claude -p` that means "ask before writing"
+  with nobody there to answer. Measured on a real run: 88 turns, 9m14s, $2.97,
+  zero files written, ticket never moved — and exit code 0, so the app reported
+  it as a finished stage. Three changes, all of which matter separately:
+  - **Posture is now set per kind of run**, because the two kinds are not
+    equally risky. `dashboard.worktree_permission_mode` (default
+    `bypassPermissions`) covers ticket runs, which happen in a throwaway git
+    worktree — that copy *is* the sandbox. `dashboard.repo_permission_mode`
+    (default `acceptEdits`) covers freeform runs (`ux`, `arch`, `docs`, `ship`,
+    …), which work in your real checkout, where that reasoning does not apply:
+    edits go through, arbitrary commands do not. Both are overridable; the older
+    single `permission_mode` still works and overrides both.
+  - **An agent that is being refused is now stopped** after three refusals,
+    with a message naming the config key — instead of retrying for nine minutes.
+  - **A run that changed nothing is no longer recorded as `completed`.** A
+    worktree run that exits cleanly having moved no stage and left its branch on
+    the same commit is recorded as `no_op`, on both the run and the workspace,
+    with a message naming the likely cause. Repo runs are exempt — several of
+    those agents are supposed to write nothing.
 - **Scaffolded agents and skills referenced `CLAUDE.md` literally**, so on any
   non-Claude-Code target they pointed at a file that is never written — most
   importantly `bobby-build` and `bobby-ship`, whose "follow the Safety Rules in

@@ -943,3 +943,33 @@ describe('tickets', () => {
     expect(health.noAcceptanceCriteria).toBe(0);
   });
 });
+
+describe('traceability refs (feature/persona)', () => {
+  let tmpDir;
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-refs-'));
+  });
+  afterEach(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
+
+  test('createTicket persists feature and persona in frontmatter', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Log a run', feature: 'F1.1', persona: 'P1' });
+    const t = findTicket(tmpDir, 'TKT-001');
+    expect(t.data.feature).toBe('F1.1');
+    expect(t.data.persona).toBe('P1');
+  });
+
+  test('omitted refs are null, not undefined', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Plain ticket' });
+    const t = findTicket(tmpDir, 'TKT-001');
+    expect(t.data.feature).toBeNull();
+    expect(t.data.persona).toBeNull();
+  });
+
+  test('listTickets filters by feature ref', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'A', feature: 'F1.1' });
+    createTicket(tmpDir, { prefix: 'TKT', title: 'B', feature: 'F1.2' });
+    createTicket(tmpDir, { prefix: 'TKT', title: 'C' });
+    const hits = listTickets(tmpDir, { feature: 'F1.1' });
+    expect(hits.map(t => t.id)).toEqual(['TKT-001']);
+  });
+});

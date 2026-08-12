@@ -35,8 +35,10 @@ If you discover issues outside scope, file them as new tickets: `bobby ticket cr
 
 - Commit the fix: `git add` changed files, `git commit` with `TKT-{ID}: debug fix — {root cause summary}`
 - If you discovered a systemic pattern: `bobby learn bobby-debug "pattern" "description"` and `bobby retro {ID} "pattern"`
-- Move ticket forward: `bobby ticket move {ID} review`
-- Output: `<bobby:done ticket="{ID}" stage="reviewing" />`
+- Move ticket forward. If your task prompt names a stage to move to, use exactly that
+  one — the ticket's workflow decides it and this file cannot know which workflow is
+  running. Only if no stage is named there, fall back to `bobby ticket move {ID} review`.
+- Output: `<bobby:done ticket="{ID}" stage="{the stage you moved to}" />`
 
 ## Project overrides
 

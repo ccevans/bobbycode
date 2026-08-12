@@ -250,7 +250,7 @@ export function registerRetro(program) {
           console.log(`  ${dim(`${result.sessionData.sessions.length} sessions, ${result.totalTickets} tickets processed, ${result.recentlyDone.length} shipped, ${result.successRate}% success rate`)}`);
           console.log('');
           success(`Created ${path.relative(root, result.file)}`);
-          autoSync(root);
+          autoSync(root, [path.relative(root, result.file)]);
           console.log('');
           console.log(result.report);
           return;
@@ -319,7 +319,7 @@ ${rejectionHistory}
 <!-- Which skills/stages should check for this -->
 `;
         fs.writeFileSync(retroFile, retroContent, 'utf8');
-        autoSync(root);
+        autoSync(root, [path.relative(root, retroFile), path.relative(root, counterFile)]);
         success(`Created ${retroId} — ${pattern}`);
         console.log(`  → ${config.tickets_dir}/retrospectives/${retroId}--${slug}.md`);
       } catch (e) {

@@ -112,6 +112,24 @@ Run a named workflow:
 bobby run workflow TKT-001 --workflow secure
 ```
 
+### The freewill workflow
+
+`freewill` is the built-in that goes the other way: one agent takes the ticket from start to
+shipping, and its instructions are deliberately thin.
+
+```bash
+bobby run freewill TKT-001        # or: --workflow freewill
+```
+
+It exists because Opus 5 and Fable 5 work better from a goal and its invariants than from a
+four-stage script — a long procedure spends their attention on compliance and caps the work
+at whatever the procedure's author imagined. `.claude/skills/bobby-freewill/SKILL.md` is short
+on purpose; corrections belong in `bobby learn bobby-freewill`, not in new steps.
+
+The trade-off is a real one: collapsing the stages removes the reviewer who did not write the
+code. The skill sends security-sensitive, underspecified, and epic-sized tickets back to
+`default` or `secure`, and on a smaller model you want the full chain regardless.
+
 ## Modifying Skill Behavior
 
 Write your changes to `.claude/skills/bobby-*/SKILL.local.md` — **not** `SKILL.md`. The skill

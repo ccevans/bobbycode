@@ -86,11 +86,29 @@ describe('bobby go', () => {
     expect(out).toContain('bobby go "');
   });
 
-  test('bare go guides a fresh epic to break down (run plan)', () => {
+  test('bare go guides a fresh epic to define the product first', () => {
     run('ticket create -t "A product idea" --epic');
+    const out = run('go');
+    expect(out).toMatch(/no product definition/);
+    expect(out).toContain('bobby run define TKT-001');
+  });
+
+  test('bare go guides a defined epic to break down (run plan)', () => {
+    run('ticket create -t "A product idea" --epic');
+    // A locked feature map means definition is done — decomposition is next.
+    fs.mkdirSync(path.join(tmpDir, '.bobby', 'product'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, '.bobby', 'product', 'feature-map.md'), '# Feature Map\n**Locked:** today\n');
     const out = run('go');
     expect(out).toMatch(/fresh idea/);
     expect(out).toContain('bobby run plan TKT-001');
+  });
+
+  test('bare go resumes a mid-definition epic', () => {
+    run('ticket create -t "A product idea" --epic');
+    run('ticket move TKT-001 personas');
+    const out = run('go');
+    expect(out).toMatch(/definition is in progress/);
+    expect(out).toContain('bobby run define TKT-001');
   });
 
   test('bare go guides a planned epic to build (run feature)', () => {

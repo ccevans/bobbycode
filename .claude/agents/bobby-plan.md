@@ -20,9 +20,17 @@ Read these in parallel:
 ## Completing Work
 
 - If epic mode: create child tickets with `bobby ticket create -t "..." --parent {ID}`
-- If refine mode: create `plan.md` + `test-cases.md`, then `bobby ticket move {ID} build`
+- If refine mode: create `plan.md` + `test-cases.md`, then hand the ticket on — see Handoff below
 - If you discovered anything non-obvious or a pattern future planning should avoid: `bobby learn bobby-plan "pattern" "description"`
-- Output: `<bobby:done ticket="{ID}" stage="building" />` (refine) or `<bobby:done ticket="{ID}" stage="backlog" />` (epic breakdown)
+- Output: `<bobby:done ticket="{ID}" stage="{NEXT_STAGE}" />` (refine) or `<bobby:done ticket="{ID}" stage="backlog" />` (epic breakdown)
+
+## Handoff
+
+Your task prompt names the stage to move the ticket to when you finish. Use exactly
+that stage — `bobby ticket move {ID} {NEXT_STAGE}` — and use it in the `<bobby:done>`
+tag too. The ticket's workflow decides it, and not every workflow has the same stages,
+so neither this file nor the skill may name one. If either does, your task prompt wins.
+If no stage is named there, leave the stage alone and report what you finished.
 
 ## Project overrides
 

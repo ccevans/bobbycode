@@ -282,4 +282,61 @@ describe('E2E: full ticket lifecycle', () => {
     const { data } = matter(fs.readFileSync(path.join(ticketsDir, entries[0], 'ticket.md'), 'utf8'));
     expect(data.stage).toBe('shipping');
   });
+
+  // TKT-052: prompts carry the RESOLVED tickets dir, so the path works no matter
+  // where the agent that receives the prompt is running from. Asserted by opening
+  // the file the prompt names, not by matching its text.
+  describe('the tickets path a run prompt names is openable', () => {
+    // Resolve the ticket.md path a prompt names, from `cwd`, expanding the
+    // `TKT-001*` glob segment. Returns the file's contents, or null.
+    const openFromPrompt = (prompt, ticketId, cwd) => {
+      const m = new RegExp('`([^`]*' + ticketId + '\\*/ticket\\.md)`').exec(prompt);
+      if (!m) return null;
+      const parent = path.dirname(path.dirname(path.resolve(cwd, m[1])));
+      if (!fs.existsSync(parent)) return null;
+      const hit = fs.readdirSync(parent).find(e => e.startsWith(ticketId));
+      if (!hit) return null;
+      const file = path.join(parent, hit, 'ticket.md');
+      return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+    };
+
+    test('bobby run build emits a ticket path that resolves from an unrelated cwd', () => {
+      run('ticket create -t "Prompt path check"');
+      run('ticket move TKT-001 build');
+
+      const prompt = run('run build TKT-001');
+
+      // os.tmpdir() stands in for "some other directory" — a worktree, in the
+      // app's case. A relative `.bobby/tickets/...` resolves to nothing here.
+      expect(openFromPrompt(prompt, 'TKT-001', os.tmpdir())).toContain('Prompt path check');
+    });
+
+    test('bobby run workflow emits the same resolvable path', () => {
+      run('ticket create -t "Workflow path check"');
+
+      // Orchestration prompts template the id as {TICKET_ID}; substitute it the
+      // way the orchestrator agent is told to, then open what is left.
+      const prompt = run('run workflow TKT-001').replace(/\{TICKET_ID\}/g, 'TKT-001');
+
+      expect(openFromPrompt(prompt, 'TKT-001', os.tmpdir())).toContain('Workflow path check');
+    });
+
+    // TKT-053: the same bug one directory over. A sprint runs in an isolated
+    // worktree and its prompt tells the agent to read the sprint plan, so that
+    // path has to resolve from somewhere other than the main checkout too.
+    test('bobby sprint run emits a sprint-plan path that resolves from an unrelated cwd', () => {
+      run('ticket create -t "Sprint path check"');
+      const created = run('sprint new "Path sprint" TKT-001');
+      const sprintId = (/\b(SPR-\d+)\b/.exec(created) || [])[1];
+      expect(sprintId).toBeTruthy();
+
+      const prompt = run(`sprint run ${sprintId}`);
+
+      const m = /`([^`]*sprint-plan\.md)`/.exec(prompt);
+      expect(m).toBeTruthy();
+      // Resolved from a foreign cwd, the way a worktree-confined agent would.
+      const planPath = path.resolve(os.tmpdir(), m[1]);
+      expect(fs.existsSync(planPath)).toBe(true);
+    });
+  });
 });

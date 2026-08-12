@@ -6,7 +6,7 @@
 
 import path from 'path';
 import { exec } from 'child_process';
-import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir, resolveIdeasFile } from '../lib/config.js';
 import { getTarget } from '../lib/targets/index.js';
 import { WorkspaceStore } from '../lib/dashboard/state.js';
 import { SSEHub } from '../lib/dashboard/sse.js';
@@ -107,6 +107,10 @@ export function registerDashboard(program) {
         const server = buildServer({
           orchestrator, store, sseHub, config, repoRoot: root, ticketsDir,
           plugins, pluginStatus,
+          // The classic UI has no Ideas screen, but the API is one surface for
+          // both front ends — the routes must not resolve to a different file
+          // depending on which command started the server (TKT-018).
+          ideasFile: resolveIdeasFile(root, config),
         });
 
         server.listen(port, host, () => {
