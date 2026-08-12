@@ -260,10 +260,7 @@
   decided: "2026-08-08"
   ticket: TKT-061
   why: >
-    autoSync previously staged all Bobby-managed paths (getBobbyPaths), which
-    silently committed unrelated in-flight work by other agents. New callers must
-    declare which files they wrote. Forgetting to pass a path means that file
-    won't be auto-committed — preferable to sweeping up someone else's work.
+    autoSync previously staged all Bobby-managed paths (getBobbyPaths), which silently committed unrelated in-flight work by other agents. New callers must declare which files they wrote. Forgetting to pass a path means that file won't be auto-committed — preferable to sweeping up someone else's work.
   supersedes: null
   invalidated: null
 
@@ -280,5 +277,12 @@
   decided: "2026-08-08"
   ticket: TKT-062
   why: "Exit 0 with is_error false is indistinguishable from success at the orchestrator boundary, which is the only reason a $2.97 no-op could be displayed as a finished stage for nine minutes. The head-sha comparison is the check an exit code cannot fake, and it is taken AFTER the checkpoint commit so that work the agent left uncommitted and work it committed itself both count — 'nothing was committed just now' would have called every build agent a no-op. 'no_op' is its own status rather than a flavour of 'failed' precisely because this bug was invisible while a clean exit meant success: 'failed' is a CLI that blew up and says so, 'no_op' is a CLI that reported success and achieved nothing; different causes, different fixes. Repo runs are excluded on purpose — ux, pm and qe are SUPPOSED to write nothing, their output is the report in the log, so a blanket verdict there would cry wolf on every review, and there is no branch of their own to judge. When git cannot say where the branch stood, the verdict is 'not a no-op': a missed no-op costs what the status quo cost, a wrong one tells a user their working agent did nothing. Only clean exits are judged, so a run stopped for refusals keeps the more specific refusal message rather than having it overwritten. Evidence: Orchestrator._producedNothing/_noOpReason/_notePermissionDenial; runOutcome in lib/dashboard/state.js; PERMISSION_DENIAL_PATTERNS in executor.js, taken verbatim from the refusals in .bobby/sessions/ses-20260808-192056.jsonl."
+  supersedes: null
+  invalidated: null
+- id: one-repo-per-ticket-v1
+  fact: "A workspace ships in exactly one repo. If a ticket's `repos` frontmatter names more than one repo, Orchestrator.createWorkspace throws before any worktree or token is spent, naming the ticket, the repos, and the way out (split the ticket, or narrow `repos`). The target repo is resolved once at createWorkspace from ticket.repos, then project_repos[0], then the launch repo (this.repoRoot); resolution is skipped entirely off-studio so the single-repo case is byte-identical. The resolved repoRoot/lockFile are stored on the workspace record and every per-workspace git op (worktree, branch, lock, diff, merge, discard) acts against them, with a `|| this.repoRoot`/`|| this.lockFile` fallback for pre-upgrade records."
+  decided: "2026-08-12"
+  ticket: TKT-069
+  why: "This ticket (TKT-069) exists to ship in the RIGHT repo. A two-repo ticket has no single right repo; taking the first and proceeding would ship only repo A's work while the ticket claims both — the exact silent-wrong-repo failure this ticket kills (it is what made TKT-023 manufacture a dead branch in the launch repo). Refusing early with an actionable message is the established pattern here (_assertConcurrencyHeadroom, the main-checkout lock's heldMessage, _assertRepoRunnable): refuse before you spend, name what is wrong, name the way out. Take-first was rejected because a workspace that runs anyway is the not-quite-silent half-ship the no-op guard (TKT-062) was added to stop. Two-worktrees-one-workspace is deferred out of v1. Evidence: Orchestrator._resolveTargetRepo/createWorkspace; newWorkspace repoRoot/lockFile in lib/dashboard/state.js; test/lib/dashboard/orchestrator-repo-target.test.js."
   supersedes: null
   invalidated: null
