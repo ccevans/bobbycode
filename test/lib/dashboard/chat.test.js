@@ -35,6 +35,16 @@ function stubOrchestrator(store) {
       store.update(workspaceId, { status: 'idle' });
       return { ...store.get(workspaceId), _claudeSessionId: claudeSessionId };
     },
+    async runChat(workspaceId, opts = {}) {
+      calls.push({ method: 'runChat', workspaceId, opts });
+      store.update(workspaceId, { status: 'idle' });
+      return store.get(workspaceId);
+    },
+    async commitChat(workspaceId, opts = {}) {
+      calls.push({ method: 'commitChat', workspaceId, opts });
+      store.update(workspaceId, { status: 'idle' });
+      return store.get(workspaceId);
+    },
     _runExecutor(runOpts) {
       calls.push({ method: '_runExecutor', runOpts });
       return {
@@ -85,8 +95,8 @@ describe('ChatManager', () => {
     expect(ws.chatHistory[0].summary).toBe('What about using a queue?');
     expect(ws.chatHistory[0].at).toBeTruthy();
 
-    // runAgent was called with plan permission mode
-    const call = orchestrator.calls.find(c => c.method === 'runAgent');
+    // runChat was called for plan permission mode
+    const call = orchestrator.calls.find(c => c.method === 'runChat');
     expect(call).toBeTruthy();
   });
 
@@ -106,7 +116,7 @@ describe('ChatManager', () => {
     expect(ws.chatHistory).toHaveLength(2);
 
     // Verify the second call uses the chatId for resume
-    const runCalls = orchestrator.calls.filter(c => c.method === 'runAgent');
+    const runCalls = orchestrator.calls.filter(c => c.method === 'runChat');
     expect(runCalls).toHaveLength(2);
   });
 
