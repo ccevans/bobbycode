@@ -3,7 +3,7 @@ id: TKT-069
 title: >-
   The app orchestrator worktrees a ticket in its TARGET repo, not always the
   launch repo
-stage: backlog
+stage: reviewing
 type: feature
 priority: high
 area: null
@@ -69,3 +69,6 @@ worktreed and shipped in bobbycode-pro instead of manufacturing a dead
       exactly as today
 - [ ] The two-repo-per-ticket question is decided and recorded, in or out of v1
 - [ ] Covered by a test that runs a ticket against a non-launch repo
+
+## Comments
+- [2026-08-12] claude: Unblocked: TKT-068 merged integrate/app-studio, so the orchestrator, repo group config, and resolveRepoPath now live on one trunk. This is buildable now — the seam (resolveRepoPath, ticket .repos frontmatter, repoTargetingClause) exists and has no orchestrator caller yet, which is exactly what this ticket wires.
