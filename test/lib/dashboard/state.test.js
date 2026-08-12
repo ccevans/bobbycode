@@ -214,4 +214,14 @@ describe('WorkspaceStore', () => {
     expect(a).toMatch(/^repo-ux-/);
     expect(a).not.toBe(makeRepoRunId('ux'));
   });
+
+  // TKT-021: chat fields on workspace — chatId, chatMode, chatHistory.
+  test('newWorkspace includes chat fields defaulting to null/false/[]', () => {
+    const ws = newWorkspace({
+      id: 'ws-chat', ticketId: 'T', worktreePath: '/x', branch: 'b',
+    });
+    expect(ws.chatId).toBeNull();
+    expect(ws.chatMode).toBe(false);
+    expect(ws.chatHistory).toEqual([]);
+  });
 });
