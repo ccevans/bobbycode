@@ -9,3 +9,5 @@ disagree, **this file wins**.
 
 ## Anti-Patterns
 <!-- bobby learn bobby-plan "pattern" "description" to add entries -->
+
+- **merge-shared-map-not-keep-both**: When planning a branch merge, conflicts on the SAME data structure (STAGE_MAP, STAGE_ORDER, stage-rank objects, count-assertions) are NOT 'keep both' — both blocks redeclare one const. Resolution is a semantic union of entries into one object, and any test asserting a length/count must be RECOMPUTED from the merged reality (e.g. STAGES became 18 when studio said 17 and app said 13), never copied from either side.

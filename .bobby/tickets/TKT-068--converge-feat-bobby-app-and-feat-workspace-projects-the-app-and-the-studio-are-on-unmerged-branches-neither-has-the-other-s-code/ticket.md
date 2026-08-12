@@ -3,7 +3,7 @@ id: TKT-068
 title: >-
   Converge feat/bobby-app and feat/workspace-projects — the app and the studio
   are on unmerged branches, neither has the other's code
-stage: backlog
+stage: planning
 type: task
 priority: critical
 area: null
