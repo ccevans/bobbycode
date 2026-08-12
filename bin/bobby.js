@@ -25,7 +25,7 @@ import { registerUpgrade } from '../commands/upgrade.js';
 import { registerSession } from '../commands/session.js';
 import { registerSync } from '../commands/sync.js';
 import { registerLocalInit } from '../commands/local-init.js';
-import { registerDashboard } from '../commands/dashboard.js';
+import { registerApp } from '../commands/app.js';
 import { registerWorkflow } from '../commands/workflow.js';
 import { registerSprint } from '../commands/sprint.js';
 import { registerIdea } from '../commands/idea.js';
@@ -69,7 +69,7 @@ registerSkill(program);
 registerProjects(program);
 registerSession(program);
 registerSync(program);
-registerDashboard(program);
+registerApp(program); // also answers to `bobby dashboard`
 registerRemote(program);
 registerExport(program);
 registerUpgrade(program);
@@ -80,7 +80,7 @@ registerUpgrade(program);
 // The whole process is two verbs. Default help shows just the loop; everything
 // else is listed compactly below and still works + has its own --help.
 const ESSENTIAL = ['do', 'new', 'go', 'init'];
-const EVERYDAY = ['vet', 'audit', 'blueprint', 'brief', 'idea', 'ticket', 'sprint', 'run', 'dashboard', 'remote'];
+const EVERYDAY = ['vet', 'audit', 'blueprint', 'brief', 'idea', 'ticket', 'sprint', 'run', 'app', 'remote'];
 const POWER = ['pack', 'pro', 'workflow', 'retro', 'learn', 'skill', 'projects', 'session', 'sync', 'export', 'upgrade'];
 program.configureHelp({
   visibleCommands: (cmd) =>

@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE LINE — Feature view · Bobby</title>
+<style>
+  /* ============================================================
+     THE LINE — a feature rendered as one transit line.
+     Structural palette (from teardown-dcmetro-live.md + teardown-beck-tube.md):
+     colour lives in the line and the stations, never on a card edge.
+     ============================================================ */
+  :root {
+    /* Ground: a PICKED cool paper, biased toward the teal line hue.
+       Not #FFF, not cream, not pure grey — a slate-teal off-white. */
+    --ground:      #E9EFF0;
+    --ground-2:    #EFF4F4;   /* faint upper wash */
+    --surface:     #FFFFFF;   /* the map surface / panels */
+    --ink:         #10201F;   /* near-black, cool teal bias */
+    --ink-muted:   #4E6168;   /* secondary text */
+    --ink-faint:   #7E9099;   /* metadata */
+    --hairline:    #D2DDDE;   /* quiet borders */
+
+    /* Structural line colours — a disciplined set, each = a stage state */
+    --traveled:    #0E7C6B;   /* the line already ridden: plan→build→review. progress. */
+    --traveled-ink:#0B6154;   /* darker teal for text on ground (AA) */
+    --gate:        #B45309;   /* the gate / current / waiting-on-you: deep amber (AA text) */
+    --gate-ring:   #F59E0B;   /* the interchange ring fill / live marker */
+    --gate-wash:   #FCEBCF;   /* soft amber panel behind the gate action */
+    --ahead:       #9FB0B7;   /* track not yet travelled: dimmed slate */
+    --ahead-ink:   #5C6E75;   /* labels for stations ahead (AA on ground) */
+    --gate-tint:   #FBF3E4;   /* faint amber fill: marks the panel as the gate's, no edge-stripe */
+
+    --focus:       #0B6154;
+
+    --radius:      12px;
+    --track-w:     6px;
+
+    --font-ui:  system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font-ui);
+    color: var(--ink);
+    background:
+      radial-gradient(1200px 520px at 50% -8%, var(--ground-2), transparent 70%),
+      var(--ground);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: clamp(20px, 4vw, 48px) clamp(18px, 4vw, 40px) 72px;
+  }
+
+  a { color: inherit; }
+
+  /* focus visible everywhere */
+  a:focus-visible, button:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  /* ---------- Back link ---------- */
+  .back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    text-decoration: none;
+    color: var(--ink-muted);
+    padding: 6px 4px;
+  }
+  .back:hover { color: var(--ink); }
+  .back .arw { font-size: 17px; line-height: 1; }
+
+  /* ---------- Feature header ---------- */
+  header.feature { margin-top: 22px; }
+  .idrow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .fid {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    color: var(--traveled-ink);
+    letter-spacing: 0.02em;
+  }
+  .prio {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--gate);
+    background: var(--gate-wash);
+    border: 1px solid #EAC98C;
+    padding: 3px 9px 3px 7px;
+    border-radius: 999px;
+  }
+  .prio .tick { width: 7px; height: 7px; border-radius: 2px; background: var(--gate); transform: rotate(45deg); }
+
+  h1.title {
+    font-size: clamp(27px, 3.4vw, 34px);
+    line-height: 1.12;
+    letter-spacing: -0.015em;
+    font-weight: 700;
+    margin: 0 0 12px;
+    text-wrap: balance;
+  }
+  .lede {
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--ink-muted);
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  /* progress line */
+  .progress {
+    margin-top: 18px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    color: var(--ink-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .progress b { color: var(--ink); font-weight: 600; }
+
+  /* ============================================================
+     THE LINE
+     ============================================================ */
+  .board {
+    margin-top: clamp(30px, 5vw, 52px);
+  }
+  .board-label {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 20px;
+  }
+
+  /* The line is an HTML flex track so it reflows: row on desktop, column on mobile. */
+  .line {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    padding: 8px 0 4px;
+  }
+
+  .station {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 0 0 auto;
+    width: 92px;
+    text-align: center;
+    position: relative;
+  }
+  /* the dot rail sits at a fixed height so connectors align */
+  .node {
+    position: relative;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dot {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--surface);
+    box-shadow: 0 0 0 4px var(--surface);
+    position: relative;
+    z-index: 2;
+  }
+  /* passed: filled teal */
+  .station.passed .dot { background: var(--traveled); box-shadow: 0 0 0 4px var(--surface); }
+  .station.passed .dot::after {
+    content: "";
+    position: absolute;
+    left: 6px; top: 4.5px;
+    width: 4px; height: 8px;
+    border: solid var(--surface);
+    border-width: 0 2.5px 2.5px 0;
+    transform: rotate(42deg);
+  }
+  /* ahead: hollow dim */
+  .station.ahead .dot {
+    background: var(--surface);
+    box-shadow: inset 0 0 0 3px var(--ahead), 0 0 0 4px var(--surface);
+  }
+
+  /* connectors: segments between stations. Built as ::before / ::after on the node. */
+  .seg {
+    position: absolute;
+    top: 20px;            /* centre of the 40px node */
+    height: var(--track-w);
+    border-radius: 3px;
+    z-index: 1;
+    transform: translateY(-50%);
+  }
+  .seg.left  { left: -46px; right: 50%; margin-right: 10px; }
+  .seg.right { right: -46px; left: 50%; margin-left: 10px; }
+  .seg.traveled { background: var(--traveled); }
+  .seg.ahead    { background: var(--ahead); }
+  .station:first-child .seg.left { display: none; }
+  .station:last-child .seg.right { display: none; }
+
+  .st-name {
+    margin-top: 12px;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+  }
+  .station.ahead .st-name { color: var(--ahead-ink); font-weight: 500; }
+  .st-state {
+    margin-top: 3px;
+    font-size: 13px;
+    color: var(--ink-faint);
+  }
+  .station.passed .st-state { color: var(--traveled-ink); }
+
+  /* ---------- terminus ---------- */
+  .station.terminus .dot {
+    width: 22px; height: 22px;
+    border-radius: 5px;
+    background: var(--traveled);
+    box-shadow: 0 0 0 4px var(--surface), inset 0 0 0 3px var(--surface);
+  }
+  .station.terminus .dot::after { display: none; }
+
+  /* ---------- the GATE: review station = ringed interchange holding the train ---------- */
+  .station.gate { width: 116px; }
+  .station.gate .node { height: 40px; }
+  .station.gate .dot {
+    width: 26px; height: 26px;
+    background: var(--gate-ring);
+    box-shadow:
+      0 0 0 5px var(--surface),
+      0 0 0 8px var(--gate);       /* the interchange ring */
+  }
+  .station.gate .dot::after { display: none; }
+  /* the train marker: a soft live ping on the gate only */
+  .station.gate .ping {
+    position: absolute;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 2px solid var(--gate-ring);
+    z-index: 0;
+    animation: ping 2.6s cubic-bezier(0,0,0.2,1) infinite;
+  }
+  @keyframes ping {
+    0%   { transform: scale(1);   opacity: 0.65; }
+    70%  { transform: scale(2.4); opacity: 0; }
+    100% { transform: scale(2.4); opacity: 0; }
+  }
+  .station.gate .st-name { color: var(--gate); font-weight: 700; }
+  .station.gate .st-state { color: var(--gate); font-weight: 600; }
+  .train-tag {
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    color: var(--gate);
+    background: var(--gate-wash);
+    border: 1px solid #EAC98C;
+    padding: 3px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .train-tag .car { width: 8px; height: 8px; background: var(--gate); border-radius: 2px; }
+
+  /* ---------- the gate action panel ---------- */
+  .gate-panel {
+    margin: 26px auto 0;
+    max-width: 560px;
+    /* the panel is filled in the gate's own amber wash so it reads as belonging to the
+       review interchange — tied by colour + the ringed label, never by an edge-stripe. */
+    background: var(--gate-tint);
+    border: 1px solid #EAD4A8;
+    border-radius: var(--radius);
+    padding: 20px 22px 22px;
+  }
+  .gate-panel .gp-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gate);
+    margin-bottom: 6px;
+  }
+  .gate-panel .gp-head .rr {
+    width: 13px; height: 13px; border-radius: 50%;
+    border: 3px solid var(--gate); background: var(--gate-ring);
+  }
+  .gate-panel h2 {
+    font-size: 19px;
+    font-weight: 650;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .gate-panel p.sub {
+    margin: 0 0 18px;
+    font-size: 15.5px;
+    color: var(--ink-muted);
+  }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    font-family: var(--font-ui);
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 12px 20px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    line-height: 1.1;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  .btn.primary {
+    background: var(--traveled);
+    color: #fff;
+    box-shadow: 0 1px 0 rgba(11,97,84,0.5);
+  }
+  .btn.primary:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(14,124,107,0.28); }
+  .btn.secondary {
+    background: var(--surface);
+    color: var(--ink);
+    border-color: var(--hairline);
+  }
+  .btn.secondary:hover { transform: translateY(-2px); border-color: var(--ink-faint); }
+
+  .morph-note {
+    margin: 14px auto 0;
+    max-width: 560px;
+    font-size: 13px;
+    color: var(--ink-faint);
+    line-height: 1.5;
+  }
+  .morph-note code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink-muted);
+    background: rgba(16,32,31,0.05);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  /* ============================================================
+     Tickets riding the line
+     ============================================================ */
+  .riders { margin-top: clamp(38px, 6vw, 60px); }
+  .riders h3 {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 4px;
+  }
+  .riders .rlede { font-size: 15px; color: var(--ink-muted); margin: 0 0 18px; }
+
+  .rider {
+    display: grid;
+    grid-template-columns: 116px minmax(0,1fr) auto 96px;
+    align-items: center;
+    gap: 20px;
+    padding: 16px 4px;
+    border-top: 1px solid var(--hairline);
+  }
+  .rider:last-child { border-bottom: 1px solid var(--hairline); }
+  .rider .rid {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-muted);
+  }
+  .rider .rtitle { font-size: 16px; color: var(--ink); }
+
+  /* mini-line: same line, this ticket's own position */
+  .mini {
+    display: flex;
+    align-items: center;
+    justify-self: end;
+    min-width: 208px;
+  }
+  .mini .mseg { height: 4px; width: 34px; border-radius: 2px; }
+  .mini .mseg.traveled { background: var(--traveled); }
+  .mini .mseg.ahead { background: var(--ahead); }
+  .mini .mdot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--surface);
+    flex: 0 0 auto;
+  }
+  .mini .mdot.passed { background: var(--traveled); }
+  .mini .mdot.ahead  { box-shadow: inset 0 0 0 2.5px var(--ahead); }
+  .mini .mdot.here {
+    background: var(--gate-ring);
+    box-shadow: 0 0 0 3px var(--gate);
+    width: 13px; height: 13px;
+  }
+  .mini .mdot.term { border-radius: 3px; background: var(--traveled); width: 12px; height: 12px; }
+  .mini .mdot.pre  { box-shadow: inset 0 0 0 2.5px var(--ahead); opacity: .55; }
+
+  .rstate {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    white-space: nowrap;
+    text-align: right;
+    min-width: 76px;
+  }
+  .rstate.done   { color: var(--traveled-ink); }
+  .rstate.review { color: var(--gate); font-weight: 600; }
+  .rstate.build  { color: var(--traveled-ink); }
+  .rstate.backlog{ color: var(--ink-faint); }
+
+  /* legend */
+  .legend {
+    margin-top: 34px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px 26px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink-muted);
+  }
+  .legend .li { display: inline-flex; align-items: center; gap: 9px; }
+  .legend .g {
+    width: 15px; height: 15px; border-radius: 50%; flex: 0 0 auto;
+    background: var(--surface);
+  }
+  .legend .g.passed { background: var(--traveled); }
+  .legend .g.gate { background: var(--gate-ring); box-shadow: inset 0 0 0 3px var(--gate); }
+  .legend .g.ahead { box-shadow: inset 0 0 0 3px var(--ahead); }
+  .legend .g.term { border-radius: 4px; background: var(--traveled); }
+
+  /* ============================================================
+     RESPONSIVE — the horizontal line becomes vertical on narrow widths.
+     ============================================================ */
+  @media (max-width: 720px) {
+    .line {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0;
+      padding-left: 6px;
+    }
+    .station {
+      flex-direction: row;
+      align-items: flex-start;
+      width: 100%;
+      text-align: left;
+      gap: 16px;
+      min-height: 74px;
+    }
+    .station.gate { width: 100%; }
+    .node {
+      height: auto;
+      min-height: 74px;
+      width: 26px;
+      flex: 0 0 26px;
+      align-items: flex-start;
+      padding-top: 2px;
+    }
+    /* vertical connectors */
+    .seg { top: auto; height: auto; width: var(--track-w); }
+    .seg.left, .seg.right {
+      left: 50%; right: auto;
+      transform: translateX(-50%);
+      margin: 0;
+    }
+    .seg.left  { top: -40px; bottom: 50%; height: auto; }
+    .seg.right { bottom: -40px; top: 50%; height: auto; }
+    /* recompute against the taller row: draw a full-height segment downward */
+    .seg.right { top: 12px; bottom: -62px; }
+    .seg.left  { top: -62px; bottom: calc(100% - 12px); }
+    .station:first-child .seg.left { display: none; }
+    .station:last-child .seg.right { display: none; }
+
+    .st-name { margin-top: 0; font-size: 16px; }
+    .st-state { margin-top: 2px; }
+    .station .txt { padding-top: 1px; }
+    .train-tag { margin-top: 8px; }
+
+    .rider {
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        "id state"
+        "title title"
+        "mini mini";
+      gap: 8px 14px;
+    }
+    .rider .rid { grid-area: id; }
+    .rider .rtitle { grid-area: title; }
+    .rider .rstate { grid-area: state; }
+    .mini { grid-area: mini; justify-self: start; margin-top: 4px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .station.gate .ping { animation: none; opacity: 0.4; }
+    .btn { transition: none; }
+    .btn:hover { transform: none; }
+  }
+
+  /* ---------- dark-safe guard: this mockup is LIGHT by brief, but keep it stable ---------- */
+  @media (prefers-color-scheme: dark) {
+    /* Intentionally NOT inverting — this is a light-theme deliverable.
+       Ground held light so the transit map reads as designed. */
+  }
+
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <a class="back" href="#board"><span class="arw" aria-hidden="true">&larr;</span> Board</a>
+
+    <header class="feature">
+      <div class="idrow">
+        <span class="fid">TKT-001</span>
+        <span class="prio"><span class="tick" aria-hidden="true"></span>High priority</span>
+      </div>
+      <h1 class="title">Subscriptions &amp; billing</h1>
+      <p class="lede">Recurring revenue: plan cards, Stripe checkout, webhook-driven activation, and a customer portal.</p>
+      <p class="progress"><b>1</b> of <b>4</b> tickets done<span aria-hidden="true">·</span><span>the feature is at the review gate</span></p>
+    </header>
+
+    <!-- ============ THE LINE ============ -->
+    <section class="board" aria-label="Feature workflow line">
+      <p class="board-label">The line · plan &rarr; build &rarr; review &rarr; test &rarr; done</p>
+
+      <div class="line" role="list">
+
+        <!-- plan : passed -->
+        <div class="station passed" role="listitem">
+          <div class="node">
+            <span class="seg left traveled" aria-hidden="true"></span>
+            <span class="seg right traveled" aria-hidden="true"></span>
+            <span class="dot"></span>
+          </div>
+          <div class="txt">
+            <div class="st-name">plan</div>
+            <div class="st-state">passed</div>
+          </div>
+        </div>
+
+        <!-- build : passed -->
+        <div class="station passed" role="listitem">
+          <div class="node">
+            <span class="seg left traveled" aria-hidden="true"></span>
+            <span class="seg right traveled" aria-hidden="true"></span>
+            <span class="dot"></span>
+          </div>
+          <div class="txt">
+            <div class="st-name">build</div>
+            <div class="st-state">passed</div>
+          </div>
+        </div>
+
+        <!-- review : the GATE, current, holds the train -->
+        <div class="station gate" role="listitem" aria-current="step">
+          <div class="node">
+            <span class="seg left traveled" aria-hidden="true"></span>
+            <span class="seg right ahead" aria-hidden="true"></span>
+            <span class="ping" aria-hidden="true"></span>
+            <span class="dot"></span>
+          </div>
+          <div class="txt">
+            <div class="st-name">review</div>
+            <div class="st-state">waiting on you</div>
+            <div class="train-tag"><span class="car" aria-hidden="true"></span>you are here</div>
+          </div>
+        </div>
+
+        <!-- test : ahead -->
+        <div class="station ahead" role="listitem">
+          <div class="node">
+            <span class="seg left ahead" aria-hidden="true"></span>
+            <span class="seg right ahead" aria-hidden="true"></span>
+            <span class="dot"></span>
+          </div>
+          <div class="txt">
+            <div class="st-name">test</div>
+            <div class="st-state">ahead</div>
+          </div>
+        </div>
+
+        <!-- done : terminus -->
+        <div class="station ahead terminus" role="listitem">
+          <div class="node">
+            <span class="seg left ahead" aria-hidden="true"></span>
+            <span class="dot"></span>
+          </div>
+          <div class="txt">
+            <div class="st-name">done</div>
+            <div class="st-state">merged</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- the morphing primary action lives AT the ringed review station -->
+      <div class="gate-panel">
+        <div class="gp-head"><span class="rr" aria-hidden="true"></span>Review gate</div>
+        <h2>Stripe checkout is ready for your call</h2>
+        <p class="sub">The feature is stopped at review. Approve to send it on to test, or send it back to build.</p>
+        <div class="actions">
+          <button class="btn primary" type="button">Approve &rarr; continue to test</button>
+          <button class="btn secondary" type="button">Send back</button>
+        </div>
+      </div>
+      <p class="morph-note">
+        This one button changes with the line: idle it reads <code>Build this feature</code>,
+        while a run is moving it reads <code>Watch live</code>. At the gate it becomes the decision above.
+      </p>
+    </section>
+
+    <!-- ============ tickets riding the line ============ -->
+    <section class="riders" aria-label="Child tickets">
+      <h3>Tickets on the line</h3>
+      <p class="rlede">Four tickets, one line. Each rides to its own station.</p>
+
+      <!-- TKT-002 done / terminus -->
+      <div class="rider">
+        <span class="rid">TKT-002</span>
+        <span class="rtitle">Pricing page with plan cards</span>
+        <div class="mini" aria-hidden="true">
+          <span class="mseg traveled"></span><span class="mdot passed"></span>
+          <span class="mseg traveled"></span><span class="mdot passed"></span>
+          <span class="mseg traveled"></span><span class="mdot passed"></span>
+          <span class="mseg traveled"></span><span class="mdot term"></span>
+        </div>
+        <span class="rstate done">done</span>
+      </div>
+
+      <!-- TKT-003 reviewing / at review -->
+      <div class="rider">
+        <span class="rid">TKT-003</span>
+        <span class="rtitle">Stripe checkout session</span>
+        <div class="mini" aria-hidden="true">
+          <span class="mseg traveled"></span><span class="mdot passed"></span>
+          <span class="mseg traveled"></span><span class="mdot passed"></span>
+          <span class="mseg traveled"></span><span class="mdot here"></span>
+          <span class="mseg ahead"></span><span class="mdot ahead"></span>
+        </div>
+        <span class="rstate review">reviewing</span>
+      </div>
+
+      <!-- TKT-004 building / at build -->
+      <div class="rider">
+        <span class="rid">TKT-004</span>
+        <span class="rtitle">Webhook: activate subscription</span>
+        <div class="mini" aria-hidden="true">
+          <span class="mseg traveled"></span><span class="mdot passed"></span>
+          <span class="mseg traveled"></span><span class="mdot here"></span>
+          <span class="mseg ahead"></span><span class="mdot ahead"></span>
+          <span class="mseg ahead"></span><span class="mdot ahead"></span>
+        </div>
+        <span class="rstate build">building</span>
+      </div>
+
+      <!-- TKT-005 backlog / before plan -->
+      <div class="rider">
+        <span class="rid">TKT-005</span>
+        <span class="rtitle">Customer portal link</span>
+        <div class="mini" aria-hidden="true">
+          <span class="mdot pre"></span>
+          <span class="mseg ahead"></span><span class="mdot ahead"></span>
+          <span class="mseg ahead"></span><span class="mdot ahead"></span>
+          <span class="mseg ahead"></span><span class="mdot ahead"></span>
+        </div>
+        <span class="rstate backlog">backlog</span>
+      </div>
+    </section>
+
+    <!-- legend -->
+    <div class="legend" aria-hidden="true">
+      <span class="li"><span class="g passed"></span> passed</span>
+      <span class="li"><span class="g gate"></span> at the gate — waiting on you</span>
+      <span class="li"><span class="g ahead"></span> ahead</span>
+      <span class="li"><span class="g term"></span> terminus — merged</span>
+    </div>
+  </main>
+</body>
+</html>

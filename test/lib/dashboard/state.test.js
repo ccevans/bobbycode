@@ -2,7 +2,10 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { WorkspaceStore, newWorkspace, makeWorkspaceId, WORKSPACE_STATUSES } from '../../../lib/dashboard/state.js';
+import {
+  WorkspaceStore, newWorkspace, newRepoRun, isRepoRun,
+  makeWorkspaceId, makeRepoRunId, WORKSPACE_STATUSES,
+} from '../../../lib/dashboard/state.js';
 
 describe('WorkspaceStore', () => {
   let tmpDir;
@@ -176,5 +179,39 @@ describe('WorkspaceStore', () => {
       'idle', 'running', 'awaiting_approval', 'ready_to_merge',
       'merged', 'failed', 'stopped', 'unknown',
     ]));
+  });
+
+  // TKT-014: a repo run is the same record with a different `kind`. The nulls
+  // are load-bearing — every worktree verb reads them — so they are pinned here
+  // rather than left to whatever the orchestrator happened to pass.
+  test('newRepoRun is kind repo with no ticket, worktree or branch', () => {
+    const run = newRepoRun({ id: 'repo-ux-abc', agent: 'ux' });
+
+    expect(run).toMatchObject({
+      id: 'repo-ux-abc',
+      kind: 'repo',
+      ticketId: null,
+      worktreePath: null,
+      branch: null,
+      agent: 'ux',
+      status: 'idle',
+    });
+    expect(isRepoRun(run)).toBe(true);
+  });
+
+  test('a workspace is kind worktree, and a record predating the field reads as one', () => {
+    const ws = newWorkspace({ id: 'w', ticketId: 'T', worktreePath: '/x', branch: 'b' });
+
+    expect(ws.kind).toBe('worktree');
+    expect(isRepoRun(ws)).toBe(false);
+    // What load() returns for state written before `kind` existed.
+    expect(isRepoRun({ id: 'w', ticketId: 'T', worktreePath: '/x' })).toBe(false);
+    expect(isRepoRun(null)).toBe(false);
+  });
+
+  test('makeRepoRunId names the agent, not a ticket', () => {
+    const a = makeRepoRunId('ux');
+    expect(a).toMatch(/^repo-ux-/);
+    expect(a).not.toBe(makeRepoRunId('ux'));
   });
 });

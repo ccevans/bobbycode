@@ -22,10 +22,18 @@ Then follow the skill's pre-flight and review process.
 - Write `review.md` in the ticket directory with your full review artifact (see skill for format)
 - If you made any changes (lint fixes, debug cleanup, minor corrections): `git add` and `git commit` with `TKT-{ID}: review fixes`
 - If you discovered anything non-obvious or a pattern future reviews should catch: `bobby learn bobby-review "pattern" "description"`
-- If approved: `bobby ticket move {ID} test` then output `<bobby:done ticket="{ID}" stage="testing" />`
-- If approved with notes: `bobby ticket move {ID} test` then output `<bobby:done ticket="{ID}" stage="testing" />`
+- If approved (with or without notes): hand the ticket on — see Handoff below
 - If rejected: `bobby ticket move {ID} reject "specific feedback"` then output `<bobby:done ticket="{ID}" stage="building" />`
 - If blocked: `bobby ticket move {ID} block "reason"` then output `<bobby:done ticket="{ID}" stage="blocked" />`
+
+## Handoff
+
+Approval is the only forward step, and your task prompt names the stage it goes to.
+Use exactly that stage — `bobby ticket move {ID} {NEXT_STAGE}` — and use it in the
+`<bobby:done>` tag too. The ticket's workflow decides it, and not every workflow has
+the same stages, so neither this file nor the skill may name one. If either does, your
+task prompt wins. If no stage is named there, leave the stage alone and report your
+verdict. Rejection and blocking are not workflow-relative — those stay as written above.
 
 ## Project overrides
 

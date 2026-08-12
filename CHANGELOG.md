@@ -79,6 +79,27 @@ All notable changes to Bobby are documented here. The format is based on
   stage invariants (rank, color, workflow mapping for every stage) are enforced
   by tests so a future pipeline can't reintroduce the gap. The design pipeline
   also gained its missing `bobby do` routing entry and CLAUDE.md rows.
+- **`bobby app` — the Bobby App (Pro), with the classic dashboard staying free.**
+  One command, two tiers, no hostages: without a Pro key, `bobby app` (and
+  `bobby dashboard`, now an alias) serves the classic dashboard exactly as
+  before — free forever, as published. With Bobby Pro, the same command serves
+  the App: Home with the brief, one "Do this next" button (the same brain as
+  `bobby go`, via new `POST /api/go`), the amber needs-you queue
+  (Approve / Send back / Look first), a ticket Board, and live workspace logs
+  with the diff a tap away. Nothing runs without a confirm sheet naming exactly
+  what will run. The App UI ships in `@bobbycode/pro-dashboard` via
+  `bobby pro install` — never in this MIT package, because a license check on
+  MIT-licensed files would be theatre. Classic stays reachable at `/classic/`
+  when the App is active. `BOBBY_APP_DIR` overrides the UI location for
+  development.
+  - New loop API for the App (MIT, also serves the classic UI and the relay):
+    `GET /api/brief`, `POST /api/go`, ticket writes
+    (`POST /api/tickets`, `/move` with reject/block/unblock aliases, `PATCH`,
+    `/comments`), `GET /api/workflows`, `GET /api/config`.
+  - Fixed: a workspace's recorded workflow (`pipeline: 'quick'`) was ignored —
+    approve() always advanced through the server-default workflow.
+  - Fixed: an EventSource opened during page load kept the window load event
+    (and the tab spinner) hanging forever.
 - **`bobby remote` — run your team from your phone.** Starts the dashboard on a
   loopback-only ephemeral port, then opens ONE outbound, end-to-end-encrypted
   WebSocket to a relay; scan the printed QR (or paste the code) and the Bobby HQ
@@ -196,6 +217,26 @@ All notable changes to Bobby are documented here. The format is based on
   nothing decoded `%2f` into a separator.)
 
 ### Fixed
+- **Out of the box, the app's agents could not write anything.** No permission
+  mode was set, and for a headless `claude -p` that means "ask before writing"
+  with nobody there to answer. Measured on a real run: 88 turns, 9m14s, $2.97,
+  zero files written, ticket never moved — and exit code 0, so the app reported
+  it as a finished stage. Three changes, all of which matter separately:
+  - **Posture is now set per kind of run**, because the two kinds are not
+    equally risky. `dashboard.worktree_permission_mode` (default
+    `bypassPermissions`) covers ticket runs, which happen in a throwaway git
+    worktree — that copy *is* the sandbox. `dashboard.repo_permission_mode`
+    (default `acceptEdits`) covers freeform runs (`ux`, `arch`, `docs`, `ship`,
+    …), which work in your real checkout, where that reasoning does not apply:
+    edits go through, arbitrary commands do not. Both are overridable; the older
+    single `permission_mode` still works and overrides both.
+  - **An agent that is being refused is now stopped** after three refusals,
+    with a message naming the config key — instead of retrying for nine minutes.
+  - **A run that changed nothing is no longer recorded as `completed`.** A
+    worktree run that exits cleanly having moved no stage and left its branch on
+    the same commit is recorded as `no_op`, on both the run and the workspace,
+    with a message naming the likely cause. Repo runs are exempt — several of
+    those agents are supposed to write nothing.
 - **Scaffolded agents and skills referenced `CLAUDE.md` literally**, so on any
   non-Claude-Code target they pointed at a file that is never written — most
   importantly `bobby-build` and `bobby-ship`, whose "follow the Safety Rules in

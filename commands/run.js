@@ -154,7 +154,7 @@ Modes:
           }
           steps.push(`Load and follow \`${rel}\`. If \`${agentsPath}/${customAgent}.local.md\` exists, read it too — it wins on any conflict.`);
           if (ticketIds.length > 0) {
-            steps.push(`The ticket is \`${config.tickets_dir}/${ticketIds[0]}*/ticket.md\`. When done, update its stage per the agent file's instructions.`);
+            steps.push(`The ticket is \`${ticketsDir}/${ticketIds[0]}*/ticket.md\`. When done, update its stage per the agent file's instructions.`);
           }
           built = {
             label: customAgent,
@@ -167,7 +167,11 @@ Modes:
             built = buildPromptFor(agent, ticketIds, {
               config,
               ticketsDir,
-              ticketsRelDir: config.tickets_dir,
+              // Same resolved absolute dir the lookup uses. On the CLI path cwd
+              // usually IS the main checkout, so the relative path happened to
+              // work — but the prompt may be pasted into an agent running
+              // elsewhere, and one behaviour beats two (TKT-052).
+              ticketsPath: ticketsDir,
               agentsPath,
               workflow: pipeline,
               maxRetries,

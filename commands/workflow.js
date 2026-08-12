@@ -1,13 +1,12 @@
 // commands/workflow.js
 import { readConfig, writeConfig, findProjectRoot } from '../lib/config.js';
-import { BUILT_IN_WORKFLOWS } from '../lib/workflow.js';
+import { BUILT_IN_WORKFLOWS, STAGE_MAP } from '../lib/workflow.js';
 import { success, error, bold, dim } from '../lib/colors.js';
 
-const STAGE_MAP = {
-  plan: 'planning', build: 'building', review: 'reviewing',
-  test: 'testing', ship: 'shipping', security: 'reviewing', debug: 'building',
-};
-
+// Imported, never re-declared. A second copy of STAGE_MAP lived here and had
+// already drifted — it never learned the design-* steps, so `workflow add`
+// rejected steps the resolver accepts, and it would have missed the TKT-049
+// security fix too. One map, one source of truth.
 const VALID_STEPS = Object.keys(STAGE_MAP);
 
 function validateSteps(steps) {

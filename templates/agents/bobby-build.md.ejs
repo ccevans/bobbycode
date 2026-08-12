@@ -23,7 +23,7 @@ Read these files in parallel to minimize startup time:
 3. The ticket's `ticket.md`, `plan.md`, and `test-cases.md`
 
 Then sequentially:
-4. **Resume check** — If `.bobby/tickets/{ID}*/progress.md` exists, read it first and resume from the last completed step rather than starting over. Delete `progress.md` after `bobby ticket move {ID} review`.
+4. **Resume check** — If `.bobby/tickets/{ID}*/progress.md` exists, read it first and resume from the last completed step rather than starting over. Delete `progress.md` once you have handed the ticket on.
 5. **Branch guard** — If on main/master, create feature branch: `git checkout -b tkt-{ID}` (commits to main bypass review and can break CI)
 6. Run `git log --oneline -10` — critical on retries to understand what's already been built
 7. Check for rejection comments — if retrying, read the feedback first
@@ -40,8 +40,16 @@ Follow the Safety Rules in `<%= paths.rules %>`. In particular:
 - Run tests and lint — show the output as evidence
 - **Commit ALL changed files** — `git add` all source files, `git commit` with `TKT-{ID}: {summary}`. Do NOT leave uncommitted changes.
 - If you discovered anything non-obvious or a pattern future builds should avoid: `bobby learn bobby-build "pattern" "description"`
-- `bobby ticket move {ID} review`
-- Output: `<bobby:done ticket="{ID}" stage="reviewing" />`
+- Hand the ticket on — see Handoff below
+- Output: `<bobby:done ticket="{ID}" stage="{NEXT_STAGE}" />`
+
+## Handoff
+
+Your task prompt names the stage to move the ticket to when you finish. Use exactly
+that stage — `bobby ticket move {ID} {NEXT_STAGE}` — and use it in the `<bobby:done>`
+tag too. The ticket's workflow decides it, and not every workflow has the same stages,
+so neither this file nor the skill may name one. If either does, your task prompt wins.
+If no stage is named there, leave the stage alone and report what you finished.
 
 ## Project overrides
 

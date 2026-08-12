@@ -248,10 +248,15 @@ export function registerSprint(program) {
         const sessionsDir = resolveSessionsDir(root, config);
         const sessionId = initSession(sessionsDir, { ticketIds, agent: 'sprint', pipeline: (d.workflow || d.pipeline) || 'default' });
 
-        const sprintPlanPath = `${config.sprints_dir}/${path.basename(sprint.path)}/sprint-plan.md`;
+        // Absolute, main-rooted — same reason as ticketsDir below (TKT-052/053).
+        // A sprint runs in an isolated worktree forked from main, so a plan
+        // created on a feature branch is not there under a relative path.
+        const sprintPlanPath = path.join(sprintsDir, path.basename(sprint.path), 'sprint-plan.md');
         const prompt = buildSprintPrompt(d, sprintTickets, pipeline, {
           maxRetries,
-          ticketsDir: config.tickets_dir,
+          // Absolute, main-rooted: a sprint runs in an isolated worktree, which
+          // does not contain tickets created on a feature branch (TKT-052).
+          ticketsDir,
           maxIterations,
           agentsPath,
           hasServices,

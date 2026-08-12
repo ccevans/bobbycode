@@ -47,5 +47,238 @@
   decided: "2026-08-09"
   ticket: TKT-023
   why: "One frontend serves the desktop and the phone (TKT-023) precisely because the views cannot tell which side of the seam they are on. HQ's separate frontend existed only because this seam did not — any transport-observable difference recreates the drift the seam was built to end."
+- id: worktree-per-workspace
+  fact: "Every dashboard/app workspace runs in its own git worktree on its own branch; nothing an agent does touches the main checkout until an explicit merge."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "Parallel agents in one checkout collide on the index and on each other's edits. Isolation also means every run produces a reviewable branch diff instead of unreviewable in-place changes, which is what the approve gate reviews. Evidence: lib/dashboard/worktree.js header; Orchestrator.createWorkspace."
+  supersedes: null
+  invalidated: null
+
+- id: worktrees-fork-from-main
+  fact: "Workspace worktrees are always created from the repo's main/master branch, never from the branch you are standing on."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "Orchestrator.createWorkspace calls createWorktree without baseBranch, so detectMainBranch(repoRoot) decides. It makes every workspace diff comparable against one base — and it means unmerged work (including .bobby/architecture-wakeup.md itself) is invisible to every agent the app launches until it lands on main."
+  supersedes: null
+  invalidated: null
+
+- id: tickets-resolve-to-main-worktree
+  fact: "resolveTicketsDir and resolveSessionsDir always redirect to the MAIN worktree's copy, whatever directory the command was invoked from."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "One board per repository. Without it, every worktree would fork the ticket board and IDs would collide. The cost is a real trap: `bobby ticket create` run inside a worktree writes to the main checkout's branch, and `bobby ticket move` cannot reach an agent that is re-reading its own worktree copy. Evidence: lib/config.js findMainWorktreeRoot / resolveTicketsDir."
+  supersedes: null
+  invalidated: null
+
+- id: stage-advance-is-the-success-signal
+  fact: "An agent run counts as successful only when it exits 0 AND the ticket's stage in the worktree differs from the workspace's recorded stage; a clean exit with no stage change returns the workspace to idle."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "The executor stream is passed through untouched and nothing downstream inspects it, so exit code is the only signal the CLI gives — and an agent that did nothing also exits 0. Reading the stage off disk is the one check that distinguishes work from a no-op. Evidence: Orchestrator._onExit; executor.js header."
+  supersedes: null
+  invalidated: "2026-08-08"
+
+- id: orchestrator-reads-tickets-from-the-shared-board
+  fact: "The orchestrator reads every ticket through the resolved, main-worktree-rooted tickets dir (`this.ticketsDir`) — prompt building, the existence check, feature children, and the stage re-read on exit. A worktree's own .bobby/tickets is never consulted. A run is successful only when it exits 0 AND the ticket's stage ON THAT SHARED BOARD differs from the workspace's recorded stage."
+  decided: "2026-08-08"
+  ticket: TKT-051
+  why: "Tickets are shared state; worktrees isolate CODE only. That is not a new choice — resolveTicketsDir has always redirected to the main checkout, so `bobby ticket move` run inside a worktree writes there and an agent has no way to write its own worktree's copy. The orchestrator contradicted it in two places and both were bugs. Reading the worktree when BUILDING the prompt meant any ticket not merged to main threw `Ticket X not found` — i.e. every ticket created on a feature branch, the normal way anyone works. Reading it when DETECTING advancement was worse and silent: the copy is a checkout frozen at fork time, so stageAdvanced was always false for a real run, awaiting_approval was unreachable, and the approve → next-agent chain had never once fired outside tests whose stub wrote into the worktree file. The trade-off accepted: two workspaces on one ticket now see each other's stage moves, and a run's ticket state is not rolled back by discarding its worktree — the price of one board per repository, which is the same trade-off tickets-resolve-to-main-worktree already made. Evidence: Orchestrator.runAgent/_onExit/featureProgress/_requireTicket; test/lib/dashboard/orchestrator-fsm.test.js, whose fake agent now moves tickets only via moveTicket on the shared board."
+  supersedes: stage-advance-is-the-success-signal
+  invalidated: null
+
+- id: prompts-name-the-tickets-dir-absolutely
+  fact: "Every generated agent prompt names the tickets directory as the RESOLVED, main-worktree-rooted ABSOLUTE path — `ticketsPath` in buildPromptFor's ctx, supplied as `this.ticketsDir` by the orchestrator and `resolveTicketsDir(root, config)` by the CLI. Never `config.tickets_dir`. Prompts are therefore machine-specific, which is safe: they are built per run, handed to a local subprocess, and never stored or shared."
+  decided: "2026-08-08"
+  ticket: TKT-052
+  why: "TKT-051 made the orchestrator READ tickets from the shared board, so a run starts for an unmerged ticket — but buildPromptFor still received the relative `.bobby/tickets`, so step 1 of every agent prompt (\"read the ticket\") pointed at a path that does not exist in the agent's cwd. The agent's cwd is its worktree; a worktree forks from main and has no copy of a ticket created on a feature branch, so the agent started blind on exactly the tickets the app exists to run. Two alternatives were rejected. Copying the ticket folder into the worktree keeps the sandbox real but goes stale mid-run and gives the agent a second copy it can write and lose. Instructing `bobby ticket view` instead of a file path is the shape of the TKT-048 fix and was the ticket's own preference, but it is read-ONLY: bobby-plan writes plan.md and test-cases.md and bobby-build writes and deletes progress.md, and no CLI covers those writes. An absolute path is not a new hole in the isolation model — resolveTicketsDir already sends every `bobby ticket` command to the main root (tickets-resolve-to-main-worktree), so the prompt now merely states what was already true: tickets are shared state, worktrees isolate CODE only. The trade-off accepted: the sandbox boundary is advisory for the ticket folder specifically, and a prompt is no longer portable between machines. The CLI path was moved to the same absolute value even though its relative path happened to work (cwd is usually the main checkout) — one behaviour beats two. Evidence: lib/workflow.js buildPromptFor; Orchestrator.runAgent; commands/run.js, commands/sprint.js; test/lib/dashboard/orchestrator-fsm.test.js and test/e2e/lifecycle.test.js, which open the file the prompt names rather than matching its text."
+  supersedes: null
+  invalidated: null
+
+- id: approval-gate-before-next-agent
+  fact: "The next agent never starts automatically; a run that advanced a stage parks in awaiting_approval until approve() or a dashboard.auto_approve_stages entry releases it."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "Every agent run spends real tokens on the user's own Claude subscription, and a wrong plan multiplied down a workflow is expensive. The human gate is opt-out per stage, not opt-in per run. Evidence: Orchestrator._onExit / approve; the App's confirm sheet is the same guardrail on the client."
+  supersedes: null
+  invalidated: null
+
+- id: merge-mutates-the-main-checkout
+  fact: "mergeToMain stashes the main checkout, checks out main, merges --no-ff, then pops — so the main checkout changes branch and working tree for the duration of a merge."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "A no-ff merge in the real checkout is what makes the result inspectable with ordinary git afterwards, and the auto-stash stops a merge clobbering in-progress work. The consequence is a hard invariant: nothing else may read or write the main checkout while a merge runs. merge() already refuses a running workspace for this reason; TKT-014's repo runs need the same guard."
+  supersedes: null
+  invalidated: null
+
+- id: one-prompt-door
+  fact: "buildPromptFor() in lib/workflow.js is the only place an agent prompt is constructed, and executeGoAction() is the only place a brief nextAction is executed."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "The CLI and the local server are two front ends over one engine. When each built its own prompt or its own action mapping they drifted, and a stage meant something different depending on where you started it. One function each means the CLI and the app can disagree about display but never about meaning. Evidence: lib/dashboard/actions.js header."
+  supersedes: null
+  invalidated: null
+
+- id: agents-live-in-the-registry
+  fact: "A new agent is an entry in AGENT_REGISTRY with promptHeader + promptSteps; dispatch flags (requiresTicket, cowork, freeform, custom) drive everything else."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "Adding an agent used to mean touching the registry, the prompt builder, and the CLI dispatch. The generic builder collapsed that to one edit, which is why only ship/workflow/feature/next still have bespoke builders."
+  supersedes: null
+  invalidated: null
+
+- id: ticket-ids-claimed-by-mkdir
+  fact: "Ticket IDs are claimed by fs.mkdirSync on the ticket directory; EEXIST means another agent won the race and the next number is tried. .counter is a hint, repairable from directory names."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "Multiple agents create tickets concurrently (bobby-ux and bobby-pm both file findings). A read-increment-write counter loses IDs under that; mkdir is the atomic primitive the filesystem already provides. Never hand-write .counter or a ticket directory — that reintroduces the collision. Evidence: lib/counter.js."
+  supersedes: null
+  invalidated: null
+
+- id: paid-code-never-ships-in-the-mit-package
+  fact: "No paid capability's code is in bobbycode. Paid features live in separately distributed packages (@bobbycode/pro-dashboard) loaded through the plugins seam; the App UI is one of them."
+  decided: "2026-07-29"
+  ticket: arch
+  why: "Verbatim from lib/dashboard/plugins.js: gating code that ships in an MIT npm tarball is theatre — the source is on disk and `npm i bobbycode@<older>` is a version pin away. Distribution is the lock, not the license check. Corollary the code enforces: everything already published as MIT stays free forever, so a paywall may only ever be net-new content."
+  supersedes: null
+  invalidated: null
+
+- id: extension-routes-namespaced-and-fail-soft
+  fact: "Dashboard extensions may only register routes under /api/pro/, and a plugin that throws during register() is skipped with a console error rather than taking the server down."
+  decided: "2026-07-29"
+  ticket: arch
+  why: "Reserving the namespace means a future core route can never collide with a paid add-on's, and core routes are registered first so they always win the match. Fail-soft because a paid add-on must never be able to break the free dashboard the user is entitled to. Evidence: lib/dashboard/server.js plugin loop; loadDashboardPlugins never throws."
+  supersedes: null
+  invalidated: null
+
+- id: local-server-is-loopback-and-unauthenticated
+  fact: "The dashboard/app HTTP server has no authentication and binds 127.0.0.1 by default; binding elsewhere prints an explicit warning."
+  decided: "2026-07-24"
+  ticket: arch
+  why: "Every /api/* verb can start an agent with write access to the repo, so reachability IS authorization. Rather than build an auth system for a single-user local tool, the surface is kept on loopback and the phone case is solved by an outbound encrypted tunnel instead of by opening a port. Evidence: commands/app.js host warning."
+  supersedes: null
+  invalidated: null
+
+- id: relay-is-a-dumb-pipe
+  fact: "bobby remote opens ONE outbound WebSocket; every frame is AES-256-GCM under a key delivered out of band inside the pairing code, and the tunnel accepts only GET/POST on /^\\/api\\/[A-Za-z0-9\\/_.-]*$/. Inference never leaves the user's machine or subscription."
+  decided: "2026-07-31"
+  ticket: arch
+  why: "The channel can run agents on the user's machine, so the relay operator must not be a party you have to trust. No handshake, no accounts, nothing stored server-side; a frame that fails authentication is dropped in silence so a prober learns nothing. Nothing listens on the network, so NAT stays closed. Evidence: lib/remote/crypto.js and tunnel.js headers."
+  supersedes: null
+  invalidated: null
+
+- id: pairing-key-lives-in-home-per-project
+  fact: "A remote pairing is stored at ~/.bobby/remote/<sha256(repoRoot)[:16]>.yml with mode 0600 — one channel per project root, never inside the repo."
+  decided: "2026-07-31"
+  ticket: arch
+  why: ".bobby/ is committed on purpose (tickets are meant to be shared), so a channel key placed there would eventually be pushed. Keying the file by project root also means each project gets its own channel and `--new-code` can cut old phones off one project at a time. Evidence: lib/remote/pairing-store.js."
+  supersedes: null
+  invalidated: null
+
+- id: overlay-shipped-vs-local
+  fact: "For every scaffolded file, X.ext is Bobby's and is regenerated on upgrade; X.local.ext is the user's, seeded once and never written again. Readers must load both and let .local win."
+  decided: "2026-07-27"
+  ticket: arch
+  why: "Upgrades used to overwrite customized skills and agent files silently, destroying work with no diff to notice. The contract is pinned by test/lib/overlay.test.js precisely because breaking it is invisible until a user's edits are already gone."
+  supersedes: null
+  invalidated: null
+
+- id: app-ui-is-light-only
+  fact: "The Bobby App UI is light-only — no dark mode and no dark panes, including the live log and the diff, which are drawn as recessed #F5F5F5 instrument panels."
+  decided: "2026-08-07"
+  ticket: TKT-010
+  why: "CC: 'I hate dark mode', and the vetted section of the spec drops dark mode entirely. The log/diff panes were argued for as instruments, but two black rectangles on an otherwise white page read as the parts nobody converted — which is what they were. #F5F5F5 over #EDEDED is a measurement, not a preference: on #EDEDED the diff's --ok lands at 4.57:1 and log context at 4.36:1, under AA. Evidence: .bobby/design/design-spec-feature-view.md."
+  supersedes: null
+  invalidated: null
+
+- id: app-motion-is-near-none
+  fact: "The App has one 120ms background-color transition on row hover. No transforms, no pulsing status dots, no shadows, no gradients, no tinted status fills."
+  decided: "2026-08-06"
+  ticket: arch
+  why: "Five reference teardowns all record 'no pulse'; pulsing was retired by construction rather than by taste. Shadows and tinted fills were dropped in the same pass — CC on the richer options: 'little too much'. Evidence: .bobby/design/design-spec-feature-view.md, Motion and Vetted sections."
+  supersedes: null
+  invalidated: null
+
+- id: app-type-floor-13px
+  fact: "Nothing in the App renders below 13px, and blue (#467AF6) is never a button fill — it means live / needs attention only."
+  decided: "2026-08-06"
+  ticket: arch
+  why: "The reference runs 12px; our floor wins, and the spec logs the consequences it forces (57px ticket rows rather than the reference's 44px) as deviations rather than silently absorbing them. Blue is the single accent and is reserved for state; primary buttons are --btn #363636. Evidence: .bobby/design/design-spec-feature-view.md, Type and Colour."
+  supersedes: null
+  invalidated: null
+
+- id: bobbycode-default-workflow-ends-at-review
+  fact: "In this repository, the `default` workflow is [plan, build, review] — the built-in trailing `test` stage is removed."
+  decided: "2026-08-05"
+  ticket: TKT-013
+  why: "bobbycode is a CLI library with no live app. The built-in test stage verifies through a running app and its skill forbids running specs, so it has nothing to observe and would strand every ticket in testing. review runs the suite independently, which is the correct verification for a library. TKT-013 tracks a built-in `library` workflow upstream so other CLI projects need no override. Evidence: .bobbyrc.yml workflows block."
+  supersedes: null
+  invalidated: null
+
+- id: workspace-stage-is-the-stage-now-in
+  fact: "`workspace.stage` means the stage the ticket is NOW IN — the stage whose agent runs next — never the stage the ticket just left. The next agent is therefore a direct lookup (the step whose stage === workspace.stage), never an index offset."
+  decided: "2026-08-08"
+  ticket: TKT-047
+  why: "Orchestrator._onExit copies the stage straight off the worktree's ticket.md, and every agent hands the ticket to the stage the NEXT agent works in (plan lands it in building, build lands it in reviewing). The two conventions were mixed: _onExit wrote 'the stage now in' while _resolveNextAgent read it as 'the stage just completed' and returned pipeline[idx + 1], which skipped an agent at every step of the default workflow and returned null after review — reporting ready-to-merge without test ever running. lib/workflow.js resolveNextAgent already did the direct lookup, so the orchestrator now delegates to it and there is one definition of the convention. Evidence: Orchestrator._resolveNextAgent; test/lib/dashboard/orchestrator-fsm.test.js."
+  supersedes: null
+  invalidated: null
+
+- id: forward-stage-comes-from-the-workflow-not-the-agent-file
+  fact: "An agent file may never name the stage it moves a ticket forward to; that stage is computed from the ticket's resolved workflow and injected into the agent's task prompt, which wins over anything the agent file or its skill says. Non-forward transitions (reject, block, done) stay as literals."
+  decided: "2026-08-08"
+  ticket: TKT-048
+  why: "A literal is only correct for `default`. On `quick` (planning -> building -> testing) a bobby-build that hardcodes `move {ID} review` parks the ticket in a stage the workflow does not contain, the stage lookup misses, and the orchestrator declares the run finished — so a quick feature never tests and still reports ready-to-merge. Same breakage for `secure` and every user workflow under `workflows:`. nextStageForAgent derives the target from the AGENT's position in the workflow rather than the ticket's current stage, so a build re-run after a rejection still targets correctly. Evidence: lib/workflow.js nextStageForAgent / buildSingleAgentPrompt; templates/agents/*.md.ejs Handoff sections."
+  supersedes: null
+  invalidated: null
+
+- id: concurrency-cap-refuses-per-server-process
+  fact: "dashboard.max_concurrent (default 4) caps agents in flight per Orchestrator — one per `bobby app`/`bobby dashboard` process serving one repo, so per project per server process. Exceeding it REFUSES the run with an error naming what is already running; it never queues."
+  decided: "2026-08-08"
+  ticket: TKT-015
+  why: "Every running agent is a CLI subprocess spending real tokens on the user's own subscription, and a mis-click on a large epic could start ten. A queue is worse than a refusal here: it starts work minutes later, unattended, after the user has forgotten they asked. Refusal keeps the human in the loop, so the message names the holders of the slots and the config key to raise. Known gap: nothing coordinates across processes, so two servers on the same repo each get their own budget. Evidence: Orchestrator._assertConcurrencyHeadroom; surfaced as a 400 through POST /api/workspaces/:id/run."
+  supersedes: null
+  invalidated: null
+
+- id: main-checkout-guarded-by-a-lock-file
+  fact: "Anything that touches the main checkout's working tree takes an exclusive lock at `.bobby/main-checkout.lock` — repo runs (kind 'repo', no worktree) and merges (mergeToMain stashes and swaps branches there). Ordinary worktree runs never take it. The lock is reclaimed when EITHER the holder's pid is dead on this host OR the record is older than 6 hours; failure to acquire is a refusal naming the holder, never a queue."
+  decided: "2026-08-08"
+  ticket: TKT-014
+  why: "TKT-014 gave freeform agents (ux, pm, qe, docs, arch, ship, design-*, performance, watchdog) a path through the app, and they have no worktree — they work in the main checkout, which is exactly the directory mergeToMain stashes, checks out main in, and merges into (`merge-mutates-the-main-checkout`). Overlap is not a glitch, it is an agent's half-written files being stashed and the branch swapped underneath it. A file rather than an in-process mutex because Bobby is a CLI AND an app: a module-level guard is scoped to one Node process, so it cannot see a second `bobby app` serving the same repo. That does not close the gap `concurrency-cap-refuses-per-server-process` records — two servers still get two token budgets — but it does coordinate across processes the one case where a collision corrupts a working tree rather than merely costing money. Same reasoning that made ticket IDs an atomic `mkdir` claim rather than an in-memory counter. BOTH staleness checks are needed and neither alone: pid liveness reclaims the lock the instant a crashed holder dies, so a `kill -9` does not cost the repo for hours, but it means nothing for a lock written by another host and can be fooled by pid reuse — the age ceiling is the backstop for exactly those two. The recorded pid is the SERVER's, not the agent subprocess's, because the server is what will release it. Worktree runs are deliberately outside the lock: they never touch the main checkout, and blocking them would make the app feel broken for its main case. Two known limitations, both accepted rather than missed. (1) `bobby run ux` on the CLI only PRINTS a prompt and exits, so it cannot hold the lock for the agent a human then runs — the lock covers what Bobby itself launches. (2) Taking a FREE lock is atomic (`wx` creates only if absent, so exactly one of two racers wins); RECLAIMING a stale one is not, because read-judge-delete-create has a window in which two processes can reach the same verdict about the same corpse. Closing it needs an acquire that can wait and re-verify, i.e. an async lock, to protect a case that only arises after something died holding it. Evidence: lib/dashboard/main-checkout-lock.js; Orchestrator._runInMainCheckout and merge; test/lib/dashboard/repo-run.test.js."
+  supersedes: null
+  invalidated: null
+
+- id: repo-runs-have-no-worktree-so-worktree-verbs-mean-something-else
+  fact: "A repo run is `kind: 'repo'` on the same workspace record. diff/files read the main checkout's working tree against HEAD instead of a branch against main; merge, approve, reject and featureProgress refuse with a reason; discard drops the record ONLY and never reverts the edits; and no checkpoint commit is ever made."
+  decided: "2026-08-08"
+  ticket: TKT-014
+  why: "Each verb was decided, not defaulted. Checkpointing is the sharpest: commitCheckpoint runs `git add -A && git commit`, harmless bookkeeping in a throwaway worktree but a sweep of the user's unrelated in-progress work into a commit on whatever branch they are standing on if aimed at the main checkout. discard is the second: the run's output IS the working tree now, so a 'discard' that reverted it would be a delete button disguised as a cleanup. merge/approve/reject/featureProgress have no meaning without a branch or a ticket and say so, because a route that throws a stack trace teaches the user nothing. diff/files DO have a meaning — the same question asked of the only place the work exists — so they answer it rather than refuse; untracked files are listed with null counts because `git diff` cannot show content git has never seen and `add -N` would mutate the user's index to fake it. `kind` is an explicit field: nothing infers repo-ness from a null worktreePath, and records written before it existed default to 'worktree', which is what they all were. Evidence: lib/dashboard/state.js newRepoRun/isRepoRun; Orchestrator._onRepoRunExit, discard, getDiff."
+  supersedes: null
+  invalidated: null
+
+- id: auto-sync-scoped-paths
+  fact: "autoSync stages only caller-declared paths, not all Bobby-managed paths."
+  decided: "2026-08-08"
+  ticket: TKT-061
+  why: >
+    autoSync previously staged all Bobby-managed paths (getBobbyPaths), which
+    silently committed unrelated in-flight work by other agents. New callers must
+    declare which files they wrote. Forgetting to pass a path means that file
+    won't be auto-committed — preferable to sweeping up someone else's work.
+  supersedes: null
+  invalidated: null
+
+- id: permission-posture-differs-by-run-kind
+  fact: "Permission posture is set per KIND of run, never once for both. `dashboard.worktree_permission_mode` defaults to 'bypassPermissions' for ticket runs, which happen inside a throwaway git worktree; `dashboard.repo_permission_mode` defaults to 'acceptEdits' for repo runs, which happen in the user's real checkout. Either is overridable, an explicit value always wins, and a null in the config counts as unset. The older single `permission_mode` still overrides both when set."
+  decided: "2026-08-08"
+  ticket: TKT-062
+  why: "Shipping ONE key meant shipping one wrong answer. Unset, `claude -p` asks before writing, and a headless subprocess has nobody to ask: a real run spent 88 turns, 9m14s and $2.97 being refused, wrote nothing, never moved the ticket, and exited 0. `acceptEdits` got further and still failed — the agent could write but not run bash, so instead of `bobby ticket move` it hand-edited ticket.md inside its own worktree, which the orchestrator correctly ignores (orchestrator-reads-tickets-from-the-shared-board). Only `bypassPermissions` completed plan -> awaiting_approval -> build. THE ASYMMETRY IS THE DECISION, and it is the thing a future agent will most want to 'simplify' back into one setting: a WORKTREE run is safe at bypassPermissions BECAUSE of the isolation — worktree-per-workspace makes that copy disposable, so a wrong agent costs a deleted directory and the main checkout never saw it. A REPO run (TKT-014: ux, arch, docs, ship, …) has no worktree at all; it edits the main checkout by design, so none of that reasoning transfers and the same value there would be granting an unattended agent a shell in the user's real tree. Edits are the line drawn: git can review and revert a file the agent wrote, it cannot undo an arbitrary command. The accepted cost is that a repo agent needing a shell — ship, for one — does not work until the user raises the key on purpose, and the app says so instead of failing silently. Collapsing these back into one key reintroduces either the silent no-op (too strict for worktrees) or an unattended shell in the user's checkout (too loose for repo runs). Evidence: resolvePermissionMode in lib/dashboard/executor.js; DEFAULTS.dashboard in lib/config.js; Orchestrator._launch; test/lib/dashboard/permissions.test.js."
+  supersedes: null
+  invalidated: null
+
+- id: a-run-that-changed-nothing-is-not-completed
+  fact: "A worktree run that exits 0 having moved no stage AND left its branch on the same commit it started on is recorded as `no_op`, not `completed` — on the run record and on the workspace — with a message naming permission posture and the config key. Three refusals in the executor stream stop the run outright. Repo runs are exempt from the no-op verdict, and 'cannot tell' never counts as 'nothing'."
+  decided: "2026-08-08"
+  ticket: TKT-062
+  why: "Exit 0 with is_error false is indistinguishable from success at the orchestrator boundary, which is the only reason a $2.97 no-op could be displayed as a finished stage for nine minutes. The head-sha comparison is the check an exit code cannot fake, and it is taken AFTER the checkpoint commit so that work the agent left uncommitted and work it committed itself both count — 'nothing was committed just now' would have called every build agent a no-op. 'no_op' is its own status rather than a flavour of 'failed' precisely because this bug was invisible while a clean exit meant success: 'failed' is a CLI that blew up and says so, 'no_op' is a CLI that reported success and achieved nothing; different causes, different fixes. Repo runs are excluded on purpose — ux, pm and qe are SUPPOSED to write nothing, their output is the report in the log, so a blanket verdict there would cry wolf on every review, and there is no branch of their own to judge. When git cannot say where the branch stood, the verdict is 'not a no-op': a missed no-op costs what the status quo cost, a wrong one tells a user their working agent did nothing. Only clean exits are judged, so a run stopped for refusals keeps the more specific refusal message rather than having it overwritten. Evidence: Orchestrator._producedNothing/_noOpReason/_notePermissionDenial; runOutcome in lib/dashboard/state.js; PERMISSION_DENIAL_PATTERNS in executor.js, taken verbatim from the refusals in .bobby/sessions/ses-20260808-192056.jsonl."
   supersedes: null
   invalidated: null
