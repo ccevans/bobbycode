@@ -401,3 +401,72 @@ describe('commandExists', () => {
     expect(commandExists(undefined)).toBe(false);
   });
 });
+
+// TKT-021: --resume flag passthrough for conversational planning.
+describe('executor --resume (TKT-021)', () => {
+  test('TC-1: passes --resume when resume option is set (claude)', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({
+      worktreePath: '/tmp/test',
+      prompt: 'hello',
+      sessionId: 'ses-test',
+      resume: 'ses-abc123',
+      spawn,
+    });
+    spawn.child.emit('exit', 0, null);
+    await handle.done;
+    const [, args] = spawn.mock.calls[0];
+    const resumeIdx = args.indexOf('--resume');
+    expect(resumeIdx).toBeGreaterThanOrEqual(0);
+    expect(args[resumeIdx + 1]).toBe('ses-abc123');
+  });
+
+  test('TC-2: omits --resume when not set', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({
+      worktreePath: '/tmp/test',
+      prompt: 'hello',
+      sessionId: 'ses-test',
+      spawn,
+    });
+    spawn.child.emit('exit', 0, null);
+    await handle.done;
+    const [, args] = spawn.mock.calls[0];
+    expect(args).not.toContain('--resume');
+  });
+
+  test('--resume is placed after -p for claude executor', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({
+      worktreePath: '/tmp/test',
+      prompt: 'hello',
+      sessionId: 'ses-test',
+      resume: 'ses-abc123',
+      executor: 'claude',
+      spawn,
+    });
+    spawn.child.emit('exit', 0, null);
+    await handle.done;
+    const [, args] = spawn.mock.calls[0];
+    const pIdx = args.indexOf('-p');
+    const resumeIdx = args.indexOf('--resume');
+    expect(pIdx).toBeGreaterThanOrEqual(0);
+    expect(resumeIdx).toBeGreaterThan(pIdx);
+  });
+
+  test('--resume is not added for cursor-agent executor', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({
+      worktreePath: '/tmp/test',
+      prompt: 'hello',
+      sessionId: 'ses-test',
+      resume: 'ses-abc123',
+      executor: 'cursor-agent',
+      spawn,
+    });
+    spawn.child.emit('exit', 0, null);
+    await handle.done;
+    const [, args] = spawn.mock.calls[0];
+    expect(args).not.toContain('--resume');
+  });
+});
