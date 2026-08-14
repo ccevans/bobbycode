@@ -17,7 +17,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { execSync } from 'child_process';
-import { buildPromptFor, DEFAULT_WORKFLOW } from '../../../lib/workflow.js';
+import { buildPromptFor, buildOrchestrationPrompt, buildFeaturePrompt, buildSingleAgentPrompt, DEFAULT_WORKFLOW } from '../../../lib/workflow.js';
 import { createTicket, moveTicket, findTicket } from '../../../lib/tickets.js';
 import { findProjectRoot, resolveTicketsDir } from '../../../lib/config.js';
 
@@ -76,17 +76,31 @@ function realTicketPath(ticketsDir, id) {
   return path.join(ticketsDir, dir, 'ticket.md');
 }
 
-// Every backticked board PATH the prompt hands the agent to read/re-read. The
-// slash requirement is deliberate: it captures full paths the agent resolves on
-// its own (dir + glob + ticket.md) and skips bare prose filenames like
-// "read the ticket's ticket.md from <ticketsDir>", where the absolute dir is
-// already supplied alongside.
-function extractBoardPaths(prompt) {
-  const re = /`([^`]*\/(?:ticket|plan|test-cases|feature-map|personas)\.md)`/g;
-  const out = [];
-  let m;
-  while ((m = re.exec(prompt)) !== null) out.push(m[1]);
-  return out;
+// A sentinel absolute board dir. Prompts are rendered with this, then every
+// INSTRUCTION that tells the agent to read/re-read/verify a board file must
+// carry the sentinel — proving an absolute path was supplied for it. This is
+// the guard the earlier version lacked: the old extractor REQUIRED a slash, so
+// it silently skipped exactly the bare `ticket.md` refs that cause the bug
+// (R1/R2 in review) — a test that could never fail on the thing it guarded.
+const ABS = '/SENTINEL_STUDIO/.bobby/pro/tickets';
+
+// The board files an agent is ever told to consult. The negative lookbehind
+// excludes agent files — `.claude/agents/bobby-plan.md` contains "plan.md" but
+// is code shipped in every worktree, not a board file, so it is never an
+// offender (a preceding word-char or hyphen means it's part of a longer name).
+const BOARD_FILE = /(?<![\w-])(ticket|plan|test-cases|feature-map|personas)\.md\b/;
+const READ_VERB = /\b(read|re-read|verify|created in|load)\b/i;
+
+/**
+ * Every line of the prompt that instructs the agent to READ a board file but
+ * does NOT carry an absolute (sentinel-rooted) path — i.e. a bare/relative ref
+ * the agent would resolve against its worktree cwd. A non-empty result is a bug.
+ */
+function bareBoardReads(prompt) {
+  return prompt.split('\n').filter((line) => {
+    if (!BOARD_FILE.test(line) || !READ_VERB.test(line)) return false;
+    return !line.includes(ABS);   // no absolute path on the same instruction
+  });
 }
 
 describe('PRO-026: a studio agent run reads its ticket and writes to the studio board', () => {
@@ -101,29 +115,40 @@ describe('PRO-026: a studio agent run reads its ticket and writes to the studio 
     try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* best-effort */ }
   });
 
-  // TC8 — every board path handed to the agent is absolute + tree-independent.
-  test('TC8: every board path in the workflow prompt is absolute and rooted at the studio', () => {
-    const { studioRoot, ticketsDir, productDir, worktreePath, id, config } = makeStudioRun(tmp);
+  // TC8 — NO prompt an agent runs on a studio ticket may contain a bare board
+  // read. Covers all three builders that hand board paths to a worktree-isolated
+  // agent: the workflow orchestration prompt, the single-agent prompt (with the
+  // product hint), and the FEATURE prompt (where R1 hid — its Phase 1 was bare
+  // while its Phase 2 was absolute). Rendered with the ABS sentinel so a bare
+  // ref stands out as a line missing it. Reverting any of the four fixes puts a
+  // bare read back and turns this red.
+  test('TC8: no prompt for a studio agent contains a bare board read', () => {
+    // Pure prompt-string guard — call the builders directly with the absolute
+    // sentinel board dir. buildOrchestrationPrompt (not buildPromptFor) so no
+    // filesystem ticket-existence check stands between us and the string.
+    const workflowPrompt = buildOrchestrationPrompt(['TKT-001'], DEFAULT_WORKFLOW, 3, ABS, 20, '.claude/agents');
 
-    const built = buildPromptFor('workflow', [id], {
-      config,
-      ticketsDir,
-      ticketsPath: ticketsDir,   // absolute studio board
-      productDir,                // absolute studio product dir
-      agentsPath: '.claude/agents',
-      workflow: DEFAULT_WORKFLOW,
-      hasProduct: true,
-    });
+    const singleAgent = buildSingleAgentPrompt(
+      'bobby-build', 'TKT-001', ABS, '.claude/agents', false, true, 'reviewing', ABS,
+    );
 
-    const boardPaths = extractBoardPaths(built.prompt);
-    expect(boardPaths.length).toBeGreaterThan(0);
-    for (const p of boardPaths) {
-      expect(path.isAbsolute(p)).toBe(true);
-      expect(p.startsWith(studioRoot)).toBe(true);
+    const feature = buildFeaturePrompt(
+      'TKT-100', 'An epic',
+      [{ id: 'TKT-101', data: { stage: 'backlog' } }, { id: 'TKT-102', data: { stage: 'building' } }],
+      DEFAULT_WORKFLOW, 3, ABS, 20, '.claude/agents', {},
+    );
+
+    for (const [name, prompt] of [['workflow', workflowPrompt], ['single-agent', singleAgent], ['feature', feature]]) {
+      const bare = bareBoardReads(prompt);
+      expect({ prompt: name, bareReads: bare }).toEqual({ prompt: name, bareReads: [] });
     }
+  });
 
-    // With cwd at the code-repo worktree, the absolute ticket path still stats
-    // the real file — resolution does not depend on cwd.
+  // TC8b — the absolute path the prompt supplies actually resolves from the
+  // worktree cwd (resolution does not depend on cwd), the property TC8 asserts
+  // the prompt relies on.
+  test('TC8b: the absolute board path resolves from the code-repo worktree', () => {
+    const { worktreePath, ticketsDir, id } = makeStudioRun(tmp);
     process.chdir(worktreePath);
     const ticketAbs = realTicketPath(ticketsDir, id);
     expect(fs.existsSync(ticketAbs)).toBe(true);
