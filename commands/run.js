@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import inquirer from 'inquirer';
-import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir, resolveProductDir } from '../lib/config.js';
 import { getFeatureTickets, listEpics } from '../lib/tickets.js';
 import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, listWorkflows } from '../lib/workflow.js';
 import { findTicket } from '../lib/tickets.js';
@@ -97,6 +97,9 @@ Modes:
         const maxIterations = opts.maxIterations ? parseInt(opts.maxIterations, 10) : undefined;
         const hasServices = !!(config.services && Object.keys(config.services).length > 0);
         const hasProduct = fs.existsSync(path.join(root, config.bobby_dir || '.bobby', 'product', 'feature-map.md'));
+        // Absolute, main-worktree-rooted product dir so the product hint resolves
+        // from an agent whose cwd is a (possibly different-repo) worktree (PRO-026).
+        const productDir = resolveProductDir(root, config);
 
         // Initialize session for logging
         const sessionsDir = resolveSessionsDir(root, config);
@@ -178,6 +181,7 @@ Modes:
               maxIterations,
               hasServices,
               hasProduct,
+              productDir,
               epicData,
               gitConventions: config.git_conventions || {},
             });

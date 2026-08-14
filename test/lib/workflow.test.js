@@ -938,3 +938,84 @@ describe('built-in workflows are structurally sound (TKT-049)', () => {
     ]);
   });
 });
+
+// PRO-026: a studio agent runs with its cwd in a code-repo worktree while the
+// board lives at the studio root. Every board reference the orchestration
+// prompts hand the agent must be an ABSOLUTE, studio-rooted path — a relative
+// `ticket.md` resolves against the worktree, where the board does not exist, and
+// the agent fails with "File does not exist". These assert the four re-read/
+// product references are absolute when a studio board dir is threaded, and that
+// the single-repo relative default is preserved.
+describe('PRO-026: board references in orchestration prompts are absolute', () => {
+  const ABS = '/studio/.bobby/pro/tickets';
+  const PDIR = '/studio/.bobby/product';
+
+  // TC1 — coordinator "re-read … to confirm the stage advanced" is absolute.
+  test('TC1: orchestration coordinator re-read uses the absolute board path', () => {
+    const prompt = buildOrchestrationPrompt('PRO-001', DEFAULT_WORKFLOW, 3, ABS);
+    expect(prompt).toContain(`\`${ABS}/{TICKET_ID}*/ticket.md\` frontmatter to confirm the stage advanced`);
+    // The bare re-read form must be gone (absolute paths still end in ticket.md).
+    expect(prompt).not.toMatch(/re-read `ticket\.md` frontmatter/);
+  });
+
+  // TC2 — backlog-advance branch re-read is absolute.
+  test('TC2: backlog-advance re-read uses the absolute board path', () => {
+    const prompt = buildOrchestrationPrompt('PRO-001', DEFAULT_WORKFLOW, 3, ABS);
+    expect(prompt).toContain(`then re-read \`${ABS}/{TICKET_ID}*/ticket.md\` and continue with the new stage`);
+    expect(prompt).not.toMatch(/re-read `ticket\.md` and continue/);
+  });
+
+  // TC3 — sprint prompt inherits both absolute fixes (shared fragments).
+  test('TC3: sprint prompt inherits absolute coordinator + backlog re-reads', () => {
+    const prompt = buildSprintPrompt(
+      { id: 'SPR-1', name: 'Sprint One', branch: 'sprint/one' },
+      [{ id: 'PRO-001', title: 'work', stage: 'backlog', priority: 'high' }],
+      DEFAULT_WORKFLOW,
+      { ticketsDir: ABS },
+    );
+    expect(prompt).toContain(`\`${ABS}/{TICKET_ID}*/ticket.md\` frontmatter to confirm the stage advanced`);
+    expect(prompt).toContain(`then re-read \`${ABS}/{TICKET_ID}*/ticket.md\` and continue with the new stage`);
+    expect(prompt).not.toMatch(/re-read `ticket\.md`/);
+  });
+
+  // TC4 — feature prompt Phase-2 re-read is absolute.
+  test('TC4: feature prompt Phase-2 re-read uses the absolute board path', () => {
+    const prompt = buildFeaturePrompt(
+      'PRO-009', 'Epic',
+      [{ id: 'PRO-010', title: 'child', priority: 'high', stage: 'backlog' }],
+      DEFAULT_WORKFLOW, 3, ABS,
+    );
+    expect(prompt).toContain(`re-read \`${ABS}/{TICKET_ID}*/ticket.md\` frontmatter to confirm the stage advanced`);
+    expect(prompt).not.toMatch(/re-read `ticket\.md` frontmatter/);
+  });
+
+  // TC5 — product hint uses the threaded absolute product dir.
+  test('TC5: product hint uses the threaded absolute product dir', () => {
+    const prompt = buildSingleAgentPrompt(
+      'bobby-build', 'PRO-001', ABS, '.claude/agents', false, true, 'reviewing', PDIR,
+    );
+    expect(prompt).toContain(`\`${PDIR}/feature-map.md\``);
+    expect(prompt).toContain(`\`${PDIR}/personas.md\``);
+    // The relative form (backtick immediately before .bobby) must be gone.
+    expect(prompt).not.toContain('`.bobby/product/feature-map.md`');
+    expect(prompt).not.toContain('`.bobby/product/personas.md`');
+  });
+
+  // TC6 — product hint falls back to the relative default when no productDir.
+  test('TC6: product hint falls back to relative default with no productDir', () => {
+    const prompt = buildSingleAgentPrompt(
+      'bobby-build', 'PRO-001', '.bobby/tickets', '.claude/agents', false, true,
+    );
+    expect(prompt).toContain('`.bobby/product/feature-map.md`');
+    expect(prompt).toContain('`.bobby/product/personas.md`');
+  });
+
+  // TC7 — single-repo case unchanged: the relative default flows through.
+  test('TC7: single-repo default keeps the relative board re-read paths', () => {
+    const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
+    expect(prompt).toContain('`.bobby/tickets/{TICKET_ID}*/ticket.md` frontmatter to confirm the stage advanced');
+    expect(prompt).toContain('then re-read `.bobby/tickets/{TICKET_ID}*/ticket.md` and continue with the new stage');
+    // No product context threaded → no product hint at all.
+    expect(prompt).not.toContain('feature-map.md');
+  });
+});
