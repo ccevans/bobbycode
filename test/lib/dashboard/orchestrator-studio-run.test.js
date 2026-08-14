@@ -132,9 +132,13 @@ describe('PRO-026: a studio agent run reads its ticket and writes to the studio 
       'bobby-build', 'TKT-001', ABS, '.claude/agents', false, true, 'reviewing', ABS,
     );
 
+    // childTickets carry a TOP-LEVEL `stage` (not `data.stage`) — that is what
+    // buildFeaturePrompt filters `needsPlanning` on. At least one in backlog so
+    // PHASE 1 renders; the earlier fixture used the wrong shape, so Phase 1 was
+    // never in the string and the Phase-1 fixes went unguarded (review round 2).
     const feature = buildFeaturePrompt(
       'TKT-100', 'An epic',
-      [{ id: 'TKT-101', data: { stage: 'backlog' } }, { id: 'TKT-102', data: { stage: 'building' } }],
+      [{ id: 'TKT-101', stage: 'backlog' }, { id: 'TKT-102', stage: 'building' }],
       DEFAULT_WORKFLOW, 3, ABS, 20, '.claude/agents', {},
     );
 
