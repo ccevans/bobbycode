@@ -556,7 +556,11 @@ describe('workflow', () => {
     });
 
     test('Phase 1 includes sibling plan.md reading', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
+      // PRO-029: sibling paths now resolve to the on-disk folder when it exists.
+      // Point at a dir with no such folders so the glob fallback is deterministic
+      // (these fixture ids would otherwise collide with the real board). TC4 in the
+      // PRO-029 block covers the resolved case against real slugged folders.
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW, 3, '/no-such-bobby-board-pro029');
       expect(prompt).toContain('TKT-002*/plan.md');
       expect(prompt).toContain('TKT-003*/plan.md');
     });
@@ -940,53 +944,55 @@ describe('built-in workflows are structurally sound (TKT-049)', () => {
 });
 
 // PRO-026: a studio agent runs with its cwd in a code-repo worktree while the
-// board lives at the studio root. Every board reference the orchestration
-// prompts hand the agent must be an ABSOLUTE, studio-rooted path — a relative
-// `ticket.md` resolves against the worktree, where the board does not exist, and
-// the agent fails with "File does not exist". These assert the four re-read/
-// product references are absolute when a studio board dir is threaded, and that
-// the single-repo relative default is preserved.
+// board lives at the studio root. Board references the orchestration prompts hand
+// the agent must reach the studio-rooted board, not resolve against the worktree.
+// PRO-029 SUPERSEDED the re-read SITES here: the stage-confirm and backlog-advance
+// reads are no longer a `{TICKET_ID}*/ticket.md` path at all — they are now
+// `bobby ticket view {TICKET_ID}` commands, which resolve the board (and the slug)
+// cwd-independently, so PRO-026's guarantee holds via the command. These tests now
+// assert the command form and that the un-expandable glob path is gone. The
+// product-dir references (TC5/TC6) remain path-based and are still asserted absolute.
 describe('PRO-026: board references in orchestration prompts are absolute', () => {
   const ABS = '/studio/.bobby/pro/tickets';
   const PDIR = '/studio/.bobby/product';
 
-  // TC1 — coordinator "re-read … to confirm the stage advanced" is absolute.
-  test('TC1: orchestration coordinator re-read uses the absolute board path', () => {
+  // TC1 — coordinator stage-confirm read is a cwd-independent command (PRO-029).
+  test('TC1: orchestration coordinator re-read uses bobby ticket view', () => {
     const prompt = buildOrchestrationPrompt('PRO-001', DEFAULT_WORKFLOW, 3, ABS);
-    expect(prompt).toContain(`\`${ABS}/{TICKET_ID}*/ticket.md\` frontmatter to confirm the stage advanced`);
-    // The bare re-read form must be gone (absolute paths still end in ticket.md).
-    expect(prompt).not.toMatch(/re-read `ticket\.md` frontmatter/);
+    expect(prompt).toContain('re-run `bobby ticket view {TICKET_ID}` and read the `Stage:` line to confirm the stage advanced');
+    // The un-expandable glob board path must be gone entirely.
+    expect(prompt).not.toContain(`${ABS}/{TICKET_ID}*/ticket.md`);
   });
 
-  // TC2 — backlog-advance branch re-read is absolute.
-  test('TC2: backlog-advance re-read uses the absolute board path', () => {
+  // TC2 — backlog-advance branch read is a cwd-independent command (PRO-029).
+  test('TC2: backlog-advance re-read uses bobby ticket view', () => {
     const prompt = buildOrchestrationPrompt('PRO-001', DEFAULT_WORKFLOW, 3, ABS);
-    expect(prompt).toContain(`then re-read \`${ABS}/{TICKET_ID}*/ticket.md\` and continue with the new stage`);
-    expect(prompt).not.toMatch(/re-read `ticket\.md` and continue/);
+    expect(prompt).toContain('then re-run `bobby ticket view {TICKET_ID}` and continue with the new stage');
+    expect(prompt).not.toContain(`${ABS}/{TICKET_ID}*/ticket.md`);
   });
 
-  // TC3 — sprint prompt inherits both absolute fixes (shared fragments).
-  test('TC3: sprint prompt inherits absolute coordinator + backlog re-reads', () => {
+  // TC3 — sprint prompt inherits both command forms (shared fragments).
+  test('TC3: sprint prompt inherits the bobby ticket view coordinator + backlog reads', () => {
     const prompt = buildSprintPrompt(
       { id: 'SPR-1', name: 'Sprint One', branch: 'sprint/one' },
       [{ id: 'PRO-001', title: 'work', stage: 'backlog', priority: 'high' }],
       DEFAULT_WORKFLOW,
       { ticketsDir: ABS },
     );
-    expect(prompt).toContain(`\`${ABS}/{TICKET_ID}*/ticket.md\` frontmatter to confirm the stage advanced`);
-    expect(prompt).toContain(`then re-read \`${ABS}/{TICKET_ID}*/ticket.md\` and continue with the new stage`);
-    expect(prompt).not.toMatch(/re-read `ticket\.md`/);
+    expect(prompt).toContain('re-run `bobby ticket view {TICKET_ID}` and read the `Stage:` line to confirm the stage advanced');
+    expect(prompt).toContain('then re-run `bobby ticket view {TICKET_ID}` and continue with the new stage');
+    expect(prompt).not.toContain(`${ABS}/{TICKET_ID}*/ticket.md`);
   });
 
-  // TC4 — feature prompt Phase-2 re-read is absolute.
-  test('TC4: feature prompt Phase-2 re-read uses the absolute board path', () => {
+  // TC4 — feature prompt Phase-2 read is a cwd-independent command (PRO-029).
+  test('TC4: feature prompt Phase-2 re-read uses bobby ticket view', () => {
     const prompt = buildFeaturePrompt(
       'PRO-009', 'Epic',
       [{ id: 'PRO-010', title: 'child', priority: 'high', stage: 'backlog' }],
       DEFAULT_WORKFLOW, 3, ABS,
     );
-    expect(prompt).toContain(`re-read \`${ABS}/{TICKET_ID}*/ticket.md\` frontmatter to confirm the stage advanced`);
-    expect(prompt).not.toMatch(/re-read `ticket\.md` frontmatter/);
+    expect(prompt).toContain('re-run `bobby ticket view {TICKET_ID}` and read the `Stage:` line to confirm the stage advanced');
+    expect(prompt).not.toContain(`${ABS}/{TICKET_ID}*/ticket.md`);
   });
 
   // TC5 — product hint uses the threaded absolute product dir.
@@ -1010,12 +1016,101 @@ describe('PRO-026: board references in orchestration prompts are absolute', () =
     expect(prompt).toContain('`.bobby/product/personas.md`');
   });
 
-  // TC7 — single-repo case unchanged: the relative default flows through.
-  test('TC7: single-repo default keeps the relative board re-read paths', () => {
+  // TC7 — single-repo default: the re-read sites are the same bobby ticket view
+  // commands (PRO-029), independent of the threaded board dir.
+  test('TC7: single-repo default uses the bobby ticket view re-read commands', () => {
     const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
-    expect(prompt).toContain('`.bobby/tickets/{TICKET_ID}*/ticket.md` frontmatter to confirm the stage advanced');
-    expect(prompt).toContain('then re-read `.bobby/tickets/{TICKET_ID}*/ticket.md` and continue with the new stage');
+    expect(prompt).toContain('re-run `bobby ticket view {TICKET_ID}` and read the `Stage:` line to confirm the stage advanced');
+    expect(prompt).toContain('then re-run `bobby ticket view {TICKET_ID}` and continue with the new stage');
+    expect(prompt).not.toContain('{TICKET_ID}*/ticket.md');
     // No product context threaded → no product hint at all.
     expect(prompt).not.toContain('feature-map.md');
+  });
+});
+
+// PRO-029: agent prompts embedded the ticket path as a `${id}*` glob the agent's
+// structured file-read tool cannot expand (folders carry a slug), so the first read
+// returned "File does not exist". Known-id sites now emit the exact resolved folder;
+// runtime-placeholder sites use `bobby ticket view` (resolves slug + board, cwd-independent).
+describe('ticket-path resolution (PRO-029)', () => {
+  let tmpDir;
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-pro029-'));
+    fs.writeFileSync(path.join(tmpDir, '.counter'), '0');
+  });
+  afterEach(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
+
+  // TC1 — known-id prompt embeds the exact resolved folder, no glob (AC #1).
+  test('TC1: known-id prompt embeds the exact resolved folder, no glob', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Some Feature' });
+    const prompt = buildSingleAgentPrompt('bobby-build', 'TKT-001', tmpDir);
+    expect(prompt).toContain(`${tmpDir}/TKT-001--some-feature/ticket.md`);
+    expect(prompt).not.toContain('TKT-001*');
+  });
+
+  // TC2 — reproduction: the resolved path stats true, the old glob path stats false.
+  test('TC2: resolved path stats true, the old ${id}* glob path stats false', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Some Feature' });
+    // The new form points at a real file the read tool can open.
+    expect(fs.existsSync(path.join(tmpDir, 'TKT-001--some-feature', 'ticket.md'))).toBe(true);
+    // The old glob form does not resolve as a literal path — this is exactly why
+    // the structured file-read tool failed on `${id}*/ticket.md`.
+    expect(fs.existsSync(path.join(tmpDir, 'TKT-001*', 'ticket.md'))).toBe(false);
+  });
+
+  // TC3 — placeholder sites carry the resolve instruction, not a glob (AC, req 2).
+  test('TC3: placeholder builders instruct bobby ticket view, no glob token', () => {
+    const orch = buildOrchestrationPrompt(['TKT-001', 'TKT-002'], DEFAULT_WORKFLOW);
+    expect(orch).not.toContain('{TICKET_ID}*/ticket.md');
+    expect(orch).toContain('bobby ticket view {TICKET_ID}');
+
+    const batchNormal = buildBatchStagePrompt('bobby-plan', ['TKT-001', 'TKT-002']);
+    const batchWorktree = buildBatchStagePrompt('bobby-build', ['TKT-001', 'TKT-002'], '.bobby/tickets', 'worktree');
+    for (const p of [batchNormal, batchWorktree]) {
+      expect(p).not.toContain('{ID}*/ticket.md');
+      expect(p).toContain('bobby ticket view {ID}');
+    }
+  });
+
+  // TC4 — buildFeaturePrompt: known-id sites resolved, placeholder sites instructed.
+  test('TC4: feature prompt resolves known-id paths and instructs placeholder reads', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Icon Set Epic' });
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Sibling One' });
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Sibling Two' });
+    const children = ['TKT-002', 'TKT-003'].map(id => {
+      const t = findTicket(tmpDir, id);
+      return { id, title: t.data.title, priority: 'high', stage: 'backlog', dirname: t.dirname };
+    });
+    const prompt = buildFeaturePrompt('TKT-001', 'Icon Set Epic', children, DEFAULT_WORKFLOW, 3, tmpDir);
+
+    // Feature-plan path resolved (no glob).
+    expect(prompt).toContain('TKT-001--icon-set-epic/feature-plan.md');
+    expect(prompt).not.toContain('TKT-001*');
+    // Sibling plan paths resolved (no glob).
+    expect(prompt).toContain('TKT-002--sibling-one/plan.md');
+    expect(prompt).toContain('TKT-003--sibling-two/plan.md');
+    expect(prompt).not.toContain('TKT-002*');
+    expect(prompt).not.toContain('TKT-003*');
+    // Placeholder reads instructed.
+    expect(prompt).toContain('bobby ticket view {TICKET_ID}');
+    expect(prompt).not.toContain('{TICKET_ID}*/ticket.md');
+  });
+
+  // TC5 — end-to-end: the emitted known-id path actually opens and yields ticket content.
+  test('TC5: following the known-id prompt opens the ticket (zero does-not-exist)', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Some Feature' });
+    const prompt = buildSingleAgentPrompt('bobby-build', 'TKT-001', tmpDir);
+    const extracted = prompt.match(/`([^`]*TKT-001[^`]*ticket\.md)`/)[1];
+    expect(fs.existsSync(extracted)).toBe(true);
+    const content = fs.readFileSync(extracted, 'utf8');
+    expect(content).toContain('Some Feature');
+  });
+
+  // TC6 — error path: unknown id falls back to the glob, no crash (regression guard).
+  test('TC6: unknown id falls back to the glob without throwing', () => {
+    let prompt;
+    expect(() => { prompt = buildSingleAgentPrompt('bobby-plan', 'TKT-999', tmpDir); }).not.toThrow();
+    expect(prompt).toContain('TKT-999*');
+    expect(prompt).toContain('bobby ticket assign TKT-999 bobby-plan');
   });
 });

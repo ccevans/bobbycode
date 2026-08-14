@@ -83,15 +83,21 @@ function plantStaleWorktreeCopy(o, worktreePath, ticketId, stage) {
  * open the file, and only the filesystem answers that (TKT-052).
  */
 function resolveTicketPathFromPrompt(prompt, ticketId, cwd) {
-  const m = new RegExp('`([^`]*' + ticketId + '\\*/ticket\\.md)`').exec(prompt);
+  // PRO-029: known-id prompts now name the EXACT resolved folder (no glob), so
+  // open it directly; the legacy `TKT-001*` glob form is still expanded for
+  // backward compatibility with builders that fall back to it.
+  const m = new RegExp('`([^`]*' + ticketId + '[^`]*/ticket\\.md)`').exec(prompt);
   if (!m) return null;
-  const abs = path.resolve(cwd, m[1]);              // <parent>/TKT-001*/ticket.md
-  const parent = path.dirname(path.dirname(abs));
-  if (!fs.existsSync(parent)) return null;
-  const hit = fs.readdirSync(parent).find(e => e.startsWith(ticketId));
-  if (!hit) return null;
-  const file = path.join(parent, hit, 'ticket.md');
-  return fs.existsSync(file) ? file : null;
+  const abs = path.resolve(cwd, m[1]);              // resolved <parent>/TKT-001--slug/ticket.md, or glob
+  if (m[1].includes('*')) {
+    const parent = path.dirname(path.dirname(abs));
+    if (!fs.existsSync(parent)) return null;
+    const hit = fs.readdirSync(parent).find(e => e.startsWith(ticketId));
+    if (!hit) return null;
+    const file = path.join(parent, hit, 'ticket.md');
+    return fs.existsSync(file) ? file : null;
+  }
+  return fs.existsSync(abs) ? abs : null;
 }
 
 /**

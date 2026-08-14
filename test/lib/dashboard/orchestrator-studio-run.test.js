@@ -99,6 +99,10 @@ const READ_VERB = /\b(read|re-read|verify|created in|load)\b/i;
 function bareBoardReads(prompt) {
   return prompt.split('\n').filter((line) => {
     if (!BOARD_FILE.test(line) || !READ_VERB.test(line)) return false;
+    // PRO-029: a `bobby ticket view` instruction resolves the board from the
+    // project root (cwd-independent) — it is NOT a bare board-file path read,
+    // even when it names plan.md/test-cases.md in prose (e.g. `--files` lists them).
+    if (line.includes('bobby ticket view')) return false;
     return !line.includes(ABS);   // no absolute path on the same instruction
   });
 }
