@@ -1,12 +1,12 @@
 ---
 id: TKT-026
 title: Delete /classic once the App is the default
-stage: backlog
+stage: building
 type: task
 priority: low
 area: ui
 author: unknown
-assigned: null
+assigned: bobby-plan
 services: null
 workflow: null
 blocked: false
@@ -14,7 +14,7 @@ blocked_reason: null
 previous_stage: null
 parent: TKT-020
 created: '2026-08-07'
-updated: '2026-08-09'
+updated: '2026-08-12'
 ---
 
 ## Description
