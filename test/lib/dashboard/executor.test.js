@@ -6,6 +6,7 @@ import {
   runAgent,
   resolveExecutor,
   commandExists,
+  cleanExecutorEnv,
   EXECUTOR_NAMES,
 } from '../../../lib/dashboard/executor.js';
 
@@ -362,6 +363,96 @@ describe('cursor-agent executor', () => {
       executor: 'cursor-agent', claudeArgs: ['--resume', 'abc'],
     });
     expect(spawn.mock.calls[0][1]).toEqual(['--resume', 'abc']);
+  });
+});
+
+// PRO-025. When bobby remote / app / run is started from inside a Claude Code
+// session, the shell carries CLAUDECODE / CLAUDE_CODE_* and the spawned
+// `claude -p` child inherits them, tripping Claude Code's nested-session guard
+// so no agent run works. The fix strips exactly those vars at the spawn point.
+describe('cleanExecutorEnv (PRO-025 nested-session strip)', () => {
+  test('removes CLAUDECODE and every CLAUDE_CODE_* key', () => {
+    const cleaned = cleanExecutorEnv({
+      CLAUDECODE: '1',
+      CLAUDE_CODE_ENTRYPOINT: 'cli',
+      CLAUDE_CODE_SSE_PORT: '1234',
+      PATH: '/usr/bin',
+    });
+    expect(cleaned).not.toHaveProperty('CLAUDECODE');
+    expect(cleaned).not.toHaveProperty('CLAUDE_CODE_ENTRYPOINT');
+    expect(cleaned).not.toHaveProperty('CLAUDE_CODE_SSE_PORT');
+    // No CLAUDE_CODE-prefixed key survives.
+    expect(Object.keys(cleaned).some(k => /^CLAUDE_CODE/.test(k))).toBe(false);
+  });
+
+  test('keeps every other var untouched (PATH, HOME, and unrelated CLAUDE_* keys)', () => {
+    const cleaned = cleanExecutorEnv({
+      CLAUDECODE: '1',
+      PATH: '/usr/bin',
+      HOME: '/home/dev',
+      // A CLAUDE_ var that is NOT the Claude Code family must survive.
+      CLAUDE_API_KEY: 'secret',
+    });
+    expect(cleaned.PATH).toBe('/usr/bin');
+    expect(cleaned.HOME).toBe('/home/dev');
+    expect(cleaned.CLAUDE_API_KEY).toBe('secret');
+  });
+
+  test('does not mutate the input env', () => {
+    const input = { CLAUDECODE: '1', PATH: '/usr/bin' };
+    cleanExecutorEnv(input);
+    expect(input.CLAUDECODE).toBe('1');
+  });
+
+  test('defaults to process.env', () => {
+    const original = process.env.CLAUDECODE;
+    process.env.CLAUDECODE = '1';
+    try {
+      expect(cleanExecutorEnv()).not.toHaveProperty('CLAUDECODE');
+    } finally {
+      if (original === undefined) delete process.env.CLAUDECODE;
+      else process.env.CLAUDECODE = original;
+    }
+  });
+
+  test('the spawned child env carries no CLAUDE_CODE keys even when the host has them', () => {
+    const saved = {
+      CLAUDECODE: process.env.CLAUDECODE,
+      CLAUDE_CODE_ENTRYPOINT: process.env.CLAUDE_CODE_ENTRYPOINT,
+    };
+    process.env.CLAUDECODE = '1';
+    process.env.CLAUDE_CODE_ENTRYPOINT = 'cli';
+    try {
+      const spawn = fakeSpawn();
+      runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+      const [, , opts] = spawn.mock.calls[0];
+      // Reproduction guard: the pre-fix env WOULD have contained CLAUDECODE
+      // (it is present in process.env for this test), which is exactly what
+      // tripped the nested-session guard.
+      expect(process.env.CLAUDECODE).toBe('1');
+      expect(opts.env).not.toHaveProperty('CLAUDECODE');
+      expect(opts.env).not.toHaveProperty('CLAUDE_CODE_ENTRYPOINT');
+      expect(Object.keys(opts.env).some(k => /^CLAUDE_CODE/.test(k))).toBe(false);
+      // The rest of the child env is still built as before.
+      expect(opts.env.BOBBY_SESSION_ID).toBe('s');
+    } finally {
+      for (const [k, v] of Object.entries(saved)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  });
+
+  test('a caller-supplied env cannot reintroduce the stripped keys', () => {
+    const spawn = fakeSpawn();
+    runAgent({
+      worktreePath: '/t', prompt: 'p', sessionId: 's', spawn,
+      env: { CLAUDECODE: '1', CLAUDE_CODE_ENTRYPOINT: 'cli', FOO: 'bar' },
+    });
+    const [, , opts] = spawn.mock.calls[0];
+    expect(opts.env).not.toHaveProperty('CLAUDECODE');
+    expect(opts.env).not.toHaveProperty('CLAUDE_CODE_ENTRYPOINT');
+    expect(opts.env.FOO).toBe('bar');
   });
 });
 
