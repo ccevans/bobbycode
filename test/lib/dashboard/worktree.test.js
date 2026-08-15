@@ -68,6 +68,60 @@ describe('worktree manager', () => {
     expect(b).toBe(path.resolve(repoDir, '../custom'));
   });
 
+  // PRO-027: in a studio, board writes from a worktree reach the studio board
+  // only because findProjectRoot walks UP from the worktree to the studio root —
+  // which holds only while the worktree lives under the studio root. Refuse a
+  // studio worktree_root that resolves outside the studio, rather than silently
+  // producing worktrees whose agents can't reach the board.
+  describe('studio worktree_root validation (PRO-027)', () => {
+    let studioRoot;
+    let codeRepo;
+
+    beforeEach(() => {
+      studioRoot = path.join(tmpDir, 'studio');
+      codeRepo = path.join(studioRoot, 'repos', 'app');
+      fs.mkdirSync(codeRepo, { recursive: true });
+    });
+
+    test('refuses a studio worktree_root OUTSIDE the studio root', () => {
+      const outside = path.join(tmpDir, 'elsewhere-wt');
+      const config = { studio: 'acme', dashboard: { worktree_root: outside } };
+      let err;
+      try {
+        resolveWorktreeRoot(codeRepo, config, studioRoot);
+      } catch (e) {
+        err = e;
+      }
+      expect(err).toBeInstanceOf(Error);
+      // Actionable message names worktree_root, the studio root, and the fix.
+      expect(err.message).toMatch(/worktree_root/);
+      expect(err.message).toContain(outside);
+      expect(err.message).toContain(studioRoot);
+    });
+
+    test('accepts a studio worktree_root UNDER the studio root', () => {
+      const inside = path.join(studioRoot, 'bobby-wt');
+      const config = { studio: 'acme', dashboard: { worktree_root: inside } };
+      expect(resolveWorktreeRoot(codeRepo, config, studioRoot)).toBe(path.resolve(inside));
+    });
+
+    test('accepts the default studio worktree_root (a studio descendant)', () => {
+      // Default `../bobby-wt` from studioRoot/repos/app resolves to
+      // studioRoot/repos/bobby-wt — still under the studio root.
+      const config = { studio: 'acme' };
+      const resolved = resolveWorktreeRoot(codeRepo, config, studioRoot);
+      expect(resolved).toBe(path.resolve(codeRepo, '../bobby-wt'));
+    });
+
+    test('non-studio project is unaffected — worktree_root outside repo is allowed', () => {
+      const outside = path.join(tmpDir, 'elsewhere-wt');
+      // No `studio` key: v1 project, no validation regardless of studioRoot arg.
+      const config = { dashboard: { worktree_root: outside } };
+      expect(resolveWorktreeRoot(codeRepo, config, studioRoot)).toBe(path.resolve(outside));
+      expect(resolveWorktreeRoot(codeRepo, config)).toBe(path.resolve(outside));
+    });
+  });
+
   test('createWorktree creates a worktree on a new branch', () => {
     const wtPath = path.join(tmpDir, 'wt-1');
     const { created, branch } = createWorktree(repoDir, {
