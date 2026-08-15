@@ -43,6 +43,13 @@ describe('WorkspaceStore', () => {
     expect(store.list()).toHaveLength(1);
   });
 
+  test('a new workspace carries the chat fields defaulted off (TKT-021)', () => {
+    const ws = newWorkspace({ id: 'w', ticketId: 'T', worktreePath: '/x', branch: 'b' });
+    expect(ws.chatMode).toBe(false);
+    expect(ws.chatId).toBeNull();
+    expect(ws.chatHistory).toEqual([]);
+  });
+
   test('duplicate create throws', () => {
     const store = new WorkspaceStore(filePath).load();
     const ws = newWorkspace({ id: 'dup', ticketId: 'T', worktreePath: '/x', branch: 'b' });

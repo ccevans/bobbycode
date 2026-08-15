@@ -7,6 +7,7 @@ import {
   resolveExecutor,
   commandExists,
   cleanExecutorEnv,
+  claudeSessionIdFromEvent,
   EXECUTOR_NAMES,
 } from '../../../lib/dashboard/executor.js';
 
@@ -224,6 +225,46 @@ describe('per-run cost from total_cost_usd (TKT-019)', () => {
     const result = await handle.done;
     expect(result.error).toContain('ENOENT');
     expect(result.costUsd).toBe(0.5);
+  });
+});
+
+// TKT-021. Conversational planning continues a prior Claude session with
+// `--resume <sessionId>`. The executor never passed it before; these assert the
+// flag is injected when set and absent when not.
+describe('--resume passthrough (TKT-021)', () => {
+  test('TC-1: claude args include --resume followed by the session id when set', () => {
+    const spawn = fakeSpawn();
+    runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn, resume: 'ses-abc123' });
+    const [, args] = spawn.mock.calls[0];
+    expect(args).toContain('--resume');
+    expect(args[args.indexOf('--resume') + 1]).toBe('ses-abc123');
+  });
+
+  test('TC-2: claude args omit --resume when it is not set', () => {
+    const spawn = fakeSpawn();
+    runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+    const [, args] = spawn.mock.calls[0];
+    expect(args).not.toContain('--resume');
+  });
+});
+
+// TKT-021. To use --resume, the chat manager must capture the CLAUDE session id
+// the CLI reports on its stream events (not bobby's own ses- id).
+describe('claudeSessionIdFromEvent (TKT-021)', () => {
+  const ev = (data) => ({ type: 'stdout', kind: 'json', data, at: 'now' });
+
+  test('reads session_id off a json stdout event', () => {
+    expect(claudeSessionIdFromEvent(ev({ type: 'system', session_id: 'claude-1' }))).toBe('claude-1');
+  });
+
+  test('returns null for events without a session_id', () => {
+    expect(claudeSessionIdFromEvent(ev({ type: 'assistant' }))).toBeNull();
+  });
+
+  test('returns null for text or non-stdout events', () => {
+    expect(claudeSessionIdFromEvent({ type: 'stdout', kind: 'text', data: 'session_id: x' })).toBeNull();
+    expect(claudeSessionIdFromEvent({ type: 'stderr', text: 'x' })).toBeNull();
+    expect(claudeSessionIdFromEvent(null)).toBeNull();
   });
 });
 

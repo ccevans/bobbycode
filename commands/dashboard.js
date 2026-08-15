@@ -11,6 +11,7 @@ import { getTarget } from '../lib/targets/index.js';
 import { WorkspaceStore } from '../lib/dashboard/state.js';
 import { SSEHub } from '../lib/dashboard/sse.js';
 import { Orchestrator } from '../lib/dashboard/orchestrator.js';
+import { ChatManager } from '../lib/dashboard/chat.js';
 import { buildServer } from '../lib/dashboard/server.js';
 import { resolveExecutor, commandExists, EXECUTOR_NAMES } from '../lib/dashboard/executor.js';
 import { loadDashboardPlugins, pluginStatusLine } from '../lib/dashboard/plugins.js';
@@ -103,9 +104,17 @@ export function registerDashboard(program) {
         // throws — absent or broken means free tier, which is the normal case.
         const { plugins, status: pluginStatus } = await loadDashboardPlugins({ repoRoot: root });
 
+        // Conversational planning (TKT-021): chat records alongside the
+        // workspace store, one file per repository.
+        const chatManager = new ChatManager({
+          orchestrator,
+          filePath: path.join(root, config.bobby_dir || '.bobby', 'chats.json'),
+        });
+
         // HTTP server
         const server = buildServer({
           orchestrator, store, sseHub, config, repoRoot: root, ticketsDir,
+          chatManager,
           plugins, pluginStatus,
           // The classic UI has no Ideas screen, but the API is one surface for
           // both front ends — the routes must not resolve to a different file
