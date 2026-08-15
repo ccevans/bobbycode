@@ -72,8 +72,10 @@ describe('per-workspace pipeline', () => {
 
 describe('featureProgress', () => {
   // featureProgress needs only ticketsDir and a store — no git, no worktree.
+  // `ticketsDir` is a getter over `_ticketsDir` (TKT-022, so a studio project
+  // switch re-scopes it), so the fake seeds the backing field.
   const wire = (o, { ws, ticketsDir }) => Object.assign(o, {
-    ticketsDir,
+    _ticketsDir: ticketsDir,
     store: { get: (id) => (id === ws.id ? ws : null) },
   });
 
