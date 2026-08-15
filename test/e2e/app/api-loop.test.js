@@ -135,6 +135,21 @@ describe('E2E: the Bobby app loop over HTTP', () => {
     expect((await app.api('GET', '/api/workspaces')).body.workspaces).toEqual([]);
   });
 
+  it('reports an API generation on /api/health — the number the app tells skew from breakage with', async () => {
+    app = await startApp();
+
+    const { status, body } = await app.api('GET', '/api/health');
+
+    expect(status).toBe(200);
+    expect(body.ok).toBe(true);
+    // The app (bobbycode-pro app/lib/skew.js) compares this against its own
+    // APP_API_VERSION; a host serving a lower number is "older than the app" and
+    // trips the skew banner (PRO-015). It must be an integer, and the two must be
+    // bumped in lockstep — this host is current, so it is generation 2.
+    expect(Number.isInteger(body.version)).toBe(true);
+    expect(body.version).toBe(2);
+  });
+
   it('wires start, run, approve, send back and merge to the orchestrator', async () => {
     app = await startApp();
     const epic = seedFeature();

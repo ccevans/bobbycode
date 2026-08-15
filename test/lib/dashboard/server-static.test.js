@@ -197,6 +197,6 @@ describe('extension seam', () => {
 
   test('core routes win when an extension is loaded', async () => {
     await start({ plugins: [makeExtension(ui)] });
-    expect(await (await fetch(`${base}/api/health`)).json()).toEqual({ ok: true, version: 1 });
+    expect(await (await fetch(`${base}/api/health`)).json()).toEqual({ ok: true, version: 2 });
   });
 });
