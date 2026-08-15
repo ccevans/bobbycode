@@ -141,6 +141,10 @@ describe('studio project routes (TKT-022)', () => {
     });
   });
 
+  // Half of AC3: the switch touches neither the process nor the record. The
+  // other half — that the run's own EXIT still reads the board it started on —
+  // is not visible from here, because nothing here ever lets the run exit. It
+  // lives in orchestrator-project-pin.test.js.
   test('TC-7: switching does not disturb a running agent in the other project', async () => {
     const { server, store, orchestrator } = wireStudio(tmp);
     // A running alpha workspace, with a live process handle in the map.
@@ -183,6 +187,32 @@ describe('studio project routes (TKT-022)', () => {
       await api('POST', '/api/projects/select', { name: 'beta' });
       const onBeta = await api('GET', '/api/workspaces');
       expect(onBeta.body.workspaces.map(w => w.id).sort()).toEqual(['repo-1', 'ws-be']);
+    });
+  });
+
+  // A workspace records the board it was created on, so ownership is that
+  // recorded value rather than a lookup that can hit the wrong ticket. Both
+  // projects here hold X-001; only alpha's workspace may appear on alpha.
+  test('workspaces are scoped by the board they were created on, not by id', async () => {
+    const { server, store, root } = wireStudio(tmp);
+    const board = (p) => path.join(root, '.bobby', p, 'tickets');
+    createTicket(board('alpha'), { prefix: 'X', title: 'alpha X' });
+    createTicket(board('beta'), { prefix: 'X', title: 'beta X' });
+
+    const rec = (id, project) => ({
+      id, ticketId: 'X-001', kind: 'worktree', status: 'idle',
+      ticketsDir: board(project), updatedAt: new Date().toISOString(), runs: [],
+    });
+    store.create(rec('ws-alpha-x', 'alpha'));
+    store.create(rec('ws-beta-x', 'beta'));
+
+    await withServer(server, async (api) => {
+      const onAlpha = await api('GET', '/api/workspaces');
+      expect(onAlpha.body.workspaces.map(w => w.id)).toEqual(['ws-alpha-x']);
+
+      await api('POST', '/api/projects/select', { name: 'beta' });
+      const onBeta = await api('GET', '/api/workspaces');
+      expect(onBeta.body.workspaces.map(w => w.id)).toEqual(['ws-beta-x']);
     });
   });
 
