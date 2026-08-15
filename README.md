@@ -803,6 +803,7 @@ bobby run vet                          # Interrogate design before planning
 bobby run strategy                     # Strategic validation gate
 bobby run docs                         # Update documentation
 bobby run performance                  # Benchmark and detect regressions
+bobby run lighthouse                   # Lighthouse-audit page templates, propose tickets
 bobby run watchdog                     # Post-deploy smoke tests
 
 # Specialist agents (ticket required)
@@ -937,6 +938,7 @@ Focused agents for specific concerns:
 | **bobby-debug** | Systematic root-cause investigation — traces data flow, tests hypotheses |
 | **bobby-docs** | Updates README, CLAUDE.md, and docs to stay in sync with code changes |
 | **bobby-performance** | Benchmarking — measures page load, resource sizes, Core Web Vitals |
+| **bobby-lighthouse** | Lighthouse audit — sweeps the four pillars across page templates, proposes tickets on real gaps |
 | **bobby-watchdog** | Post-deploy verification — smoke tests, uptime, console errors |
 | **bobby-arch** | Architecture discovery — documents codebase structure and decisions |
 | **bobby-ticket-intake** | Converts PM specs into structured Bobby tickets |
@@ -998,9 +1000,9 @@ Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can inv
 /bobby-feature       /bobby-ux            /bobby-pm
 /bobby-qe            /bobby-vet           /bobby-strategy
 /bobby-security      /bobby-debug         /bobby-docs
-/bobby-performance   /bobby-watchdog      /bobby-arch
-/bobby-ticket-intake /bobby-local         /bobby-define
-/bobby-freewill
+/bobby-performance   /bobby-lighthouse    /bobby-watchdog
+/bobby-arch          /bobby-ticket-intake /bobby-local
+/bobby-define        /bobby-freewill
 ```
 
 ## Custom Workflows
