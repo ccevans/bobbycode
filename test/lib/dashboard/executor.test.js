@@ -6,6 +6,7 @@ import {
   runAgent,
   resolveExecutor,
   commandExists,
+  cleanExecutorEnv,
   EXECUTOR_NAMES,
 } from '../../../lib/dashboard/executor.js';
 
@@ -141,6 +142,88 @@ describe('runClaude', () => {
 
   test('runClaude is an alias of runAgent', () => {
     expect(runClaude).toBe(runAgent);
+  });
+});
+
+// TKT-019. The claude CLI reports what a run cost on its final stream-json
+// event. Until now every event was forwarded verbatim and inspected by nothing,
+// so the number was parsed and dropped on the floor.
+//
+// The distinction these tests exist to hold: a cost of 0 is a FACT ("this run
+// was free"); a missing cost is the ABSENCE of one, and must stay null so no
+// total can quietly understate itself by counting it as zero.
+describe('per-run cost from total_cost_usd (TKT-019)', () => {
+  const resultEvent = (extra) => `${JSON.stringify({ type: 'result', subtype: 'success', ...extra })}\n`;
+
+  test('captures total_cost_usd off the result event', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+    spawn.child.stdout.emit('data', Buffer.from('{"type":"assistant"}\n'));
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ total_cost_usd: 0.0432 })));
+    spawn.child.emit('exit', 0, null);
+
+    expect((await handle.done).costUsd).toBe(0.0432);
+  });
+
+  test('captures it from a final line that never got a trailing newline', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+    // The result event is the LAST thing a CLI writes, so it is exactly the
+    // line most likely to arrive unterminated and be flushed at exit.
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ total_cost_usd: 1.25 }).trimEnd()));
+    spawn.child.emit('exit', 0, null);
+
+    expect((await handle.done).costUsd).toBe(1.25);
+  });
+
+  test('reports null — not 0 — when the CLI never mentions cost', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ num_turns: 3 })));
+    spawn.child.emit('exit', 0, null);
+
+    const result = await handle.done;
+    expect(result.costUsd).toBeNull();
+    expect(result.costUsd).not.toBe(0);
+  });
+
+  test('keeps a genuinely-reported zero as zero', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ total_cost_usd: 0 })));
+    spawn.child.emit('exit', 0, null);
+
+    expect((await handle.done).costUsd).toBe(0);
+  });
+
+  test('ignores a non-numeric total_cost_usd rather than passing junk on', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ total_cost_usd: 'unknown' })));
+    spawn.child.emit('exit', 0, null);
+
+    expect((await handle.done).costUsd).toBeNull();
+  });
+
+  test('the last reported figure wins — total_cost_usd is cumulative', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ total_cost_usd: 0.1 })));
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ total_cost_usd: 0.3 })));
+    spawn.child.emit('exit', 0, null);
+
+    expect((await handle.done).costUsd).toBe(0.3);
+  });
+
+  test('a cost reported before a crash still survives on the error result', async () => {
+    const spawn = fakeSpawn();
+    const handle = runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+    spawn.child.stdout.emit('data', Buffer.from(resultEvent({ total_cost_usd: 0.5 })));
+    spawn.child.emit('error', new Error('ENOENT'));
+
+    const result = await handle.done;
+    expect(result.error).toContain('ENOENT');
+    expect(result.costUsd).toBe(0.5);
   });
 });
 
@@ -280,6 +363,96 @@ describe('cursor-agent executor', () => {
       executor: 'cursor-agent', claudeArgs: ['--resume', 'abc'],
     });
     expect(spawn.mock.calls[0][1]).toEqual(['--resume', 'abc']);
+  });
+});
+
+// PRO-025. When bobby remote / app / run is started from inside a Claude Code
+// session, the shell carries CLAUDECODE / CLAUDE_CODE_* and the spawned
+// `claude -p` child inherits them, tripping Claude Code's nested-session guard
+// so no agent run works. The fix strips exactly those vars at the spawn point.
+describe('cleanExecutorEnv (PRO-025 nested-session strip)', () => {
+  test('removes CLAUDECODE and every CLAUDE_CODE_* key', () => {
+    const cleaned = cleanExecutorEnv({
+      CLAUDECODE: '1',
+      CLAUDE_CODE_ENTRYPOINT: 'cli',
+      CLAUDE_CODE_SSE_PORT: '1234',
+      PATH: '/usr/bin',
+    });
+    expect(cleaned).not.toHaveProperty('CLAUDECODE');
+    expect(cleaned).not.toHaveProperty('CLAUDE_CODE_ENTRYPOINT');
+    expect(cleaned).not.toHaveProperty('CLAUDE_CODE_SSE_PORT');
+    // No CLAUDE_CODE-prefixed key survives.
+    expect(Object.keys(cleaned).some(k => /^CLAUDE_CODE/.test(k))).toBe(false);
+  });
+
+  test('keeps every other var untouched (PATH, HOME, and unrelated CLAUDE_* keys)', () => {
+    const cleaned = cleanExecutorEnv({
+      CLAUDECODE: '1',
+      PATH: '/usr/bin',
+      HOME: '/home/dev',
+      // A CLAUDE_ var that is NOT the Claude Code family must survive.
+      CLAUDE_API_KEY: 'secret',
+    });
+    expect(cleaned.PATH).toBe('/usr/bin');
+    expect(cleaned.HOME).toBe('/home/dev');
+    expect(cleaned.CLAUDE_API_KEY).toBe('secret');
+  });
+
+  test('does not mutate the input env', () => {
+    const input = { CLAUDECODE: '1', PATH: '/usr/bin' };
+    cleanExecutorEnv(input);
+    expect(input.CLAUDECODE).toBe('1');
+  });
+
+  test('defaults to process.env', () => {
+    const original = process.env.CLAUDECODE;
+    process.env.CLAUDECODE = '1';
+    try {
+      expect(cleanExecutorEnv()).not.toHaveProperty('CLAUDECODE');
+    } finally {
+      if (original === undefined) delete process.env.CLAUDECODE;
+      else process.env.CLAUDECODE = original;
+    }
+  });
+
+  test('the spawned child env carries no CLAUDE_CODE keys even when the host has them', () => {
+    const saved = {
+      CLAUDECODE: process.env.CLAUDECODE,
+      CLAUDE_CODE_ENTRYPOINT: process.env.CLAUDE_CODE_ENTRYPOINT,
+    };
+    process.env.CLAUDECODE = '1';
+    process.env.CLAUDE_CODE_ENTRYPOINT = 'cli';
+    try {
+      const spawn = fakeSpawn();
+      runAgent({ worktreePath: '/t', prompt: 'p', sessionId: 's', spawn });
+      const [, , opts] = spawn.mock.calls[0];
+      // Reproduction guard: the pre-fix env WOULD have contained CLAUDECODE
+      // (it is present in process.env for this test), which is exactly what
+      // tripped the nested-session guard.
+      expect(process.env.CLAUDECODE).toBe('1');
+      expect(opts.env).not.toHaveProperty('CLAUDECODE');
+      expect(opts.env).not.toHaveProperty('CLAUDE_CODE_ENTRYPOINT');
+      expect(Object.keys(opts.env).some(k => /^CLAUDE_CODE/.test(k))).toBe(false);
+      // The rest of the child env is still built as before.
+      expect(opts.env.BOBBY_SESSION_ID).toBe('s');
+    } finally {
+      for (const [k, v] of Object.entries(saved)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  });
+
+  test('a caller-supplied env cannot reintroduce the stripped keys', () => {
+    const spawn = fakeSpawn();
+    runAgent({
+      worktreePath: '/t', prompt: 'p', sessionId: 's', spawn,
+      env: { CLAUDECODE: '1', CLAUDE_CODE_ENTRYPOINT: 'cli', FOO: 'bar' },
+    });
+    const [, , opts] = spawn.mock.calls[0];
+    expect(opts.env).not.toHaveProperty('CLAUDECODE');
+    expect(opts.env).not.toHaveProperty('CLAUDE_CODE_ENTRYPOINT');
+    expect(opts.env.FOO).toBe('bar');
   });
 });
 

@@ -1,10 +1,10 @@
 // commands/projects.js
-import { listProjects } from '../lib/studio.js';
+import { listProjects } from '../lib/registry.js';
 import { readConfig, resolveTicketsDir } from '../lib/config.js';
 import { listTickets, daysBetween } from '../lib/tickets.js';
 import { bold, dim, error } from '../lib/colors.js';
 
-const IN_FLIGHT_STAGES = ['planning', 'building', 'reviewing', 'testing', 'shipping'];
+const IN_FLIGHT_STAGES = ['planning', 'building', 'security', 'reviewing', 'testing', 'shipping'];
 
 function ago(iso) {
   if (!iso) return 'never';

@@ -54,6 +54,9 @@ export function registerView(program) {
         if (found.data.parent) {
           console.log(`  ${dim('Parent:')} ${found.data.parent}`);
         }
+        if (found.data.feature) {
+          console.log(`  ${dim('Feature:')} ${found.data.feature}${found.data.persona ? dim(` · serves ${found.data.persona}`) : ''} ${dim('(.bobby/product/feature-map.md)')}`);
+        }
         console.log('');
 
         // Print the full ticket.md content (body only, not frontmatter)

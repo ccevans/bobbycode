@@ -82,7 +82,7 @@ describe('bobby init (scaffolding)', () => {
     expect(config).toContain('test-app-v2');
   });
 
-  test('scaffoldProject creates all 15 agent definition files', () => {
+  test('scaffoldProject creates all 16 agent definition files', () => {
     scaffoldProject(tmpDir, {
       project: 'test-app', stack: 'nextjs',
       health_checks: [{ name: 'app', url: 'http://localhost:3000', description: 'Next.js' }],
@@ -94,6 +94,7 @@ describe('bobby init (scaffolding)', () => {
       'bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship',
       'bobby-ux', 'bobby-pm', 'bobby-qe', 'bobby-vet', 'bobby-strategy',
       'bobby-security', 'bobby-debug', 'bobby-docs', 'bobby-performance', 'bobby-watchdog',
+      'bobby-freewill',
     ];
     for (const agent of agents) {
       expect(fs.existsSync(path.join(tmpDir, '.claude', 'agents', `${agent}.md`))).toBe(true);
@@ -678,5 +679,29 @@ describe('loadStack (custom stacks)', () => {
     const stack = loadStack('nextjs');
     expect(stack).not.toBeNull();
     expect(stack.name).toBe('nextjs');
+  });
+});
+
+describe('define pipeline scaffolding', () => {
+  let tmpDir;
+  beforeEach(() => { tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-init-define-')); });
+  afterEach(() => { fs.rmSync(tmpDir, { recursive: true }); });
+
+  test('init scaffolds the define skill, all four agents, and the slash command', () => {
+    scaffoldProject(tmpDir, {
+      project: 'test-app', stack: 'generic',
+      health_checks: [], areas: [], commands: {},
+      tickets_dir: '.bobby/tickets', ticket_prefix: 'TKT',
+    });
+
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'skills', 'bobby-define', 'SKILL.md'))).toBe(true);
+    for (const stage of ['brief', 'personas', 'journeys', 'features']) {
+      expect(fs.existsSync(path.join(tmpDir, '.claude', 'agents', `bobby-define-${stage}.md`))).toBe(true);
+    }
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'commands', 'bobby-define.md'))).toBe(true);
+
+    // The routing table advertises the pipeline to Claude Code sessions.
+    const rules = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
+    expect(rules).toContain('bobby run define');
   });
 });

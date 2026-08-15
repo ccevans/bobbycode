@@ -26,7 +26,14 @@ ticket_prefix: TKT
 health_checks: []
 
 # Feature areas for categorizing tickets. Used by `bobby ticket create --area`.
-areas: []
+areas:
+  - targets      # lib/targets/ — harness adapters (claude-code, cursor, cline…)
+  - dashboard    # lib/dashboard/ — orchestrator, executors, web UI
+  - audit        # lib/audit.js + packs scoring
+  - tickets      # ticket/sprint/idea/brief workflow commands
+  - packs        # packs/, pro licensing
+  - templates    # templates/ — skills, agents, commands, rules scaffolds
+  - cli          # bin/, command registration, init/refresh/upgrade
 
 # Shell commands Bobby uses for dev, test, lint, and build.
 commands:
@@ -48,10 +55,17 @@ max_retries: 3
 
 # Workflows — the ordered stages a ticket runs through. Built-in: default,
 # secure, quick. Add or override your own here, then: bobby run <name> <ticket>
-# workflows:
-#   default: [plan, build, review, test]
-#   secure: [plan, build, security, review, test]
-#   quick: [plan, build, test]
+#
+# bobbycode is a CLI library with no live app, so the built-in default's final
+# `test` stage (live-app verification via browser/API — its skill forbids
+# running specs) has nothing to observe and would strand every ticket at
+# testing. Override default to end at review, which runs the suite
+# independently — the correct verification for a library. TKT-013 tracks
+# fixing this upstream (built-in `library` workflow) so other CLI projects
+# don't need this override.
+workflows:
+  default: [plan, build, review]
+  secure: [plan, build, security, review]
 
 # Project-specific skills the build agent should follow.
 # These are non-bobby skills in your .claude/skills/ directory.
@@ -94,3 +108,20 @@ max_retries: 3
 # Conductor.build integration (set to false to skip conductor.json generation)
 # conductor: false
 
+
+# Agents launched by `bobby app` run inside an isolated git worktree, so the
+# worktree IS the sandbox. Left unset, claude -p stops to ask before every
+# write — and in a headless subprocess nobody can answer, so the agent burns
+# turns retrying and exits 0 having written nothing. See TKT-062.
+dashboard:
+  # bypassPermissions, not acceptEdits: acceptEdits allows file writes but NOT
+  # bash, and the whole workflow depends on the agent running `bobby ticket
+  # move`. Without bash it hand-edits ticket.md inside its own worktree, which
+  # the orchestrator correctly ignores. See TKT-062.
+  # Ticket runs happen in a throwaway worktree, so that copy is the sandbox.
+  # Repo runs touch this checkout and keep the conservative default.
+  worktree_permission_mode: bypassPermissions
+  # This repo lives in the bobby workspace at ~/Repos/bobby: repos/ holds the
+  # checkouts, worktrees/ holds every worktree of every repo. The default
+  # (../bobby-wt) would scatter them inside repos/.
+  worktree_root: ../../worktrees

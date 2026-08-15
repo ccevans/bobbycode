@@ -6,7 +6,7 @@
 // Delegates execution by re-invoking the CLI (`bobby run …`), so go adds no
 // second orchestration path — it only decides WHAT to run.
 import { spawnSync } from 'child_process';
-import { readConfig, findProjectRoot, resolveTicketsDir, resolveSprintsDir } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir, resolveSprintsDir, resolveProductDir } from '../lib/config.js';
 import { buildBrief } from '../lib/brief.js';
 import { createTicket } from '../lib/tickets.js';
 import { success, bold, dim, error } from '../lib/colors.js';
@@ -70,7 +70,7 @@ export function registerGo(program) {
 
         // bobby go — do the most valuable next thing
         const sprintsDir = resolveSprintsDir(root, config);
-        const b = buildBrief(ticketsDir, sprintsDir);
+        const b = buildBrief(ticketsDir, sprintsDir, { productDir: resolveProductDir(root, config) });
         const next = b.nextAction;
         if (!next.argv) {
           console.log('');

@@ -144,6 +144,8 @@ body { display: flex; flex-direction: column; }
 .status-dot.awaiting_approval { background: var(--warn); }
 .status-dot.ready_to_merge { background: var(--ok); }
 .status-dot.failed { background: var(--danger); }
+/* Ran clean, achieved nothing — its own colour because it is neither. */
+.status-dot.no_op { background: var(--warn); }
 .status-dot.merged { background: var(--fg-faint); }
 .status-dot.unknown { background: var(--fg-faint); }
 .status-dot.stopped { background: var(--fg-faint); }
@@ -214,6 +216,7 @@ body { display: flex; flex-direction: column; }
 .chip.status.awaiting_approval { background: var(--warn); color: #000; }
 .chip.status.ready_to_merge { background: var(--ok); color: white; }
 .chip.status.failed { background: var(--danger); color: white; }
+.chip.status.no_op { background: var(--warn); color: #000; }
 .chip.status.merged { background: var(--fg-faint); color: white; }
 .detail-meta {
   margin-top: 8px;

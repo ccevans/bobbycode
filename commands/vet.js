@@ -1,7 +1,7 @@
 // commands/vet.js
 import { readConfig, findProjectRoot, resolveIdeasFile } from '../lib/config.js';
 import { readIdeas } from '../lib/ideas.js';
-import { inboxFile } from '../lib/studio.js';
+import { inboxFile } from '../lib/registry.js';
 import { buildVetPrompt } from '../lib/vet.js';
 import { bold, dim, error } from '../lib/colors.js';
 

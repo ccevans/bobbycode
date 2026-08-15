@@ -9,3 +9,4 @@ coverage/
 .bobby/sessions/
 .bobby/workspaces.json
 .bobby/.counter.lock
+.bobby/main-checkout.lock

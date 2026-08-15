@@ -144,18 +144,28 @@ describe('tunnel request proxy', () => {
   function tunnelWithCapturedFrames() {
     const { key } = newPairing();
     const sent = [];
+    const waiters = [];
     const tunnel = new RemoteTunnel({
       relayUrl: 'ws://unused.invalid', channel: 'test', key, localPort,
     });
-    tunnel.sendFrame = (obj) => sent.push(obj); // capture instead of network
-    return { tunnel, sent };
+    // Capture instead of hitting the network, and let tests await a frame
+    // rather than sleeping — the proxy is a real HTTP round trip, so any
+    // fixed delay is a race under parallel test load.
+    tunnel.sendFrame = (obj) => {
+      sent.push(obj);
+      for (const resolve of waiters.splice(0)) resolve(obj);
+    };
+    const nextFrame = () => (sent.length
+      ? Promise.resolve(sent[sent.length - 1])
+      : new Promise((resolve) => waiters.push(resolve)));
+    return { tunnel, sent, nextFrame };
   }
 
   it('proxies an allowed request and returns the response', async () => {
-    const { tunnel, sent } = tunnelWithCapturedFrames();
+    const { tunnel, sent, nextFrame } = tunnelWithCapturedFrames();
 
     await tunnel.handleFrame({ t: 'req', id: 'r1', method: 'GET', path: '/api/health' });
-    await new Promise((r) => setTimeout(r, 50));
+    await nextFrame();
 
     expect(seen).toEqual([{ method: 'GET', url: '/api/health' }]);
     expect(sent).toEqual([{ t: 'res', id: 'r1', status: 200, body: { ok: true } }]);

@@ -25,7 +25,7 @@ import { registerUpgrade } from '../commands/upgrade.js';
 import { registerSession } from '../commands/session.js';
 import { registerSync } from '../commands/sync.js';
 import { registerLocalInit } from '../commands/local-init.js';
-import { registerDashboard } from '../commands/dashboard.js';
+import { registerApp } from '../commands/app.js';
 import { registerWorkflow } from '../commands/workflow.js';
 import { registerSprint } from '../commands/sprint.js';
 import { registerIdea } from '../commands/idea.js';
@@ -37,18 +37,23 @@ import { registerVet } from '../commands/vet.js';
 import { registerDo } from '../commands/do.js';
 import { registerAudit } from '../commands/audit.js';
 import { registerPack } from '../commands/pack.js';
+import { registerBlueprint } from '../commands/blueprint.js';
 import { registerPro } from '../commands/pro.js';
 import { registerSkill } from '../commands/skill.js';
 import { registerRemote } from '../commands/remote.js';
-import { touchProject } from '../lib/studio.js';
+import { registerStudio } from '../commands/studio.js';
+import { registerDecision } from '../commands/decision.js';
+import { touchProject } from '../lib/registry.js';
 
 const initCmd = registerInit(program);
+registerStudio(program);
 registerLocalInit(initCmd); // bobby init local
 registerDo(program);
 registerVet(program);
 registerNew(program);
 registerGo(program);
 registerAudit(program);
+registerBlueprint(program);
 registerPack(program);
 registerPro(program);
 registerBrief(program);
@@ -59,11 +64,12 @@ registerRun(program);
 registerWorkflow(program);
 registerRetro(program);
 registerLearn(program);
+registerDecision(program);
 registerSkill(program);
 registerProjects(program);
 registerSession(program);
 registerSync(program);
-registerDashboard(program);
+registerApp(program); // also answers to `bobby dashboard`
 registerRemote(program);
 registerExport(program);
 registerUpgrade(program);
@@ -74,7 +80,7 @@ registerUpgrade(program);
 // The whole process is two verbs. Default help shows just the loop; everything
 // else is listed compactly below and still works + has its own --help.
 const ESSENTIAL = ['do', 'new', 'go', 'init'];
-const EVERYDAY = ['vet', 'audit', 'brief', 'idea', 'ticket', 'sprint', 'run', 'dashboard', 'remote'];
+const EVERYDAY = ['vet', 'audit', 'blueprint', 'brief', 'idea', 'ticket', 'sprint', 'run', 'app', 'remote'];
 const POWER = ['pack', 'pro', 'workflow', 'retro', 'learn', 'skill', 'projects', 'session', 'sync', 'export', 'upgrade'];
 program.configureHelp({
   visibleCommands: (cmd) =>
@@ -97,6 +103,17 @@ program.hook('preAction', () => {
   if (process.env.BOBBY_NO_REGISTRY) return;
   try { touchProject(); } catch { /* never block a command on registry writes */ }
 });
+
+// Studio: a global `--project <name>` selects the active project for this one
+// command without changing the studio default. Parsed here so every ticket
+// command picks it up via config resolution (BOBBY_PROJECT), no per-command wiring.
+{
+  const i = process.argv.indexOf('--project');
+  if (i !== -1 && process.argv[i + 1] && !process.env.BOBBY_PROJECT) {
+    process.env.BOBBY_PROJECT = process.argv[i + 1];
+    process.argv.splice(i, 2);
+  }
+}
 
 // Natural-language front door: `bobby "add a health endpoint"` (or unquoted words)
 // with a first token that isn't a command/flag is treated as `bobby do <request>`,

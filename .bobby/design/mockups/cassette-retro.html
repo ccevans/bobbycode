@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIDE A — Subscriptions &amp; billing · Bobby (Cassette)</title>
+<style>
+  /* ============================================================
+     CASSETTE / MIXTAPE — a feature rendered as a compact-cassette tape.
+     A feature = a mixtape. Child tickets = the J-card track listing.
+     Workflow (plan|build|review|test) = the tape transport / play-head.
+     Two reels turning = an agent is working (semantic, reduced-motion-safe).
+     The review gate = a lit transport button waiting for you to press it.
+
+     PALETTE — every value reference-backed to real cassette specimens shot
+     into .bobby/design/mockups/shots/ (Wikimedia, rendered live):
+       - ref-jcard-wikipedia.png  (SKC GX blank inlay: warm ivory paper,
+         ruled ledger rows with left-edge bullet dots, "A. DATE/TIME /
+         NOISE REDUCTION" column headers, Side A / Side B split)
+       - ref-cassette-wikipedia.png (TDK SA90: warm-black shell, two spoked
+         reels in a window, boxed "A" side label, warm gold label band,
+         corner screws)
+       - ref-vumeter-wikipedia.png  (TEAC VU: warm amber face, black arc
+         scale, RED danger zone above 0, needle from bottom pivot, PEAK LED)
+     The warm-cream ground is REFERENCE-BACKED to the cassette-inlay paper —
+     used on purpose, not a reflexive tasteful cream. One period accent
+     (Maxell/TDK orange-red + the VU red zone) does all emphasis; a VU amber
+     signals "live / an agent is working". Disciplined, warm-neutral-biased,
+     not rainbow (the SKC spectrum band is deliberately DROPPED to hold that).
+     ============================================================ */
+  :root {
+    /* Warm cassette-inlay paper — the ground (SKC J-card paper + TDK label band) */
+    --paper:      #E7DCC4;   /* warm ivory plastic/paper ground */
+    --paper-hi:   #F1E8D4;   /* lit inlay surface (the j-card face) */
+    --paper-lo:   #DBCEAF;   /* ledger tint / groove */
+    --rule:       #C6B58E;   /* ruled ledger lines (warm tan) */
+
+    /* Warm-black cassette shell plastic */
+    --shell:      #2B241B;
+    --shell-hi:   #423829;
+    --shell-lo:   #1C1710;
+    --window:     #17130C;   /* the dark tape window */
+
+    /* Warm ink on paper */
+    --ink:        #241E14;   /* warm charcoal body */
+    --ink-2:      #5A4F3B;   /* secondary warm brown */
+    --ink-3:      #857858;   /* faint metadata */
+    --ink-on-shell: #EDE3CC; /* label text printed on the shell */
+
+    /* Period accent — Maxell/TDK orange-red + VU red zone */
+    --accent:     #C4381B;   /* the lit control / the gate / priority */
+    --accent-hi:  #E1562E;   /* brighter fill / lit glow */
+    --accent-ink: #9C2C12;   /* AA text-on-paper variant */
+
+    /* VU amber — "live / an agent is working" */
+    --amber:      #D8971F;
+    --amber-hi:   #F0B53E;
+    --amber-ink:  #8A5D10;
+
+    --radius-shell: 14px;
+    --radius:       8px;
+    --radius-sm:    4px;
+
+    --font-ui:   system-ui, -apple-system, "Segoe UI Semibold", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", SFMono-Regular, "Roboto Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font-ui);
+    color: var(--ink);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+    /* warm inlay ground with a faint top wash, like light across plastic */
+    background:
+      radial-gradient(1100px 480px at 50% -6%, var(--paper-hi), transparent 66%),
+      var(--paper);
+  }
+
+  .wrap {
+    max-width: 940px;
+    margin: 0 auto;
+    padding: clamp(18px, 4vw, 44px) clamp(16px, 4vw, 36px) 80px;
+  }
+
+  a { color: inherit; }
+  a:focus-visible, button:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  /* ---------- back link ---------- */
+  .back {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 14px; text-decoration: none;
+    color: var(--ink-2); padding: 6px 4px;
+    letter-spacing: 0.01em;
+  }
+  .back:hover { color: var(--ink); }
+  .back .arw { font-size: 16px; line-height: 1; }
+
+  /* ---------- feature header ---------- */
+  header.feature { margin-top: 18px; }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 13px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--ink-3);
+    margin: 0 0 12px;
+  }
+  .idrow { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; margin-bottom: 12px; }
+  .fid {
+    font-family: var(--font-mono); font-size: 14px;
+    font-variant-numeric: tabular-nums; letter-spacing: 0.03em;
+    color: var(--ink-2);
+  }
+  .prio {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--font-mono); font-size: 13px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--accent-ink);
+    border: 1.5px solid var(--accent);
+    padding: 3px 9px 3px 8px; border-radius: 3px;
+    background: rgba(196,56,27,0.06);
+  }
+  .prio .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+  h1.title {
+    font-size: clamp(30px, 4.6vw, 44px);
+    line-height: 1.05; letter-spacing: -0.02em;
+    font-weight: 800; margin: 0 0 14px; color: var(--ink);
+    text-wrap: balance;
+  }
+  .lede {
+    font-size: 17px; line-height: 1.55; color: var(--ink-2);
+    max-width: 60ch; margin: 0;
+  }
+  .progress {
+    margin-top: 16px; display: flex; align-items: center; gap: 10px;
+    flex-wrap: wrap;
+    font-family: var(--font-mono); font-size: 14px;
+    font-variant-numeric: tabular-nums; color: var(--ink-2);
+  }
+  .progress b { color: var(--ink); font-weight: 700; }
+  .progress .sep { color: var(--ink-3); }
+  .progress .gate-note { color: var(--accent-ink); font-weight: 600; }
+
+  /* ============================================================
+     THE CASSETTE — the mixtape itself
+     ============================================================ */
+  .cassette {
+    margin-top: clamp(26px, 4.5vw, 42px);
+    position: relative;
+    border-radius: var(--radius-shell);
+    padding: clamp(14px, 2.4vw, 20px);
+    /* warm-black plastic shell with a soft top sheen + moulded edge */
+    background:
+      linear-gradient(180deg, var(--shell-hi) 0%, var(--shell) 22%, var(--shell) 78%, var(--shell-lo) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,240,210,0.10),
+      inset 0 0 0 1px rgba(0,0,0,0.45),
+      0 18px 40px -18px rgba(40,30,15,0.55),
+      0 3px 0 rgba(255,255,255,0.25);
+  }
+  /* four corner screws */
+  .screw {
+    position: absolute; width: 11px; height: 11px; border-radius: 50%;
+    background: radial-gradient(circle at 38% 34%, #6b5c42, #241d12 72%);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.08);
+  }
+  .screw::after {
+    content: ""; position: absolute; inset: 3px; border-radius: 50%;
+    background: linear-gradient(90deg, transparent 44%, rgba(0,0,0,0.6) 44%, rgba(0,0,0,0.6) 56%, transparent 56%);
+  }
+  .screw.tl { top: 9px; left: 9px; } .screw.tr { top: 9px; right: 9px; }
+  .screw.bl { bottom: 9px; left: 9px; } .screw.br { bottom: 9px; right: 9px; }
+
+  /* the warm label band (the mixtape label) */
+  .label {
+    position: relative;
+    border-radius: 7px;
+    padding: 14px 18px 15px;
+    background:
+      linear-gradient(180deg, #F2E9D3 0%, #E9DCBE 100%);
+    box-shadow: inset 0 0 0 1px rgba(120,95,55,0.35), 0 1px 2px rgba(0,0,0,0.25);
+    display: grid;
+    grid-template-columns: auto minmax(0,1fr) auto;
+    align-items: center; gap: 16px;
+  }
+  .side-badge {
+    display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 46px; height: 46px; border-radius: 4px;
+    border: 2px solid var(--ink); background: var(--paper-hi);
+    font-family: var(--font-ui); font-weight: 800; color: var(--ink);
+    line-height: 1;
+  }
+  .side-badge .s { font-size: 10px; letter-spacing: 0.14em; }
+  .side-badge .a { font-size: 22px; letter-spacing: 0; }
+  .label .titlewrap { min-width: 0; }
+  .label .kicker {
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: #8a6f42; margin: 0 0 4px;
+  }
+  .label .mixtitle {
+    font-size: clamp(17px, 2.4vw, 22px); font-weight: 800; color: var(--ink);
+    margin: 0; line-height: 1.12; letter-spacing: -0.01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .bias {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: #8a6f42;
+    border: 1px solid #b79a63; border-radius: 3px; padding: 3px 8px;
+    white-space: nowrap;
+  }
+
+  /* the window: dark inset holding the two reels */
+  .window {
+    margin-top: 14px; position: relative;
+    border-radius: 8px; padding: 22px 26px 20px;
+    background:
+      radial-gradient(120% 120% at 50% 0%, #221b12 0%, var(--window) 70%);
+    box-shadow: inset 0 3px 10px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(0,0,0,0.6);
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center; gap: clamp(14px, 3vw, 30px);
+  }
+  /* the tape spanning behind the reels */
+  .window::before {
+    content: ""; position: absolute; left: 26px; right: 26px;
+    top: 50%; height: 34px; transform: translateY(-50%);
+    background: linear-gradient(180deg, #3a2f1e, #241c11);
+    border-top: 1px solid rgba(255,220,160,0.06);
+    border-bottom: 1px solid rgba(0,0,0,0.5);
+    z-index: 0;
+  }
+  .reel { position: relative; width: clamp(84px, 20vw, 118px); aspect-ratio: 1; z-index: 1; justify-self: center; }
+  .reel svg { display: block; width: 100%; height: 100%; }
+  .reel .spin { transform-origin: 50% 50%; animation: reelspin 6s linear infinite; }
+  .reel.feed .spin { animation-duration: 9s; }
+  @keyframes reelspin { to { transform: rotate(360deg); } }
+
+  /* counter window sits between the reels */
+  .counter {
+    justify-self: center; z-index: 1;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .counter .cwin {
+    display: inline-flex; gap: 3px;
+    background: #0d0a06; border-radius: 3px; padding: 5px 7px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.9), inset 0 0 0 1px rgba(255,190,90,0.14);
+  }
+  .counter .digit {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 17px; font-weight: 700; color: var(--amber-hi);
+    width: 13px; text-align: center;
+    text-shadow: 0 0 7px rgba(240,181,62,0.55);
+  }
+  .counter .digit.dim { color: #6b5326; text-shadow: none; }
+  .counter .clabel {
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: #a08752; white-space: nowrap;
+  }
+
+  /* ============================================================
+     THE DECK — the transport playing the tape
+     ============================================================ */
+  .deck {
+    margin-top: clamp(20px, 3.2vw, 30px);
+    border-radius: 10px;
+    background: linear-gradient(180deg, #efe6cf, #e2d4b4);
+    box-shadow: inset 0 0 0 1px rgba(120,95,55,0.3), 0 6px 18px -12px rgba(40,30,15,0.5);
+    padding: clamp(16px, 2.6vw, 22px);
+  }
+  .deck-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap; margin-bottom: 16px;
+  }
+  .deck-title {
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.13em;
+    text-transform: uppercase; color: var(--ink-3); margin: 0;
+  }
+
+  /* VU meter = live indicator */
+  .vu {
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .vu .meter {
+    width: 132px; height: 58px; border-radius: 5px;
+    background: linear-gradient(180deg, #F4E7C3, #E9D49A);
+    box-shadow: inset 0 0 0 2px #201a10, inset 0 2px 6px rgba(120,90,40,0.35);
+    position: relative; overflow: hidden;
+  }
+  .vu .meter svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .vu .needle { transform-origin: 66px 54px; animation: vusway 3.4s ease-in-out infinite; }
+  @keyframes vusway {
+    0%   { transform: rotate(-30deg); }
+    28%  { transform: rotate(6deg); }
+    42%  { transform: rotate(-8deg); }
+    62%  { transform: rotate(18deg); }
+    100% { transform: rotate(-30deg); }
+  }
+  .vu .live {
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.03em;
+    color: var(--amber-ink); display: inline-flex; flex-direction: column; gap: 3px;
+  }
+  .vu .live .rec { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-ink); font-weight: 600; }
+  .vu .live .rec .lamp {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--amber);
+    box-shadow: 0 0 6px rgba(216,151,31,0.9); animation: reclamp 1.5s ease-in-out infinite;
+  }
+  @keyframes reclamp { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* the stage transport track: plan | build | review | test | done */
+  .track {
+    margin-top: 8px;
+  }
+  .ribbon {
+    position: relative; height: 8px; border-radius: 4px;
+    background: var(--paper-lo);
+    box-shadow: inset 0 0 0 1px rgba(120,95,55,0.3);
+    margin: 0 6px;
+  }
+  .ribbon .played {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 50%;
+    border-radius: 4px; background: linear-gradient(90deg, var(--shell), #4a3d28);
+  }
+  .stations {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    margin-top: 0;
+  }
+  .stn { position: relative; text-align: center; padding-top: 0; }
+  .stn .pin {
+    position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--paper-hi); box-shadow: inset 0 0 0 3px var(--ink-3);
+    z-index: 2;
+  }
+  .stn.passed .pin { background: var(--shell); box-shadow: inset 0 0 0 2px #efe6cf; }
+  .stn.passed .pin::after {
+    content: ""; position: absolute; left: 5px; top: 3.5px;
+    width: 4px; height: 7px; border: solid #efe6cf; border-width: 0 2px 2px 0;
+    transform: rotate(42deg);
+  }
+  .stn.gate .pin {
+    width: 20px; height: 20px; top: -15px;
+    background: var(--accent); box-shadow: 0 0 0 4px rgba(196,56,27,0.22), inset 0 0 0 2px #efe6cf;
+  }
+  /* play-head triangle pointing at the review station */
+  .stn.gate .head {
+    position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent;
+    border-top: 9px solid var(--accent);
+  }
+  .stn.ahead .pin { box-shadow: inset 0 0 0 3px #c3b691; background: var(--paper-hi); }
+  .stn.terminus .pin { border-radius: 4px; }
+  .stn .nm {
+    margin-top: 20px; font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+    color: var(--ink); letter-spacing: 0.01em;
+  }
+  .stn.ahead .nm { color: var(--ink-3); font-weight: 600; }
+  .stn.gate .nm { color: var(--accent-ink); }
+  .stn .st {
+    margin-top: 2px; font-family: var(--font-mono); font-size: 13px; color: var(--ink-3);
+    line-height: 1.3;
+  }
+  .stn.passed .st { color: var(--ink-2); }
+  .stn.gate .st { color: var(--accent-ink); font-weight: 600; }
+
+  /* ---------- the gate action: chunky lit transport buttons ---------- */
+  .transport {
+    margin-top: clamp(20px, 3vw, 26px);
+    display: flex; align-items: stretch; gap: 12px; flex-wrap: wrap;
+  }
+  .btn {
+    font-family: var(--font-ui); cursor: pointer; border: none;
+    display: inline-flex; align-items: center; gap: 12px;
+    transition: transform .14s ease, box-shadow .14s ease, filter .14s ease;
+  }
+  .btn .glyph {
+    display: inline-flex; align-items: center; justify-content: center;
+    flex: 0 0 auto;
+  }
+  /* primary: the lit PLAY / approve control */
+  .btn.play {
+    flex: 1 1 300px;
+    padding: 16px 22px; border-radius: 10px;
+    background: linear-gradient(180deg, var(--accent-hi), var(--accent));
+    color: #fff5ef;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.35),
+      inset 0 -2px 0 rgba(0,0,0,0.22),
+      0 0 0 1px rgba(120,30,10,0.5),
+      0 0 20px rgba(225,86,46,0.45),
+      0 8px 18px -8px rgba(150,40,15,0.6);
+    animation: litpulse 2.4s ease-in-out infinite;
+  }
+  @keyframes litpulse {
+    0%,100% { box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -2px 0 rgba(0,0,0,0.22), 0 0 0 1px rgba(120,30,10,0.5), 0 0 16px rgba(225,86,46,0.35), 0 8px 18px -8px rgba(150,40,15,0.6); }
+    50%     { box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -2px 0 rgba(0,0,0,0.22), 0 0 0 1px rgba(120,30,10,0.5), 0 0 26px rgba(225,86,46,0.6), 0 8px 20px -8px rgba(150,40,15,0.65); }
+  }
+  .btn.play:hover { transform: translateY(-2px); filter: brightness(1.04); }
+  .btn.play .glyph {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(255,255,255,0.16); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.5);
+  }
+  .btn.play .tri { width: 0; height: 0; border-left: 11px solid #fff5ef; border-top: 7px solid transparent; border-bottom: 7px solid transparent; margin-left: 3px; }
+  .btn .txt { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+  .btn.play .big { font-size: 16.5px; font-weight: 800; letter-spacing: 0.01em; }
+  .btn.play .sm { font-size: 13px; font-family: var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: #ffd9cb; margin-top: 2px; }
+
+  /* secondary: rewind / send back — cream deck button */
+  .btn.rewind {
+    flex: 0 1 auto;
+    padding: 16px 20px; border-radius: 10px;
+    background: linear-gradient(180deg, #f3ecd8, #ddceac);
+    color: var(--ink);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), inset 0 -2px 0 rgba(120,95,55,0.28), 0 0 0 1px rgba(120,95,55,0.4), 0 6px 14px -8px rgba(40,30,15,0.5);
+  }
+  .btn.rewind:hover { transform: translateY(-2px); }
+  .btn.rewind .glyph { color: var(--ink-2); font-size: 15px; letter-spacing: -3px; }
+  .btn.rewind .big { font-size: 15px; font-weight: 700; }
+
+  .morph-note {
+    margin: 16px 2px 0; font-size: 13px; color: var(--ink-2); line-height: 1.55;
+    max-width: 66ch;
+  }
+  .morph-note code {
+    font-family: var(--font-mono); font-size: 13px; color: var(--ink);
+    background: rgba(43,36,27,0.08); padding: 1px 6px; border-radius: 4px;
+  }
+
+  /* ============================================================
+     THE J-CARD — the track listing (the signature)
+     ruled ledger, one line per ticket, left-edge bullet dots,
+     column headers echoing the SKC inlay
+     ============================================================ */
+  .jcard {
+    margin-top: clamp(34px, 5vw, 56px);
+    border-radius: 6px;
+    background: linear-gradient(180deg, var(--paper-hi), #E9DDC2);
+    box-shadow: inset 0 0 0 1.5px var(--rule), 0 8px 22px -16px rgba(40,30,15,0.5);
+    overflow: hidden;
+  }
+  .jcard-top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+    padding: 14px 18px 13px;
+    border-bottom: 2px solid var(--ink);
+    background: linear-gradient(180deg, #F4EBD6, #EEE1C6);
+  }
+  .jcard-top .lhs { display: inline-flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .jcard-top .side { font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.02em; color: var(--ink); }
+  .jcard-top .norm { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: #8a6f42; }
+  .jcard-top .count { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+
+  /* column header row */
+  .cols {
+    display: grid;
+    grid-template-columns: 40px 92px minmax(0,1fr) 130px 62px;
+    gap: 12px; align-items: center;
+    padding: 9px 18px; border-bottom: 1px solid var(--rule);
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.09em;
+    text-transform: uppercase; color: #8a6f42;
+  }
+  .cols .r { text-align: right; }
+
+  .rows { padding: 0; }
+  .trk {
+    display: grid;
+    grid-template-columns: 40px 92px minmax(0,1fr) 130px 62px;
+    gap: 12px; align-items: center;
+    padding: 14px 18px;
+    /* the ruled ledger line */
+    border-bottom: 1px solid var(--rule);
+    position: relative;
+  }
+  .trk:last-child { border-bottom: none; }
+  .trk .no {
+    font-family: var(--font-mono); font-weight: 700; font-size: 14px;
+    color: var(--ink); display: inline-flex; align-items: center; gap: 7px;
+    font-variant-numeric: tabular-nums;
+  }
+  /* the left-edge bullet dot (SKC inlay) — carries stage colour */
+  .trk .no .bul { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; background: var(--ink-3); }
+  .trk.done .no .bul { background: var(--shell); }
+  .trk.review .no .bul { background: var(--accent); box-shadow: 0 0 0 3px rgba(196,56,27,0.2); }
+  .trk.building .no .bul { background: var(--amber); box-shadow: 0 0 0 3px rgba(216,151,31,0.2); }
+  .trk.backlog .no .bul { background: transparent; box-shadow: inset 0 0 0 2px var(--ink-3); }
+
+  .trk .tid { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .trk .name { font-size: 15.5px; color: var(--ink); min-width: 0; }
+  .trk.backlog .name { color: var(--ink-2); }
+
+  .trk .stage {
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.01em;
+    display: inline-flex; flex-direction: column; align-items: flex-start; gap: 5px;
+  }
+  .trk.done .stage { color: var(--ink-2); }
+  .trk.review .stage { color: var(--accent-ink); font-weight: 700; }
+  .trk.building .stage { color: var(--amber-ink); font-weight: 600; }
+  .trk.backlog .stage { color: var(--ink-3); }
+  .trk .stage .gatetag {
+    font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--accent-ink); border: 1px solid var(--accent); border-radius: 3px;
+    padding: 1px 6px; white-space: nowrap;
+  }
+
+  .trk .time { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-2); text-align: right; }
+  .trk.backlog .time { color: var(--ink-3); }
+
+  /* Side B footer — end of the tape */
+  .sideb {
+    padding: 13px 18px; border-top: 2px solid var(--ink);
+    background: linear-gradient(180deg, #EEE1C6, #E4D6B8);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.05em;
+    text-transform: uppercase; color: #8a6f42;
+  }
+  .sideb .sq { width: 12px; height: 12px; border-radius: 2px; background: var(--shell); }
+
+  /* legend */
+  .legend {
+    margin-top: 26px; display: flex; flex-wrap: wrap; gap: 14px 24px;
+    font-family: var(--font-mono); font-size: 13px; color: var(--ink-2);
+  }
+  .legend .li { display: inline-flex; align-items: center; gap: 8px; }
+  .legend .g { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 auto; }
+  .legend .g.done { background: var(--shell); }
+  .legend .g.review { background: var(--accent); }
+  .legend .g.building { background: var(--amber); }
+  .legend .g.backlog { box-shadow: inset 0 0 0 2px var(--ink-3); }
+
+  /* ============================================================
+     RESPONSIVE
+     ============================================================ */
+  @media (max-width: 640px) {
+    .label { grid-template-columns: auto minmax(0,1fr); }
+    .label .bias { display: none; }
+    .cols { display: none; }
+    .trk {
+      grid-template-columns: 30px minmax(0,1fr);
+      grid-template-areas:
+        "no   name"
+        "no   meta";
+      gap: 4px 12px;
+      row-gap: 6px;
+      padding: 13px 15px;
+    }
+    .trk .no { grid-area: no; align-self: start; padding-top: 2px; }
+    .trk .tid { display: none; }
+    .trk .name { grid-area: name; }
+    .trk .stage { grid-area: meta; }
+    .trk .time { grid-area: meta; justify-self: end; text-align: right; }
+    /* put stage + time on one meta row */
+    .trk .stage, .trk .time { align-self: center; }
+    .stn .nm { font-size: 12px; }
+    .stn .st { font-size: 10px; }
+    .vu .meter { width: 116px; height: 52px; }
+    .btn.rewind { flex: 1 1 auto; }
+    .btn.play { flex: 1 1 100%; }
+  }
+  @media (max-width: 420px) {
+    .window { padding: 18px 14px 16px; gap: 8px; }
+    .counter .cwin { padding: 4px 6px; }
+    .counter .digit { font-size: 15px; width: 12px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reel .spin { animation: none; }
+    .vu .needle { animation: none; transform: rotate(-4deg); }
+    .vu .live .rec .lamp { animation: none; }
+    .btn.play { animation: none; box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -2px 0 rgba(0,0,0,0.22), 0 0 0 1px rgba(120,30,10,0.5), 0 0 20px rgba(225,86,46,0.5), 0 8px 18px -8px rgba(150,40,15,0.6); }
+    .btn { transition: none; }
+    .btn:hover { transform: none; }
+  }
+
+  /* hold LIGHT on purpose — this is a light-theme deliverable (warm cassette plastic) */
+  @media (prefers-color-scheme: dark) { /* intentionally not inverted */ }
+
+  .vh { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <a class="back" href="#board"><span class="arw" aria-hidden="true">&larr;</span> Board</a>
+
+    <header class="feature">
+      <p class="eyebrow">Side A · a mixtape</p>
+      <div class="idrow">
+        <span class="fid">TKT-001</span>
+        <span class="prio"><span class="dot" aria-hidden="true"></span>High priority</span>
+      </div>
+      <h1 class="title">Subscriptions &amp; billing</h1>
+      <p class="lede">Recurring revenue: plan cards, Stripe checkout, webhook-driven activation, and a customer portal.</p>
+      <p class="progress">
+        <b>1</b>&nbsp;of&nbsp;<b>4</b> tracks done
+        <span class="sep" aria-hidden="true">·</span>
+        <span class="gate-note">stopped at the review gate — waiting on you</span>
+      </p>
+    </header>
+
+    <!-- ============ THE CASSETTE ============ -->
+    <section class="cassette" aria-label="The feature as a cassette">
+      <span class="screw tl" aria-hidden="true"></span>
+      <span class="screw tr" aria-hidden="true"></span>
+      <span class="screw bl" aria-hidden="true"></span>
+      <span class="screw br" aria-hidden="true"></span>
+
+      <div class="label">
+        <span class="side-badge" aria-hidden="true"><span class="s">SIDE</span><span class="a">A</span></span>
+        <div class="titlewrap">
+          <p class="kicker">Now playing · TKT-001</p>
+          <p class="mixtitle" title="Subscriptions &amp; billing">Subscriptions &amp; billing</p>
+        </div>
+        <span class="bias" aria-hidden="true">High bias · 4 tracks</span>
+      </div>
+
+      <div class="window">
+        <!-- LEFT reel: take-up, fuller (more tape wound = more done) -->
+        <div class="reel takeup" aria-hidden="true">
+          <svg viewBox="0 0 120 120" role="img">
+            <circle cx="60" cy="60" r="56" fill="#0f0b06"/>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#2c2213" stroke-width="14"/>
+            <circle cx="60" cy="60" r="40" fill="none" stroke="#241b0f" stroke-width="5"/>
+            <g class="spin">
+              <circle cx="60" cy="60" r="30" fill="none" stroke="#5a4a2c" stroke-width="2"/>
+              <circle cx="60" cy="60" r="16" fill="#d9cba7"/>
+              <circle cx="60" cy="60" r="15" fill="none" stroke="#8a7550" stroke-width="1.5"/>
+              <!-- 6 hub teeth -->
+              <g fill="#efe6cf">
+                <rect x="57" y="44" width="6" height="12" rx="1"/>
+                <rect x="57" y="64" width="6" height="12" rx="1"/>
+                <rect x="44" y="57" width="12" height="6" rx="1"/>
+                <rect x="64" y="57" width="12" height="6" rx="1"/>
+                <rect x="48" y="48" width="7" height="7" rx="1" transform="rotate(45 51.5 51.5)"/>
+                <rect x="65" y="65" width="7" height="7" rx="1" transform="rotate(45 68.5 68.5)"/>
+              </g>
+              <circle cx="60" cy="60" r="4" fill="#241b0f"/>
+            </g>
+          </svg>
+        </div>
+
+        <div class="counter" aria-hidden="true">
+          <div class="cwin">
+            <span class="digit dim">0</span><span class="digit dim">0</span><span class="digit">3</span>
+          </div>
+          <span class="clabel">Track&nbsp;3 / 4</span>
+        </div>
+
+        <!-- RIGHT reel: feed, less tape -->
+        <div class="reel feed" aria-hidden="true">
+          <svg viewBox="0 0 120 120" role="img">
+            <circle cx="60" cy="60" r="56" fill="#0f0b06"/>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#241b0f" stroke-width="8"/>
+            <circle cx="60" cy="60" r="44" fill="none" stroke="#1a130a" stroke-width="4"/>
+            <g class="spin">
+              <circle cx="60" cy="60" r="30" fill="none" stroke="#4a3c24" stroke-width="2"/>
+              <circle cx="60" cy="60" r="16" fill="#d9cba7"/>
+              <circle cx="60" cy="60" r="15" fill="none" stroke="#8a7550" stroke-width="1.5"/>
+              <g fill="#efe6cf">
+                <rect x="57" y="44" width="6" height="12" rx="1"/>
+                <rect x="57" y="64" width="6" height="12" rx="1"/>
+                <rect x="44" y="57" width="12" height="6" rx="1"/>
+                <rect x="64" y="57" width="12" height="6" rx="1"/>
+                <rect x="48" y="48" width="7" height="7" rx="1" transform="rotate(45 51.5 51.5)"/>
+                <rect x="65" y="65" width="7" height="7" rx="1" transform="rotate(45 68.5 68.5)"/>
+              </g>
+              <circle cx="60" cy="60" r="4" fill="#241b0f"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ THE DECK / TRANSPORT ============ -->
+    <section class="deck" aria-label="Transport and workflow">
+      <div class="deck-head">
+        <p class="deck-title">Transport · plan &rarr; build &rarr; review &rarr; test &rarr; done</p>
+        <div class="vu">
+          <div class="meter" role="img" aria-label="Live: one agent working">
+            <svg viewBox="0 0 132 58" aria-hidden="true">
+              <!-- arc scale -->
+              <g fill="none" stroke="#3a2f1c" stroke-width="1.4">
+                <path d="M14 50 A 52 52 0 0 1 118 50" />
+              </g>
+              <!-- tick marks -->
+              <g stroke="#2a2114" stroke-width="1.2">
+                <line x1="18" y1="42" x2="21" y2="46"/>
+                <line x1="30" y1="30" x2="32" y2="35"/>
+                <line x1="46" y1="22" x2="47" y2="27"/>
+                <line x1="66" y1="19" x2="66" y2="24"/>
+              </g>
+              <!-- red danger zone above 0 -->
+              <path d="M66 20 A 46 46 0 0 1 112 46" fill="none" stroke="#C4381B" stroke-width="3.5" stroke-linecap="round"/>
+              <!-- labels -->
+              <g fill="#4a3c24" font-family="ui-monospace, monospace" font-size="7">
+                <text x="12" y="40">-20</text>
+                <text x="60" y="15">0</text>
+                <text x="120" y="42" fill="#9C2C12">+</text>
+              </g>
+              <text x="66" y="52" fill="#5a4a2c" font-family="system-ui" font-size="9" font-weight="700" text-anchor="middle">VU</text>
+              <!-- needle -->
+              <line class="needle" x1="66" y1="54" x2="66" y2="16" stroke="#241a0d" stroke-width="1.6"/>
+              <circle cx="66" cy="54" r="3.5" fill="#241a0d"/>
+              <!-- peak LED -->
+              <circle cx="120" cy="30" r="3" fill="#E1562E"/>
+            </svg>
+          </div>
+          <div class="live">
+            <span class="rec"><span class="lamp" aria-hidden="true"></span>REC</span>
+            <span>1 agent working</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- the stage transport track with a play-head at review -->
+      <div class="track" role="group" aria-label="Feature workflow position">
+        <div class="ribbon" aria-hidden="true"><span class="played"></span></div>
+        <div class="stations">
+          <div class="stn passed">
+            <span class="pin" aria-hidden="true"></span>
+            <div class="nm">plan</div><div class="st">passed</div>
+          </div>
+          <div class="stn passed">
+            <span class="pin" aria-hidden="true"></span>
+            <div class="nm">build</div><div class="st">passed</div>
+          </div>
+          <div class="stn gate" aria-current="step">
+            <span class="head" aria-hidden="true"></span>
+            <span class="pin" aria-hidden="true"></span>
+            <div class="nm">review</div><div class="st">waiting on you</div>
+          </div>
+          <div class="stn ahead">
+            <span class="pin" aria-hidden="true"></span>
+            <div class="nm">test</div><div class="st">ahead</div>
+          </div>
+          <div class="stn ahead terminus">
+            <span class="pin" aria-hidden="true"></span>
+            <div class="nm">done</div><div class="st">end of Side A</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- the gate action: chunky lit transport buttons -->
+      <div class="transport">
+        <button class="btn play" type="button">
+          <span class="glyph" aria-hidden="true"><span class="tri"></span></span>
+          <span class="txt">
+            <span class="big">Approve &mdash; roll to test</span>
+            <span class="sm">Press play · Side A continues</span>
+          </span>
+        </button>
+        <button class="btn rewind" type="button">
+          <span class="glyph" aria-hidden="true">&#9664;&#9664;</span>
+          <span class="txt"><span class="big">Send back</span></span>
+        </button>
+      </div>
+      <p class="morph-note">
+        This is the one button that changes with the tape: idle it reads
+        <code>Build this feature</code>; while a run is rolling it reads <code>Watch live</code>.
+        Right now the tape is stopped at the review gate, so it lights up as the decision above.
+      </p>
+    </section>
+
+    <!-- ============ THE J-CARD TRACK LISTING (signature) ============ -->
+    <section class="jcard" aria-label="Track listing — child tickets">
+      <div class="jcard-top">
+        <div class="lhs">
+          <span class="side">Side A</span>
+          <span class="norm">Normal position · track listing</span>
+        </div>
+        <span class="count">1 / 4 done</span>
+      </div>
+
+      <div class="cols" aria-hidden="true">
+        <span>Trk</span><span>Ticket</span><span>Title</span><span>Stage</span><span class="r">Time</span>
+      </div>
+
+      <div class="rows" role="list">
+        <div class="trk done" role="listitem">
+          <span class="no"><span class="bul" aria-hidden="true"></span>A1</span>
+          <span class="tid">TKT-002</span>
+          <span class="name">Pricing page with plan cards</span>
+          <span class="stage">done</span>
+          <span class="time">2h</span>
+        </div>
+
+        <div class="trk review" role="listitem">
+          <span class="no"><span class="bul" aria-hidden="true"></span>A2</span>
+          <span class="tid">TKT-003</span>
+          <span class="name">Stripe checkout session</span>
+          <span class="stage">reviewing <span class="gatetag">at the gate</span></span>
+          <span class="time">6m</span>
+        </div>
+
+        <div class="trk building" role="listitem">
+          <span class="no"><span class="bul" aria-hidden="true"></span>A3</span>
+          <span class="tid">TKT-004</span>
+          <span class="name">Webhook: activate subscription</span>
+          <span class="stage">building</span>
+          <span class="time">3m</span>
+        </div>
+
+        <div class="trk backlog" role="listitem">
+          <span class="no"><span class="bul" aria-hidden="true"></span>A4</span>
+          <span class="tid">TKT-005</span>
+          <span class="name">Customer portal link</span>
+          <span class="stage">backlog</span>
+          <span class="time">&mdash;</span>
+        </div>
+      </div>
+
+      <div class="sideb">
+        <span class="sq" aria-hidden="true"></span>
+        Side B — done · flip when all four tracks reach the end of the tape
+      </div>
+    </section>
+
+    <div class="legend" aria-hidden="true">
+      <span class="li"><span class="g done"></span> done</span>
+      <span class="li"><span class="g review"></span> at the gate — waiting on you</span>
+      <span class="li"><span class="g building"></span> building — agent rolling</span>
+      <span class="li"><span class="g backlog"></span> backlog</span>
+    </div>
+  </main>
+</body>
+</html>

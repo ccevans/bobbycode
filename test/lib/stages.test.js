@@ -2,8 +2,8 @@
 import { STAGES, TRANSITIONS, isValidStage, stageColor, stageIndex, resolveTransition } from '../../lib/stages.js';
 
 describe('stages', () => {
-  test('STAGES has 12 entries', () => {
-    expect(STAGES).toHaveLength(12);
+  test('STAGES has 18 entries', () => {
+    expect(STAGES).toHaveLength(18);
   });
 
   test('STAGES starts with backlog and ends with blocked', () => {
@@ -13,9 +13,11 @@ describe('stages', () => {
 
   test('STAGES contains all expected stages', () => {
     expect(STAGES).toEqual([
-      'backlog', 'planning',
+      'backlog',
+      'define-brief', 'define-personas', 'define-journeys', 'define-features', 'define-blueprint',
+      'planning',
       'design-research', 'design-analyze', 'design-mockup', 'design-spec',
-      'building', 'reviewing',
+      'building', 'security', 'reviewing',
       'testing', 'shipping', 'done', 'blocked',
     ]);
   });
@@ -54,6 +56,22 @@ describe('stages', () => {
     expect(stageIndex('design-spec')).toBeLessThan(stageIndex('building'));
   });
 
+  // Position, not just membership: stageIndex is an ordering comparison in the
+  // parent-epic auto-advance (lib/tickets.js), so a child that has cleared
+  // security must read as further along than one still building and less far
+  // than one in review. Dropping `security` at the end of STAGES would pass a
+  // membership check and silently advance epics wrong.
+  test('security sits between building and reviewing', () => {
+    expect(stageIndex('security')).toBeGreaterThan(stageIndex('building'));
+    expect(stageIndex('security')).toBeLessThan(stageIndex('reviewing'));
+  });
+
+  test('security is reachable by `bobby ticket move <id> security`', () => {
+    expect(TRANSITIONS.security).toBe('security');
+    expect(resolveTransition('security')).toBe('security');
+    expect(isValidStage('security')).toBe(true);
+  });
+
   test('TRANSITIONS maps aliases to stage names', () => {
     expect(TRANSITIONS.plan).toBe('planning');
     expect(TRANSITIONS.build).toBe('building');
@@ -76,5 +94,42 @@ describe('stages', () => {
   test('resolveTransition returns null for unknown aliases', () => {
     expect(resolveTransition('invalid')).toBeNull();
     expect(resolveTransition('fake')).toBeNull();
+  });
+});
+
+// The fix-it-once guard: the design stages shipped without STAGE_ORDER ranks
+// and without brief.js visibility for a release. These invariants make it
+// impossible for a third pipeline to reintroduce that gap silently.
+import { STAGE_ORDER } from '../../lib/tickets.js';
+import { BUILT_IN_WORKFLOWS, resolveWorkflow } from '../../lib/workflow.js';
+import chalk from 'chalk';
+
+describe('stage invariants (every pipeline, forever)', () => {
+  test('every stage has a STAGE_ORDER rank', () => {
+    for (const stage of STAGES) {
+      expect(STAGE_ORDER[stage]).toBeDefined();
+    }
+  });
+
+  test('every stage has a real color, not the fallback', () => {
+    for (const stage of STAGES) {
+      expect(stageColor(stage)).not.toBe(chalk.reset);
+    }
+  });
+
+  test('every built-in workflow step maps to a valid stage', () => {
+    for (const [name] of Object.entries(BUILT_IN_WORKFLOWS)) {
+      for (const step of resolveWorkflow({}, name)) {
+        expect(isValidStage(step.stage)).toBe(true);
+      }
+    }
+  });
+
+  test('define aliases resolve to define stages', () => {
+    expect(resolveTransition('brief')).toBe('define-brief');
+    expect(resolveTransition('personas')).toBe('define-personas');
+    expect(resolveTransition('journeys')).toBe('define-journeys');
+    expect(resolveTransition('features')).toBe('define-features');
+    expect(resolveTransition('blueprint')).toBe('define-blueprint');
   });
 });

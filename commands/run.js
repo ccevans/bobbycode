@@ -2,13 +2,14 @@
 import fs from 'fs';
 import path from 'path';
 import inquirer from 'inquirer';
-import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir, resolveProductDir } from '../lib/config.js';
 import { getFeatureTickets, listEpics } from '../lib/tickets.js';
 import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, listWorkflows } from '../lib/workflow.js';
 import { findTicket } from '../lib/tickets.js';
 import { VALID_AGENTS } from '../lib/agent-registry.js';
 import { bold, dim, error } from '../lib/colors.js';
 import { getTarget } from '../lib/targets/index.js';
+import { overlayPromptClause, repoTargetingClause } from '../lib/skills.js';
 import { initSession } from '../lib/session.js';
 
 /**
@@ -33,11 +34,14 @@ Modes:
   Batch:      bobby run plan             — runs agent on all tickets in matching stage
   Direct:     bobby run plan|build|review|test|ship|ux|pm|qe <id>
   Vet:        bobby run vet [id]         — interrogate design before planning
+  Define:     bobby run define <epicId>  — product definition: brief → personas → journeys → features → blueprint (then: run plan)
+              bobby run define-brief|define-personas|define-journeys|define-features|define-blueprint
   Design:     bobby run design <id>          — full chain: research → analyze → mockup → spec → build → check
               bobby run design-research|design-analyze|design-mockup|design-spec|design-build|design-check
   Strategy:   bobby run strategy [id]    — strategic validation gate
   Security:   bobby run security <id>    — OWASP + STRIDE audit
   Debug:      bobby run debug <id>       — root-cause investigation
+  Freewill:   bobby run freewill <id>    — one agent, whole ticket, few instructions (Opus 5 / Fable 5)
   Freeform:   bobby run docs|performance|watchdog — no ticket required
   Workflow:   bobby run <workflow-name> <id> — run a named workflow (default, secure, quick, or your own)`)
     .option('--max-retries <n>', 'Max retry loops on rejection per ticket', '3')
@@ -92,6 +96,10 @@ Modes:
         const maxRetries = parseInt(opts.maxRetries, 10) || 3;
         const maxIterations = opts.maxIterations ? parseInt(opts.maxIterations, 10) : undefined;
         const hasServices = !!(config.services && Object.keys(config.services).length > 0);
+        const hasProduct = fs.existsSync(path.join(root, config.bobby_dir || '.bobby', 'product', 'feature-map.md'));
+        // Absolute, main-worktree-rooted product dir so the product hint resolves
+        // from an agent whose cwd is a (possibly different-repo) worktree (PRO-026).
+        const productDir = resolveProductDir(root, config);
 
         // Initialize session for logging
         const sessionsDir = resolveSessionsDir(root, config);
@@ -149,7 +157,7 @@ Modes:
           }
           steps.push(`Load and follow \`${rel}\`. If \`${agentsPath}/${customAgent}.local.md\` exists, read it too — it wins on any conflict.`);
           if (ticketIds.length > 0) {
-            steps.push(`The ticket is \`${config.tickets_dir}/${ticketIds[0]}*/ticket.md\`. When done, update its stage per the agent file's instructions.`);
+            steps.push(`The ticket is \`${ticketsDir}/${ticketIds[0]}*/ticket.md\`. When done, update its stage per the agent file's instructions.`);
           }
           built = {
             label: customAgent,
@@ -162,12 +170,18 @@ Modes:
             built = buildPromptFor(agent, ticketIds, {
               config,
               ticketsDir,
-              ticketsRelDir: config.tickets_dir,
+              // Same resolved absolute dir the lookup uses. On the CLI path cwd
+              // usually IS the main checkout, so the relative path happened to
+              // work — but the prompt may be pasted into an agent running
+              // elsewhere, and one behaviour beats two (TKT-052).
+              ticketsPath: ticketsDir,
               agentsPath,
               workflow: pipeline,
               maxRetries,
               maxIterations,
               hasServices,
+              hasProduct,
+              productDir,
               epicData,
               gitConventions: config.git_conventions || {},
             });
@@ -176,6 +190,11 @@ Modes:
             process.exit(1);
           }
         }
+
+        // v2: tell the agent to honor this project's skill overlay. Appended
+        // centrally so every `bobby run` variant gets it without touching the
+        // individual prompt builders.
+        if (built && built.prompt) built.prompt += repoTargetingClause(config) + overlayPromptClause(config);
 
         // Print header + prompt
         console.log('');

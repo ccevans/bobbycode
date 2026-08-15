@@ -17,12 +17,30 @@ export function registerCreate(program) {
     .option('--epic', 'Create as an epic (bobby-plan will break it down)')
     .option('--parent <id>', 'Parent epic ticket ID')
     .option('--services <names>', 'Comma-separated service names this ticket touches')
+    .option('--repos <names>', 'Comma-separated repos from the project group this ticket touches (v2)')
     .option('--workflow <name>', 'Named workflow to run this ticket through (default, secure, quick, or your own)')
+    .option('--feature <id>', 'Feature-map row this ticket implements (e.g. F1.2) — see .bobby/product/feature-map.md')
+    .option('--persona <id>', 'Persona this ticket serves (e.g. P1) — see .bobby/product/personas.md')
     .action((opts) => {
       try {
         const root = findProjectRoot();
         const config = readConfig(root);
         const ticketsDir = resolveTicketsDir(root, config);
+
+        // v2: which repos this ticket touches. Explicit --repos wins; otherwise
+        // default to the project's whole repo subset. Validate against it so a
+        // typo can't point work at a repo the project doesn't use.
+        let repos = null;
+        if (config.studio) {
+          const allowed = config.project_repos || [];
+          repos = opts.repos ? opts.repos.split(',').map(s => s.trim()).filter(Boolean) : allowed;
+          const bad = repos.filter(r => !allowed.includes(r));
+          if (bad.length) {
+            error(`Ticket repos not in project '${config._project}' (${allowed.join(', ') || 'none'}): ${bad.join(', ')}`);
+            process.exit(1);
+          }
+        }
+
         const result = createTicket(ticketsDir, {
           prefix: config.ticket_prefix,
           title: opts.title.trim(),
@@ -32,7 +50,10 @@ export function registerCreate(program) {
           area: opts.area || '',
           parent: opts.parent || null,
           services: opts.services ? opts.services.split(',').map(s => s.trim()) : null,
+          repos,
           workflow: opts.workflow || null,
+          feature: opts.feature || null,
+          persona: opts.persona || null,
         });
         success(`Created ${result.id} — ${opts.title}`);
         console.log(`  → ${config.tickets_dir}/${result.dirname}/`);

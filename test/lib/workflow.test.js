@@ -6,8 +6,10 @@ import {
   buildPerformancePrompt, buildWatchdogPrompt, buildVetPrompt, buildStrategyPrompt,
   buildSprintPrompt,
   resolveNextAgent, DEFAULT_WORKFLOW, resolveWorkflow, listWorkflows,
+  BUILT_IN_WORKFLOWS, STAGE_MAP, nextStageForAgent,
 } from '../../lib/workflow.js';
 import { createTicket, moveTicket, findTicket, writeTicket } from '../../lib/tickets.js';
+import { isValidStage } from '../../lib/stages.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -184,6 +186,14 @@ describe('workflow', () => {
       expect(prompt).toContain('rejection');
       expect(prompt).toContain('bobby-debug');
       expect(prompt).toContain('.claude/agents/bobby-debug.md');
+    });
+
+    test('the single-stage freewill workflow hands off straight to shipping', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', resolveWorkflow({}, 'freewill'));
+      expect(prompt).toContain('bobby-freewill');
+      expect(prompt).toContain('bobby ticket move {TICKET_ID} shipping');
+      // Nothing stands between the one agent and shipping — that is the point.
+      expect(prompt).not.toContain('bobby-review');
     });
 
     test('includes final status reporting', () => {
@@ -546,7 +556,11 @@ describe('workflow', () => {
     });
 
     test('Phase 1 includes sibling plan.md reading', () => {
-      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
+      // PRO-029: sibling paths now resolve to the on-disk folder when it exists.
+      // Point at a dir with no such folders so the glob fallback is deterministic
+      // (these fixture ids would otherwise collide with the real board). TC4 in the
+      // PRO-029 block covers the resolved case against real slugged folders.
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW, 3, '/no-such-bobby-board-pro029');
       expect(prompt).toContain('TKT-002*/plan.md');
       expect(prompt).toContain('TKT-003*/plan.md');
     });
@@ -640,6 +654,12 @@ describe('workflow', () => {
       expect(result.map(s => s.agent)).toEqual(['bobby-plan', 'bobby-build', 'bobby-test']);
     });
 
+    test('resolves the built-in freewill workflow without any config', () => {
+      const result = resolveWorkflow({}, 'freewill');
+      // One agent covers plan through test; the board shows the ticket as building.
+      expect(result).toEqual([{ stage: 'building', agent: 'bobby-freewill' }]);
+    });
+
     test('config can override a built-in workflow by name', () => {
       const result = resolveWorkflow({ workflows: { quick: ['build'] } }, 'quick');
       expect(result).toEqual([{ stage: 'building', agent: 'bobby-build' }]);
@@ -658,7 +678,7 @@ describe('workflow', () => {
       const config = { workflows: { secure: ['plan', 'build', 'security', 'review', 'test'] } };
       const result = resolveWorkflow(config, 'secure');
       expect(result).toHaveLength(5);
-      expect(result[2]).toEqual({ stage: 'reviewing', agent: 'bobby-security' });
+      expect(result[2]).toEqual({ stage: 'security', agent: 'bobby-security' });
     });
 
     test('throws for unknown workflow name', () => {
@@ -712,7 +732,7 @@ describe('workflow', () => {
 
   describe('listWorkflows', () => {
     test('returns the built-in workflows when none configured', () => {
-      expect(listWorkflows({})).toEqual(['default', 'secure', 'quick', 'design']);
+      expect(listWorkflows({})).toEqual(['default', 'secure', 'quick', 'design', 'define', 'freewill']);
     });
 
     test('includes custom workflow names plus default', () => {
@@ -812,5 +832,285 @@ describe('workflow', () => {
       expect(p).toContain('log a warning');
       expect(p).toMatch(/do not silently skip|do not silently move on/);
     });
+  });
+});
+
+describe('define workflow', () => {
+  test('resolves to five define stages with matching agents', () => {
+    const wf = resolveWorkflow({}, 'define');
+    expect(wf).toEqual([
+      { stage: 'define-brief', agent: 'bobby-define-brief' },
+      { stage: 'define-personas', agent: 'bobby-define-personas' },
+      { stage: 'define-journeys', agent: 'bobby-define-journeys' },
+      { stage: 'define-features', agent: 'bobby-define-features' },
+      { stage: 'define-blueprint', agent: 'bobby-define-blueprint' },
+    ]);
+  });
+
+  test('orchestration terminates at planning, never shipping', () => {
+    const wf = resolveWorkflow({}, 'define');
+    const prompt = buildOrchestrationPrompt(['TKT-001'], wf, 3);
+    expect(prompt).toContain('bobby ticket move {TICKET_ID} define-personas');
+    expect(prompt).toContain('bobby ticket move {TICKET_ID} define-blueprint');
+    expect(prompt).toContain('bobby ticket move {TICKET_ID} plan');
+    expect(prompt).not.toContain('move {TICKET_ID} ship');
+  });
+
+  test('single-agent prompt injects the product-context step only when hasProduct', () => {
+    const withIt = buildSingleAgentPrompt('bobby-build', 'TKT-002', '.bobby/tickets', '.claude/agents', false, true);
+    expect(withIt).toContain('feature-map.md');
+    expect(withIt).toContain('personas.md');
+    const without = buildSingleAgentPrompt('bobby-build', 'TKT-002', '.bobby/tickets', '.claude/agents', false, false);
+    expect(without).not.toContain('feature-map.md');
+    // Step numbering stays sequential either way.
+    expect(withIt).toContain('4. Follow the instructions');
+    expect(without).toContain('3. Follow the instructions');
+  });
+});
+
+// TKT-049. The bug this guards is a CLASS, not an instance: every resolver in
+// the orchestrator is a first-match lookup — `resolveNextAgent` finds the first
+// step whose `stage` matches, `nextStageForAgent` the first whose `agent`
+// matches. So any workflow with two steps on one stage makes the second step
+// unreachable and can hand a stage off to itself, which under
+// `dashboard.auto_approve_stages` is an unattended infinite loop spending real
+// tokens. These run over every built-in workflow, so adding a colliding entry
+// to STAGE_MAP or BUILT_IN_WORKFLOWS later fails here rather than in production.
+describe('built-in workflows are structurally sound (TKT-049)', () => {
+  const names = Object.keys(BUILT_IN_WORKFLOWS);
+
+  test('there are built-in workflows to check', () => {
+    expect(names.length).toBeGreaterThan(0);
+  });
+
+  test.each(names)('%s gives every step a distinct stage', (name) => {
+    const stages = resolveWorkflow({}, name).map(s => s.stage);
+    expect(stages).toEqual([...new Set(stages)]);
+  });
+
+  test.each(names)('%s gives every step a distinct agent', (name) => {
+    const agents = resolveWorkflow({}, name).map(s => s.agent);
+    expect(agents).toEqual([...new Set(agents)]);
+  });
+
+  test.each(names)('%s maps every step to a stage that really exists', (name) => {
+    for (const step of resolveWorkflow({}, name)) {
+      expect({ step: step.agent, stage: step.stage, valid: isValidStage(step.stage) })
+        .toEqual({ step: step.agent, stage: step.stage, valid: true });
+    }
+  });
+
+  test.each(names)('%s never hands a stage off to itself', (name) => {
+    const steps = resolveWorkflow({}, name);
+    for (const step of steps) {
+      expect({ agent: step.agent, from: step.stage, to: nextStageForAgent(step.agent, steps) })
+        .not.toEqual({ agent: step.agent, from: step.stage, to: step.stage });
+    }
+  });
+
+  test('every STAGE_MAP target is a real stage', () => {
+    for (const [step, stage] of Object.entries(STAGE_MAP)) {
+      expect({ step, stage, valid: isValidStage(stage) })
+        .toEqual({ step, stage, valid: true });
+    }
+  });
+
+  test('the security step has a stage of its own, not the review stage', () => {
+    expect(STAGE_MAP.security).toBe('security');
+    expect(STAGE_MAP.security).not.toBe(STAGE_MAP.review);
+  });
+
+  test('secure resolves to five steps on five different stages', () => {
+    expect(resolveWorkflow({}, 'secure')).toEqual([
+      { stage: 'planning', agent: 'bobby-plan' },
+      { stage: 'building', agent: 'bobby-build' },
+      { stage: 'security', agent: 'bobby-security' },
+      { stage: 'reviewing', agent: 'bobby-review' },
+      { stage: 'testing', agent: 'bobby-test' },
+    ]);
+  });
+
+  // The design workflow was audited in the same pass. design-build and
+  // design-check reuse the `building` and `reviewing` stages, but each is used
+  // exactly once within `design`, so there is no collision to fix — the shared
+  // generic tests above are what keep that true.
+  test('design reuses building and reviewing but only once each', () => {
+    const stages = resolveWorkflow({}, 'design').map(s => s.stage);
+    expect(stages).toEqual([
+      'design-research', 'design-analyze', 'design-mockup', 'design-spec',
+      'building', 'reviewing',
+    ]);
+  });
+});
+
+// PRO-026: a studio agent runs with its cwd in a code-repo worktree while the
+// board lives at the studio root. Board references the orchestration prompts hand
+// the agent must reach the studio-rooted board, not resolve against the worktree.
+// PRO-029 SUPERSEDED the re-read SITES here: the stage-confirm and backlog-advance
+// reads are no longer a `{TICKET_ID}*/ticket.md` path at all — they are now
+// `bobby ticket view {TICKET_ID}` commands, which resolve the board (and the slug)
+// cwd-independently, so PRO-026's guarantee holds via the command. These tests now
+// assert the command form and that the un-expandable glob path is gone. The
+// product-dir references (TC5/TC6) remain path-based and are still asserted absolute.
+describe('PRO-026: board references in orchestration prompts are absolute', () => {
+  const ABS = '/studio/.bobby/pro/tickets';
+  const PDIR = '/studio/.bobby/product';
+
+  // TC1 — coordinator stage-confirm read is a cwd-independent command (PRO-029).
+  test('TC1: orchestration coordinator re-read uses bobby ticket view', () => {
+    const prompt = buildOrchestrationPrompt('PRO-001', DEFAULT_WORKFLOW, 3, ABS);
+    expect(prompt).toContain('re-run `bobby ticket view {TICKET_ID}` and read the `Stage:` line to confirm the stage advanced');
+    // The un-expandable glob board path must be gone entirely.
+    expect(prompt).not.toContain(`${ABS}/{TICKET_ID}*/ticket.md`);
+  });
+
+  // TC2 — backlog-advance branch read is a cwd-independent command (PRO-029).
+  test('TC2: backlog-advance re-read uses bobby ticket view', () => {
+    const prompt = buildOrchestrationPrompt('PRO-001', DEFAULT_WORKFLOW, 3, ABS);
+    expect(prompt).toContain('then re-run `bobby ticket view {TICKET_ID}` and continue with the new stage');
+    expect(prompt).not.toContain(`${ABS}/{TICKET_ID}*/ticket.md`);
+  });
+
+  // TC3 — sprint prompt inherits both command forms (shared fragments).
+  test('TC3: sprint prompt inherits the bobby ticket view coordinator + backlog reads', () => {
+    const prompt = buildSprintPrompt(
+      { id: 'SPR-1', name: 'Sprint One', branch: 'sprint/one' },
+      [{ id: 'PRO-001', title: 'work', stage: 'backlog', priority: 'high' }],
+      DEFAULT_WORKFLOW,
+      { ticketsDir: ABS },
+    );
+    expect(prompt).toContain('re-run `bobby ticket view {TICKET_ID}` and read the `Stage:` line to confirm the stage advanced');
+    expect(prompt).toContain('then re-run `bobby ticket view {TICKET_ID}` and continue with the new stage');
+    expect(prompt).not.toContain(`${ABS}/{TICKET_ID}*/ticket.md`);
+  });
+
+  // TC4 — feature prompt Phase-2 read is a cwd-independent command (PRO-029).
+  test('TC4: feature prompt Phase-2 re-read uses bobby ticket view', () => {
+    const prompt = buildFeaturePrompt(
+      'PRO-009', 'Epic',
+      [{ id: 'PRO-010', title: 'child', priority: 'high', stage: 'backlog' }],
+      DEFAULT_WORKFLOW, 3, ABS,
+    );
+    expect(prompt).toContain('re-run `bobby ticket view {TICKET_ID}` and read the `Stage:` line to confirm the stage advanced');
+    expect(prompt).not.toContain(`${ABS}/{TICKET_ID}*/ticket.md`);
+  });
+
+  // TC5 — product hint uses the threaded absolute product dir.
+  test('TC5: product hint uses the threaded absolute product dir', () => {
+    const prompt = buildSingleAgentPrompt(
+      'bobby-build', 'PRO-001', ABS, '.claude/agents', false, true, 'reviewing', PDIR,
+    );
+    expect(prompt).toContain(`\`${PDIR}/feature-map.md\``);
+    expect(prompt).toContain(`\`${PDIR}/personas.md\``);
+    // The relative form (backtick immediately before .bobby) must be gone.
+    expect(prompt).not.toContain('`.bobby/product/feature-map.md`');
+    expect(prompt).not.toContain('`.bobby/product/personas.md`');
+  });
+
+  // TC6 — product hint falls back to the relative default when no productDir.
+  test('TC6: product hint falls back to relative default with no productDir', () => {
+    const prompt = buildSingleAgentPrompt(
+      'bobby-build', 'PRO-001', '.bobby/tickets', '.claude/agents', false, true,
+    );
+    expect(prompt).toContain('`.bobby/product/feature-map.md`');
+    expect(prompt).toContain('`.bobby/product/personas.md`');
+  });
+
+  // TC7 — single-repo default: the re-read sites are the same bobby ticket view
+  // commands (PRO-029), independent of the threaded board dir.
+  test('TC7: single-repo default uses the bobby ticket view re-read commands', () => {
+    const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
+    expect(prompt).toContain('re-run `bobby ticket view {TICKET_ID}` and read the `Stage:` line to confirm the stage advanced');
+    expect(prompt).toContain('then re-run `bobby ticket view {TICKET_ID}` and continue with the new stage');
+    expect(prompt).not.toContain('{TICKET_ID}*/ticket.md');
+    // No product context threaded → no product hint at all.
+    expect(prompt).not.toContain('feature-map.md');
+  });
+});
+
+// PRO-029: agent prompts embedded the ticket path as a `${id}*` glob the agent's
+// structured file-read tool cannot expand (folders carry a slug), so the first read
+// returned "File does not exist". Known-id sites now emit the exact resolved folder;
+// runtime-placeholder sites use `bobby ticket view` (resolves slug + board, cwd-independent).
+describe('ticket-path resolution (PRO-029)', () => {
+  let tmpDir;
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-pro029-'));
+    fs.writeFileSync(path.join(tmpDir, '.counter'), '0');
+  });
+  afterEach(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
+
+  // TC1 — known-id prompt embeds the exact resolved folder, no glob (AC #1).
+  test('TC1: known-id prompt embeds the exact resolved folder, no glob', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Some Feature' });
+    const prompt = buildSingleAgentPrompt('bobby-build', 'TKT-001', tmpDir);
+    expect(prompt).toContain(`${tmpDir}/TKT-001--some-feature/ticket.md`);
+    expect(prompt).not.toContain('TKT-001*');
+  });
+
+  // TC2 — reproduction: the resolved path stats true, the old glob path stats false.
+  test('TC2: resolved path stats true, the old ${id}* glob path stats false', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Some Feature' });
+    // The new form points at a real file the read tool can open.
+    expect(fs.existsSync(path.join(tmpDir, 'TKT-001--some-feature', 'ticket.md'))).toBe(true);
+    // The old glob form does not resolve as a literal path — this is exactly why
+    // the structured file-read tool failed on `${id}*/ticket.md`.
+    expect(fs.existsSync(path.join(tmpDir, 'TKT-001*', 'ticket.md'))).toBe(false);
+  });
+
+  // TC3 — placeholder sites carry the resolve instruction, not a glob (AC, req 2).
+  test('TC3: placeholder builders instruct bobby ticket view, no glob token', () => {
+    const orch = buildOrchestrationPrompt(['TKT-001', 'TKT-002'], DEFAULT_WORKFLOW);
+    expect(orch).not.toContain('{TICKET_ID}*/ticket.md');
+    expect(orch).toContain('bobby ticket view {TICKET_ID}');
+
+    const batchNormal = buildBatchStagePrompt('bobby-plan', ['TKT-001', 'TKT-002']);
+    const batchWorktree = buildBatchStagePrompt('bobby-build', ['TKT-001', 'TKT-002'], '.bobby/tickets', 'worktree');
+    for (const p of [batchNormal, batchWorktree]) {
+      expect(p).not.toContain('{ID}*/ticket.md');
+      expect(p).toContain('bobby ticket view {ID}');
+    }
+  });
+
+  // TC4 — buildFeaturePrompt: known-id sites resolved, placeholder sites instructed.
+  test('TC4: feature prompt resolves known-id paths and instructs placeholder reads', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Icon Set Epic' });
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Sibling One' });
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Sibling Two' });
+    const children = ['TKT-002', 'TKT-003'].map(id => {
+      const t = findTicket(tmpDir, id);
+      return { id, title: t.data.title, priority: 'high', stage: 'backlog', dirname: t.dirname };
+    });
+    const prompt = buildFeaturePrompt('TKT-001', 'Icon Set Epic', children, DEFAULT_WORKFLOW, 3, tmpDir);
+
+    // Feature-plan path resolved (no glob).
+    expect(prompt).toContain('TKT-001--icon-set-epic/feature-plan.md');
+    expect(prompt).not.toContain('TKT-001*');
+    // Sibling plan paths resolved (no glob).
+    expect(prompt).toContain('TKT-002--sibling-one/plan.md');
+    expect(prompt).toContain('TKT-003--sibling-two/plan.md');
+    expect(prompt).not.toContain('TKT-002*');
+    expect(prompt).not.toContain('TKT-003*');
+    // Placeholder reads instructed.
+    expect(prompt).toContain('bobby ticket view {TICKET_ID}');
+    expect(prompt).not.toContain('{TICKET_ID}*/ticket.md');
+  });
+
+  // TC5 — end-to-end: the emitted known-id path actually opens and yields ticket content.
+  test('TC5: following the known-id prompt opens the ticket (zero does-not-exist)', () => {
+    createTicket(tmpDir, { prefix: 'TKT', title: 'Some Feature' });
+    const prompt = buildSingleAgentPrompt('bobby-build', 'TKT-001', tmpDir);
+    const extracted = prompt.match(/`([^`]*TKT-001[^`]*ticket\.md)`/)[1];
+    expect(fs.existsSync(extracted)).toBe(true);
+    const content = fs.readFileSync(extracted, 'utf8');
+    expect(content).toContain('Some Feature');
+  });
+
+  // TC6 — error path: unknown id falls back to the glob, no crash (regression guard).
+  test('TC6: unknown id falls back to the glob without throwing', () => {
+    let prompt;
+    expect(() => { prompt = buildSingleAgentPrompt('bobby-plan', 'TKT-999', tmpDir); }).not.toThrow();
+    expect(prompt).toContain('TKT-999*');
+    expect(prompt).toContain('bobby ticket assign TKT-999 bobby-plan');
   });
 });

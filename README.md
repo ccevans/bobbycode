@@ -159,9 +159,14 @@ running app and files tickets. This skill *creates*; that one *reviews*.
 
 Bobby is free forever — the whole loop, all 23 agents (design included), the
 audit, and the packs above are MIT and always will be. **Bobby Pro** is the
-shelf on top: every paid pack (now and every one released later), Pro
-specialists beyond the free 23, and the work of keeping them current as Claude
-Code and the models move.
+shelf on top:
+
+- **The Bobby App** — your whole team in one page: where you left off, one
+  "Do this next" button, the amber needs-you queue, live agent logs. Run
+  `bobby app` and the browser is your engineering org.
+- **Every paid pack** — now and every one released later.
+- **Pro specialists** beyond the free 23, kept current as Claude Code and the
+  models move.
 
 ```bash
 bobby pro                    # status, and what it unlocks here
@@ -295,7 +300,7 @@ max_retries: 3
 <summary>Optional configuration (commented out in generated file)</summary>
 
 ```yaml
-# Custom + override workflows (built-in: default, secure, quick)
+# Custom + override workflows (built-in: default, secure, quick, freewill, design, define)
 workflows:
   default: [plan, build, review, test]
   secure: [plan, build, security, review, test]
@@ -324,6 +329,9 @@ dashboard:
   port: 7777
   worktree_root: ../bobby-wt
   auto_approve_stages: []
+  max_concurrent: 4               # Agents in flight at once; past the cap a run
+                                  # is refused (with the running ones named),
+                                  # never queued.
 
 # Parallel isolation for batch operations
 parallel_isolation: none         # none | worktree
@@ -403,9 +411,9 @@ pasting anything:
    This is how `bobby run` behaves on *every* target, Claude Code included.
 3. **`bobby dashboard` — headless.** Each workspace spawns its own `cursor-agent`
    subprocess in an isolated git worktree, streaming tool calls and diffs to the
-   web UI. Requires `cursor-agent` on your `PATH`. For it to run start-to-finish
-   without stopping to ask about file edits, set `dashboard.permission_mode`
-   (see [Dashboard](#dashboard)) — unset, each CLI keeps its own default posture.
+   web UI. Requires `cursor-agent` on your `PATH`. It runs start-to-finish
+   without stopping to ask about file edits by default — see
+   [Dashboard](#dashboard) for the two permission keys and how to tighten them.
 
 Agent definitions land in `.cursor/agents/`, which Cursor 3.13+ reads as
 workspace-scoped **subagents** — it keys their identity on the `name` frontmatter
@@ -454,15 +462,35 @@ model with `dashboard.model`:
 dashboard:
   executor: cursor-agent           # claude | cursor-agent | /abs/path/to/a/binary
   model: composer-2.5              # optional — passed through as --model
-  permission_mode: bypassPermissions   # optional — see below
+  worktree_permission_mode: bypassPermissions   # ticket runs — see below
+  repo_permission_mode: acceptEdits             # freeform runs — see below
 ```
 
-`permission_mode` is what makes a run unattended. Left unset, each CLI keeps its
-own default posture and may stop to ask before editing files — which in a
-headless subprocess means the run stalls or denies itself. `bypassPermissions`
-(or `acceptEdits`) maps to `--permission-mode` for `claude` and `--force` for
-`cursor-agent`. Worktrees isolate each agent to its own checkout, but this still
-grants write access without prompting, so it's opt-in rather than the default.
+**Permission posture — two keys, because the two kinds of run aren't equally
+risky.** These map to `--permission-mode` for `claude` and `--force` for
+`cursor-agent`.
+
+- `worktree_permission_mode` (default `bypassPermissions`) covers **ticket
+  runs**, which happen inside a throwaway git worktree. That copy *is* the
+  sandbox: if an agent goes wrong you delete the directory and your checkout
+  never saw it. Anything stricter doesn't make a headless agent careful, it
+  makes it useless — there's no terminal to answer a permission prompt, so the
+  agent retries until it gives up and exits successfully having written nothing.
+- `repo_permission_mode` (default `acceptEdits`) covers **repo runs** — the
+  freeform agents (`ux`, `arch`, `docs`, `ship`, …), which work in your *real*
+  checkout, where none of that sandbox reasoning applies. File edits go through
+  (git can review and revert them); arbitrary commands don't. An agent that
+  genuinely needs a shell there — `ship`, for one — needs you to raise this key
+  on purpose.
+
+Either key takes `bypassPermissions`, `acceptEdits`, `plan`, or `default`
+("ask", which headless means "refuse"). The older single `permission_mode` still
+works and overrides both.
+
+**When a run does nothing.** An agent that's being refused is stopped after three
+refusals rather than left to spend, and a run that exits cleanly having written
+nothing and moved no stage is recorded as `no_op` — never `completed` — with a
+message naming the likely cause. A clean exit is not evidence of work.
 
 `dashboard.model` is passed through verbatim, so get the valid names from the CLI
 itself rather than guessing — `cursor-agent --list-models` (after `agent login`).
@@ -490,6 +518,24 @@ The `cursor-agent` CLI is a separate install from the Cursor app:
 
 **Everything above is free, forever.** The dashboard is MIT like the rest of
 Bobby — there is no gated route and no feature that checks a license.
+
+### The Bobby App (Pro)
+
+`bobby app` is the same server wearing its best face — the whole loop in one
+simple page, part of [Bobby Pro](#bobby-pro):
+
+- **Home** — where you left off, the one **"Do this next"** button (the same
+  brain as `bobby go`), and the amber **needs-you queue**: Approve, Send back,
+  or Look first, at thumb size.
+- **Board** — tickets by stage; create one with a sentence; start the full
+  workflow from the ticket.
+- **Live workspaces** — streaming agent logs, the diff one tap away.
+- Nothing runs without a confirm sheet saying exactly what will happen — and
+  that it uses your machine and your Claude subscription.
+
+Without a Pro key, `bobby app` (and `bobby dashboard`, its old name) serves the
+classic dashboard above — free forever, nothing taken away. With Pro, the same
+command serves the app and keeps classic at `/classic/`.
 
 ### From your phone — `bobby remote`
 
@@ -691,6 +737,8 @@ Everything that touches a ticket lives under one namespace:
 | Command | Description |
 |---------|-------------|
 | `bobby learn <skill> "pattern" "desc"` | Record an anti-pattern or best practice to a skill's learnings |
+| `bobby decision add --id … --fact … --why …` | Record an architectural decision that `bobby-review` will enforce |
+| `bobby decision list` | Show active decisions (`--all` includes invalidated ones) |
 | `bobby retro` | Generate a weekly retrospective from session logs |
 
 ### Setup & Admin
@@ -894,8 +942,9 @@ Focused agents for specific concerns:
 | **bobby-watchdog** | Post-deploy verification — smoke tests, uptime, console errors |
 | **bobby-arch** | Architecture discovery — documents codebase structure and decisions |
 | **bobby-ticket-intake** | Converts PM specs into structured Bobby tickets |
+| **bobby-freewill** | One agent, whole ticket, deliberately few instructions — for Opus 5 / Fable 5 |
 
-## Skills (22)
+## Skills (24)
 
 Each agent is backed by a **skill** — a detailed instruction set in `.claude/skills/bobby-{name}/SKILL.md`. Skills also accumulate learnings over time, so agents get smarter as your project evolves.
 
@@ -941,7 +990,7 @@ workflows:
 
 Updates are explicit and safe: `bobby upgrade` installs the latest and refreshes shipped files (refusing to clobber uncommitted edits), `bobby upgrade --to 1.2.0` pins or rolls back, and your `.local` files, tickets, and data survive in every direction. Details in [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md).
 
-## Slash Commands (20)
+## Slash Commands (22)
 
 Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can invoke agents directly from Claude:
 
@@ -952,13 +1001,13 @@ Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can inv
 /bobby-qe            /bobby-vet           /bobby-strategy
 /bobby-security      /bobby-debug         /bobby-docs
 /bobby-performance   /bobby-lighthouse    /bobby-watchdog
-/bobby-arch
-/bobby-ticket-intake /bobby-local
+/bobby-arch          /bobby-ticket-intake /bobby-local
+/bobby-define        /bobby-freewill
 ```
 
 ## Custom Workflows
 
-Bobby ships three built-in workflows — `default`, `secure`, `quick`. Define your own (or override a built-in) in `.bobbyrc.yml`:
+Bobby ships built-in workflows — `default`, `secure`, `quick`, `freewill`, plus the `design` and `define` pipelines. Define your own (or override a built-in) in `.bobbyrc.yml`:
 
 ```yaml
 workflows:
