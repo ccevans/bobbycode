@@ -98,6 +98,44 @@ describe('ProjectContext (TKT-022)', () => {
     expect(pc.ticketsDir).toBeNull();
   });
 
+  // The precedence bug. `config._project` is the answer lib/config.js already
+  // computed from explicit arg > BOBBY_PROJECT > active-project file > sole
+  // project. Re-deriving from the file alone dropped the top two rungs, so
+  // `bobby app --project beta` served alpha's board while /api/config said beta.
+  test('the config\'s already-resolved project wins over the active-project file', () => {
+    const root = makeStudio(tmp, ['alpha', 'beta']);
+    fs.writeFileSync(path.join(root, '.bobby', 'active-project'), 'alpha');
+
+    // What readConfig produces for `--project beta` / BOBBY_PROJECT=beta.
+    const pc = new ProjectContext(root, { studio: 'teststudio', _project: 'beta' });
+
+    expect(pc.projectName).toBe('beta');
+    expect(pc.ticketsDir).toBe(path.join(root, '.bobby', 'beta', 'tickets'));
+    // Reading it must not rewrite the persisted default — `--project` is for
+    // one command.
+    expect(fs.readFileSync(path.join(root, '.bobby', 'active-project'), 'utf8').trim()).toBe('alpha');
+  });
+
+  // Switching must hand over the NEXT project's config, cascaded the way
+  // readConfig cascades it — not a spread of the project file over whatever
+  // config the server booted with. The old spread did both halves wrong.
+  test('switching yields the target project\'s own config, with no leak from the last one', () => {
+    const root = makeStudio(tmp, ['alpha', 'beta']);
+    // An alpha-only key, and a prefix on each side.
+    fs.appendFileSync(path.join(root, '.bobby', 'alpha', '.bobbyrc.yml'), 'area_only_alpha: yes\n');
+
+    // Boot as the app does: a config that already has alpha cascaded into it.
+    const pc = new ProjectContext(root, { studio: 'teststudio', _project: 'alpha', prefix: 'AL', area_only_alpha: 'yes' });
+    expect(pc.config.ticket_prefix).toBe('AL');
+
+    pc.switchTo('beta');
+
+    expect(pc.config.ticket_prefix).toBe('BE');            // the cascade's own prefix rule
+    expect(pc.config._project).toBe('beta');
+    expect(pc.config.area_only_alpha).toBeUndefined();     // alpha's key did not survive
+    expect(pc.config.tickets_dir).toBe('.bobby/beta/tickets');
+  });
+
   test('listProjects returns the studio projects', () => {
     const root = makeStudio(tmp, ['alpha', 'beta', 'gamma']);
     const pc = new ProjectContext(root, { studio: 'teststudio' });

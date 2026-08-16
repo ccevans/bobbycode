@@ -56,11 +56,16 @@ function makeStudio(tmp) {
     dashboard: { worktree_root: 'wt' },
   }));
 
-  for (const name of ['alpha', 'beta']) {
+  // Distinct per-project ticket prefixes. The prefix is a PROJECT config key, so
+  // it is how a half-switch shows itself: re-scope the board but not the config
+  // and a ticket created after switching to beta is minted `AL-…` into beta's
+  // board. Also an alpha-only key, to catch a config cascade that carries the
+  // boot project's settings into the next one.
+  for (const [name, extra] of [['alpha', { prefix: 'AL', area_only_alpha: 'yes' }], ['beta', { prefix: 'BE' }]]) {
     const dir = path.join(root, '.bobby', name);
     fs.mkdirSync(path.join(dir, 'tickets'), { recursive: true });
     fs.mkdirSync(path.join(dir, 'sessions'), { recursive: true });
-    fs.writeFileSync(path.join(dir, '.bobbyrc.yml'), YAML.stringify({ project: name }));
+    fs.writeFileSync(path.join(dir, '.bobbyrc.yml'), YAML.stringify({ project: name, ...extra }));
   }
   createTicket(path.join(root, '.bobby', 'alpha', 'tickets'), { prefix: 'AL', title: 'alpha work' });
   createTicket(path.join(root, '.bobby', 'beta', 'tickets'), { prefix: 'BE', title: 'beta work' });
@@ -86,14 +91,28 @@ function makeStudio(tmp) {
  * child's own output if it exits first — a crashed command must not surface as
  * an opaque fetch timeout.
  */
-function startAppOnce(root, port) {
-  const child = spawn('node', [bobby, 'app', '--port', String(port), '--no-open'], {
+function startAppOnce(root, port, extraArgs = []) {
+  const child = spawn('node', [bobby, 'app', '--port', String(port), '--no-open', ...extraArgs], {
     cwd: root,
-    env: { ...process.env, NO_COLOR: '1', BOBBY_APP_DIR: '' },
+    env: {
+      ...process.env,
+      NO_COLOR: '1',
+      BOBBY_APP_DIR: '',
+      // Never touch the developer's own ~/.bobby/projects.yml from a test run;
+      // bin/bobby.js's preAction registry hook honours this.
+      BOBBY_NO_REGISTRY: '1',
+      // A stale export in the runner's environment would otherwise pin every
+      // fixture to one project and mask exactly what these tests measure.
+      BOBBY_PROJECT: '',
+    },
   });
   let out = '';
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`app did not start in 20s. Output:\n${out}`)), 20000);
+    const fail = (msg) => {
+      try { child.kill('SIGKILL'); } catch { /* already gone */ }
+      reject(new Error(msg));
+    };
+    const timer = setTimeout(() => fail(`app did not start in 20s. Output:\n${out}`), 20000);
     const onData = (buf) => {
       out += buf.toString();
       if (out.includes('Running at')) {
@@ -103,7 +122,11 @@ function startAppOnce(root, port) {
     };
     child.stdout.on('data', onData);
     child.stderr.on('data', onData);
-    child.on('exit', (code) => {
+    // 'close', not 'exit': exit can fire before the pipes drain, and the retry
+    // below decides on the child's own EADDRINUSE message. On 'exit' that
+    // message was routinely still in the buffer, so the retry never matched and
+    // was dead code.
+    child.on('close', (code) => {
       clearTimeout(timer);
       reject(new Error(`app exited early (code ${code}). Output:\n${out}`));
     });
@@ -115,12 +138,12 @@ function startAppOnce(root, port) {
  * releasing it and the app binding it. Returns { child, port } plus the api
  * helper bound to that port.
  */
-async function startApp(root, attempts = 3) {
+async function startApp(root, { args = [], attempts = 3 } = {}) {
   let lastError;
   for (let i = 0; i < attempts; i += 1) {
     const port = await freePort();
     try {
-      const { child } = await startAppOnce(root, port);
+      const { child } = await startAppOnce(root, port, args);
       return { child, port, api: apiFor(port) };
     } catch (e) {
       lastError = e;
@@ -202,16 +225,85 @@ describe('bobby app serves studio project switching (TKT-022)', () => {
   });
 
   test('an unknown project is refused, naming it, and does not move the board', async () => {
+    // Reads its own before-state rather than assuming the previous test's, so
+    // it passes or fails on its own terms whatever order jest runs it in.
+    const before = (await api('GET', '/api/config')).body.activeProject;
+
     const { status, body } = await api('POST', '/api/projects/select', { name: 'nope' });
     expect(status).toBe(400);
     expect(body.error).toMatch(/nope/);
-    expect((await api('GET', '/api/config')).body.activeProject).toBe('beta');
+
+    expect((await api('GET', '/api/config')).body.activeProject).toBe(before);
+  });
+
+  // AC2 is not just paths. `ticket_prefix` is a PROJECT config key, and a server
+  // that re-scopes the board without re-scoping the config mints the boot
+  // project's prefix into the newly selected project's board — a ticket that
+  // says AL-001 while living in beta, which nothing downstream can straighten
+  // out because the id is the ticket's identity.
+  test('a ticket created after a switch gets the NEW project\'s prefix', async () => {
+    await api('POST', '/api/projects/select', { name: 'alpha' });
+    const onAlpha = await api('POST', '/api/tickets', { title: 'made on alpha' });
+    expect(onAlpha.status).toBe(201);
+    expect(onAlpha.body.ticket.id).toMatch(/^AL-/);
+
+    await api('POST', '/api/projects/select', { name: 'beta' });
+    const onBeta = await api('POST', '/api/tickets', { title: 'made on beta' });
+    expect(onBeta.status).toBe(201);
+    expect(onBeta.body.ticket.id).toMatch(/^BE-/);
+
+    // And it landed on beta's board on disk, not merely got a beta-looking
+    // name. The response carries no path, so check the boards themselves —
+    // which also proves alpha's board did not receive it.
+    const onDisk = (project) => fs.readdirSync(path.join(root, '.bobby', project, 'tickets'))
+      .filter(e => !e.startsWith('.'));
+    expect(onDisk('beta').some(d => d.startsWith(onBeta.body.ticket.id))).toBe(true);
+    expect(onDisk('alpha').some(d => d.startsWith(onBeta.body.ticket.id))).toBe(false);
   });
 });
 
-// The other half of the wiring contract: a single-project repo must be exactly
-// as it was. The context is constructed there too, so "inert off-studio" is a
-// property of the shipped command, not just of the class.
+// B1: the global `--project` flag. bin/bobby.js turns it into BOBBY_PROJECT and
+// lib/config.js resolves the chain (explicit > env > active-project file > sole
+// project) into `config._project`. ProjectContext used to re-derive the answer
+// from the FILE alone, so the flag was accepted, reported back by /api/config,
+// and then ignored by every board read — the app served the other project.
+describe('bobby app --project overrides the persisted selection (TKT-022)', () => {
+  let tmp, root, child, api;
+
+  beforeAll(async () => {
+    tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-appflag-')));
+    root = makeStudio(tmp);   // .bobby/active-project says alpha
+    ({ child, api } = await startApp(root, { args: ['--project', 'beta'] }));
+  }, 40000);
+
+  afterAll(async () => {
+    await stopApp(child);
+    try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* best effort */ }
+  });
+
+  test('serves the flag\'s project, not the file\'s', async () => {
+    const tickets = await api('GET', '/api/tickets');
+    expect(tickets.body.tickets.map(t => t.title)).toEqual(['beta work']);
+  });
+
+  test('and says so consistently — no config that contradicts the board', async () => {
+    const { body } = await api('GET', '/api/config');
+    expect(body.activeProject).toBe('beta');
+    expect(body.project).toBe('beta');
+  });
+
+  test('without changing the studio default on disk', async () => {
+    // `--project` is documented as "for this one command" — the flag must not
+    // rewrite the persisted selection just by being used.
+    expect(fs.readFileSync(path.join(root, '.bobby', 'active-project'), 'utf8').trim()).toBe('alpha');
+  });
+});
+
+// A REGRESSION GUARD, not a proof of the wiring: these two pass with or without
+// `projectContext` on the Orchestrator, and that is the point. `commands/app.js`
+// is the startup path for every user, so the thing to hold still is that a
+// single-project repo — which now constructs a ProjectContext it never asked
+// for — behaves exactly as it did before one existed.
 describe('bobby app on a single-project repo is unchanged (TKT-022)', () => {
   let tmp, root, child, api;
 
