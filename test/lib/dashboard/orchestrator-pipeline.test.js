@@ -8,8 +8,11 @@ import { resolveWorkflow } from '../../../lib/workflow.js';
 
 function bareOrchestrator(config = {}) {
   // _resolveNextAgent and _pipelineFor need no fs, store, or executor.
+  // `config` is a getter over `_config` (TKT-022, so a studio project switch
+  // re-scopes it the way ticketsDir/sessionsDir do), so the fake seeds the
+  // backing field.
   return Object.assign(Object.create(Orchestrator.prototype), {
-    config,
+    _config: config,
     pipeline: resolveWorkflow(config, 'default'),
     pipelineName: 'default',
   });

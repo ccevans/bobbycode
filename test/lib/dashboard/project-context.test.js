@@ -136,6 +136,28 @@ describe('ProjectContext (TKT-022)', () => {
     expect(pc.config.tickets_dir).toBe('.bobby/beta/tickets');
   });
 
+  // C1: the config is now read from disk on every switch, so it can throw on a
+  // .bobbyrc.yml that is mid-edit. A half-applied switch is worse than a refused
+  // one — projectName naming beta while the board paths still say alpha is a
+  // state every consumer reads as one answer.
+  test('a switch that cannot read the target config leaves the context untouched', () => {
+    const root = makeStudio(tmp, ['alpha', 'beta']);
+    const pc = new ProjectContext(root, { studio: 'teststudio', _project: 'alpha' });
+
+    // The studio's own config goes unparseable — configForProject reads it.
+    fs.writeFileSync(path.join(root, '.bobbyrc.yml'), 'studio: teststudio\n  : : broken yaml [\n');
+
+    expect(() => pc.switchTo('beta')).toThrow();
+
+    expect(pc.projectName).toBe('alpha');
+    expect(pc.ticketsDir).toBe(path.join(root, '.bobby', 'alpha', 'tickets'));
+    expect(pc.config.ticket_prefix).toBe('AL');
+    // And the failed switch was not persisted as if it had worked.
+    const activeFile = path.join(root, '.bobby', 'active-project');
+    expect(fs.existsSync(activeFile) ? fs.readFileSync(activeFile, 'utf8').trim() : null)
+      .not.toBe('beta');
+  });
+
   test('listProjects returns the studio projects', () => {
     const root = makeStudio(tmp, ['alpha', 'beta', 'gamma']);
     const pc = new ProjectContext(root, { studio: 'teststudio' });

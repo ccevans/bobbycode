@@ -25,6 +25,7 @@ import { Orchestrator } from '../../../lib/dashboard/orchestrator.js';
 import { ProjectContext } from '../../../lib/dashboard/project-context.js';
 import { WorkspaceStore, newWorkspace } from '../../../lib/dashboard/state.js';
 import { resolveWorkflow } from '../../../lib/workflow.js';
+import YAML from 'yaml';
 import { createTicket, moveTicket, findTicket } from '../../../lib/tickets.js';
 
 const git = (cwd, cmd) => execSync(`git ${cmd}`, { cwd, stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim();
@@ -32,11 +33,17 @@ const git = (cwd, cmd) => execSync(`git ${cmd}`, { cwd, stdio: ['ignore', 'pipe'
 const boardOf = (root, project) => path.join(root, '.bobby', project, 'tickets');
 const sessionsOf = (root, project) => path.join(root, '.bobby', project, 'sessions');
 
-/** A studio with alpha + beta boards, both empty. */
-function makeStudio(tmp) {
+/**
+ * A studio with alpha + beta boards, both empty. `studioConfig` is written into
+ * the studio's OWN .bobbyrc.yml, not passed to a constructor: in a studio the
+ * orchestrator reads its config live off the project context, which builds it
+ * from disk, so settings that only exist on a constructor object are correctly
+ * ignored. On disk at the studio root means both projects inherit it.
+ */
+function makeStudio(tmp, studioConfig = {}) {
   const root = path.join(tmp, 'studio');
   fs.mkdirSync(root, { recursive: true });
-  fs.writeFileSync(path.join(root, '.bobbyrc.yml'), 'studio: teststudio\n');
+  fs.writeFileSync(path.join(root, '.bobbyrc.yml'), YAML.stringify({ studio: 'teststudio', ...studioConfig }));
   for (const name of ['alpha', 'beta']) {
     fs.mkdirSync(boardOf(root, name), { recursive: true });
     fs.mkdirSync(sessionsOf(root, name), { recursive: true });
@@ -50,8 +57,8 @@ function makeStudio(tmp) {
  * until the test releases it — which is what makes "switch mid-run" testable.
  */
 function wire(tmp, { config: extra = {} } = {}) {
-  const root = makeStudio(tmp);
-  const config = { studio: 'teststudio', project: 'alpha', ...extra };
+  const root = makeStudio(tmp, extra);
+  const config = { studio: 'teststudio', project: 'alpha', _project: 'alpha', ...extra };
   const projectContext = new ProjectContext(root, config);
   const store = new WorkspaceStore(path.join(root, '.bobby', 'workspaces.json'));
 
@@ -112,7 +119,10 @@ function seed(root, o, { project, prefix, title = 'work', stage = 'planning', ws
     branch: `bobby/${wsId}`,
     agent: null,
     pipeline: 'default',
-    // What createWorkspace pins (asserted directly in the last test here).
+    // What createWorkspace pins (asserted directly against the real thing in
+    // the createWorkspace tests below). The project NAME is the source of the
+    // other two, and what the run's config is read from.
+    project,
     ticketsDir,
     sessionsDir: sessionsOf(root, project),
   });
@@ -251,6 +261,82 @@ describe('AC3: a run stays bound to the project it started in (TKT-022)', () => 
     o.switchProject('beta');
     expect(o.store.get(ws.id).ticketsDir).toBe(boardOf(root, 'alpha'));
     expect(o._ticketsDirFor(o.store.get(ws.id))).toBe(boardOf(root, 'alpha'));
+  });
+
+  // The pin covers CONFIG too, because .bobbyrc.yml is per project. A run's
+  // permission posture, workflow, services and git conventions all come from
+  // there, and a run that started on alpha must keep alpha's.
+  test('a run reads its own project\'s config, while the UI reads the new one', () => {
+    const { root, o } = wire(tmp);
+    fs.appendFileSync(path.join(root, '.bobby', 'alpha', '.bobbyrc.yml'), 'prefix: AL\n');
+    fs.appendFileSync(path.join(root, '.bobby', 'beta', '.bobbyrc.yml'), 'prefix: BE\n');
+    const { ws } = seed(root, o, { project: 'alpha', prefix: 'AL', wsId: 'ws-al' });
+
+    o.switchProject('beta');
+
+    expect(o.config.ticket_prefix).toBe('BE');          // the UI followed
+    expect(o._configFor(ws).ticket_prefix).toBe('AL');  // the run did not
+  });
+
+  // B3, the worst of them: `project_repos` is a PROJECT key and decides which
+  // repository a ticket's worktree is cut from. Reading it off the boot config
+  // gave a beta ticket a worktree of ALPHA's repo — an agent editing the wrong
+  // codebase, with nothing in the UI to suggest it.
+  test('a workspace created after a switch is cut from the NEW project\'s repo', () => {
+    const initRepo = (dir, marker) => {
+      fs.mkdirSync(dir, { recursive: true });
+      git(dir, 'init -q -b main');
+      git(dir, 'config user.email test@example.com');
+      git(dir, 'config user.name Test');
+      fs.writeFileSync(path.join(dir, 'MARKER.txt'), marker);
+      git(dir, 'add -A');
+      git(dir, 'commit -q -m initial');
+      return dir;
+    };
+
+    // A studio whose two projects use two different repos from the group.
+    const { root, o } = wire(tmp, {
+      config: {
+        repos: { appa: { path: 'repos/appa' }, appb: { path: 'repos/appb' } },
+        dashboard: { worktree_root: 'wt' },
+      },
+    });
+    const appa = initRepo(path.join(root, 'repos', 'appa'), 'this is appa');
+    const appb = initRepo(path.join(root, 'repos', 'appb'), 'this is appb');
+    fs.appendFileSync(path.join(root, '.bobby', 'alpha', '.bobbyrc.yml'), 'repos:\n  - appa\n');
+    fs.appendFileSync(path.join(root, '.bobby', 'beta', '.bobbyrc.yml'), 'repos:\n  - appb\n');
+
+    const { id } = createTicket(boardOf(root, 'beta'), { prefix: 'BE', title: 'beta work' });
+    moveTicket(boardOf(root, 'beta'), id, 'planning', 'test');
+
+    o.switchProject('beta');
+    const ws = o.createWorkspace({ ticketId: id, agent: 'plan' });
+
+    expect(ws.project).toBe('beta');
+    expect(ws.repoRoot).toBe(appb);
+    expect(ws.repoRoot).not.toBe(appa);
+    // The worktree really is beta's repository, not merely labelled as one.
+    expect(fs.readFileSync(path.join(ws.worktreePath, 'MARKER.txt'), 'utf8')).toBe('this is appb');
+  });
+
+  // C2 — the pin, one process further out. The agent runs `bobby ticket move`,
+  // which resolves its board through resolveActiveProject; that falls back to
+  // .bobby/active-project, which the UI rewrites on every switch. BOBBY_PROJECT
+  // is the top of that chain, so the run names its own project for the child.
+  test('the agent is launched with BOBBY_PROJECT set to the run\'s project', async () => {
+    const { root, o } = wire(tmp);
+    seed(root, o, { project: 'alpha', prefix: 'AL', wsId: 'ws-al' });
+
+    let spawnedEnv = null;
+    const inner = o._runExecutor.bind(o);
+    o._runExecutor = (opts) => { spawnedEnv = opts.env; return inner(opts); };
+
+    await o.runAgent('ws-al', { agentOverride: 'plan' });
+    o.switchProject('beta');
+    o.pendingExits.pop()();
+    await settle();
+
+    expect(spawnedEnv).toEqual(expect.objectContaining({ BOBBY_PROJECT: 'alpha' }));
   });
 
   // Records written before the pin existed, and every single-project dashboard,
