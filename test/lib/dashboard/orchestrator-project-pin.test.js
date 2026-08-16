@@ -12,10 +12,14 @@
 // recorded.
 //
 // Faithfully faked: real boards on disk, real ProjectContext, real store, real
-// _onExit. Only the CLI is fake — and it does what a real agent does, running
-// the `bobby ticket move` its prompt names against the board it was handed. The
-// worktrees are plain directories: git ops fail soft (checkpointError) and
-// `headSha` returns null, which the exit path already treats as "cannot tell".
+// _onExit, and workspaces created through the REAL `createWorkspace` against a
+// git-backed studio (so the pin the tests rest on is production's, never a
+// hand-built record — three fixture divergences in this ticket's history were
+// exactly that). Only the CLI is fake — it does what a real agent does, running
+// the `bobby ticket move` its prompt names against the board it was handed.
+// Because the worktrees are real git, `commitCheckpoint`/`headSha` run for real;
+// the exit assertions do not depend on that (every run advances a stage, which
+// short-circuits the no-op check), so it is faithful rather than load-bearing.
 
 import fs from 'fs';
 import path from 'path';
