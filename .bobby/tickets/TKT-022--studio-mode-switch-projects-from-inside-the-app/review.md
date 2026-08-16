@@ -1,318 +1,283 @@
-## Review — TKT-022 (re-review, cycle 3)
+## Review — TKT-022 (re-review, cycle 4)
 
 ### Verdict: Rejected
 
-Cycle 2's blocker is **genuinely fixed**: `commands/app.js` now constructs `ProjectContext`, and
-`bobby app` on a real studio answers `isStudio: true` with both project routes live. I verified
-that against the shipped command, not the tests. Cycle 1's AC3 pin is also still sound — I
-re-broke it myself and watched the suite go red.
+**Both cycle-3 blockers are genuinely fixed, and the `lib/config.js` refactor that fixed them is
+clean** — I proved behavioural equivalence rather than reading for it (below). B1, B2, the AC3 pin
+and the cycle-2 reachability fix all re-verified from scratch, live, on a real studio.
 
-It is rejected on two **new** defects, both in the same family as the previous two rounds: code
-that is correct in isolation and wrong about its context. `ProjectContext` re-derives the active
-project instead of consuming the one `readConfig` already resolved, and nothing re-scopes the
-project *config* on a switch — only the paths.
+It is rejected on **B3**: the switch re-scopes the board and — as of this commit — the ticket
+prefix, but it still does not re-scope **the orchestrator's config**, which is the boot project's.
+The worst consequence is not cosmetic:
 
-- **B1 is a regression on the shipped startup path**, introduced by b823e54 itself:
-  `bobby app --project beta` served **alpha's board** after the commit and beta's before it.
-- **B2 is an AC2 failure**: creating a ticket after switching to beta writes `AL-001` — the boot
-  project's prefix — onto beta's board.
+> After switching to beta, creating a workspace for a **beta** ticket cuts the git worktree from
+> **alpha's repo**. The agent then edits the wrong project's codebase.
 
-Both are silent. Neither is caught by any test, including the new e2e suite.
+This is the same defect family as B2 — a per-project config value read from a boot-time
+reference — and R3 named it in advance ("Same closure staleness applies to `config.workflows` and
+`config.dashboard.*`"). The fix built the right seam (`activeConfig()`) and then applied it to two
+call sites only, leaving the orchestrator and two API routes on the boot config.
 
 ---
 
 ### Files Reviewed
 
-- `commands/app.js` — the fix. `ProjectContext` imported (:23), constructed (:117), passed to the
-  Orchestrator (:122). Off-studio construction is genuinely inert: the constructor's non-studio
-  branch does **zero** filesystem reads and cannot throw (`project-context.js:37-41,58-68` — it
-  reads `config.project` and assigns nulls), so a single-project `bobby app`, a repo with no
-  `studio` key, and a worktree cwd all add no I/O, no throw and no latency. Confirmed the
-  fallback chain: `orchestrator.ticketsDir` (:135) is
-  `(projectContext && projectContext.ticketsDir) || this._ticketsDir`, and off-studio
-  `projectContext.ticketsDir` is `null`, so the resolved boot value wins — byte-identical to
-  pre-b823e54. **The studio path is where it breaks (B1).**
-- `lib/dashboard/project-context.js` — **source of both blockers.** Constructor :37-39 and the
-  `_config` cascade :53-55.
-- `commands/dashboard.js` (deleted) — **deletion is clean.** Diffed against `commands/app.js` at
-  e1e932c: everything it did is present in `app.js` or was dead. Nothing references it —
-  `registerDashboard`/`commands/dashboard` hit only `docs/` and ticket history, no dynamic
-  `import()` by string enumerates `commands/` (the only dynamic import is
-  `plugins.js:140`, for plugin packages), and `package.json` ships `commands/` as a directory
-  with no per-file manifest. `bin/bobby.js` imports `registerApp` only. Alias verified live, not
-  assumed: `bobby dashboard --help` prints `Usage: bobby app|dashboard`, and
-  `node bin/bobby.js dashboard` on the studio prints the deprecation line and returns
-  `isStudio: true` + a working `/api/projects`. One capability *difference* worth recording,
-  though it is pre-existing and not caused by the deletion: the dead file's shutdown had a
-  `shuttingDown` re-entrancy guard, `store.save()` and `sseHub.closeAll()`;
-  `app.js:173-181` has none of the three. That code never ran, so nothing regressed — but the
-  only copy of that pattern is now gone.
-- `lib/dashboard/server.js` — `sessionsBoardDir()` (:223) and the `/api/sessions` routes
-  (:922,:931). Correct, and off-studio it is a quiet **improvement**: the old
-  `path.join(repoRoot, config.sessions_dir)` ignored worktree resolution, the new
-  `orchestrator.sessionsDir` falls back to `resolveSessionsDir`, which redirects to the main
-  worktree per `tickets-resolve-to-main-worktree`. **But `config.ticket_prefix` at :328/:452 is
-  still the boot config — that is B2.**
-- `lib/dashboard/orchestrator.js` — `createRepoRun` now pins `ticketsDir` as well as `sessionsDir`
-  (:312-320). Correct; `scopeToProject`'s `if (!ws.ticketId) return true` short-circuits before
-  the pin is consulted, so repo runs are still never filtered.
-- `lib/dashboard/state.js` — `newRepoRun` gains `ticketsDir` (null-defaulted). Purely additive.
-- `test/e2e/app-studio-projects.test.js` (NEW) — see Test Quality.
-- `.bobby/decisions.yaml` — the two-invalidate/one-add swap. See Decision Violations.
+- **`lib/config.js`** — `readConfig` split into `readBaseConfig` + the studio branch;
+  `applyProjectContext` delegates to a new `cascadeProject`; new exported
+  `configForProject(studioRoot, project)`. **Blast radius: nil. Proven, not asserted.** I imported
+  `lib/config.js` from a worktree at `efbf2cd` and from `HEAD` into one process and deep-compared
+  `readConfig` output (recursive key-sorted serialization, so nested `dashboard`/`git_conventions`
+  differences cannot hide) across 8 fixture shapes: non-studio minimal, non-studio with
+  `tickets_dir`/`bobby_dir`/nested partial overrides, non-studio that happens to contain
+  `.bobby/<x>/.bobbyrc.yml`, studio+active project, studio unselected (2 projects, no file), studio
+  with a sole project, empty studio, and a studio whose project overrides `bobby_dir`/`tickets_dir`.
+  Plus the `BOBBY_PROJECT=beta` case. **All identical.** Also confirmed the new function is not a
+  second implementation: `configForProject(root,'beta')` deep-equals `readConfig(root)` with
+  `BOBBY_PROJECT=beta`.
+  - *Ordering/mutation/identity, specifically asked about:* unchanged. The derived dirs are still
+    set before the cascade; `cascadeProject` mutates the object it is handed exactly as
+    `applyProjectContext` did, and in both call paths that object is a **freshly built**
+    `readBaseConfig` result that no other holder has a reference to — so the mutation of
+    `repo_group`/`_studio` is not observable by anyone. Returned identity is also unchanged
+    (`merged` itself for non-studio and for studio-with-no-project; a new object once a project
+    cascades).
+- **`lib/dashboard/project-context.js`** — constructor takes `config._project` first; `_resolveTo`
+  calls `configForProject`. Both correct, and both proven live. One new failure mode introduced
+  here — see Code Concerns C1.
+- **`lib/dashboard/server.js`** — `activeConfig()` and its two `createTicket` call sites. Correct
+  as far as it goes; **`/api/config` and `/api/workflows` were not converted and are wrong after a
+  switch (B3).**
+- **`commands/app.js` / `commands/remote.js`** — I grepped every `new ProjectContext` (2 in
+  `commands/`, 11 in tests). Both production callers pass `readConfig(root)` output, so `_project`
+  is always the correctly-resolved value; **no caller passes a config whose `_project` disagrees
+  with its intent.** The test callers pass `{studio:'teststudio'}` with no `_project` on purpose,
+  which is what keeps the file/first-project fallback covered. `commands/remote.js` has no
+  separate multi-project mode to conflict with — its only `studio` reference is that comment.
+- **`lib/dashboard/orchestrator.js`** — re-read for B3. `this.config` is assigned once in the
+  constructor and **nothing re-points it**; `switchProject` moves only the context.
+- **`test/e2e/app-studio-projects.test.js`, `test/lib/dashboard/project-context.test.js`** — see
+  Test Quality.
 
 ### Code Concerns
 
-**BLOCKER B1 — `--project` / `BOBBY_PROJECT` is silently ignored; the app serves the wrong
-project's board. Regression, introduced by b823e54.**
+**BLOCKER B3 — a switch re-scopes the board but not the orchestrator's config. A workspace created
+after a switch is cut from the previous project's repo. (AC2)**
 
-`bin/bobby.js:107-116` documents a global `--project <name>` that "selects the active project for
-this one command without changing the studio default", implemented by setting `BOBBY_PROJECT`.
-`readConfig` → `applyProjectContext` → `resolveActiveProject` honours the full precedence chain
-(`lib/config.js:114-125`): explicit > `BOBBY_PROJECT` > `.bobby/active-project` > sole project.
-The answer lands in `config._project`, and `resolveTicketsDir` uses it.
+`cascadeProject` (`lib/config.js:161-181`) is explicit that these are per-project keys:
+`project_repos` (`= pc.repos`), `ticket_prefix`, and the `git_conventions` / `dashboard` /
+`workflows` deep merges. `Orchestrator.this.config` holds the **boot** project's cascade and is
+never re-pointed, so every one of them is stale after a switch. `_resolveTargetRepo`
+(`orchestrator.js:281-282`) reads `this.config.project_repos` to decide **which repo the code is
+cut from**.
 
-`ProjectContext` throws that away and re-derives from scratch (`project-context.js:37-39`):
-
-```js
-const initial = this._studio
-  ? (getActiveProject(root) || listStudioProjects(root)[0] || null)
-  : (this._studioConfig.project || null);
-```
-
-`getActiveProject` reads only the `.bobby/active-project` file (`lib/studio.js:135-138`) — it
-never consults `BOBBY_PROJECT`. Because `orchestrator.ticketsDir` gives `projectContext`
-precedence over the correctly-resolved `_ticketsDir`, the context's wrong answer wins.
-
-Reproduced live on a real two-project studio (`.bobby/active-project` = `alpha`,
-alpha holds `TK-001 alpha work`, beta holds `TK-900 beta work`):
+Reproduced live against the shipped command on a studio with a two-repo group
+(`alpha → repos/appa`, `beta → repos/appb`), each repo carrying a `MARKER.txt` naming itself:
 
 ```
-# HEAD (after b823e54) — bobby app --project beta
-/api/config   {"project":"beta","isStudio":true,"activeProject":"alpha"}
-/api/tickets  TK-001 alpha work          <-- ALPHA. Wrong project.
-
-# e1e932c (before b823e54) — same command, same fixture
-/api/config   {"project":"beta","isStudio":false,"activeProject":null}
-/api/tickets  TK-900 beta work           <-- correct
+$ bobby app                                  # .bobby/active-project = alpha
+POST /api/projects/select {"name":"beta"}  -> {"active":"beta"}
+GET  /api/tickets                          -> ["beta work"]          # board moved, correct
+POST /api/workspaces {ticketId:"BE-001"}   -> 201
+     workspace.repoRoot   = …/studio/repos/appa                      # <-- ALPHA's repo
+     workspace.worktreePath = …/repos/appa/wt/BE-001-plan
+     MARKER.txt in the worktree: "this is appa"
+     workspace.ticketsDir = …/.bobby/beta/tickets                    # pinned to beta, correctly
 ```
 
-Two things are wrong at once. The board is the wrong project's, silently. And `/api/config`
-contradicts itself — `project: "beta"` (what the header renders) beside
-`activeProject: "alpha"` (what the picker selects and what the board actually is), so the UI
-cannot even display a consistent answer. The startup banner also prints `Bobby — beta`.
-
-`commands/remote.js:74` has the identical construction, so `bobby remote --project beta` has the
-same defect.
-
-**This also breaks the escape hatch for the known follow-up.** On a studio with no
-`.bobby/active-project` and 2+ projects, `bobby app` exits 1 with
-`Select a project: bobby project use <name> or pass --project. Projects: alpha, beta`. Following
-that advice does not work:
+And the mirror image, which rules out any other cause — boot on beta, switch to alpha, create a
+workspace for an **alpha** ticket:
 
 ```
-# no .bobby/active-project at all, 2 projects — the remedy the error names
 $ bobby app --project beta
-/api/config   {"project":"beta","isStudio":true,"activeProject":"alpha"}
-/api/tickets  TK-001 alpha work          <-- ALPHA again, via listStudioProjects()[0]
+POST /api/projects/select {"name":"alpha"}
+POST /api/workspaces {ticketId:"AL-001"}   -> workspace.repoRoot = …/studio/repos/appb
+     MARKER.txt in the worktree: "this is appb"                      # <-- BETA's repo
 ```
 
-That state is reachable in normal use: `.bobby/active-project` is per-developer and gitignored,
-and `commands/studio.js:74` only sets it for the *first* project created — so a fresh clone of a
-two-project studio lands exactly here.
+So the record is pinned to the right *board* (AC3's fix) while pointing at the wrong *repo*. An
+agent launched on it edits another project's code on a branch in another project's repository, and
+`mergeToMain` would later merge it there. This is the wrong-repo class that `one-repo-per-ticket-v1`
+and `_resolveTargetRepo`'s own doc comment exist to prevent, and it is silent — status 201, a
+plausible-looking worktree path.
 
-**Fix:** seed from the already-resolved answer and keep the existing chain as fallback —
-`config` is already passed to the constructor:
+Two more instances of the same staleness, from the same runs:
 
-```js
-const initial = this._studio
-  ? (this._studioConfig._project || getActiveProject(root) || listStudioProjects(root)[0] || null)
-  : (this._studioConfig.project || null);
+```
+                      after POST /api/projects/select {"name":"beta"}
+GET /api/config    -> project: "alpha"   activeProject: "beta"   stack: "nextjs"   (beta is "go")
+GET /api/workflows -> [... "alphaflow"]                          (beta declares "betaflow")
 ```
 
-Apply to `commands/remote.js`'s path too (same class, same file). Then add an e2e case that
-starts the real command with `--project beta` against a studio whose `active-project` is `alpha`
-and asserts `/api/tickets` returns beta's ticket — the current suite cannot see this, because it
-only ever runs without the flag.
+- **`/api/config` self-contradicts again.** `project: alpha` beside `activeProject: beta` is
+  precisely the "the UI cannot render a consistent answer" defect R3 rejected on — fixed for the
+  `--project` path (the new e2e test asserts `body.project === 'beta'` at boot, so the author
+  treats this field as the active project's name) and still broken for the switch path. `stack` is
+  wrong with it, and the route's own doc says the Feature view falls back to `project` when `repo`
+  is null, so this mislabels the UI.
+- **`/api/workflows` (`server.js:489-490`) offers the boot project's workflows.** On beta it lists
+  `alphaflow` and omits `betaflow`; and since `createWorkspace` validates with
+  `resolveWorkflow(this.config, pipelineName)` (`:199`), beta's own workflows are not merely
+  unlisted, they are unusable until the server is restarted.
+
+Also stale from `this.config`, not separately demonstrated but the same read:
+`resolvePermissionMode` (`:455,:592,:696,:895`), `resolveExecutor` (`:576`),
+`dashboard.model` (`:582`), `auto_approve_stages` (`:805`), `computeWorktreePlacement`'s
+`git_conventions`/`worktree_root` (`:213`), and the whole `config:` object handed to
+`buildPromptFor` (`:638` — carrying `stack`, `services`, `bobby_dir`, product dir and git
+conventions into every agent prompt).
+
+**Fix:** give the orchestrator the same live accessor the server got. `activeConfig()` already
+exists and is the right shape — mirror it as `get config()` on `Orchestrator`
+(`(this.projectContext && this.projectContext.config) || this._config`), rename the field to
+`_config`, and let the existing `this.config` reads become that getter. Then convert
+`/api/config` and `/api/workflows` to `activeConfig()`. **Watch the pinning interaction while you
+do it:** a *running* workspace must keep resolving against the config of the project it was
+launched on, exactly as `_ticketsDirFor` does for the board — so the per-run reads
+(`resolvePermissionMode` at `:696`, `buildPromptFor` at `:638`, `resolveWorkflow` at `:1232`)
+should read a config pinned on the record, not the live getter. Creation-time reads
+(`_resolveTargetRepo`, `computeWorktreePlacement`, `resolveWorkflow` at `:199`) should read live.
+Test it: boot alpha, switch beta, `POST /api/workspaces` for a beta ticket, assert
+`workspace.repoRoot` is beta's repo; plus `/api/config.project === 'beta'` and `betaflow` in
+`/api/workflows` after the switch.
 
 ---
 
-**BLOCKER B2 — switching re-scopes the board but not the project's config, so tickets created
-after a switch get the wrong prefix (AC2).**
-
-`server.js:328` builds new tickets with `prefix: (config && config.ticket_prefix) || 'TKT'`, where
-`config` is the **boot** config captured in `buildServer`'s closure. `boardDir()` moves on a
-switch; `config` never does. `ProjectContext` computes a per-project config and exposes it
-(`get config()`, :100) — **nothing consumes it.** `Orchestrator` stores `projectContext` but has
-no config getter; `server.js` never calls `pc.config`.
-
-Reproduced live (alpha `ticket_prefix: AL`, beta `ticket_prefix: BE`, booted on alpha):
+**C1 (should-fix, a NEW failure mode from 8d469a2) — a failed switch leaves the context
+inconsistent.** `_resolveTo` assigns `this._project = name` **before** calling `configForProject`,
+which now reads `.bobbyrc.yml` off disk and therefore can throw (`YAML.parse` on a half-written or
+malformed file; `readBaseConfig` also throws `Not a Bobby project` if it is gone). The old code
+could not throw here — `readProjectConfig` (`lib/studio.js:126-129`) guards `existsSync`, and the
+spread never touched the studio root file. Proven:
 
 ```
-POST /api/projects/select {"name":"beta"}   -> {"active":"beta"}
-POST /api/tickets {"title":"made while on beta"}
-     created id = AL-001                     <-- alpha's prefix
-$ ls .bobby/beta/tickets/
-     AL-001--made-while-on-beta   TK-900--beta-work
+before switch : project=alpha  ticketsDir=alpha  prefix=AL
+  (studio root .bobbyrc.yml made malformed while the server is up)
+switchTo threw: Nested mappings are not allowed in compact mappings at line 1, column 9
+after  switch : project=beta   ticketsDir=alpha  prefix=AL
+>>> INCONSISTENT: projectName and the board it serves disagree
 ```
 
-The ticket lands on the correct board with the wrong identity, and beta's own counter will later
-mint `BE-001` — so one board ends up carrying two prefixes. AC2 says switching re-scopes tickets
-to the new project; a create that ignores the new project's prefix does not.
+`switchTo` surfaces a 400 and the app looks fine, but `/api/config` now reports `activeProject:
+beta` over alpha's board — the same contradiction class as B1/B3, reachable by editing your own
+config while the app runs. Two-line fix: resolve into locals and commit all four fields at the end
+of `_resolveTo`, or wrap the call and leave `_project` alone on failure.
 
-Same closure staleness applies to `config.workflows` (via `resolveWorkflow` at boot) and
-`config.dashboard.*`, which the per-project cascade in `applyProjectContext` is explicitly built
-to override. Prefix is the one I could demonstrate end-to-end.
+**C2 (note) — `BOBBY_PROJECT` is inherited by every spawned agent.** `bin/bobby.js:112-113` turns
+`--project` into `process.env.BOBBY_PROJECT`, and `cleanExecutorEnv` (`executor.js:40-48`) strips
+only `CLAUDECODE`/`CLAUDE_CODE*`, so the child gets it. After `bobby app --project beta` +
+a switch to alpha, an agent working an alpha run still has `BOBBY_PROJECT=beta`, so any bare
+`bobby ticket move …` it runs (which is exactly what `lib/workflow.js:221,320,362` instructs)
+resolves beta. I did not run an agent to confirm the end-to-end consequence — in a multi-repo
+studio the worktree may not resolve as a Bobby project at all — so this is flagged, not counted
+against the ACs. If you fix B3 by pinning a config per run, set `BOBBY_PROJECT` to that run's
+project in the executor env at the same time.
 
-**Related trap for whoever fixes this — `ProjectContext._config` cascade is wrong too.**
-`_resolveTo` (:53-55) does `{ ...this._studioConfig, ...readProjectConfig(root, name) }`, but
-`_studioConfig` is the config `readConfig` **already cascaded with the boot project's** values.
-So the boot project's keys leak into every project switched to, for any key the target does not
-explicitly override. Proven — alpha carries `area_only_alpha: yes`, beta does not declare it:
-
-```
-boot    : alpha | prefix AL | area_only_alpha yes
-switched: beta  | prefix BE | area_only_alpha yes   <-- beta has no such key
-```
-
-So the obvious one-line fix ("make `server.js` read `pc.config.ticket_prefix`") is **not
-sufficient** — it would swap a stale prefix for a leaky config. `_resolveTo` must cascade over the
-*studio-level* config, not the boot-project-cascaded one. Fix both together, and cover with a test
-that boots on alpha, switches to beta, creates a ticket, and asserts `BE-001`.
-
----
-
-**Note — no user-facing documentation.** The `CHANGELOG.md`/`README.md` changes on this branch are
-TKT-024's lighthouse work. Studio project-switching, `/api/projects`, `/api/projects/select` and
-the `isStudio`/`activeProject` fields on `/api/config` are undocumented. No AC requires it; raising
-it because `bobby remote` and the studio both got CHANGELOG entries when they landed.
+**C3 (note) — still undocumented.** No CHANGELOG/README entry for studio switching, `/api/projects`,
+`/api/projects/select`, or the `isStudio`/`activeProject` fields. Carried over from cycle 3; no AC
+requires it.
 
 ### Decision Violations
 
-**None.** The swap is correct and I checked it entry by entry rather than trusting the summary.
+**None.** Re-checked the entries the changed code touches rather than inheriting cycle 3's audit:
+`decisions-log-has-one-writer` (the file was not touched by these commits),
+`orchestrator-reads-tickets-from-the-workspaces-own-board` (unaffected by 8d469a2, and re-verified
+adversarially — see AC3), `tickets-resolve-to-main-worktree`,
+`prompts-name-the-tickets-dir-absolutely`, `worktree-per-workspace`,
+`local-server-is-loopback-and-unauthenticated`, `paid-code-never-ships-in-the-mit-package` (API
+surface only, no UI code).
 
-- `orchestrator-reads-tickets-from-the-shared-board` (TKT-051, invalidated) — every constraint is
-  carried forward. "A worktree's own `.bobby/tickets` is never consulted" is restated verbatim as
-  the new fact's first clause; the four reads it named are restated as `_ticketsDirFor(ws)`; the
-  success rule ("exits 0 AND the stage ON THAT SHARED BOARD differs") survives as "ON ITS OWN
-  BOARD". Its "main-worktree-rooted" adjective is dropped, but `tickets-resolve-to-main-worktree`
-  and `prompts-name-the-tickets-dir-absolutely` are both still active and carry it. **Nothing
-  unrecorded.**
-- `a-run-is-pinned-to-the-board-it-started-on` (invalidated) — fully absorbed: the pin, the
-  per-workspace accessors, "the live getter is only for the UI's board and picking a NEW ticket",
-  and the unpinned-record fallback all appear in the new fact.
-- `orchestrator-reads-tickets-from-the-workspaces-own-board` (new) — accurate against the code as
-  it now stands. I checked each read it names: prompt building (:636), existence check (:1219),
-  feature children (:367,:1183), exit stage re-read (:745), session init (:558) and logging
-  (:1342), mergedAt (:1103) all go through `_ticketsDirFor`/`_sessionsDirFor`; `createWorkspace`'s
-  ticket pick and the API's board use the live getters. Its evidence line correctly cites
-  `createRepoRun`'s pin and `sessionsBoardDir`, both added in b823e54.
-- `decisions-log-has-one-writer` — respected; schema intact, `supersedes`/`invalidated` keys
-  present, appended not hand-edited. Cosmetic only: the two new entries lack the blank line
-  between records that the rest of the file uses. Still valid YAML.
-- Also checked and holding: `worktree-per-workspace`, `worktrees-fork-from-main`,
-  `one-repo-per-ticket-v1`, `workspace-stage-is-the-stage-now-in`,
-  `local-server-is-loopback-and-unauthenticated`, `paid-code-never-ships-in-the-mit-package`
-  (the App UI stays in the Pro package; only API surface was added here).
-
-One provenance nit: the new entry does not carry forward TKT-051's
-`supersedes: stage-advance-is-the-success-signal` link, so the chain is only traceable through the
-now-hidden invalidated record. Not a lost constraint.
+**One decision has been made stale by this ticket and should be re-recorded (hygiene, not a
+violation):** `concurrency-cap-refuses-per-server-process` says the cap is "per Orchestrator — one
+per `bobby app`/`bobby dashboard` process serving one repo, **so per project per server process**".
+With switching, one Orchestrator now spans projects and one cap covers all of them, so the "per
+project" clause is false. Re-record with `--supersedes` — the same hygiene cycle 2 required for the
+tickets-dir decisions.
 
 ### AC Verification
 
-- [ ] **AC1 — "The app lists registered projects and can switch between them": FAILS on B1.**
-      `GET /api/projects` and `POST /api/projects/select` are now genuinely reachable from
-      `bobby app` (verified live — this half is fixed). But the project the app opens on is
-      resolved wrongly whenever `--project`/`BOBBY_PROJECT` is used, and on a fresh studio the
-      documented way in (`--project`) silently opens the wrong project.
-      *Separately:* I judge the `exit 1` on a no-selection studio to be **legitimately out of
-      scope** — it lives in `resolveTicketsDir`/`studioBoardDir`, predates this ticket, and
-      affects every command, so loosening it is a resolution-semantics change well beyond
-      TKT-022. It is a fair follow-up **once B1 is fixed**, because B1 is what makes its
-      advertised remedy fail. I am not requiring the exit-1 fix here.
-- [ ] **AC2 — "Switching re-scopes tickets, workspaces and the brief": FAILS on B2.**
-      Paths re-scope correctly and I verified it end-to-end (`POST /api/projects/select` moved
-      `/api/tickets` from alpha's board to beta's). Workspaces re-scope via `scopeToProject`;
-      brief/features go through `boardDir()`. But the project *config* does not re-scope, so
-      ticket creation after a switch uses the boot project's prefix.
-- [x] **AC3 — "A running agent in project A is not disturbed by switching to project B": MET.**
-      Re-verified independently rather than inherited. In a throwaway worktree at HEAD I replaced
-      `_ticketsDirFor`/`_sessionsDirFor` with the live getters and ran the pin suite:
-      **5 failed / 1 passed** (the survivor is the no-pin fallback case, correct by design) —
-      e.g. `_ticketsDirFor` returned `…/.bobby/beta/tickets` where `…/.bobby/alpha/tickets` was
-      expected. Restored: **6/6 green**. Real red/green, my own hands.
-- [ ] **AC4 — "The selected project survives a page reload": PARTIAL.**
-      `setActiveProject` writes `.bobby/active-project` on every switch (verified — the file
-      changed to `beta` after a select), and `/api/config` returns `activeProject` for the client
-      to restore. That works for a plain reload. It is wrong under B1: on a `--project`-launched
-      app the value reported is not the project being served.
+- [x] **AC1 — lists projects and switches between them: MET.** Verified live against the shipped
+      command on a real studio (not a fixture server): `GET /api/config` → `isStudio: true`,
+      `GET /api/projects` → `{projects:[alpha,beta], active:alpha}`, `POST /api/projects/select`
+      moves `GET /api/tickets` from `["alpha work"]` to `["beta work"]`. **B1 is fixed and I
+      re-proved it both ways:** `bobby app --project beta` on a studio whose `active-project` file
+      says `alpha` serves beta's board, beta's stack and beta's workflows, and leaves the file
+      saying `alpha`. The escape hatch R3 flagged also works now — on a studio with **no**
+      `.bobby/active-project`, plain `bobby app` exits 1 with
+      `Select a project: … or pass --project`, and `bobby app --project beta` then serves beta.
+- [ ] **AC2 — switching re-scopes tickets, workspaces and the brief: FAILS on B3.** Tickets and the
+      brief re-scope (`boardDir()`), and the **ticket prefix now re-scopes too** — verified live,
+      `BE-002` on beta after booting alpha, landing on beta's board and not alpha's, with no leak
+      of alpha's keys. But **workspaces do not fully re-scope**: a workspace created after a switch
+      is cut from the previous project's repo, and `/api/config` + `/api/workflows` still answer for
+      the boot project.
+- [x] **AC3 — a running agent in A is not disturbed by switching to B: MET.** Re-verified
+      independently, not inherited: in a throwaway worktree at HEAD I collapsed `_ticketsDirFor`/
+      `_sessionsDirFor` to the live getters and ran the pin suite — **5 failed / 1 passed** (the
+      survivor is the no-pin fallback, correct by design); restored — **6/6 green**.
+- [ ] **AC4 — the selected project survives a reload: PARTIAL.** `setActiveProject` writes the file
+      on every switch (verified on disk) and `/api/config.activeProject` reports it correctly, so a
+      reload lands right. Marked partial only because the `project`/`stack` fields alongside it are
+      the boot project's after a switch (B3), so a client reading the same response gets two
+      different answers about where it is.
 
 ### Test/Lint Output
-- Tests: **PASS** — 1263 passed, 46 skipped, 1309 total; 70 passed / 1 skipped of 71 suites,
-  exit 0 (`npm test`). Matches the builder's claim.
+- Tests: **PASS** — 1269 passed, 46 skipped, 1315 total; 70 passed / 1 skipped of 71 suites, exit 0
+  (`npm test`, 130s). Matches the builder's claim exactly.
 - Lint: **PASS** — 0 errors, 37 warnings, all pre-existing `no-unused-vars` in test files.
-- Adversarial (AC3): pin suite **5 failed / 1 passed** un-pinned → **6 passed** restored.
-- **Both blockers are invisible to the whole suite** — it is green with B1 and B2 present.
+- Adversarial (AC3 pin): **5 failed / 1 passed** un-pinned → **6 passed** restored.
+- Config-equivalence harness (efbf2cd vs HEAD): **10/10 identical**, `ALL EQUIVALENT`.
+- **B3 is invisible to the whole suite** — it is green with the bug present.
 
 ### Test Quality
 
-The new `test/e2e/app-studio-projects.test.js` is a real improvement — it spawns
-`node bin/bobby.js app`, so it is the first test that could have caught cycle 2's blocker. The
-studio describe genuinely does: remove `projectContext` from `commands/app.js:122` and its four
-tests go red. Readiness is condition-based on the `Running at` line printed from inside
-`server.listen`, so there is no start/first-request race, and the port is OS-assigned via a proper
-`freePort` helper. `--no-open` is passed, git identity and `-b main` are pinned locally, and
-`BOBBY_APP_DIR` is blanked. Test 3 (select re-scopes) is the strongest thing here: it asserts
-ticket *titles* before and after, the persisted file, and the read-back — it would not pass a
-200-only implementation.
+The two new `project-context.test.js` cases are the right tests. The `_project`-precedence one
+asserts the resolved project **and** the board path **and** that the persisted file was not
+rewritten — it cannot pass on a context that merely accepted the value. The cascade one asserts
+four things that each fail for a distinct reason (`ticket_prefix` = the cascade's own precedence
+rule, `_project`, `area_only_alpha` **undefined** = the leak, `tickets_dir`), so it pins the
+behaviour rather than the implementation. The new `--project` e2e describe starts the real command
+with the real flag, which is the only thing that could have caught B1. The five harness fixes all
+landed and are correct — the `'close'` listener genuinely un-deads the EADDRINUSE retry, the child
+is killed on every rejection path (`fail()` at :111-114), test 4 now reads its own before-state,
+and `BOBBY_NO_REGISTRY=1` + `BOBBY_PROJECT: ''` are in the spawn env.
 
-Issues, none of them the reason for rejection:
+**The author's red/green claim is overstated, and I checked it rather than taking it.** The ticket
+says "reintroduce either half and 5 of the 18 go red, the other 13 stay green". Reverting each half
+in a worktree at HEAD and running both files:
 
-1. **Child-process leak on startup timeout.** `startAppOnce` rejects at :96 without killing the
-   spawned child; `startApp` then either rethrows (:127) or spawns another (:120-123). A surviving
-   child is a live HTTP server with ref'd stdio pipes in the jest worker → open-handle warnings, a
-   worker that will not exit, and a stray server. Worse, when `beforeAll` throws the describe's
-   `child` was never assigned, so `stopApp` no-ops (:147) while `rmSync(tmp)` (:165) deletes the
-   studio out from under the orphan. Hoist the child and kill it on every rejection path.
-2. **The EADDRINUSE retry is dead code.** :127 gates on `/already in use/i` matching the child's
-   stderr, but the rejection fires on `child.on('exit')` (:106), which precedes stdio drain — and
-   `commands/app.js:170` calls `process.exit(1)` immediately after writing, so the message can be
-   truncated away entirely. A real port collision surfaces as `app exited early (code 1)` with an
-   empty transcript and **no retry**. Listen on `'close'` instead; that also fixes the empty-output
-   dead end for every other startup failure.
-3. **The off-studio describe does not prove what its comment claims.** :212-214 says inertness is
-   "a property of the shipped command", but every assertion at :241/:248 routes through
-   `!pc || !pc.isStudio()` (`server.js:496,502,572`), which returns the identical answer when
-   `projectContext` is **absent entirely**. Deleting the wiring leaves this describe green — it is
-   a valid "off-studio behaviour unchanged" guard, not a wiring test. One assertion fixes it:
-   `expect(cfg.body.activeProject).toBe('solo')`, since off-studio `pc.projectName` is
-   `config.project` and would be `null` with no context. The value is already in the response.
-   :248 also asserts status codes only; asserting the `noStudio` text would stop it passing on a
-   400 thrown for an unrelated reason.
-4. **Test 4 is order-dependent.** :208 asserts `activeProject === 'beta'`, which is state left by
-   test 3. Under `-t`, `--randomize`, or after test 3 fails early it fails for the wrong reason.
-   Capture `activeProject` before the request and assert it is unchanged.
-5. **Not hermetic w.r.t. `HOME`.** `checkPro()` reads `$HOME/.bobby/licenses.yml` and
-   `findExtension` probes `$HOME/.bobby/pro/...`. On a developer machine with Pro installed and
-   licensed, `loadDashboardPlugins` imports it and registers third-party routes, and `appDir`
-   becomes non-null — a materially different server than CI exercises. `test/setup.js:4` notes
-   "Studio tests override HOME"; this suite does not. Set `HOME: tmp` (and blank `BOBBY_PROJECT`,
-   which would otherwise perturb exactly the resolution B1 is about) in the spawn env.
-6. **No per-test timeout override**, so jest's default 5000ms applies while suites run at
-   cores-1 workers each spawning a child. 15000ms would cost nothing.
-7. Minor: `path.resolve('bin/bobby.js')` (:25) resolves against `cwd`, not the test file;
-   `output: () => out` (:101) and `startApp`'s `attempts` parameter (:118) are never used.
+| reverted | red | which |
+|---|---|---|
+| B1 — constructor `_project` preference | **3** | both `--project` e2e tests + the precedence unit test |
+| B2a — `activeConfig()` at the two createTicket sites | **1** | the post-switch prefix test |
+| B2b — `configForProject` → the old spread | **2** | the post-switch prefix test + the no-leak test |
 
-Coverage gap that matters most: **no test starts the command with `--project`**, and none creates
-a ticket after a switch. Those are exactly B1 and B2.
+So it is 3 for one half and 2 for the other (their union is 5), not 5 for either. Every failure is
+for the right reason and names the right thing; the coverage is real, the arithmetic in the
+handoff is not. Also note `18` is the total number of tests in those two files, not 18 new
+assertions.
+
+Remaining gaps, all of them B3's blind spot: no test creates a **workspace** after a switch (which
+is where the wrong-repo bug lives), no fixture in the suite gives the two projects **different
+repos**, and no test asserts `/api/config.project` or `/api/workflows` **after** a switch — only
+after a `--project` boot. Two of the three are one assertion each in the existing studio describe.
+
+Minor, unchanged from cycle 3: `HOME` is still not overridden in the spawn env, so a developer
+machine with Pro installed and licensed exercises a different server than CI
+(`test/setup.js:4` notes studio tests override `HOME`); `path.resolve('bin/bobby.js')` (:25)
+resolves against cwd; `output: () => out` (:120) and `startApp`'s `attempts` (:141) are still
+unused; no per-test timeout override.
 
 ### Notes
 
-- The cycle-2 fixes I did not have to re-litigate: `/api/sessions` re-scoping and `createRepoRun`
-  pinning `ticketsDir` are both correct and minimal.
-- `commands/remote.js` carries the same `ProjectContext` construction, so B1 applies there too.
-  Fix once in `project-context.js` and both paths are covered.
+- Everything cycle 3 asked for was done and done properly — the `lib/config.js` extraction in
+  particular is the right shape, and sharing one `cascadeProject` between `readConfig` and
+  `configForProject` is what stops the two drifting. B3 is not a defect in that work; it is the
+  same seam not being carried the last two steps to the orchestrator.
+- I still agree the **empty-studio boot refusal is out of scope**, and now with less hesitation
+  than cycle 3: `studioBoardDir`/`resolveTicketsDir` were not touched by the refactor, the refusal
+  belongs to the resolution layer every command shares, and the remedy its error message advertises
+  (`--project`) is now verified working end to end.
 - Everything on this branch outside TKT-022's files (lighthouse, chat, executor, worktree) belongs
   to other tickets on this integration branch and was not re-reviewed.
-- Repro fixtures used for B1/B2 were built in scratch and removed; the working tree is clean and
-  no scratch worktrees remain.
+- Repro fixtures and the two review worktrees were removed; `git status` is clean and
+  `git worktree list` shows only the main checkout.
