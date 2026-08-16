@@ -20,6 +20,7 @@ import { getTarget } from '../lib/targets/index.js';
 import { WorkspaceStore } from '../lib/dashboard/state.js';
 import { SSEHub } from '../lib/dashboard/sse.js';
 import { Orchestrator } from '../lib/dashboard/orchestrator.js';
+import { ProjectContext } from '../lib/dashboard/project-context.js';
 import { ChatManager } from '../lib/dashboard/chat.js';
 import { buildServer } from '../lib/dashboard/server.js';
 import { resolveExecutor, commandExists, EXECUTOR_NAMES } from '../lib/dashboard/executor.js';
@@ -108,9 +109,17 @@ export function registerApp(program) {
         const store = new WorkspaceStore(stateFile).load();
         store.reconcileAfterRestart();
         const sseHub = new SSEHub();
+
+        // Studio mode (TKT-022): a mutable holder for the active project, so the
+        // app can switch projects without a restart. Off-studio it is inert —
+        // isStudio() is false, the board paths equal the resolved ones above,
+        // and the project routes 400.
+        const projectContext = new ProjectContext(root, config);
+
         const orchestrator = new Orchestrator({
           repoRoot: root, config, ticketsDir, sessionsDir, agentsPath,
           store, sseHub, pipeline, pipelineName: opts.workflow || 'default',
+          projectContext,
         });
         store.subscribe((event, workspace) => {
           const payload = { type: 'store', event, workspace, at: new Date().toISOString() };
