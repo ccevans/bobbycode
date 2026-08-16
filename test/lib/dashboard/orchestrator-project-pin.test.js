@@ -23,7 +23,7 @@ import os from 'os';
 import { execSync } from 'child_process';
 import { Orchestrator } from '../../../lib/dashboard/orchestrator.js';
 import { ProjectContext } from '../../../lib/dashboard/project-context.js';
-import { WorkspaceStore, newWorkspace } from '../../../lib/dashboard/state.js';
+import { WorkspaceStore } from '../../../lib/dashboard/state.js';
 import { resolveWorkflow } from '../../../lib/workflow.js';
 import YAML from 'yaml';
 import { createTicket, moveTicket, findTicket } from '../../../lib/tickets.js';
@@ -34,31 +34,56 @@ const boardOf = (root, project) => path.join(root, '.bobby', project, 'tickets')
 const sessionsOf = (root, project) => path.join(root, '.bobby', project, 'sessions');
 
 /**
- * A studio with alpha + beta boards, both empty. `studioConfig` is written into
- * the studio's OWN .bobbyrc.yml, not passed to a constructor: in a studio the
- * orchestrator reads its config live off the project context, which builds it
- * from disk, so settings that only exist on a constructor object are correctly
- * ignored. On disk at the studio root means both projects inherit it.
+ * A studio with alpha + beta boards. Config is written to DISK, never passed to
+ * a constructor: in a studio the orchestrator reads its config live off the
+ * project context, which builds it per-project from disk (configForProject), so
+ * a constructor object is correctly ignored. `studio` lands at the studio root
+ * (both projects inherit it); `alpha`/`beta` land in that project's own
+ * .bobbyrc.yml, which is what lets a test give the two projects DIFFERENT
+ * settings and so tell a live read from a pinned one — the distinction the old
+ * single-root fixture could not express.
+ *
+ * The studio root is a real git repo so `createWorkspace` can cut real
+ * worktrees: the seed helper goes through the real code path rather than
+ * fabricating a record, which is what kept fixtures drifting from production.
  */
-function makeStudio(tmp, studioConfig = {}) {
+function makeStudio(tmp, { studio = {}, alpha = {}, beta = {} } = {}) {
   const root = path.join(tmp, 'studio');
   fs.mkdirSync(root, { recursive: true });
-  fs.writeFileSync(path.join(root, '.bobbyrc.yml'), YAML.stringify({ studio: 'teststudio', ...studioConfig }));
+  // Deep-merge `dashboard` so a studio-level override (e.g. auto_approve_stages)
+  // does not clobber `worktree_root`, which createWorkspace needs on disk.
+  const studioCfg = { studio: 'teststudio', ...studio };
+  studioCfg.dashboard = { worktree_root: 'wt', ...(studio.dashboard || {}) };
+  fs.writeFileSync(path.join(root, '.bobbyrc.yml'), YAML.stringify(studioCfg));
+  const perProject = { alpha, beta };
   for (const name of ['alpha', 'beta']) {
     fs.mkdirSync(boardOf(root, name), { recursive: true });
     fs.mkdirSync(sessionsOf(root, name), { recursive: true });
-    fs.writeFileSync(path.join(root, '.bobby', name, '.bobbyrc.yml'), `project: ${name}\n`);
+    fs.writeFileSync(
+      path.join(root, '.bobby', name, '.bobbyrc.yml'),
+      YAML.stringify({ project: name, ...perProject[name] }),
+    );
   }
+  git(root, 'init -q -b main');
+  git(root, 'config user.email test@example.com');
+  git(root, 'config user.name Test');
+  fs.writeFileSync(path.join(root, 'README.md'), '# studio\n');
+  git(root, 'add -A');
+  git(root, 'commit -q -m initial');
   return root;
 }
 
 /**
  * A studio orchestrator on alpha, with a fake CLI that holds its exit open
  * until the test releases it — which is what makes "switch mid-run" testable.
+ *
+ * `config` is studio-level disk config; `alpha`/`beta` are per-project. The
+ * boot config handed to the constructor carries only what selects the starting
+ * project — everything else the orchestrator uses comes live from disk.
  */
-function wire(tmp, { config: extra = {} } = {}) {
-  const root = makeStudio(tmp, extra);
-  const config = { studio: 'teststudio', project: 'alpha', _project: 'alpha', ...extra };
+function wire(tmp, { config: extra = {}, alpha = {}, beta = {} } = {}) {
+  const root = makeStudio(tmp, { studio: extra, alpha, beta });
+  const config = { studio: 'teststudio', project: 'alpha', _project: 'alpha' };
   const projectContext = new ProjectContext(root, config);
   const store = new WorkspaceStore(path.join(root, '.bobby', 'workspaces.json'));
 
@@ -79,14 +104,15 @@ function wire(tmp, { config: extra = {} } = {}) {
   o.pendingExits = [];
   o.emitEvent = null;      // set per launch — lets a test push an exec event
 
-  o._runExecutor = ({ prompt, onEvent }) => {
+  o._runExecutor = ({ prompt, onEvent, env }) => {
     // The agent obeys its prompt: it reads the board the prompt names — the
     // absolute `<ticketsDir>/<folder>/ticket.md` of step 2 — and performs the
     // move the prompt names there, exactly as `bobby ticket move` would.
     const ticketsDir = /Read `(.+)\/[^/`]+\/ticket\.md`/.exec(prompt)?.[1];
     const ticketId = /on ticket (\S+)\./.exec(prompt)?.[1];
     const movedTo = /bobby ticket move \S+ ([a-z-]+)/.exec(prompt)?.[1] || null;
-    o.launched.push({ prompt, ticketsDir, ticketId, movedTo });
+    const agent = /Run the (?:bobby-)?(\S+) agent/.exec(prompt)?.[1] || null;
+    o.launched.push({ prompt, ticketsDir, ticketId, movedTo, agent, env });
     o.emitEvent = onEvent;
 
     let release;
@@ -103,32 +129,23 @@ function wire(tmp, { config: extra = {} } = {}) {
   return { root, o, store, projectContext };
 }
 
-/** Seed a ticket on a project's board and a workspace pinned to that board. */
-function seed(root, o, { project, prefix, title = 'work', stage = 'planning', wsId }) {
+/**
+ * Seed a ticket on a project's board and a workspace for it, THROUGH the real
+ * `createWorkspace`. The returned `wsId` is the id production assigned — the
+ * helper never fabricates the record, so it cannot pin `project`/`ticketsDir`/
+ * `sessionsDir` any differently than the code under test does. (Three separate
+ * fixture divergences in this ticket's history were hand-built records drifting
+ * from what createWorkspace actually produces; this closes that off.)
+ *
+ * Requires the studio to be on its target project already (createWorkspace
+ * pins the ACTIVE project), so a beta workspace is seeded after `switchProject`.
+ */
+function seed(root, o, { project, prefix, title = 'work', stage = 'planning' }) {
   const ticketsDir = boardOf(root, project);
   const { id } = createTicket(ticketsDir, { prefix, title });
   moveTicket(ticketsDir, id, stage, 'test');
-
-  const worktreePath = path.join(root, 'wt', wsId);
-  fs.mkdirSync(worktreePath, { recursive: true });
-
-  const ws = newWorkspace({
-    id: wsId,
-    ticketId: id,
-    worktreePath,
-    branch: `bobby/${wsId}`,
-    agent: null,
-    pipeline: 'default',
-    // What createWorkspace pins (asserted directly against the real thing in
-    // the createWorkspace tests below). The project NAME is the source of the
-    // other two, and what the run's config is read from.
-    project,
-    ticketsDir,
-    sessionsDir: sessionsOf(root, project),
-  });
-  ws.stage = stage;
-  o.store.create(ws);
-  return { ticketId: id, ws };
+  const ws = o.createWorkspace({ ticketId: id, agent: 'plan' });
+  return { ticketId: id, ws, wsId: ws.id };
 }
 
 /** Let the queued exit handler (attached via .then) run. */
@@ -156,13 +173,13 @@ describe('AC3: a run stays bound to the project it started in (TKT-022)', () => 
   // and the user's finished work looked like it had failed.
   test('a run that EXITS after a switch reads its stage from its own board', async () => {
     const { root, o } = wire(tmp);
-    const { ticketId } = seed(root, o, { project: 'alpha', prefix: 'AL', wsId: 'ws-al' });
+    const { ticketId, wsId } = seed(root, o, { project: 'alpha', prefix: 'AL' });
 
-    await runThenSwitchThenExit(o, 'ws-al');
+    await runThenSwitchThenExit(o, wsId);
 
     // The agent's move landed on alpha, and the exit read it from alpha.
     expect(findTicket(boardOf(root, 'alpha'), ticketId).data.stage).toBe('building');
-    const ws = o.store.get('ws-al');
+    const ws = o.store.get(wsId);
     expect(ws.stage).toBe('building');
     expect(ws.status).toBe('awaiting_approval');
     expect(ws.runs.at(-1).status).toBe('completed');
@@ -177,7 +194,7 @@ describe('AC3: a run stays bound to the project it started in (TKT-022)', () => 
   // workspace to ready_to_merge on work that was only just planned.
   test('a same-id ticket on the other board cannot be mistaken for this run\'s', async () => {
     const { root, o } = wire(tmp);
-    const { ticketId } = seed(root, o, { project: 'alpha', prefix: 'X', title: 'alpha work', wsId: 'ws-al' });
+    const { ticketId, wsId } = seed(root, o, { project: 'alpha', prefix: 'X', title: 'alpha work' });
 
     // Beta's own X-001 — same id, different ticket, further along.
     const betaBoard = boardOf(root, 'beta');
@@ -185,9 +202,9 @@ describe('AC3: a run stays bound to the project it started in (TKT-022)', () => 
     expect(beta.id).toBe(ticketId);              // the collision is real
     moveTicket(betaBoard, beta.id, 'shipping', 'test');
 
-    await runThenSwitchThenExit(o, 'ws-al');
+    await runThenSwitchThenExit(o, wsId);
 
-    const ws = o.store.get('ws-al');
+    const ws = o.store.get(wsId);
     expect(ws.stage).toBe('building');           // alpha's stage, not 'shipping'
     expect(ws.status).toBe('awaiting_approval'); // not ready_to_merge
     // Beta's ticket was never touched by a run that had nothing to do with it.
@@ -201,13 +218,13 @@ describe('AC3: a run stays bound to the project it started in (TKT-022)', () => 
     // auto_approve_stages is matched against the stage the workspace was IN when
     // the run started, which is where the ticket sat at launch: planning.
     const { root, o } = wire(tmp, { config: { dashboard: { auto_approve_stages: ['planning'] } } });
-    const { ticketId } = seed(root, o, { project: 'alpha', prefix: 'X', wsId: 'ws-al' });
+    const { ticketId, wsId } = seed(root, o, { project: 'alpha', prefix: 'X' });
 
     const betaBoard = boardOf(root, 'beta');
     const beta = createTicket(betaBoard, { prefix: 'X', title: 'beta work' });
     moveTicket(betaBoard, beta.id, 'reviewing', 'test');
 
-    await runThenSwitchThenExit(o, 'ws-al');
+    await runThenSwitchThenExit(o, wsId);
     await settle();
 
     // The build agent that auto-approve launched was pointed at alpha.
@@ -220,10 +237,10 @@ describe('AC3: a run stays bound to the project it started in (TKT-022)', () => 
   // log with a hole in it, on both sides.
   test('exec events after a switch append to the session file the run opened', async () => {
     const { root, o } = wire(tmp);
-    seed(root, o, { project: 'alpha', prefix: 'AL', wsId: 'ws-al' });
+    const { wsId } = seed(root, o, { project: 'alpha', prefix: 'AL' });
 
-    await o.runAgent('ws-al', { agentOverride: 'plan' });
-    const sessionId = o.store.get('ws-al').sessionId;
+    await o.runAgent(wsId, { agentOverride: 'plan' });
+    const sessionId = o.store.get(wsId).sessionId;
 
     o.switchProject('beta');
     o.emitEvent({ type: 'assistant', text: 'after the switch' });
@@ -234,21 +251,15 @@ describe('AC3: a run stays bound to the project it started in (TKT-022)', () => 
     expect(fs.readFileSync(alphaLog, 'utf8')).toContain('after the switch');
     expect(fs.existsSync(path.join(sessionsOf(root, 'beta'), `${sessionId}.jsonl`))).toBe(false);
     // And the dashboard tails the file where it actually is.
-    expect(o.readLatestSessionFile('ws-al')).toBe(alphaLog);
+    expect(o.readLatestSessionFile(wsId)).toBe(alphaLog);
   });
 
   // The pin is what all of the above rests on, so assert createWorkspace sets
   // it — through the real thing, with real git, not a hand-built record.
   test('createWorkspace pins the board the workspace was created from', () => {
-    // A worktree_root under the studio root — the studio guard (PRO-027) refuses
-    // anything outside it, and here the launch repo IS the studio root.
-    const { root, o } = wire(tmp, { config: { dashboard: { worktree_root: 'wt' } } });
-    git(root, 'init -q -b main');
-    git(root, 'config user.email test@example.com');
-    git(root, 'config user.name Test');
-    fs.writeFileSync(path.join(root, 'README.md'), '# studio\n');
-    git(root, 'add README.md');
-    git(root, 'commit -q -m initial');
+    // The studio root is already a git repo (makeStudio) and worktree_root is a
+    // studio descendant the PRO-027 guard accepts.
+    const { root, o } = wire(tmp);
 
     const { id } = createTicket(boardOf(root, 'alpha'), { prefix: 'AL', title: 'alpha work' });
     moveTicket(boardOf(root, 'alpha'), id, 'planning', 'test');
@@ -267,10 +278,8 @@ describe('AC3: a run stays bound to the project it started in (TKT-022)', () => 
   // permission posture, workflow, services and git conventions all come from
   // there, and a run that started on alpha must keep alpha's.
   test('a run reads its own project\'s config, while the UI reads the new one', () => {
-    const { root, o } = wire(tmp);
-    fs.appendFileSync(path.join(root, '.bobby', 'alpha', '.bobbyrc.yml'), 'prefix: AL\n');
-    fs.appendFileSync(path.join(root, '.bobby', 'beta', '.bobbyrc.yml'), 'prefix: BE\n');
-    const { ws } = seed(root, o, { project: 'alpha', prefix: 'AL', wsId: 'ws-al' });
+    const { root, o } = wire(tmp, { alpha: { prefix: 'AL' }, beta: { prefix: 'BE' } });
+    const { ws } = seed(root, o, { project: 'alpha', prefix: 'AL' });
 
     o.switchProject('beta');
 
@@ -296,15 +305,12 @@ describe('AC3: a run stays bound to the project it started in (TKT-022)', () => 
 
     // A studio whose two projects use two different repos from the group.
     const { root, o } = wire(tmp, {
-      config: {
-        repos: { appa: { path: 'repos/appa' }, appb: { path: 'repos/appb' } },
-        dashboard: { worktree_root: 'wt' },
-      },
+      config: { repos: { appa: { path: 'repos/appa' }, appb: { path: 'repos/appb' } } },
+      alpha: { repos: ['appa'] },
+      beta: { repos: ['appb'] },
     });
     const appa = initRepo(path.join(root, 'repos', 'appa'), 'this is appa');
     const appb = initRepo(path.join(root, 'repos', 'appb'), 'this is appb');
-    fs.appendFileSync(path.join(root, '.bobby', 'alpha', '.bobbyrc.yml'), 'repos:\n  - appa\n');
-    fs.appendFileSync(path.join(root, '.bobby', 'beta', '.bobbyrc.yml'), 'repos:\n  - appb\n');
 
     const { id } = createTicket(boardOf(root, 'beta'), { prefix: 'BE', title: 'beta work' });
     moveTicket(boardOf(root, 'beta'), id, 'planning', 'test');
@@ -325,18 +331,90 @@ describe('AC3: a run stays bound to the project it started in (TKT-022)', () => 
   // is the top of that chain, so the run names its own project for the child.
   test('the agent is launched with BOBBY_PROJECT set to the run\'s project', async () => {
     const { root, o } = wire(tmp);
-    seed(root, o, { project: 'alpha', prefix: 'AL', wsId: 'ws-al' });
+    const { wsId } = seed(root, o, { project: 'alpha', prefix: 'AL' });
 
     let spawnedEnv = null;
     const inner = o._runExecutor.bind(o);
     o._runExecutor = (opts) => { spawnedEnv = opts.env; return inner(opts); };
 
-    await o.runAgent('ws-al', { agentOverride: 'plan' });
+    await o.runAgent(wsId, { agentOverride: 'plan' });
     o.switchProject('beta');
     o.pendingExits.pop()();
     await settle();
 
     expect(spawnedEnv).toEqual(expect.objectContaining({ BOBBY_PROJECT: 'alpha' }));
+  });
+
+  // D1 — the exit path's LAST unpinned decision. `auto_approve_stages` is under
+  // `dashboard`, which cascades per project, so whether an unattended agent
+  // launches is the run's own project's policy. Read live, a switch to a project
+  // that auto-approves would fire an agent the run's project never sanctioned;
+  // read pinned, a switch to a project that does NOT auto-approve would strand a
+  // run the launch project meant to advance. Both directions, on the observable
+  // outcome — did the next agent launch — not on a config value.
+  test('auto-approve after a switch follows the RUN\'s project, not the UI\'s', async () => {
+    // alpha auto-approves `planning`; beta does not. An alpha run that exits with
+    // the UI on beta must still auto-approve.
+    const runAlphaExitOnBeta = async () => {
+      const { root, o } = wire(tmp, {
+        alpha: { dashboard: { auto_approve_stages: ['planning'] } },
+        beta: { dashboard: { auto_approve_stages: [] } },
+      });
+      const { wsId } = seed(root, o, { project: 'alpha', prefix: 'AL' });
+      await runThenSwitchThenExit(o, wsId);
+      await settle();
+      return o;
+    };
+    const o1 = await runAlphaExitOnBeta();
+    // plan ran, then auto-approve launched build → 2 launches, run advancing.
+    expect(o1.launched.map(l => l.agent)).toEqual(['plan', 'build']);
+
+    // The mirror: alpha does NOT auto-approve, beta does. An alpha run that exits
+    // with the UI on beta must NOT be swept forward by beta's policy.
+    const { root, o } = wire(tmp, {
+      alpha: { dashboard: { auto_approve_stages: [] } },
+      beta: { dashboard: { auto_approve_stages: ['planning'] } },
+    });
+    const { wsId } = seed(root, o, { project: 'alpha', prefix: 'AL' });
+    await runThenSwitchThenExit(o, wsId);
+    await settle();
+    expect(o.launched.map(l => l.agent)).toEqual(['plan']);   // no unsanctioned build
+    expect(o.store.get(wsId).status).toBe('awaiting_approval');
+  });
+
+  // D2 — `workflows` is per project, and a workspace records only the workflow
+  // NAME, so `default` on beta is not `default` on alpha. The pipeline the run
+  // advances through must come from ITS project: reading the boot project's
+  // `default` for a beta run skips any stage beta added — a security stage among
+  // them. Observable via which agent approve() launches at the extra stage.
+  test('a run advances through its OWN project\'s workflow after a switch', async () => {
+    // Same NAME (`default`), different steps: beta adds a security stage alpha
+    // has not. Both created with pipeline `default`, which is exactly the name
+    // the old short-circuit special-cased.
+    const { root, o } = wire(tmp, {
+      alpha: { workflows: { default: ['plan', 'build', 'review'] } },
+      beta: { workflows: { default: ['plan', 'build', 'review', 'security'] } },
+    });
+
+    // A beta workspace, created while the studio is on beta, sitting AT the
+    // `security` stage. The FSM runs the agent that owns the current stage next,
+    // so `security` is beta's; alpha's workflow has no such stage.
+    o.switchProject('beta');
+    const { wsId } = seed(root, o, { project: 'beta', prefix: 'BE', stage: 'security' });
+
+    // Move the UI back to alpha while the beta run is what we advance.
+    o.switchProject('alpha');
+
+    const before = o.launched.length;
+    await o.approve(wsId);
+    await settle();
+
+    // Beta's security stage is not skipped: approve launched the security agent,
+    // and the run did not fall off the end into ready_to_merge (which is what a
+    // run resolving ALPHA's stageless-at-security workflow would do).
+    expect(o.launched.length).toBe(before + 1);
+    expect(o.launched.at(-1).agent).toBe('security');
+    expect(o.store.get(wsId).status).not.toBe('ready_to_merge');
   });
 
   // Records written before the pin existed, and every single-project dashboard,
