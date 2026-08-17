@@ -57,7 +57,13 @@ async function withServer(deps, fn) {
     return { status: res.status, body: await res.json() };
   };
   try { await fn(api); }
-  finally { await new Promise((r) => server.close(r)); }
+  // Drop undici's keep-alive socket before closing. On Node 18 `close()` waits
+  // on the idle client connection `fetch` leaves open, so its callback never
+  // fires and every test here times out — see server-api.test.js, same pattern.
+  finally {
+    server.closeAllConnections?.();
+    await new Promise((r) => server.close(r));
+  }
 }
 
 describe('chat routes (TKT-021)', () => {
