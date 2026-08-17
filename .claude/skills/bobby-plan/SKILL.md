@@ -366,7 +366,7 @@ Add to ticket frontmatter or comment:
 
 ## Feature Areas
 
-_No areas configured_
+targets | dashboard | audit | tickets | packs | templates | cli
 
 ---
 
