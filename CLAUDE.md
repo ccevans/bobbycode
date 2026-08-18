@@ -20,7 +20,7 @@ Before starting work, verify the dev environment is running:
 
 ## Feature Areas
 
-_No areas configured_
+targets | dashboard | audit | tickets | packs | templates | cli
 
 
 ## Commands
@@ -130,6 +130,7 @@ it to the right capability below and run it; don't make them name the command.
 | ship it / open a PR | bobby-ship |
 | update the docs | bobby-docs |
 | is it slow / benchmark | bobby-performance |
+| audit pages / which pages need fixing / lighthouse | bobby-lighthouse |
 | map / understand the architecture | bobby-arch |
 
 Pick the single best match. If it's a concrete change to this project and nothing
@@ -201,6 +202,12 @@ When told to "update docs" or "document release", load `.claude/skills/bobby-doc
 ### Performance (bobby-performance)
 When told to "benchmark" or "check performance", load `.claude/skills/bobby-performance/SKILL.md`.
 - Measures page load times, resource sizes, request counts
+
+### Lighthouse Audit (bobby-lighthouse)
+When told "lighthouse audit", "audit the pages", or "which pages need fixing", load `.claude/skills/bobby-lighthouse/SKILL.md`.
+- Sweeps Performance, Accessibility, Best Practices and SEO across page TEMPLATES, not just the homepage
+- Ranks gaps by live URL count from the sitemap, and proposes tickets only on failing audits with real DOM nodes, never on a score
+- NOT the `bobby audit` command, which scores codebase production readiness instead
 - Compares against baseline, flags regressions
 
 ### Watchdog (bobby-watchdog)
@@ -266,6 +273,7 @@ bobby run security TKT-001                  # Security audit (OWASP + STRIDE)
 bobby run debug TKT-001                     # Root-cause debugging
 bobby run docs                              # Update docs after shipping
 bobby run performance                              # Performance benchmarking
+bobby run lighthouse                               # Lighthouse audit of page templates
 bobby run watchdog                            # Post-deploy health check
 bobby retro TKT-001 "pattern"              # Create retrospective
 bobby retro --weekly                        # Weekly retro with metrics

@@ -1,7 +1,7 @@
 ---
 id: TKT-020
 title: 'Phase 3: the app beyond a single project'
-stage: backlog
+stage: building
 type: epic
 priority: medium
 area: null
@@ -14,7 +14,7 @@ blocked_reason: null
 previous_stage: null
 parent: null
 created: '2026-08-07'
-updated: '2026-08-07'
+updated: '2026-08-12'
 ---
 
 ## Description

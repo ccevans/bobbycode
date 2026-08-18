@@ -161,7 +161,7 @@ bobby learn bobby-vet "pattern" "description"
 
 ## Feature Areas
 
-_No areas configured_
+targets | dashboard | audit | tickets | packs | templates | cli
 
 ---
 

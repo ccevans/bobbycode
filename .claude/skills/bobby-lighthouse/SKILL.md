@@ -1,0 +1,163 @@
+---
+name: lighthouse-audit
+description: "Lighthouse Audit Skill: sweeps Performance, Accessibility, Best Practices and SEO across page TEMPLATES, ranks gaps by how many live URLs they affect, and proposes tickets on what is not already open. NOT the `bobby audit` command, which scores codebase production readiness. MANDATORY TRIGGERS: lighthouse audit, page audit, template sweep, core web vitals, accessibility audit, seo audit, which pages need fixing, four pillars."
+argument-hint: "<optional: a template name, --desktop, or a base URL>"
+---
+
+# Bobby Lighthouse Audit Skill
+
+> Reads the four Lighthouse pillars across every page template, works out which gaps are real, ranks them by how many live URLs they affect, and proposes tickets only on what nobody has filed yet.
+
+## Not to be confused with `bobby audit`
+
+`bobby audit` scores the **codebase** on production readiness (security, reliability,
+operability) from static source analysis. This skill audits **rendered pages** with a real
+browser. Different subject, different mechanism. If someone asks whether the code is
+production ready, they want the command, not this skill.
+
+## The shape of this skill
+
+Measurement is already solved. This skill ships a runner:
+
+```bash
+node .claude/skills/bobby-lighthouse/lighthouse-audit.mjs --url=https://example.com
+node .claude/skills/bobby-lighthouse/lighthouse-audit.mjs --desktop
+node .claude/skills/bobby-lighthouse/lighthouse-audit.mjs --page=blog --runs=1
+```
+
+It resolves the site from `--url`, then `BOBBY_AUDIT_URL`, then `lighthouse.base` in
+`.bobbyrc.yml`, and fails with instructions if none is set. It needs no install: it shells
+out to `npx --yes lighthouse@12`.
+
+Output: a ranked console report plus `.lighthouse/four-pillar-audit-<formfactor>.json`.
+**Your job is the judgement** the runner cannot make: decide which proposals deserve a
+ticket, write tickets someone can act on, and refuse to file noise.
+
+## Before Starting
+
+1. Read `.claude/skills/bobby-lighthouse/learnings.md` and `learnings.local.md`.
+2. Run `bobby ticket list` so you know what is already open before proposing anything.
+
+## Step 1: Sweep, at least 3 runs
+
+Run mobile first; it is where the gaps are. Use the default 3 runs. **Never propose a
+ticket off a single run** — a score that looks like a regression on one run routinely
+flattens over three.
+
+## Step 2: Decide what is a gap
+
+<gap_rules>
+The runner pre-classifies. Do not override it without saying why.
+
+**Propose a ticket when** an audit fails with **one or more DOM nodes or resources**. That
+is a specific assertion about a specific thing, and it does not move without a code change.
+
+**Never propose a ticket on:**
+- **A score.** Performance scores are noisy: the same URL can range double digits across
+  runs. A score drop with no failing audit behind it is noise. The runner marks any score
+  whose run-to-run spread exceeded 4 points with `~`.
+- **Timing-derived audits with zero nodes** (`interactive`, `max-potential-fid`,
+  `speed-index`, `largest-contentful-paint`, `first-contentful-paint`,
+  `total-blocking-time`). These "fail" on a slow run with no defect present. The runner
+  lists them as REPORTED, NOT PROPOSED. Investigate only alongside a real byte or node gap.
+- **Diagnostic audits that describe rather than prescribe.** Some audits carry nodes that
+  only describe the page: `mainthread-work-breakdown` (work split by category),
+  `largest-contentful-paint-element` (which element is the LCP), `dom-size`, plus the
+  Lighthouse 12 `*-insight` audits, which just restate a classic opportunity
+  (`render-blocking-insight` = `render-blocking-resources`, and so on). The runner routes
+  these to REPORTED, NOT PROPOSED. Fix the classic opportunity they point at, not the
+  diagnostic.
+- **Anything in the ALREADY TICKETED list.** Re-filing is the characteristic failure of an
+  auditor and it destroys trust in the report.
+</gap_rules>
+
+## Step 3: Rank by the axis that fits the pillar
+
+Two pillars, two honest priority orders, and the runner applies each automatically:
+
+- **Accessibility, SEO, best-practices** rank by **blast radius** — summed pages affected.
+  These failures are template-uniform, so a 2-point contrast gap on a template behind 500
+  URLs outranks a 10-point gap on the homepage.
+- **Performance** ranks by a **blended byte + ms impact**, and perf proposals sort above the
+  rest. A perf opportunity has a size, but neither axis alone is the whole story: ranking by
+  bytes buries a 300 ms render-blocking gap behind a trivial one, and ranking by ms buries a
+  133 KB image behind a 70 ms one. So the runner normalizes each of bytes and ms against the
+  largest gap in the set and sums them, so a gap that leads on *either* axis ranks high.
+  Ranking perf by page count alone — the trap this pillar sets — floats trivial gaps to the
+  top.
+
+Shared-shell issues that fail on every template are grouped into one proposal labelled
+`SHARED SHELL`, because one fix covers them all. For perf, shared-shell savings are the
+per-load bytes (a max across templates), not a sum, because one user only pays once.
+
+## Step 4: Write tickets that do not need re-investigation
+
+<ticket_content>
+Create with `bobby ticket create -t "<title>" --type bug -p <priority>`, then write the body
+into the generated `ticket.md`.
+
+Every ticket must carry:
+1. **The measurement**: date, URL, form factor, run count. Not "accessibility is low".
+2. **The failing audit id, node count, and the sample selectors** from the report, so
+   someone can open devtools and find the node.
+3. **Pages affected**, and which template owns it.
+4. **What is out of scope**, especially a sibling gap already tracked elsewhere, by number.
+5. **Acceptance criteria that demand measurement**: "state the measured contrast ratio per
+   selector", not "fix contrast".
+6. **A production verification criterion.** Local-only verification is not enough.
+</ticket_content>
+
+## Step 5: Report honestly
+
+State separately: what you measured with run counts, what you proposed and why each cleared
+the bar, what you deliberately did not propose, and anything production-only you could not
+verify. A clean audit is a real result. Inventing work to look productive is the fastest way
+to make the next audit ignored.
+
+## Known boundaries
+
+This is a **lab** sweep. Two limits follow from that, and a ticket should not claim more than
+the tool can see:
+
+- **No field data.** PageSpeed Insights leads with the Core Web Vitals *Assessment* — real
+  Chrome-user (CrUX) field data — and only then shows the Lighthouse lab run. This runner is
+  lab only. Passing every lab audit is not the same as real users passing CWV; a page can
+  pass one and fail the other. When the concern is "are real users failing CWV", read CrUX or
+  Search Console, not this report.
+- **One URL per template.** The runner samples the first sitemap URL in each group. That is
+  right for template-uniform failures (accessibility, SEO), but **byte weight is per content**:
+  one blog post ships a 450 KB hero, its neighbour ships none. A perf gap that lives on
+  specific pages can be missed if the sampled URL is not one of them. When a perf ticket is
+  about content weight, name the specific heavy URL, and consider `--page=<template>` against
+  a known-heavy path rather than trusting the default sample.
+
+## Configuring templates (optional)
+
+Templates are auto-discovered from the sitemap by first path segment, so this works with no
+setup. To name them explicitly, add to `.bobbyrc.yml`:
+
+```yaml
+lighthouse:
+  base: https://example.com
+  pages:
+    - { name: product, path: /products/widget, match: /products/ }
+    - { name: article, path: /blog/hello,      match: /blog/ }
+```
+
+## Related tools
+
+- This skill **proposes**; it never gates. Wire a byte or axe budget into your build if you
+  want a gate.
+- The `bobby-performance` skill covers measurement methodology in depth; read it before
+  interpreting borderline numbers.
+
+---
+
+## Project overrides
+
+If `.claude/skills/bobby-lighthouse/SKILL.local.md` exists, read it and follow it. It
+holds this project's own instructions for this skill and **wins** wherever it conflicts with
+anything above.
+
+`SKILL.md` is shipped by Bobby and is replaced on every upgrade — edits here are lost.
+`SKILL.local.md` is yours and is never overwritten.

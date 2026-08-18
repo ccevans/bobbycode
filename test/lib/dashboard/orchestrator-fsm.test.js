@@ -549,6 +549,10 @@ describe('dashboard.max_concurrent caps agents in flight (TKT-015)', () => {
       expect(res.status).toBe(400);
       expect((await res.json()).error).toMatch(/already running: TKT-001 build/);
     } finally {
+      // Drop undici's keep-alive socket first. On Node 18 `close()` waits on an
+      // idle client connection that fetch leaves open, so the callback never
+      // fires and the test times out — see server-api.test.js, same pattern.
+      server.closeAllConnections?.();
       await new Promise(r => server.close(r));
     }
   });

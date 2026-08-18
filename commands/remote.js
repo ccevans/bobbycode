@@ -18,6 +18,8 @@ import { getTarget } from '../lib/targets/index.js';
 import { WorkspaceStore } from '../lib/dashboard/state.js';
 import { SSEHub } from '../lib/dashboard/sse.js';
 import { Orchestrator } from '../lib/dashboard/orchestrator.js';
+import { ProjectContext } from '../lib/dashboard/project-context.js';
+import { ChatManager } from '../lib/dashboard/chat.js';
 import { buildServer } from '../lib/dashboard/server.js';
 import { resolveExecutor, commandExists, EXECUTOR_NAMES } from '../lib/dashboard/executor.js';
 import { loadDashboardPlugins } from '../lib/dashboard/plugins.js';
@@ -67,9 +69,13 @@ export function registerRemote(program) {
         const store = new WorkspaceStore(stateFile).load();
         store.reconcileAfterRestart();
         const sseHub = new SSEHub();
+        // Studio mode (TKT-022): switch projects from the app over the same
+        // tunnel. Inert off-studio.
+        const projectContext = new ProjectContext(root, config);
         const orchestrator = new Orchestrator({
           repoRoot: root, config, ticketsDir, sessionsDir, agentsPath,
           store, sseHub, pipeline, pipelineName: opts.workflow || 'default',
+          projectContext,
         });
         store.subscribe((event, workspace) => {
           const payload = { type: 'store', event, workspace, at: new Date().toISOString() };
@@ -77,9 +83,17 @@ export function registerRemote(program) {
           sseHub.broadcast(`workspace:${workspace.id}`, payload);
         });
 
+        // Conversational planning (TKT-021), reachable over the relay like every
+        // other GET/POST /api route.
+        const chatManager = new ChatManager({
+          orchestrator,
+          filePath: path.join(root, config.bobby_dir || '.bobby', 'chats.json'),
+        });
+
         const { plugins, status: pluginStatus } = await loadDashboardPlugins({ repoRoot: root });
         const server = buildServer({
           orchestrator, store, sseHub, config, repoRoot: root, ticketsDir,
+          chatManager,
           plugins, pluginStatus,
         });
 
