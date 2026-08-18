@@ -27,5 +27,10 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Configure git identity
+        run: |
+          git config --global user.name "Bobby CI"
+          git config --global user.email "ci@bobby.dev"
+
       - name: Test
         run: npm test

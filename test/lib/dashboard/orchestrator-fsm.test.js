@@ -551,5 +551,10 @@ describe('dashboard.max_concurrent caps agents in flight (TKT-015)', () => {
     } finally {
       await new Promise(r => server.close(r));
     }
-  });
+  // This case lands within a few milliseconds of Jest's 5s default on every
+  // Node version we test (~5.05s locally on both 18 and 22), so which CI leg
+  // fails is a coin flip rather than a real difference. The assertion itself is
+  // instant; the time goes on the HTTP round trip and teardown. Give it an
+  // explicit budget so the result is deterministic instead of marginal.
+  }, 20000);
 });
