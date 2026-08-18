@@ -1,7 +1,7 @@
 ---
 id: TKT-022
 title: 'Studio mode: switch projects from inside the app'
-stage: shipping
+stage: done
 type: feature
 priority: medium
 area: api
@@ -14,7 +14,7 @@ blocked_reason: null
 previous_stage: null
 parent: TKT-020
 created: '2026-08-07'
-updated: '2026-08-17'
+updated: '2026-08-18'
 ---
 
 ## Description
@@ -35,6 +35,7 @@ projects without restarting the server.
 - [ ] The selected project survives a page reload
 
 ## Comments
+- [2026-08-18] bobby-ship: Merged to main in d482401 via PR #12 (https://github.com/ccevans/bobbycode/pull/12). CI green on Node 18/20/22.
 - [2026-08-17] bobby-ship: PR created: https://github.com/ccevans/bobbycode/pull/12 (with TKT-021). Awaiting manual merge. NOT moved to done: CI is red on the PR — 3 failures in test/lib/project.test.js, pre-existing on main since a3fe211 and unrelated to this ticket. Filed as TKT-072.
 - [2026-08-16] bobby-review: Approved with notes (cycle 6): D1 (auto_approve_stages pinned via _configFor in _onExit) and D2 (_pipelineFor resolves per-project, no boot short-circuit) both verified by adversarial revert — each reversion fails exactly its own test and no other. Re-audited every constructor-captured config derivative: this.pipeline fixed (only read via _pipelineFor now, no raw read survives), lockFile/repoRoot are the shared studio root and pinned per-ws for the paths that vary; repo runs are project-agnostic by design so a switch cannot mis-lock them. B3/C1/C2/AC1/AC4 re-verified from source. Suite 1275 pass / 46 skip exit 0; lint 0 errors. Notes (non-blocking): N1 _configFor error fallback returns live config (recommend boot _config), N2 stale test header comment, N3 two message-only live reads, N4 plugin seam = TKT-071 (separable — App UI reads core live routes), N5 theoretical bobby_dir lock. Recorded decision run-scoped-reads-pin-to-the-workspaces-project.
 - [2026-08-16] system: D1 (auto-approve) and D2 (workflow) pinned to the run's project; fixture blind spot closed via real createWorkspace

@@ -1,7 +1,7 @@
 ---
 id: TKT-072
 title: 'CI is red on main: createProject''s initial commit fails on Linux runners'
-stage: building
+stage: done
 type: bug
 priority: high
 area: null
@@ -76,3 +76,4 @@ error instead of a bare boolean. Fix from there.
 3. Expected: suite green. Actual: 3 failed, 46 skipped, 1272 passed — all three failures in `test/lib/project.test.js`, all on `committed === true`.
 
 ## Comments
+- [2026-08-18] bobby-build: Fixed and merged in d482401 (PR #12). Root cause: git refused the scaffold commit with 'empty ident name (for <runner@...>)' — a bare GitHub runner has no git identity and its 'runner' user has an empty gecos, so git could not auto-detect a name. The test's GIT_AUTHOR_NAME/GIT_COMMITTER_NAME env vars never reached git: a Jest ESM module gets a COPY of process.env that spawned children never see, which this same file already documented above its commit-outcome test. macOS git auto-detects user@host and commits anyway, so it only ever failed on Linux. Fix: configure the identity on the runner in ci.yml and drop the env dance. Also made the failure self-describing — commitError now carries git's stderr instead of just 'Command failed', and the three tests assert commitError before committed. All four ACs met; CI green on Node 18/20/22 for the first time.
