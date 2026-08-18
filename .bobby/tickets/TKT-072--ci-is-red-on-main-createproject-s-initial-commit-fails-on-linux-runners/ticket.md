@@ -1,7 +1,7 @@
 ---
 id: TKT-072
 title: 'CI is red on main: createProject''s initial commit fails on Linux runners'
-stage: backlog
+stage: building
 type: bug
 priority: high
 area: null
@@ -17,7 +17,7 @@ parent: null
 feature: null
 persona: null
 created: '2026-08-17'
-updated: '2026-08-17'
+updated: '2026-08-18'
 ---
 
 ## Description

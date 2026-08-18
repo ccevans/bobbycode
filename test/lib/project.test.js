@@ -63,8 +63,10 @@ describe('createProject', () => {
     expect(result.config.project).toBe('short');
     expect(result.config.stack).toBe('node');
     expect(result.starter).toMatchObject({ dev: expect.any(String), url: expect.any(String) });
-    expect(result.committed).toBe(true);
+    // commitError FIRST: it carries git's own words, so a failure here names its
+    // cause instead of printing a bare `false` (TKT-072).
     expect(result.commitError).toBeNull();
+    expect(result.committed).toBe(true);
   });
 
   it('captures the idea as a high-priority epic with the idea in its body', () => {
@@ -79,7 +81,12 @@ describe('createProject', () => {
   });
 
   it('makes the initial commit', () => {
-    const { root, epic } = createProject('a habit tracker for runners', { cwd: tmp });
+    const { root, epic, commitError } = createProject('a habit tracker for runners', { cwd: tmp });
+
+    // Assert the commit succeeded BEFORE shelling out to read it. Otherwise this
+    // fails as an opaque `git log` crash about a branch with no commits, which
+    // says nothing about why the commit never happened (TKT-072).
+    expect(commitError).toBeNull();
 
     const log = execSync('git log --oneline', { cwd: root, encoding: 'utf8' });
     expect(log).toMatch(new RegExp(`Scaffold ${epic.id}`));
@@ -155,8 +162,10 @@ describe('createProject', () => {
 
     expect(result).toHaveProperty('committed');
     expect(result).toHaveProperty('commitError');
-    expect(result.committed).toBe(true);
+    // commitError FIRST: it carries git's own words, so a failure here names its
+    // cause instead of printing a bare `false` (TKT-072).
     expect(result.commitError).toBeNull();
+    expect(result.committed).toBe(true);
   });
 
   it('publishes the stack list so the CLI and the app offer the same choices', () => {
