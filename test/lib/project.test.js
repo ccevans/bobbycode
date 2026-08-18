@@ -21,23 +21,25 @@ import YAML from 'yaml';
 import { createProject, PROJECT_STACKS } from '../../lib/project.js';
 
 let tmp;
-let savedEnv;
 
-// `git commit` needs an identity, and a bare CI runner has none configured.
-// execSync inherits process.env, so the four env vars git reads are enough.
-const GIT_IDENTITY = {
-  GIT_AUTHOR_NAME: 'Test', GIT_COMMITTER_NAME: 'Test',
-  GIT_AUTHOR_EMAIL: 'test@test.com', GIT_COMMITTER_EMAIL: 'test@test.com',
-};
+// `git commit` needs an identity, and this file's tests make real commits.
+//
+// It cannot be arranged from here. Setting GIT_AUTHOR_NAME and friends on
+// `process.env` looks like it should work and does nothing: a Jest ESM test
+// module gets a COPY of process.env that spawned children never see — the same
+// reason the failing-commit branch is not exercised below. This file therefore
+// depends on the MACHINE having a git identity, which every developer box has
+// and a bare CI runner does not; .github/workflows/ci.yml configures one.
+//
+// It went unnoticed for so long because macOS git auto-detects user@host and
+// commits anyway, while the Linux runner's `runner` user has an empty gecos and
+// git refuses with "empty ident name" (TKT-072).
 
 beforeEach(() => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-project-'));
-  savedEnv = { ...process.env };
-  Object.assign(process.env, GIT_IDENTITY);
 });
 
 afterEach(() => {
-  process.env = savedEnv;
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 

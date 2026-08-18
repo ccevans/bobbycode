@@ -24,6 +24,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Configure git identity
+        # A bare runner has no git identity, and its `runner` user has an empty
+        # gecos, so git cannot auto-detect one either — `git commit` dies with
+        # "empty ident name". `createProject` makes a real initial commit, so
+        # its tests need this. It cannot be done from the test process: a Jest
+        # ESM module gets a COPY of process.env that spawned children never see,
+        # so the identity has to exist on the machine (TKT-072).
+        run: |
+          git config --global user.name  'bobby CI'
+          git config --global user.email 'ci@bobby.invalid'
+
       - name: Lint
         run: npm run lint
 
