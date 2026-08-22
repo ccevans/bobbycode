@@ -190,3 +190,25 @@ describe('CLI refuses a ticket that is already running', () => {
     expect(ticketHasLiveRun(ticketsDir, 'BOB-999')).toBe(false);
   });
 });
+
+/* A claim is local state, not a fact about the ticket (BOB-120).
+ *
+ * The board is git-tracked and Bobby itself commits it (`bobby: auto-sync`), so
+ * an un-ignored run.lock would be committed mid-run and travel to every other
+ * machine — carrying a pid and hostname that mean nothing there, which leaves
+ * the 6-hour staleness ceiling as the only thing that frees the ticket. A fresh
+ * clone would find work blocked by a run that ended days ago.
+ */
+describe('claims are never committed', () => {
+  test('the studio scaffold ignores run.lock', async () => {
+    const { readFileSync } = await import('fs');
+    const studio = readFileSync(new URL('../../../lib/studio.js', import.meta.url), 'utf8');
+    expect(studio).toContain('.bobby/*/tickets/*/run.lock');
+  });
+
+  test('the single-project scaffold ignores run.lock', async () => {
+    const { readFileSync } = await import('fs');
+    const tpl = readFileSync(new URL('../../../templates/gitignore.ejs', import.meta.url), 'utf8');
+    expect(tpl).toContain('.bobby/tickets/*/run.lock');
+  });
+});
