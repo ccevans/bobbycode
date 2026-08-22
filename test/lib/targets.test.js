@@ -75,13 +75,6 @@ describe('targets', () => {
       fs.rmSync(tmpDir, { recursive: true });
     });
 
-    test('scaffoldExtras is a no-op', () => {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-target-'));
-      target.scaffoldExtras(tmpDir);
-      // No .clineignore should be created
-      expect(fs.existsSync(path.join(tmpDir, '.clineignore'))).toBe(false);
-      fs.rmSync(tmpDir, { recursive: true });
-    });
   });
 
   describe('cline adapter', () => {
@@ -103,15 +96,6 @@ describe('targets', () => {
       expect(target.promptHint()).toContain('Cline');
     });
 
-    test('scaffoldExtras creates .clineignore', () => {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-target-'));
-      target.scaffoldExtras(tmpDir);
-      expect(fs.existsSync(path.join(tmpDir, '.clineignore'))).toBe(true);
-      const content = fs.readFileSync(path.join(tmpDir, '.clineignore'), 'utf8');
-      expect(content).toContain('.bobby/');
-      expect(content).toContain('.bobbyrc.yml');
-      fs.rmSync(tmpDir, { recursive: true });
-    });
   });
 });
 
@@ -238,6 +222,10 @@ describe('cursor adapter', () => {
   });
 });
 
+  // Scaffold-shape, cross-target-leakage, rules-reference and extras
+  // invariants moved to test/lib/target-matrix.test.js (BOB-078), where every
+  // registered target inherits them. What stays here is target IDENTITY — the
+  // specific path values, hints, and cursor's transformCommand quirks.
 describe('cursor scaffold integration', () => {
   let tmpDir;
 
@@ -250,20 +238,6 @@ describe('cursor scaffold integration', () => {
   beforeEach(() => { tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-cursor-sc-')); });
   afterEach(() => { fs.rmSync(tmpDir, { recursive: true }); });
 
-  test('creates .cursor/ structure and AGENTS.md', () => {
-    scaffoldProject(tmpDir, { ...baseConfig });
-
-    expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, '.cursor', 'agents', 'bobby-build.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, '.cursor', 'skills', 'bobby-build', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, '.cursor', 'commands'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, '.cursorindexingignore'))).toBe(true);
-
-    // Claude Code and Cline artifacts should not appear
-    expect(fs.existsSync(path.join(tmpDir, 'CLAUDE.md'))).toBe(false);
-    expect(fs.existsSync(path.join(tmpDir, '.claude'))).toBe(false);
-    expect(fs.existsSync(path.join(tmpDir, '.clinerules'))).toBe(false);
-  });
 
   test('scaffolded commands carry no YAML frontmatter', () => {
     scaffoldProject(tmpDir, { ...baseConfig });
@@ -298,35 +272,7 @@ describe('cursor scaffold integration', () => {
     expect(fs.existsSync(path.join(tmpDir, '.claude', 'settings.json'))).toBe(false);
   });
 
-  test('no scaffolded file points at CLAUDE.md, which cursor never writes', () => {
-    scaffoldProject(tmpDir, { ...baseConfig });
 
-    const offenders = [];
-    const walk = (dir) => {
-      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-        const p = path.join(dir, e.name);
-        if (e.isDirectory()) { walk(p); continue; }
-        if (!e.name.endsWith('.md')) continue;
-        if (fs.readFileSync(p, 'utf8').includes('CLAUDE.md')) {
-          offenders.push(path.relative(tmpDir, p));
-        }
-      }
-    };
-    walk(path.join(tmpDir, '.cursor'));
-    if (fs.existsSync(path.join(tmpDir, 'AGENTS.md'))) walk(tmpDir);
-
-    // bobby-build/bobby-ship tell the agent to follow "Safety Rules in <rules>";
-    // pointing that at a file cursor never creates silently drops the contract.
-    expect(offenders).toEqual([]);
-  });
-
-  test('agents reference the target rules file by name', () => {
-    scaffoldProject(tmpDir, { ...baseConfig });
-    for (const agent of ['bobby-build', 'bobby-ship']) {
-      const content = fs.readFileSync(path.join(tmpDir, '.cursor', 'agents', `${agent}.md`), 'utf8');
-      expect(content).toContain('Safety Rules in `AGENTS.md`');
-    }
-  });
 
   test('leaves exactly one blank line where the hooks section was omitted', () => {
     scaffoldProject(tmpDir, { ...baseConfig });
