@@ -147,6 +147,22 @@ Modes:
           epicData = { epicId, epic, children };
         }
 
+        // One live run per ticket (BOB-120), guarding EVERY prompt-building
+        // path below — not just the standard-agent one.
+        //
+        // Placed here, not inside buildPromptFor, because the ORCHESTRATOR calls
+        // that builder in-process for its own agents and already holds the
+        // claim. This is the CLI: a genuinely separate operator. An agent
+        // launched BY the app carries its claim token in the environment, so its
+        // own `bobby run <stage> <ticket>` passes.
+        //
+        // `>= 1`, not `=== 1`: the builders act on ids[0], so a multi-id
+        // invocation (`bobby run review BOB-1 BOB-2`) drives the same ticket and
+        // must be guarded the same way. The custom-agent branch below reaches
+        // this too — it builds a prompt naming ids[0] and previously bypassed
+        // the claim entirely.
+        if (ticketIds.length >= 1) assertTicketFree(ticketsDir, ticketIds[0]);
+
         // Build the prompt via the unified dispatcher
         let built;
         if (customAgent) {
@@ -167,12 +183,6 @@ Modes:
           };
         } else {
           try {
-            // One live run per ticket (BOB-120). Here, not inside
-            // buildPromptFor: this is the CLI, a genuinely separate operator
-            // from the app that may already be running this ticket. An agent
-            // launched BY the app carries its claim token in the environment, so
-            // its own `bobby run <stage> <ticket>` passes.
-            if (ticketIds.length === 1) assertTicketFree(ticketsDir, ticketIds[0]);
             built = buildPromptFor(agent, ticketIds, {
               config,
               ticketsDir,

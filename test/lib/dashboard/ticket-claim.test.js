@@ -225,41 +225,13 @@ describe('claims are never committed', () => {
   });
 });
 
-/* The orchestrator-level coverage the review found missing (BOB-120).
+/* NOTE: the orchestrator's claim lifecycle is covered by
+ * ticket-claim-orchestrator.test.js, which builds a real Orchestrator and
+ * asserts on the run.lock on disk.
  *
- * The module tests exercised the claim primitive; none asserted the ORCHESTRATOR
- * takes one, releases it, or refuses a second workspace. That gap is exactly why
- * the discard() leak shipped — a claim acquired in createWorkspace and released
- * only in merge(), with discard() deleting the workspace and leaving the lock
- * holding a live pid, so the ticket was refused to everyone for six hours.
- */
-describe('orchestrator claim lifecycle', () => {
-  test('every path that ends a workspace releases the claim', async () => {
-    const { readFileSync } = await import('fs');
-    const src = readFileSync(new URL('../../../lib/dashboard/orchestrator.js', import.meta.url), 'utf8');
-
-    // Enumerate the lifecycle-ending methods and assert each releases. A new
-    // teardown path added without a release is the failure this guards.
-    const endings = ['merge(', 'discard('];
-    for (const method of endings) {
-      const start = src.indexOf(`  async ${method}`) >= 0
-        ? src.indexOf(`  async ${method}`)
-        : src.indexOf(`  ${method}`);
-      expect(start).toBeGreaterThan(-1);
-      // the body runs to the next top-level method
-      const rest = src.slice(start + 10);
-      const end = rest.search(/\n  [a-zA-Z_]+\(|\n  async [a-zA-Z_]+\(/);
-      const body = rest.slice(0, end === -1 ? rest.length : end);
-      expect(body).toContain('_releaseTicketClaim');
-    }
-  });
-
-  test('the claim token reaches the agent subprocess', async () => {
-    const { readFileSync } = await import('fs');
-    const src = readFileSync(new URL('../../../lib/dashboard/orchestrator.js', import.meta.url), 'utf8');
-    // Without this an agent running `bobby run <stage> <its own ticket>` is a
-    // different process with no way to prove the claim is its orchestrator's,
-    // and its own run is refused.
-    expect(src).toMatch(/CLAIM_TOKEN_ENV\]:\s*ws\.claim\.token/);
-  });
-});
+ * An earlier version of that coverage lived here and read orchestrator.js as a
+ * STRING, asserting a method name appeared in a slice of it. Replacing the call
+ * with a comment left the whole suite green with the bug live — a source-text
+ * grep passes on a comment, on a dead branch, and on the original defect. It was
+ * deleted rather than kept alongside: a test that cannot fail is worse than no
+ * test, because it reads as coverage. */
