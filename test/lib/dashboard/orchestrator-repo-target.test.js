@@ -47,6 +47,10 @@ function makeStudio(tmp) {
   const project = 'proj';
   const ticketsDir = path.join(studioRoot, '.bobby', project, 'tickets');
   fs.mkdirSync(ticketsDir, { recursive: true });
+  // A studio is defined by this file — isStudio() reads it, and findProjectRoot
+  // stops at it, which is the mechanism board resolution from a worktree relies
+  // on. A fixture without it describes a studio that cannot exist (BOB-117).
+  fs.writeFileSync(path.join(studioRoot, '.bobbyrc.yml'), `studio: studio\n`);
 
   const config = {
     studio: 'studio',
