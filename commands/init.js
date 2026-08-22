@@ -525,6 +525,7 @@ export function registerInit(program) {
             choices: [
               { name: 'Claude Code — scaffolds to .claude/ (agents, skills, commands, CLAUDE.md)', value: 'claude-code' },
               { name: 'Cursor — scaffolds to .cursor/ (skills, commands, agents) + AGENTS.md', value: 'cursor' },
+              { name: 'Codex CLI — scaffolds to .codex/ (skills, agents) + AGENTS.md', value: 'codex' },
               { name: 'Cline (VS Code) — scaffolds to .clinerules/ (agents, skills, workflows)', value: 'cline' },
             ],
             default: existingConfig?.target || 'claude-code',

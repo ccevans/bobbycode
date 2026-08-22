@@ -37,6 +37,7 @@ const DISTINCTIVE = {
   'claude-code': ['CLAUDE.md', '.claude'],
   'cline': ['.clinerules', '.clineignore'],
   'cursor': ['.cursor'],
+  'codex': ['.codex'],
 };
 
 describe.each(TARGETS)('target contract: %s', (name) => {
