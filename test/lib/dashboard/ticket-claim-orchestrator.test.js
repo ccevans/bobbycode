@@ -79,6 +79,23 @@ describe('the orchestrator claim lifecycle, driven for real (BOB-120 F1)', () =>
     expect(fs.existsSync(claimFile)).toBe(false);
   });
 
+  test('merge releases the claim too — the deleted grep test covered this and the first replacement did not', async () => {
+    // Finding 4 of round three: replacing a fake test with a real one REDUCED
+    // coverage. The grep test enumerated both merge( and discard(; its
+    // replacement covered only discard, so a merge that stopped releasing would
+    // leave the identical six-hour lockout with nothing able to detect it.
+    const ws = o.createWorkspace({ ticketId, agent: 'plan' });
+    expect(fs.existsSync(claimFile)).toBe(true);
+
+    // A real merge needs a commit on the branch to land.
+    fs.writeFileSync(path.join(ws.worktreePath, 'work.txt'), 'done\n');
+    execSync('git add -A && git commit -q -m work', { cwd: ws.worktreePath, stdio: 'pipe' });
+
+    await o.merge(ws.id, { message: 'merge it' });
+
+    expect(fs.existsSync(claimFile)).toBe(false);
+  });
+
   test('after a discard the ticket is immediately runnable again', async () => {
     const first = o.createWorkspace({ ticketId, agent: 'plan' });
     await o.discard(first.id, { force: true });

@@ -156,12 +156,15 @@ Modes:
         // launched BY the app carries its claim token in the environment, so its
         // own `bobby run <stage> <ticket>` passes.
         //
-        // `>= 1`, not `=== 1`: the builders act on ids[0], so a multi-id
-        // invocation (`bobby run review BOB-1 BOB-2`) drives the same ticket and
-        // must be guarded the same way. The custom-agent branch below reaches
-        // this too — it builds a prompt naming ids[0] and previously bypassed
-        // the claim entirely.
-        if (ticketIds.length >= 1) assertTicketFree(ticketsDir, ticketIds[0]);
+        // EVERY id, not ids[0]. The earlier rationale — "the builders act on
+        // ids[0]" — is false for the one builder that consumes them all:
+        // `bobby run workflow A B` orchestrates both, so checking only the first
+        // meant `bobby run workflow <free> <claimed>` handed out a prompt
+        // driving the claimed ticket. Order-dependent bugs are still bugs.
+        for (const id of ticketIds) assertTicketFree(ticketsDir, id);
+        // A feature run drives its CHILDREN, so the epic's claim says nothing
+        // about whether the work is free.
+        if (epicData) for (const child of epicData.children) assertTicketFree(ticketsDir, child.id);
 
         // Build the prompt via the unified dispatcher
         let built;

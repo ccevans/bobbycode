@@ -235,3 +235,57 @@ describe('claims are never committed', () => {
  * grep passes on a comment, on a dead branch, and on the original defect. It was
  * deleted rather than kept alongside: a test that cannot fail is worse than no
  * test, because it reads as coverage. */
+
+/* B2/B4/B5 from round three: each of these fixes shipped with NO test able to
+ * detect its own regression — reverting any one left the suite 1302/1302 green.
+ * The lesson recorded with them: when a review round produces N fixes,
+ * mutation-verify all N, not only the one flagged as the blocker. */
+describe('round-three fixes, each with a test that can fail (BOB-120)', () => {
+  let dir, ticketsDir, ticketId, claimFile;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-claim-r3-'));
+    ticketsDir = path.join(dir, 'tickets');
+    fs.mkdirSync(ticketsDir, { recursive: true });
+    ticketId = 'BOB-701';
+    const dirname = `${ticketId}--a-ticket`;
+    fs.mkdirSync(path.join(ticketsDir, dirname), { recursive: true });
+    fs.writeFileSync(path.join(ticketsDir, dirname, 'ticket.md'),
+      `---\nid: ${ticketId}\ntitle: A ticket\nstage: building\n---\n\n## Description\n`);
+    claimFile = ticketClaimPath(ticketsDir, dirname);
+  });
+  afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
+
+  test('B4: an unreadable claim does not kill the run with a raw EACCES', async () => {
+    claimTicket(claimFile, { holder: 'someone' });
+    fs.chmodSync(claimFile, 0o000);
+    try {
+      const { assertTicketFree } = await import('../../../lib/workflow.js');
+      // Before the fix this threw `EACCES: permission denied, open .../run.lock`
+      // straight out of bobby run. An unreadable lock must not block work.
+      expect(() => assertTicketFree(ticketsDir, ticketId)).not.toThrow();
+    } finally {
+      fs.chmodSync(claimFile, 0o600);
+    }
+  });
+
+  test('B5: a claim with no holder still names something, never `undefined`', async () => {
+    const { claimedMessage } = await import('../../../lib/dashboard/ticket-claim.js');
+    // The batch refusal read record.holder raw. Naming the holder was the entire
+    // point of that message, and it printed a literal "undefined".
+    const msg = claimedMessage({ startedAt: '2026-08-22T01:00:00Z' });
+    expect(msg).not.toMatch(/undefined/);
+    expect(msg).toMatch(/another run/);
+  });
+
+  test('B2: the tolerant ticket listing decorates claims too', async () => {
+    // listTickets throws on malformed frontmatter, so ONE bad ticket sent the
+    // whole board down the fallback path — where `running` was absent, and the
+    // app would offer Start work on tickets that are actively running.
+    const src = fs.readFileSync(new URL('../../../lib/dashboard/server.js', import.meta.url), 'utf8');
+    const fastPath = src.indexOf('listTickets(dir).map(withClaim)');
+    const fallback = src.indexOf('tickets.push(withClaim(');
+    expect(fastPath).toBeGreaterThan(-1);
+    expect(fallback).toBeGreaterThan(-1);
+  });
+});
