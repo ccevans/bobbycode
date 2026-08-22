@@ -19,6 +19,7 @@ import { WorkspaceStore } from '../lib/dashboard/state.js';
 import { SSEHub } from '../lib/dashboard/sse.js';
 import { Orchestrator } from '../lib/dashboard/orchestrator.js';
 import { ProjectContext } from '../lib/dashboard/project-context.js';
+import { listStudioProjects } from '../lib/config.js';
 import { ChatManager } from '../lib/dashboard/chat.js';
 import { buildServer } from '../lib/dashboard/server.js';
 import { resolveExecutor, commandExists, EXECUTOR_NAMES } from '../lib/dashboard/executor.js';
@@ -118,6 +119,10 @@ export function registerRemote(program) {
             key: pairing.key,
             localPort: port,
             project: config.project || path.basename(root),
+            // The roster for the phone's project picker (BOB-067): one pairing
+            // reaches every project this studio serves. Off-studio the list is
+            // just this project, which the tunnel renders as "no picker".
+            projects: (config.studio ? listStudioProjects(root) : null) || undefined,
             version: program.version() || '',
             log: (m) => console.log(`  ${dim(m)}`),
           });
