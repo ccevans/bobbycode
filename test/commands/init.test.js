@@ -288,6 +288,60 @@ describe('registerInit (interactive flow)', () => {
     if (promptSpy) promptSpy.mockRestore();
   });
 
+  /* BOB-123 — drive the COMMAND, not the option.
+   *
+   * The first version of these tests called scaffoldProject(..., {writeConfig:
+   * false}) directly, which proves the option works and proves nothing about the
+   * bug: the defect was at the CALL SITE. Reverting only that line left the whole
+   * suite green. These run `bobby init --refresh` end to end, so a refactor that
+   * drops the options object turns them red.
+   */
+  const CUSTOM_CFG = `# Bobby Configuration
+project: keepme
+stack: generic
+target: claude-code
+tickets_dir: .bobby/tickets
+ticket_prefix: TKT
+
+# Load-bearing: the built-in default ends at a live-app stage a CLI cannot satisfy.
+workflows:
+  default: [plan, build, review]
+
+dashboard:
+  worktree_root: ../../worktrees
+`;
+
+  test('BOB-123: `init --refresh` leaves .bobbyrc.yml byte-identical', async () => {
+    const program = mockProgram();
+    registerInit(program);
+    // A real install to refresh FROM.
+    await program.getAction()({ yes: true, stack: 'generic' });
+
+    const cfgPath = path.join(tmpDir, '.bobbyrc.yml');
+    fs.writeFileSync(cfgPath, CUSTOM_CFG);
+    execSync('git add -A && git commit -q -m base', { cwd: tmpDir, stdio: 'pipe' });
+
+    await program.getAction()({ refresh: true });
+
+    expect(fs.readFileSync(cfgPath, 'utf8')).toBe(CUSTOM_CFG);
+  });
+
+  test('BOB-123: `init --refresh` still delivers the shipped files', async () => {
+    const program = mockProgram();
+    registerInit(program);
+    await program.getAction()({ yes: true, stack: 'generic' });
+
+    const skill = path.join(tmpDir, '.claude/skills/bobby-build/SKILL.md');
+    fs.writeFileSync(skill, 'stale');
+    execSync('git add -A && git commit -q -m base', { cwd: tmpDir, stdio: 'pipe' });
+
+    await program.getAction()({ refresh: true });
+
+    // The control: a refresh that preserved config but stopped refreshing would
+    // pass the test above and be useless.
+    expect(fs.readFileSync(skill, 'utf8')).not.toBe('stale');
+  });
+
   function mockProgram() {
     let actionFn;
     const cmd = {
@@ -756,7 +810,7 @@ areas:
 
     scaffoldProject(tmpDir, { ...base }, { writeConfig: false });
 
-    assert_equal(fs.readFileSync(cfgPath, 'utf8'), CUSTOM);
+    expect(fs.readFileSync(cfgPath, 'utf8')).toBe(CUSTOM);
   });
 
   test('the keys the template cannot model survive — the ones that were lost', () => {
@@ -767,10 +821,12 @@ areas:
     scaffoldProject(tmpDir, { ...base }, { writeConfig: false });
     const after = fs.readFileSync(cfgPath, 'utf8');
 
-    expect(after).toMatch(/workflows:/);
+    // Anchored: the regenerated template emits a COMMENTED `# workflows:` in its
+    // optional-config block, so an unanchored match passes against the bug.
+    expect(after).toMatch(/^workflows:/m);
     expect(after).toMatch(/default: \[plan, build, review\]/);
-    expect(after).toMatch(/worktree_root: \.\.\/\.\.\/worktrees/);
-    expect(after).toMatch(/worktree_permission_mode: bypassPermissions/);
+    expect(after).toMatch(/^  worktree_root: \.\.\/\.\.\/worktrees$/m);
+    expect(after).toMatch(/^  worktree_permission_mode: bypassPermissions$/m);
     // Comments carry the WHY. Regenerating dropped them silently, which is how
     // a deliberate override reads as an accident to the next person.
     expect(after).toMatch(/# This override is load-bearing/);
@@ -794,4 +850,3 @@ areas:
   });
 });
 
-function assert_equal(actual, expected) { expect(actual).toBe(expected); }

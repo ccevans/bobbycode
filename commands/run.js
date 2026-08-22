@@ -4,7 +4,7 @@ import path from 'path';
 import inquirer from 'inquirer';
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir, resolveProductDir } from '../lib/config.js';
 import { getFeatureTickets, listEpics } from '../lib/tickets.js';
-import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, listWorkflows } from '../lib/workflow.js';
+import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, listWorkflows, assertTicketFree } from '../lib/workflow.js';
 import { findTicket } from '../lib/tickets.js';
 import { VALID_AGENTS } from '../lib/agent-registry.js';
 import { bold, dim, error } from '../lib/colors.js';
@@ -167,6 +167,12 @@ Modes:
           };
         } else {
           try {
+            // One live run per ticket (BOB-120). Here, not inside
+            // buildPromptFor: this is the CLI, a genuinely separate operator
+            // from the app that may already be running this ticket. An agent
+            // launched BY the app carries its claim token in the environment, so
+            // its own `bobby run <stage> <ticket>` passes.
+            if (ticketIds.length === 1) assertTicketFree(ticketsDir, ticketIds[0]);
             built = buildPromptFor(agent, ticketIds, {
               config,
               ticketsDir,

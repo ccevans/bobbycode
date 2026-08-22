@@ -6,8 +6,8 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import {
-  ticketClaimPath, claimTicket, releaseTicketClaim, readTicketClaim,
-  isTicketClaimed, claimedMessage, isOwnClaim,
+  ticketClaimPath, claimTicket, readTicketClaim,
+  isTicketClaimed, claimedMessage, isOwnClaim, CLAIM_TOKEN_ENV,
 } from '../../../lib/dashboard/ticket-claim.js';
 import { STALE_AFTER_MS } from '../../../lib/dashboard/main-checkout-lock.js';
 
@@ -22,16 +22,16 @@ describe('ticket claim (BOB-120)', () => {
   });
   afterEach(() => { fs.rmSync(ticketsDir, { recursive: true, force: true }); });
 
-  // A claim taken by ANOTHER orchestrator. Identity is the recorded pid, and the
-  // test process is the one that called claimTicket, so a claim made here is
-  // "ours" and deliberately does not collide (a workflow runs stage after stage
-  // against one workspace). Re-stamping the pid to init — always alive, never
-  // us — is what makes it someone else's.
-  const asAnotherProcess = (file) => {
-    const rec = JSON.parse(fs.readFileSync(file, 'utf8'));
-    rec.pid = 1;
-    fs.writeFileSync(file, JSON.stringify(rec));
-    return rec;
+  // Identity is the claim TOKEN, carried to an agent subprocess in the
+  // environment. With no token in the env, every claim belongs to someone else —
+  // which is the default a fresh CLI process sees.
+  const asHolder = (token, fn) => {
+    const saved = process.env[CLAIM_TOKEN_ENV];
+    process.env[CLAIM_TOKEN_ENV] = token;
+    try { return fn(); } finally {
+      if (saved === undefined) delete process.env[CLAIM_TOKEN_ENV];
+      else process.env[CLAIM_TOKEN_ENV] = saved;
+    }
   };
 
 
@@ -55,7 +55,6 @@ describe('ticket claim (BOB-120)', () => {
 
   test('a released claim frees the ticket for the next run', () => {
     const first = claimTicket(claimFile, { holder: 'run one' });
-    asAnotherProcess(claimFile);
     expect(isTicketClaimed(claimFile)).toBe(true);
     expect(first.release()).toBe(true);
     expect(isTicketClaimed(claimFile)).toBe(false);
@@ -105,15 +104,37 @@ describe('ticket claim (BOB-120)', () => {
   test('the holder is not blocked by its own claim — a workflow runs stage after stage', () => {
     // plan -> build -> review all run against ONE workspace, and the claim covers
     // the workspace. If a claim blocked its own holder the ticket could never
-    // advance past its first stage.
-    claimTicket(claimFile, { holder: 'bobby app (plan)' });
-    expect(isTicketClaimed(claimFile)).toBe(false);
-    expect(isOwnClaim(readTicketClaim(claimFile))).toBe(true);
+    // advance past its first stage. The app's agents are SUBPROCESSES with their
+    // own pids, so the token — not the pid — is what proves the claim is theirs.
+    const claim = claimTicket(claimFile, { holder: 'bobby app (plan)' });
 
-    // The same record, held by a different process, does collide.
-    asAnotherProcess(claimFile);
+    asHolder(claim.record.token, () => {
+      expect(isTicketClaimed(claimFile)).toBe(false);
+      expect(isOwnClaim(readTicketClaim(claimFile))).toBe(true);
+      // and the acquire path must agree with the check path
+      expect(() => claimTicket(claimFile, { holder: 'bobby app (build)' })).not.toThrow();
+    });
+
+    // Any other process — no token, or the wrong one — does collide.
     expect(isOwnClaim(readTicketClaim(claimFile))).toBe(false);
     expect(isTicketClaimed(claimFile)).toBe(true);
+    asHolder('a-different-token', () => {
+      expect(isTicketClaimed(claimFile)).toBe(true);
+    });
+  });
+
+  test('a recycled pid cannot walk past a claim it never took', () => {
+    // The old identity was the pid, which made this pass silently: the app dies,
+    // its pid is reused within the staleness window, and the new process reads
+    // the claim as its own.
+    const claim = claimTicket(claimFile, { holder: 'the app' });
+    const rec = JSON.parse(fs.readFileSync(claimFile, 'utf8'));
+    rec.pid = process.pid;              // exactly the reuse case
+    fs.writeFileSync(claimFile, JSON.stringify(rec));
+
+    expect(isOwnClaim(readTicketClaim(claimFile))).toBe(false);
+    expect(isTicketClaimed(claimFile)).toBe(true);
+    expect(claim.record.token).toBeTruthy();
   });
 
   test('claims on different tickets never contend', () => {
@@ -153,11 +174,6 @@ describe('CLI refuses a ticket that is already running', () => {
   });
   afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
 
-  const otherProcess = (file) => {
-    const rec = JSON.parse(fs.readFileSync(file, 'utf8'));
-    rec.pid = 1;                       // init: alive, and not this process
-    fs.writeFileSync(file, JSON.stringify(rec));
-  };
 
   test('a free ticket is runnable', async () => {
     const { ticketHasLiveRun, assertTicketFree } = await import('../../../lib/workflow.js');
@@ -167,9 +183,7 @@ describe('CLI refuses a ticket that is already running', () => {
 
   test('a claimed ticket is refused, naming the holder', async () => {
     const { ticketHasLiveRun, assertTicketFree } = await import('../../../lib/workflow.js');
-    const file = ticketClaimPath(ticketsDir, DIRNAME);
-    claimTicket(file, { holder: 'bobby app (build)' });
-    otherProcess(file);
+    claimTicket(ticketClaimPath(ticketsDir, DIRNAME), { holder: 'bobby app (build)' });
 
     expect(ticketHasLiveRun(ticketsDir, ID)).toBe(true);
     expect(() => assertTicketFree(ticketsDir, ID)).toThrow(/bobby app \(build\)/);
@@ -177,9 +191,7 @@ describe('CLI refuses a ticket that is already running', () => {
 
   test('a released claim makes it runnable again', async () => {
     const { ticketHasLiveRun } = await import('../../../lib/workflow.js');
-    const file = ticketClaimPath(ticketsDir, DIRNAME);
-    const claim = claimTicket(file, { holder: 'app' });
-    otherProcess(file);
+    const claim = claimTicket(ticketClaimPath(ticketsDir, DIRNAME), { holder: 'app' });
     expect(ticketHasLiveRun(ticketsDir, ID)).toBe(true);
     claim.release();
     expect(ticketHasLiveRun(ticketsDir, ID)).toBe(false);
@@ -210,5 +222,44 @@ describe('claims are never committed', () => {
     const { readFileSync } = await import('fs');
     const tpl = readFileSync(new URL('../../../templates/gitignore.ejs', import.meta.url), 'utf8');
     expect(tpl).toContain('.bobby/tickets/*/run.lock');
+  });
+});
+
+/* The orchestrator-level coverage the review found missing (BOB-120).
+ *
+ * The module tests exercised the claim primitive; none asserted the ORCHESTRATOR
+ * takes one, releases it, or refuses a second workspace. That gap is exactly why
+ * the discard() leak shipped — a claim acquired in createWorkspace and released
+ * only in merge(), with discard() deleting the workspace and leaving the lock
+ * holding a live pid, so the ticket was refused to everyone for six hours.
+ */
+describe('orchestrator claim lifecycle', () => {
+  test('every path that ends a workspace releases the claim', async () => {
+    const { readFileSync } = await import('fs');
+    const src = readFileSync(new URL('../../../lib/dashboard/orchestrator.js', import.meta.url), 'utf8');
+
+    // Enumerate the lifecycle-ending methods and assert each releases. A new
+    // teardown path added without a release is the failure this guards.
+    const endings = ['merge(', 'discard('];
+    for (const method of endings) {
+      const start = src.indexOf(`  async ${method}`) >= 0
+        ? src.indexOf(`  async ${method}`)
+        : src.indexOf(`  ${method}`);
+      expect(start).toBeGreaterThan(-1);
+      // the body runs to the next top-level method
+      const rest = src.slice(start + 10);
+      const end = rest.search(/\n  [a-zA-Z_]+\(|\n  async [a-zA-Z_]+\(/);
+      const body = rest.slice(0, end === -1 ? rest.length : end);
+      expect(body).toContain('_releaseTicketClaim');
+    }
+  });
+
+  test('the claim token reaches the agent subprocess', async () => {
+    const { readFileSync } = await import('fs');
+    const src = readFileSync(new URL('../../../lib/dashboard/orchestrator.js', import.meta.url), 'utf8');
+    // Without this an agent running `bobby run <stage> <its own ticket>` is a
+    // different process with no way to prove the claim is its orchestrator's,
+    // and its own run is refused.
+    expect(src).toMatch(/CLAIM_TOKEN_ENV\]:\s*ws\.claim\.token/);
   });
 });
