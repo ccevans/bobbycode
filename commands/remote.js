@@ -27,6 +27,8 @@ import { isGitRepo } from '../lib/dashboard/worktree.js';
 import { resolveWorkflow } from './run.js';
 import { RemoteTunnel } from '../lib/remote/tunnel.js';
 import { encodePairingCode } from '../lib/remote/crypto.js';
+import { pairingBlocker } from '../lib/remote/reachability.js';
+import { verifyRoundTrip, verifyMessage } from '../lib/remote/verify.js';
 import { loadOrCreatePairing } from '../lib/remote/pairing-store.js';
 import { bold, dim, success, error, warn } from '../lib/colors.js';
 
@@ -98,7 +100,9 @@ export function registerRemote(program) {
         });
 
         // Ephemeral port, loopback only. The tunnel is the only way in.
-        server.listen(0, '127.0.0.1', () => {
+        // async: the reachability verdict is now earned by an awaited round trip
+        // rather than printed immediately (BOB-064).
+        server.listen(0, '127.0.0.1', async () => {
           const { port } = server.address();
           const relay = opts.relay || config?.remote?.relay || DEFAULT_RELAY;
           const appUrl = opts.app || config?.remote?.app || DEFAULT_APP;
@@ -117,6 +121,20 @@ export function registerRemote(program) {
             version: program.version() || '',
             log: (m) => console.log(`  ${dim(m)}`),
           });
+          // Refuse a link no phone can use, before a QR is printed under it
+          // (BOB-064). Both URLs are in hand here, so this is decidable now
+          // rather than discovered on a phone forty minutes later.
+          const blocker = pairingBlocker({ appUrl: link, relayUrl: relay });
+          if (blocker) {
+            console.log('');
+            error(`  ${blocker}`);
+            console.log('');
+            await orchestrator.stopAll().catch(() => {});
+            server.close(() => process.exit(1));
+            setTimeout(() => process.exit(1), 3000).unref();
+            return;
+          }
+
           tunnel.connect();
 
           console.log('');
@@ -136,7 +154,23 @@ export function registerRemote(program) {
           console.log(`  ${dim('Pairing code (paste into the app if you prefer):')}`);
           console.log(`  ${code}`);
           console.log('');
-          success('  Team is reachable. Press Ctrl+C to stop.');
+          // Prove the path rather than asserting it (BOB-064). connect() does not
+          // block, so the old unconditional success printed BEFORE the relay was
+          // connected — its own log had the verdict two lines above "relay
+          // connected", and it printed just the same when the relay was down.
+          console.log(`  ${dim('Connecting…')}`);
+          const verified = await verifyRoundTrip({ relayUrl: relay, channel: pairing.channel, key: pairing.key });
+          if (!verified.ok) {
+            console.log('');
+            error(`  ${verifyMessage(verified)}`);
+            console.log('');
+            tunnel.close();
+            await orchestrator.stopAll().catch(() => {});
+            server.close(() => process.exit(1));
+            setTimeout(() => process.exit(1), 3000).unref();
+            return;
+          }
+          success('  Team is reachable — verified by an encrypted round trip. Press Ctrl+C to stop.');
           console.log('');
 
           const shutdown = async () => {
