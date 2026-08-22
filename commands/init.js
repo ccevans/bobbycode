@@ -60,7 +60,18 @@ function ensureGitRepo(rootDir) {
   return true;
 }
 
-export function scaffoldProject(rootDir, config) {
+/**
+ * Scaffold (or re-scaffold) a project's skills, agents, commands and rules.
+ *
+ * `writeConfig` exists because .bobbyrc.yml is YOURS, not shipped (see the
+ * shipped-vs-yours table in CLAUDE.md). writeConfigCommented() regenerates it
+ * from the template using only the keys the generator knows, so re-scaffolding
+ * an EXISTING install silently dropped anything it does not model — a
+ * `workflows:` override, a `dashboard:` block, every inline comment — while
+ * reporting only that skills and agents were refreshed (BOB-123). First-time
+ * init still writes it; refresh and re-scaffold must not.
+ */
+export function scaffoldProject(rootDir, config, { writeConfig = true } = {}) {
   // Derive bobby_dir, sessions_dir if not explicitly provided
   const bobbyDir = config.bobby_dir || '.bobby';
   if (!config.tickets_dir) config.tickets_dir = `${bobbyDir}/tickets`;
@@ -83,8 +94,9 @@ export function scaffoldProject(rootDir, config) {
   // Ensure the project directory is a git repo
   const gitInitialized = ensureGitRepo(rootDir);
 
-  // Write config (commented version for init, plain for programmatic updates)
-  writeConfigCommented(rootDir, config);
+  // Write config (commented version for init, plain for programmatic updates).
+  // Never on a refresh: the file already exists and belongs to the user.
+  if (writeConfig) writeConfigCommented(rootDir, config);
 
   // Build template data with target paths
   const templateData = {
@@ -284,7 +296,7 @@ export function registerInit(program) {
               process.exit(1);
             }
 
-            scaffoldProject(rootDir, existingConfig);
+            scaffoldProject(rootDir, existingConfig, { writeConfig: false });
 
             // Prune bobby-* files that no longer ship, so upgrades can remove
             // and rename — not only add. Custom (non bobby-prefixed) files and
@@ -341,7 +353,7 @@ export function registerInit(program) {
           if (reinitMode === 'cancel') { console.log('Cancelled.'); return; }
 
           if (reinitMode === 'rescaffold') {
-            scaffoldProject(rootDir, existingConfig);
+            scaffoldProject(rootDir, existingConfig, { writeConfig: false });
 
             const targetAdapter = getTarget(existingConfig.target || 'claude-code');
             const tp = targetAdapter.paths();
