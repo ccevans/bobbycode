@@ -21,7 +21,7 @@ import { execSync } from 'child_process';
 import { Orchestrator } from '../../../lib/dashboard/orchestrator.js';
 import { WorkspaceStore } from '../../../lib/dashboard/state.js';
 import { createTicket } from '../../../lib/tickets.js';
-import { ticketClaimPath } from '../../../lib/dashboard/ticket-claim.js';
+import { ticketClaimPath, claimTicket } from '../../../lib/dashboard/ticket-claim.js';
 
 const git = (dir, cmd) => execSync(`git ${cmd}`, { cwd: dir, stdio: 'pipe' });
 
@@ -116,6 +116,52 @@ describe('the orchestrator claim lifecycle, driven for real (BOB-120 F1)', () =>
         .toThrow(/already has a run in progress/);
     } finally {
       if (saved !== undefined) process.env.BOBBY_TICKET_CLAIM = saved;
+    }
+  });
+
+  test('a feature run is refused when a CHILD is claimed — before any side effect', () => {
+    // Round three put this check inside buildPromptFor, so it fired at prompt
+    // time: the epic was already claimed, a worktree already cut, a workspace
+    // record already stored. Round four found it had no test at all — deleting
+    // the whole check left the suite green.
+    const epic = createTicket(ticketsDir, { title: 'An epic', type: 'epic' });
+    const child = createTicket(ticketsDir, { title: 'A child', type: 'feature', parent: epic.id });
+    const childDir = fs.readdirSync(ticketsDir).find(d => d.startsWith(`${child.id}--`));
+    const childClaim = ticketClaimPath(ticketsDir, childDir);
+    claimTicket(childClaim, { holder: 'some other bobby app' });
+    const rec = JSON.parse(fs.readFileSync(childClaim, 'utf8'));
+    rec.token = 'another-holders-token';
+    fs.writeFileSync(childClaim, JSON.stringify(rec));
+
+    const before = o.store.list().length;
+    expect(() => o.createWorkspace({ ticketId: epic.id, agent: 'feature' }))
+      .toThrow(new RegExp(child.id));
+
+    // Nothing left behind: no record, no worktree, and the epic still free.
+    expect(o.store.list().length).toBe(before);
+    const epicDir = fs.readdirSync(ticketsDir).find(d => d.startsWith(`${epic.id}--`));
+    expect(fs.existsSync(ticketClaimPath(ticketsDir, epicDir))).toBe(false);
+  });
+
+  test('a feature run with free children proceeds', () => {
+    const epic = createTicket(ticketsDir, { title: 'Another epic', type: 'epic' });
+    createTicket(ticketsDir, { title: 'Free child', type: 'feature', parent: epic.id });
+    expect(() => o.createWorkspace({ ticketId: epic.id, agent: 'feature' })).not.toThrow();
+  });
+
+  test('an unreadable child claim does not kill the feature run with EACCES', () => {
+    // The hand-rolled copy of assertTicketFree re-introduced the raw EACCES this
+    // ticket was rejected for a round earlier.
+    const epic = createTicket(ticketsDir, { title: 'Epic three', type: 'epic' });
+    const child = createTicket(ticketsDir, { title: 'Child three', type: 'feature', parent: epic.id });
+    const childDir = fs.readdirSync(ticketsDir).find(d => d.startsWith(`${child.id}--`));
+    const childClaim = ticketClaimPath(ticketsDir, childDir);
+    claimTicket(childClaim, { holder: 'someone' });
+    fs.chmodSync(childClaim, 0o000);
+    try {
+      expect(() => o.createWorkspace({ ticketId: epic.id, agent: 'feature' })).not.toThrow(/EACCES/);
+    } finally {
+      fs.chmodSync(childClaim, 0o600);
     }
   });
 

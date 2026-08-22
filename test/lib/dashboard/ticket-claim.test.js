@@ -278,14 +278,8 @@ describe('round-three fixes, each with a test that can fail (BOB-120)', () => {
     expect(msg).toMatch(/another run/);
   });
 
-  test('B2: the tolerant ticket listing decorates claims too', async () => {
-    // listTickets throws on malformed frontmatter, so ONE bad ticket sent the
-    // whole board down the fallback path — where `running` was absent, and the
-    // app would offer Start work on tickets that are actively running.
-    const src = fs.readFileSync(new URL('../../../lib/dashboard/server.js', import.meta.url), 'utf8');
-    const fastPath = src.indexOf('listTickets(dir).map(withClaim)');
-    const fallback = src.indexOf('tickets.push(withClaim(');
-    expect(fastPath).toBeGreaterThan(-1);
-    expect(fallback).toBeGreaterThan(-1);
-  });
+  // B2 is covered behaviourally in ticket-claim-api.test.js, which drives the
+  // real server against a board containing a genuinely malformed ticket. The
+  // version that lived here asserted two literals appeared in server.js and was
+  // defeated by leaving them in a comment.
 });
