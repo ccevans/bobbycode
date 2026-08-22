@@ -8,7 +8,7 @@ import { execSync } from 'child_process';
 import path from 'path';
 import {
   ticketClaimPath, claimTicket, readTicketClaim,
-  isTicketClaimed, claimedMessage, isOwnClaim, CLAIM_TOKEN_ENV,
+  claimedMessage, isOwnClaim, CLAIM_TOKEN_ENV,
 } from '../../../lib/dashboard/ticket-claim.js';
 import { STALE_AFTER_MS } from '../../../lib/dashboard/main-checkout-lock.js';
 
@@ -22,6 +22,13 @@ describe('ticket claim (BOB-120)', () => {
     claimFile = ticketClaimPath(ticketsDir, TICKET);
   });
   afterEach(() => { fs.rmSync(ticketsDir, { recursive: true, force: true }); });
+
+  // What production actually calls. isTicketClaimed used to wrap these two, but
+  // its only caller went with ticketHasLiveRun, and six tests driving a function
+  // no production path reaches is the shape this ticket just deleted one level
+  // down.
+  const claimed = (f) => { const r = readTicketClaim(f); return r !== null && !isOwnClaim(r); };
+
 
   // Identity is the claim TOKEN, carried to an agent subprocess in the
   // environment. With no token in the env, every claim belongs to someone else —
@@ -56,9 +63,9 @@ describe('ticket claim (BOB-120)', () => {
 
   test('a released claim frees the ticket for the next run', () => {
     const first = claimTicket(claimFile, { holder: 'run one' });
-    expect(isTicketClaimed(claimFile)).toBe(true);
+    expect(claimed(claimFile)).toBe(true);
     expect(first.release()).toBe(true);
-    expect(isTicketClaimed(claimFile)).toBe(false);
+    expect(claimed(claimFile)).toBe(false);
 
     const second = claimTicket(claimFile, { holder: 'run two' });
     expect(second.record.holder).toBe('run two');
@@ -72,7 +79,7 @@ describe('ticket claim (BOB-120)', () => {
     rec.pid = 2 ** 22;                       // above any real pid on macOS/Linux
     fs.writeFileSync(claimFile, JSON.stringify(rec));
 
-    expect(isTicketClaimed(claimFile)).toBe(false);
+    expect(claimed(claimFile)).toBe(false);
     const next = claimTicket(claimFile, { holder: 'the next run' });
     expect(next.record.holder).toBe('the next run');
   });
@@ -85,7 +92,7 @@ describe('ticket claim (BOB-120)', () => {
     rec.startedAt = new Date(Date.now() - STALE_AFTER_MS - 1000).toISOString();
     fs.writeFileSync(claimFile, JSON.stringify(rec));
 
-    expect(isTicketClaimed(claimFile)).toBe(false);
+    expect(claimed(claimFile)).toBe(false);
   });
 
   test('a reclaimed holder cannot release the new holder\'s claim', () => {
@@ -110,7 +117,7 @@ describe('ticket claim (BOB-120)', () => {
     const claim = claimTicket(claimFile, { holder: 'bobby app (plan)' });
 
     asHolder(claim.record.token, () => {
-      expect(isTicketClaimed(claimFile)).toBe(false);
+      expect(claimed(claimFile)).toBe(false);
       expect(isOwnClaim(readTicketClaim(claimFile))).toBe(true);
       // and the acquire path must agree with the check path
       expect(() => claimTicket(claimFile, { holder: 'bobby app (build)' })).not.toThrow();
@@ -118,9 +125,9 @@ describe('ticket claim (BOB-120)', () => {
 
     // Any other process — no token, or the wrong one — does collide.
     expect(isOwnClaim(readTicketClaim(claimFile))).toBe(false);
-    expect(isTicketClaimed(claimFile)).toBe(true);
+    expect(claimed(claimFile)).toBe(true);
     asHolder('a-different-token', () => {
-      expect(isTicketClaimed(claimFile)).toBe(true);
+      expect(claimed(claimFile)).toBe(true);
     });
   });
 
@@ -134,7 +141,7 @@ describe('ticket claim (BOB-120)', () => {
     fs.writeFileSync(claimFile, JSON.stringify(rec));
 
     expect(isOwnClaim(readTicketClaim(claimFile))).toBe(false);
-    expect(isTicketClaimed(claimFile)).toBe(true);
+    expect(claimed(claimFile)).toBe(true);
     expect(claim.record.token).toBeTruthy();
   });
 
@@ -148,7 +155,7 @@ describe('ticket claim (BOB-120)', () => {
 
   test('an unreadable claim does not wedge the ticket forever', () => {
     fs.writeFileSync(claimFile, 'not json at all');
-    expect(isTicketClaimed(claimFile)).toBe(false);
+    expect(claimed(claimFile)).toBe(false);
     expect(() => claimTicket(claimFile, { holder: 'recovering' })).not.toThrow();
   });
 

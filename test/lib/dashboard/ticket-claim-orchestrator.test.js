@@ -173,7 +173,10 @@ describe('the orchestrator claim lifecycle, driven for real (BOB-120 F1)', () =>
     const ws = o.createWorkspace({ ticketId, agent: 'plan' });
     let launched = null;
     o._runExecutor = (opts) => { launched = opts; return { done: Promise.resolve({}), stop() {} }; };
-    try { o.runAgent(ws.id, 'plan'); } catch { /* the executor is stubbed out */ }
+    // runAgent(workspaceId, { agentOverride }) — passing a bare string destructures
+    // to undefined and silently falls back to the workspace's own agent, which
+    // happened to be the same value. Correct, so it works for the right reason.
+    try { o.runAgent(ws.id, { agentOverride: 'plan' }); } catch { /* executor stubbed */ }
 
     expect(launched).not.toBeNull();
     expect(launched.env).toBeDefined();

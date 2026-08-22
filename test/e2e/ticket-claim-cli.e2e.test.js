@@ -19,9 +19,12 @@ import os from 'os';
 import { scaffoldProject } from '../../commands/init.js';
 import { ticketClaimPath, claimTicket } from '../../lib/dashboard/ticket-claim.js';
 
-// Each case spawns bin/bobby.js two to four times. Solo the file runs ~28s; the
-// feature cases sit at ~4.2s against jest's 5s default with nothing configuring
-// one, and CI runners are slower than a dev machine.
+// INSURANCE ONLY, and worth being precise about: every test here is synchronous
+// execSync, and jest's timeout is a timer racing the test's promise — a blocking
+// body never yields, so the timer cannot fire and this line changes nothing
+// today. Removing it leaves the suite green. It is kept because the cases really
+// do take 15s+ under full-suite contention, so the moment one of them becomes
+// `async` the 5s default would bite immediately.
 jest.setTimeout(30000);
 
 describe('E2E: the CLI refuses a ticket that already has a run (BOB-120)', () => {
