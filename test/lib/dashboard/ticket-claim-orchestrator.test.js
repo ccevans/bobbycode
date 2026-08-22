@@ -165,6 +165,21 @@ describe('the orchestrator claim lifecycle, driven for real (BOB-120 F1)', () =>
     }
   });
 
+  test('the claim token is handed to the agent subprocess', () => {
+    // Round one's F3. Without it an app-launched agent running
+    // `bobby run <stage> <its own ticket>` — which CLAUDE.md's routing tells it
+    // to do — is refused by its own orchestrator's claim. My e2e version set the
+    // env var itself, which tested assertTicketFree and not this plumbing.
+    const ws = o.createWorkspace({ ticketId, agent: 'plan' });
+    let launched = null;
+    o._runExecutor = (opts) => { launched = opts; return { done: Promise.resolve({}), stop() {} }; };
+    try { o.runAgent(ws.id, 'plan'); } catch { /* the executor is stubbed out */ }
+
+    expect(launched).not.toBeNull();
+    expect(launched.env).toBeDefined();
+    expect(launched.env.BOBBY_TICKET_CLAIM).toBe(ws.claim.token);
+  });
+
   test('a createWorkspace that fails afterwards leaves no claim behind', () => {
     // An unknown workflow throws after the claim is taken. A refused start must
     // not cost the ticket six hours.

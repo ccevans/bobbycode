@@ -4,6 +4,7 @@
 // deciding to start on the same ticket. Exactly one may win.
 import fs from 'fs';
 import os from 'os';
+import { execSync } from 'child_process';
 import path from 'path';
 import {
   ticketClaimPath, claimTicket, readTicketClaim,
@@ -157,84 +158,12 @@ describe('ticket claim (BOB-120)', () => {
   });
 });
 
-/* The CLI half (BOB-120): `bobby run` builds a prompt and exits, so it cannot
- * HOLD a claim — but it must refuse to hand out a prompt for a ticket the app is
- * already running, which is the reported collision from the other direction. */
-describe('CLI refuses a ticket that is already running', () => {
-  let dir, ticketsDir;
-  const ID = 'BOB-501';
-  const DIRNAME = `${ID}--a-ticket`;
-
-  beforeEach(() => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-cli-claim-'));
-    ticketsDir = path.join(dir, 'tickets');
-    fs.mkdirSync(path.join(ticketsDir, DIRNAME), { recursive: true });
-    fs.writeFileSync(path.join(ticketsDir, DIRNAME, 'ticket.md'),
-      `---\nid: ${ID}\ntitle: A ticket\nstage: building\n---\n\n## Description\n`);
-  });
-  afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
-
-
-  test('a free ticket is runnable', async () => {
-    const { ticketHasLiveRun, assertTicketFree } = await import('../../../lib/workflow.js');
-    expect(ticketHasLiveRun(ticketsDir, ID)).toBe(false);
-    expect(() => assertTicketFree(ticketsDir, ID)).not.toThrow();
-  });
-
-  test('a claimed ticket is refused, naming the holder', async () => {
-    const { ticketHasLiveRun, assertTicketFree } = await import('../../../lib/workflow.js');
-    claimTicket(ticketClaimPath(ticketsDir, DIRNAME), { holder: 'bobby app (build)' });
-
-    expect(ticketHasLiveRun(ticketsDir, ID)).toBe(true);
-    expect(() => assertTicketFree(ticketsDir, ID)).toThrow(/bobby app \(build\)/);
-  });
-
-  test('a released claim makes it runnable again', async () => {
-    const { ticketHasLiveRun } = await import('../../../lib/workflow.js');
-    const claim = claimTicket(ticketClaimPath(ticketsDir, DIRNAME), { holder: 'app' });
-    expect(ticketHasLiveRun(ticketsDir, ID)).toBe(true);
-    claim.release();
-    expect(ticketHasLiveRun(ticketsDir, ID)).toBe(false);
-  });
-
-  test('an unknown ticket is not reported as running', async () => {
-    const { ticketHasLiveRun } = await import('../../../lib/workflow.js');
-    expect(ticketHasLiveRun(ticketsDir, 'BOB-999')).toBe(false);
-  });
-});
-
-/* A claim is local state, not a fact about the ticket (BOB-120).
- *
- * The board is git-tracked and Bobby itself commits it (`bobby: auto-sync`), so
- * an un-ignored run.lock would be committed mid-run and travel to every other
- * machine — carrying a pid and hostname that mean nothing there, which leaves
- * the 6-hour staleness ceiling as the only thing that frees the ticket. A fresh
- * clone would find work blocked by a run that ended days ago.
- */
-describe('claims are never committed', () => {
-  test('the studio scaffold ignores run.lock', async () => {
-    const { readFileSync } = await import('fs');
-    const studio = readFileSync(new URL('../../../lib/studio.js', import.meta.url), 'utf8');
-    expect(studio).toContain('.bobby/*/tickets/*/run.lock');
-  });
-
-  test('the single-project scaffold ignores run.lock', async () => {
-    const { readFileSync } = await import('fs');
-    const tpl = readFileSync(new URL('../../../templates/gitignore.ejs', import.meta.url), 'utf8');
-    expect(tpl).toContain('.bobby/tickets/*/run.lock');
-  });
-});
-
-/* NOTE: the orchestrator's claim lifecycle is covered by
- * ticket-claim-orchestrator.test.js, which builds a real Orchestrator and
- * asserts on the run.lock on disk.
- *
- * An earlier version of that coverage lived here and read orchestrator.js as a
- * STRING, asserting a method name appeared in a slice of it. Replacing the call
- * with a comment left the whole suite green with the bug live — a source-text
- * grep passes on a comment, on a dead branch, and on the original defect. It was
- * deleted rather than kept alongside: a test that cannot fail is worse than no
- * test, because it reads as coverage. */
+/* NOTE: the CLI half of AC1 is covered end-to-end in
+ * test/e2e/ticket-claim-cli.e2e.test.js, which spawns bin/bobby.js against a
+ * real board. Four tests here previously exercised `ticketHasLiveRun` under a
+ * heading claiming to be CLI coverage; that function has no production caller
+ * since the batch path was rewritten, so they proved nothing about the CLI. It
+ * and they are gone. */
 
 /* B2/B4/B5 from round three: each of these fixes shipped with NO test able to
  * detect its own regression — reverting any one left the suite 1302/1302 green.
@@ -282,4 +211,54 @@ describe('round-three fixes, each with a test that can fail (BOB-120)', () => {
   // real server against a board containing a genuinely malformed ticket. The
   // version that lived here asserted two literals appeared in server.js and was
   // defeated by leaving them in a comment.
+});
+
+/* A claim is local state, not a fact about the ticket (BOB-120).
+ *
+ * The board is git-tracked and Bobby commits it itself (`bobby: auto-sync`), so
+ * an un-ignored run.lock would be committed mid-run and travel to every machine,
+ * carrying a pid and host that mean nothing there — and isStale refuses to judge
+ * a foreign host, so the 6h ceiling becomes the only thing freeing that ticket.
+ *
+ * Asked of GIT, not of the file's text. The grep this replaces passed with the
+ * pattern commented out, where it is inert. */
+describe('claims are never committed', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-ignore-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  const ignored = (root, rel) => {
+    try { execSync(`git check-ignore -q "${rel}"`, { cwd: root, stdio: 'pipe' }); return true; }
+    catch { return false; }
+  };
+
+  test('the scaffolded .gitignore makes git ignore run.lock', async () => {
+    // Renders the template `bobby init` writes (commands/init.js:739) and asks
+    // GIT whether it honours it. scaffoldProject does not write .gitignore — the
+    // wizard does — so driving scaffoldProject here proved nothing, which is
+    // what the first version of this test did.
+    const ejs = (await import('ejs')).default;
+    execSync('git init -q', { cwd: tmp, stdio: 'pipe' });
+    const tpl = fs.readFileSync(new URL('../../../templates/gitignore.ejs', import.meta.url), 'utf8');
+    fs.writeFileSync(path.join(tmp, '.gitignore'), ejs.render(tpl, { stack: 'generic' }));
+    fs.mkdirSync(path.join(tmp, '.bobby/tickets/TKT-001--x'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, '.bobby/tickets/TKT-001--x/run.lock'), '{}');
+    fs.writeFileSync(path.join(tmp, '.bobby/tickets/TKT-001--x/ticket.md'), '---\nid: TKT-001\n---\n');
+
+    expect(ignored(tmp, '.bobby/tickets/TKT-001--x/run.lock')).toBe(true);
+    // The board itself must stay tracked — over-ignoring would lose the tickets.
+    expect(ignored(tmp, '.bobby/tickets/TKT-001--x/ticket.md')).toBe(false);
+  });
+
+  test('a studio ignores run.lock under every project board', async () => {
+    const { initStudio } = await import('../../../lib/studio.js');
+    execSync('git init -q', { cwd: tmp, stdio: 'pipe' });
+    initStudio(tmp);
+    fs.mkdirSync(path.join(tmp, '.bobby/proj/tickets/BOB-001--x'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, '.bobby/proj/tickets/BOB-001--x/run.lock'), '{}');
+    fs.writeFileSync(path.join(tmp, '.bobby/proj/tickets/BOB-001--x/ticket.md'), '---\nid: BOB-001\n---\n');
+
+    expect(ignored(tmp, '.bobby/proj/tickets/BOB-001--x/run.lock')).toBe(true);
+    expect(ignored(tmp, '.bobby/proj/tickets/BOB-001--x/ticket.md')).toBe(false);
+  });
 });

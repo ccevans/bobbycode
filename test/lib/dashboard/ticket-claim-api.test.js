@@ -33,7 +33,13 @@ async function withServer(server, fn) {
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}`;
   try { return await fn(async (p) => (await fetch(base + p)).json()); }
-  finally { await new Promise((r) => server.close(r)); }
+  // Drop undici's keep-alive socket before closing. On Node 18 `close()` waits on
+  // the idle client connection `fetch` leaves open, so its callback never fires
+  // and every test in the file times out — CI runs 18, 20 and 22.
+  finally {
+    server.closeAllConnections?.();
+    await new Promise((r) => server.close(r));
+  }
 }
 
 describe('/api/tickets reports live runs on BOTH paths (BOB-120 B2)', () => {
@@ -77,6 +83,27 @@ describe('/api/tickets reports live runs on BOTH paths (BOB-120 B2)', () => {
       expect(one.runningSince).toBeTruthy();
       expect(two.running).toBe(false);
     });
+  });
+
+  test('an unreadable claim does not make the ticket vanish from the board', async () => {
+    // withClaim's try/catch. Without it the throw escapes into the fast path's
+    // own catch, the handler falls back, and the per-entry catch then files the
+    // ticket under `skipped` — so a mode-000 run.lock silently removes a ticket
+    // from the app entirely rather than just leaving its claim unknown.
+    writeTicket(ticketsDir, 'TKT-001', '---\nid: TKT-001\ntitle: One\nstage: building\n---\n');
+    claimOther('TKT-001');
+    const file = ticketClaimPath(ticketsDir, 'TKT-001--a-ticket');
+    fs.chmodSync(file, 0o000);
+    try {
+      await withServer(server, async (get) => {
+        const { tickets } = await get('/api/tickets');
+        const one = tickets.find(t => t.id === 'TKT-001');
+        expect(one).toBeDefined();          // still on the board
+        expect(one.running).toBe(false);    // claim unknown, not fatal
+      });
+    } finally {
+      fs.chmodSync(file, 0o600);
+    }
   });
 
   test('ONE malformed ticket does not blind the whole board', async () => {

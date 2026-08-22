@@ -11,12 +11,18 @@
 //
 // So: real CLI process, real board, real run.lock on disk. A comment cannot
 // satisfy any assertion here.
+import { jest } from '@jest/globals';
 import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { scaffoldProject } from '../../commands/init.js';
 import { ticketClaimPath, claimTicket } from '../../lib/dashboard/ticket-claim.js';
+
+// Each case spawns bin/bobby.js two to four times. Solo the file runs ~28s; the
+// feature cases sit at ~4.2s against jest's 5s default with nothing configuring
+// one, and CI runners are slower than a dev machine.
+jest.setTimeout(30000);
 
 describe('E2E: the CLI refuses a ticket that already has a run (BOB-120)', () => {
   let tmpDir, ticketsDir;
@@ -118,6 +124,78 @@ describe('E2E: the CLI refuses a ticket that already has a run (BOB-120)', () =>
     run('ticket create -t "Child two" --parent TKT-003'); // TKT-004
     const r = run('run feature TKT-003');
     expect(r.code).toBe(0);
+  });
+
+  test('a BATCH run skips a ticket the app is already running', () => {
+    // The last untested CLI shape, and the one with no backstop: the orchestrator
+    // never writes `assigned:` (zero occurrences in orchestrator.js), so the
+    // heldByOther filter is the ONLY thing keeping a batch off an app-held
+    // ticket. AC1's third clause.
+    run('ticket move TKT-001 build');
+    run('ticket move TKT-002 build');
+    claim('TKT-001');
+
+    const r = run('run build');
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('TKT-002');
+    expect(r.out).not.toContain('TKT-001');   // handing this to an agent is the collision
+  });
+
+  test('a batch refusal on a holder-less claim says `another run`, not `undefined`', () => {
+    // Round three's B5 verbatim. The previous test for it called claimedMessage()
+    // — a function the batch path never invokes — and my e2e version always set a
+    // holder, so the fallback was never exercised either. A record with no
+    // holder is the only thing that can catch this.
+    run('ticket move TKT-001 build');
+    const dirname = fs.readdirSync(ticketsDir).find(d => d.startsWith('TKT-001--'));
+    const file = ticketClaimPath(ticketsDir, dirname);
+    claimTicket(file, { holder: 'x' });
+    const rec = JSON.parse(fs.readFileSync(file, 'utf8'));
+    delete rec.holder;
+    rec.token = 'another-holders-token';
+    fs.writeFileSync(file, JSON.stringify(rec));
+
+    const r = run('run build');
+    expect(r.code).not.toBe(0);
+    expect(r.out).not.toMatch(/undefined/);
+    expect(r.out).toMatch(/another run/);
+  });
+
+  test('a batch run with every ticket claimed refuses and NAMES a holder', () => {
+    // Round three's B5: this message printed a literal `undefined`. The test
+    // written to close it called claimedMessage() — a function the batch path
+    // never invokes — so the defect could be reintroduced verbatim.
+    run('ticket move TKT-001 build');
+    claim('TKT-001');
+
+    const r = run('run build');
+    expect(r.code).not.toBe(0);
+    expect(r.out).toContain('TKT-001');
+    expect(r.out).toContain('bobby app (build)');
+    expect(r.out).not.toMatch(/undefined/);
+  });
+
+  test('an app-launched agent is not refused by its OWN orchestrator claim', () => {
+    // Round one's F3. The app hands its agent the claim token in the
+    // environment; without it, an agent running `bobby run <stage> <its own
+    // ticket>` — which CLAUDE.md's routing tells it to do — is refused by the
+    // claim its own orchestrator took.
+    const dirname = fs.readdirSync(ticketsDir).find(d => d.startsWith('TKT-001--'));
+    const file = ticketClaimPath(ticketsDir, dirname);
+    claimTicket(file, { holder: 'bobby app (build)' });
+    const token = JSON.parse(fs.readFileSync(file, 'utf8')).token;
+
+    const withToken = (() => {
+      try {
+        return { code: 0, out: execSync(`node ${bobby} run build TKT-001 2>&1`,
+          { cwd: tmpDir, encoding: 'utf8', env: { ...process.env, BOBBY_TICKET_CLAIM: token } }) };
+      } catch (e) { return { code: e.status, out: (e.stdout || '') + (e.stderr || '') }; }
+    })();
+    expect(withToken.code).toBe(0);
+
+    // ...and the same command WITHOUT the token is refused, which is what makes
+    // the assertion above meaningful.
+    expect(run('run build TKT-001').code).not.toBe(0);
   });
 
   test('an unreadable claim does not kill the run with a filesystem error', () => {
