@@ -39,7 +39,7 @@ export function registerNew(program) {
         if (starter) {
           console.log(`    ${bold(starter.dev)}   ${dim(`# run it now → ${starter.url}`)}`);
         }
-        console.log(`    ${bold(`bobby run define ${epic.id}`)}    ${dim('# define the product: brief → personas → journeys → feature map')}`);
+        console.log(`    ${bold(`bobby run define ${epic.id}`)}    ${dim('# define the product: brief → personas → journeys → data model → architecture → feature map → mockups → blueprint')}`);
         console.log(`    ${bold(`bobby run plan ${epic.id}`)}      ${dim('# …or skip straight to breaking it into MVP tickets')}`);
         console.log('');
         console.log(`  ${dim('More ideas: bobby idea "..."   ·   see the board: bobby ticket list')}`);
