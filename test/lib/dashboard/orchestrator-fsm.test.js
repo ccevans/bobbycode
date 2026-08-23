@@ -105,6 +105,14 @@ function resolveTicketPathFromPrompt(prompt, ticketId, cwd) {
  * what the fake agent does on each run; the default obeys the prompt.
  */
 function makeOrchestrator({ config = {}, pipelineName = 'default', behaviour } = {}) {
+  // BOB-090: every scenario here models a LIVE-APP project (its workflows end
+  // at the testing stage). A config without health_checks now gets the
+  // no-live-app block prompt at testing instead of a bobby-test launch — the
+  // fake executor would then parse `block` as a stage and throw. Give the
+  // fixture a health check unless a test brings its own key.
+  if (!('health_checks' in config)) {
+    config = { ...config, health_checks: [{ name: 'app', url: 'http://localhost:3000' }] };
+  }
   const store = new WorkspaceStore(path.join(tmp, 'workspaces.json'));
   const ticketsDir = path.join(tmp, 'main', '.bobby', 'tickets');
   fs.mkdirSync(ticketsDir, { recursive: true });
