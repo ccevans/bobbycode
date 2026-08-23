@@ -34,8 +34,8 @@ Modes:
   Batch:      bobby run plan             — runs agent on all tickets in matching stage
   Direct:     bobby run plan|build|review|test|ship|ux|pm|qe <id>
   Vet:        bobby run vet [id]         — interrogate design before planning
-  Define:     bobby run define <epicId>  — product definition: brief → personas → journeys → features → mockups (optional; skip with --no-mockups) → blueprint (then: run plan)
-              bobby run define-brief|define-personas|define-journeys|define-features|define-mockups|define-blueprint
+  Define:     bobby run define <epicId>  — product definition: brief → personas → journeys → data-model → architecture → features → mockups → blueprint (then: run plan; skip optional stages with --no-data-model, --no-architecture, --no-mockups)
+              bobby run define-brief|define-personas|define-journeys|define-data-model|define-architecture|define-features|define-mockups|define-blueprint
   Design:     bobby run design <id>          — full chain: research → analyze → mockup → spec → build → check
               bobby run design-research|design-analyze|design-mockup|design-spec|design-build|design-check
   Strategy:   bobby run strategy [id]    — strategic validation gate
@@ -48,6 +48,8 @@ Modes:
     .option('--max-iterations <n>', 'Max total agent invocations across all tickets')
     .option('--workflow <name>', 'Named workflow to use (built-in or from .bobbyrc.yml workflows)', 'default')
     .option('--no-mockups', 'Skip the design mockups stage of the define workflow')
+    .option('--no-data-model', 'Skip the data-model stage of the define workflow')
+    .option('--no-architecture', 'Skip the forward-architecture stage of the define workflow')
     .action(async (agent, ticketIds, opts) => {
       try {
         const root = findProjectRoot();
@@ -126,6 +128,13 @@ Modes:
         // catch-all logs a warning; the gate's "skip" answer is the path for
         // parked epics.)
         if (opts.mockups === false) pipeline = omitStage(pipeline, 'define-mockups');
+        // Same mechanism for the other two optional define stages. Each flag
+        // filters independently, so a user can keep the data model but skip
+        // the ADRs; with both passed, define-journeys hands straight to
+        // define-features. (Commander camelCases: --no-data-model →
+        // opts.dataModel === false.)
+        if (opts.dataModel === false) pipeline = omitStage(pipeline, 'define-data-model');
+        if (opts.architecture === false) pipeline = omitStage(pipeline, 'define-architecture');
 
         // Feature mode: if no epic id provided, let user pick interactively.
         // This is the only interactive step — the dashboard will always pass an explicit epicId.

@@ -837,12 +837,14 @@ describe('workflow', () => {
 });
 
 describe('define workflow', () => {
-  test('resolves to six define stages with matching agents', () => {
+  test('resolves to eight define stages with matching agents', () => {
     const wf = resolveWorkflow({}, 'define');
     expect(wf).toEqual([
       { stage: 'define-brief', agent: 'bobby-define-brief' },
       { stage: 'define-personas', agent: 'bobby-define-personas' },
       { stage: 'define-journeys', agent: 'bobby-define-journeys' },
+      { stage: 'define-data-model', agent: 'bobby-define-data-model' },
+      { stage: 'define-architecture', agent: 'bobby-define-architecture' },
       { stage: 'define-features', agent: 'bobby-define-features' },
       { stage: 'define-mockups', agent: 'bobby-define-mockups' },
       { stage: 'define-blueprint', agent: 'bobby-define-blueprint' },
@@ -853,11 +855,52 @@ describe('define workflow', () => {
     const wf = resolveWorkflow({}, 'define');
     const prompt = buildOrchestrationPrompt(['TKT-001'], wf, 3);
     expect(prompt).toContain('bobby ticket move {TICKET_ID} define-personas');
-    // The features step hands to mockups, and mockups hands to blueprint.
+    // Journeys hands to data-model, which hands to architecture, which hands
+    // to features. Features hands to mockups, and mockups hands to blueprint.
+    expect(prompt).toContain('bobby ticket move {TICKET_ID} define-data-model');
+    expect(prompt).toContain('bobby ticket move {TICKET_ID} define-architecture');
     expect(prompt).toContain('bobby ticket move {TICKET_ID} define-mockups');
     expect(prompt).toContain('bobby ticket move {TICKET_ID} define-blueprint');
     expect(prompt).toContain('bobby ticket move {TICKET_ID} plan');
     expect(prompt).not.toContain('move {TICKET_ID} ship');
+  });
+
+  test('the data-model registry entry derives from journeys, demands the truth call, and offers skip', () => {
+    const entry = AGENT_REGISTRY['define-data-model'];
+    expect(entry.label).toBe('Define Data Model');
+    expect(entry.agentName).toBe('bobby-define-data-model');
+    expect(entry.cowork).toBe(true);
+    const text = [entry.promptHeader, ...entry.promptSteps].join('\n');
+    expect(text).toContain('journeys.md');
+    expect(text).toMatch(/derived[^\n]*never brainstormed/i);
+    expect(text).toMatch(/source-of-truth/i);
+    expect(text).toContain('DATA-MODEL.md');
+    expect(text).toMatch(/"skip"/i);
+    // `bobby run define-data-model <id>` dispatches via VALID_AGENTS.
+    expect(VALID_AGENTS).toContain('define-data-model');
+  });
+
+  test('the architecture registry entry records ADRs via bobby decision add and offers skip', () => {
+    const entry = AGENT_REGISTRY['define-architecture'];
+    expect(entry.label).toBe('Define Architecture');
+    expect(entry.agentName).toBe('bobby-define-architecture');
+    expect(entry.cowork).toBe(true);
+    const text = [entry.promptHeader, ...entry.promptSteps].join('\n');
+    // DATA-MODEL.md is a skippable stage's artifact — always "when present".
+    expect(text).toMatch(/DATA-MODEL\.md[^\n]*when present/i);
+    expect(text).toContain('ARCHITECTURE.md');
+    expect(text).toMatch(/forward view/i);
+    expect(text).toContain('bobby decision add');
+    expect(text).toMatch(/never hand-edit/i);
+    expect(text).toMatch(/"skip"/i);
+    expect(VALID_AGENTS).toContain('define-architecture');
+  });
+
+  test('the features registry entry cuts the map against DATA-MODEL.md when present', () => {
+    const text = [AGENT_REGISTRY['define-features'].promptHeader,
+      ...AGENT_REGISTRY['define-features'].promptSteps].join('\n');
+    expect(text).toMatch(/DATA-MODEL\.md[^\n]*when present/i);
+    expect(text).toMatch(/every artifact present/i);
   });
 
   test('the mockups registry entry names the artifacts, forbids re-asking, and offers skip', () => {
@@ -880,7 +923,8 @@ describe('define workflow', () => {
   test('describeWorkflows serves the extended define chain to the dashboard', () => {
     const described = describeWorkflows({});
     expect(described.define.map(s => s.stage)).toEqual([
-      'define-brief', 'define-personas', 'define-journeys', 'define-features',
+      'define-brief', 'define-personas', 'define-journeys',
+      'define-data-model', 'define-architecture', 'define-features',
       'define-mockups', 'define-blueprint',
     ]);
   });
@@ -901,7 +945,8 @@ describe('omitStage', () => {
   test('filters the named stage out of the define workflow', () => {
     const wf = omitStage(resolveWorkflow({}, 'define'), 'define-mockups');
     expect(wf.map(s => s.stage)).toEqual([
-      'define-brief', 'define-personas', 'define-journeys', 'define-features', 'define-blueprint',
+      'define-brief', 'define-personas', 'define-journeys',
+      'define-data-model', 'define-architecture', 'define-features', 'define-blueprint',
     ]);
   });
 
@@ -910,6 +955,31 @@ describe('omitStage', () => {
     const prompt = buildOrchestrationPrompt(['TKT-001'], wf, 3);
     expect(prompt).not.toContain('define-mockups');
     expect(prompt).toContain('bobby ticket move {TICKET_ID} define-blueprint');
+    expect(prompt).toContain('bobby ticket move {TICKET_ID} plan');
+  });
+
+  test('without data-model, journeys hands straight to architecture', () => {
+    const wf = omitStage(resolveWorkflow({}, 'define'), 'define-data-model');
+    expect(wf.map(s => s.stage)).toEqual([
+      'define-brief', 'define-personas', 'define-journeys',
+      'define-architecture', 'define-features', 'define-mockups', 'define-blueprint',
+    ]);
+    const prompt = buildOrchestrationPrompt(['TKT-001'], wf, 3);
+    expect(prompt).not.toContain('define-data-model');
+    expect(prompt).toContain('bobby ticket move {TICKET_ID} define-architecture');
+  });
+
+  test('without both new stages, journeys hands straight to features', () => {
+    let wf = omitStage(resolveWorkflow({}, 'define'), 'define-data-model');
+    wf = omitStage(wf, 'define-architecture');
+    expect(wf.map(s => s.stage)).toEqual([
+      'define-brief', 'define-personas', 'define-journeys',
+      'define-features', 'define-mockups', 'define-blueprint',
+    ]);
+    const prompt = buildOrchestrationPrompt(['TKT-001'], wf, 3);
+    expect(prompt).not.toContain('define-data-model');
+    expect(prompt).not.toContain('define-architecture');
+    expect(prompt).toContain('bobby ticket move {TICKET_ID} define-features');
     expect(prompt).toContain('bobby ticket move {TICKET_ID} plan');
   });
 

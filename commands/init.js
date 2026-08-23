@@ -163,7 +163,7 @@ export function scaffoldProject(rootDir, config, { writeConfig = true } = {}) {
   const agentsDir = path.join(rootDir, targetPaths.agents);
   fs.mkdirSync(agentsDir, { recursive: true });
 
-  const agentFiles = ['bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship', 'bobby-ux', 'bobby-define-brief', 'bobby-define-personas', 'bobby-define-journeys', 'bobby-define-features', 'bobby-define-blueprint', 'bobby-define-mockups', 'bobby-design-research', 'bobby-design-analyze', 'bobby-design-mockup', 'bobby-design-spec', 'bobby-design-build', 'bobby-design-check', 'bobby-pm', 'bobby-qe', 'bobby-vet', 'bobby-strategy', 'bobby-security', 'bobby-debug', 'bobby-docs', 'bobby-performance', 'bobby-lighthouse', 'bobby-watchdog', 'bobby-arch', 'bobby-ticket-intake', 'bobby-freewill'];
+  const agentFiles = ['bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship', 'bobby-ux', 'bobby-define-brief', 'bobby-define-personas', 'bobby-define-journeys', 'bobby-define-data-model', 'bobby-define-architecture', 'bobby-define-features', 'bobby-define-blueprint', 'bobby-define-mockups', 'bobby-design-research', 'bobby-design-analyze', 'bobby-design-mockup', 'bobby-design-spec', 'bobby-design-build', 'bobby-design-check', 'bobby-pm', 'bobby-qe', 'bobby-vet', 'bobby-strategy', 'bobby-security', 'bobby-debug', 'bobby-docs', 'bobby-performance', 'bobby-lighthouse', 'bobby-watchdog', 'bobby-arch', 'bobby-ticket-intake', 'bobby-freewill'];
   for (const agent of agentFiles) {
     const agentTemplate = path.join(AGENT_TEMPLATES_DIR, `${agent}.md.ejs`);
     if (fs.existsSync(agentTemplate)) {

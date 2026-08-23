@@ -152,6 +152,22 @@ describe('define-pipeline routing', () => {
     expect(b.nextAction.reason).toMatch(/definition is in progress \(define-journeys\)/);
   });
 
+  test('an epic parked in define-data-model resumes define', () => {
+    run('ticket create -t "An idea" --epic');
+    run('ticket move TKT-001 data-model');
+    const b = buildBrief(ticketsDir(), sprintsDir(), { productDir: productDir() });
+    expect(b.nextAction.argv).toEqual(['run', 'define', 'TKT-001']);
+    expect(b.nextAction.reason).toMatch(/definition is in progress \(define-data-model\)/);
+  });
+
+  test('an epic parked in define-architecture resumes define', () => {
+    run('ticket create -t "An idea" --epic');
+    run('ticket move TKT-001 architecture');
+    const b = buildBrief(ticketsDir(), sprintsDir(), { productDir: productDir() });
+    expect(b.nextAction.argv).toEqual(['run', 'define', 'TKT-001']);
+    expect(b.nextAction.reason).toMatch(/definition is in progress \(define-architecture\)/);
+  });
+
   test('an epic parked in define-mockups resumes define', () => {
     run('ticket create -t "An idea" --epic');
     run('ticket move TKT-001 mockups');

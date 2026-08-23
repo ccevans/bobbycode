@@ -45,7 +45,7 @@ describe('E2E: define pipeline', () => {
 
   test('run define emits the full orchestration ending at planning', () => {
     const out = run('run define TKT-001');
-    for (const stage of ['define-brief', 'define-personas', 'define-journeys', 'define-features', 'define-mockups']) {
+    for (const stage of ['define-brief', 'define-personas', 'define-journeys', 'define-data-model', 'define-architecture', 'define-features', 'define-mockups']) {
       expect(out).toContain(stage);
     }
     // The terminal move goes to planning, never shipping.
@@ -61,6 +61,25 @@ describe('E2E: define pipeline', () => {
     expect(out).toContain('move {TICKET_ID} plan');
   });
 
+  test('run define --no-data-model hands journeys straight to architecture', () => {
+    // Commander negation: `--no-data-model` parses to opts.dataModel === false
+    // (camelCase) — asserted here via behaviour, not memory.
+    const out = run('run define TKT-001 --no-data-model');
+    expect(out).not.toContain('define-data-model');
+    expect(out).toContain('move {TICKET_ID} define-architecture');
+    expect(out).toContain('define-features');
+    expect(out).toContain('move {TICKET_ID} plan');
+  });
+
+  test('run define --no-data-model --no-architecture omits both, chain still completes', () => {
+    const out = run('run define TKT-001 --no-data-model --no-architecture');
+    expect(out).not.toContain('define-data-model');
+    expect(out).not.toContain('define-architecture');
+    expect(out).toContain('define-features');
+    expect(out).toContain('define-blueprint');
+    expect(out).toContain('move {TICKET_ID} plan');
+  });
+
   test('the epic walks the stages via aliases, artifacts landing per stage', () => {
     run('ticket move TKT-001 brief');
     writeArtifact('brief.md');
@@ -68,6 +87,16 @@ describe('E2E: define pipeline', () => {
     writeArtifact('personas.md');
     run('ticket move TKT-001 journeys');
     writeArtifact('journeys.md');
+
+    // The data-model and architecture stages sit between journeys and
+    // features — the feature map is cut against the data model.
+    run('ticket move TKT-001 data-model');
+    writeArtifact('DATA-MODEL.md');
+    run('ticket move TKT-001 architecture');
+    writeArtifact('ARCHITECTURE.md');
+    const archBoard = run('ticket list define-architecture');
+    expect(archBoard).toContain('TKT-001');
+
     run('ticket move TKT-001 features');
     writeArtifact('feature-map.md');
 

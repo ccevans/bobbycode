@@ -2,8 +2,8 @@
 import { STAGES, TRANSITIONS, isValidStage, stageColor, stageIndex, resolveTransition } from '../../lib/stages.js';
 
 describe('stages', () => {
-  test('STAGES has 19 entries', () => {
-    expect(STAGES).toHaveLength(19);
+  test('STAGES has 21 entries', () => {
+    expect(STAGES).toHaveLength(21);
   });
 
   test('STAGES starts with backlog and ends with blocked', () => {
@@ -14,7 +14,9 @@ describe('stages', () => {
   test('STAGES contains all expected stages', () => {
     expect(STAGES).toEqual([
       'backlog',
-      'define-brief', 'define-personas', 'define-journeys', 'define-features', 'define-mockups', 'define-blueprint',
+      'define-brief', 'define-personas', 'define-journeys',
+      'define-data-model', 'define-architecture',
+      'define-features', 'define-mockups', 'define-blueprint',
       'planning',
       'design-research', 'design-analyze', 'design-mockup', 'design-spec',
       'building', 'security', 'reviewing',
@@ -129,6 +131,8 @@ describe('stage invariants (every pipeline, forever)', () => {
     expect(resolveTransition('brief')).toBe('define-brief');
     expect(resolveTransition('personas')).toBe('define-personas');
     expect(resolveTransition('journeys')).toBe('define-journeys');
+    expect(resolveTransition('data-model')).toBe('define-data-model');
+    expect(resolveTransition('architecture')).toBe('define-architecture');
     expect(resolveTransition('features')).toBe('define-features');
     expect(resolveTransition('mockups')).toBe('define-mockups');
     expect(resolveTransition('blueprint')).toBe('define-blueprint');
