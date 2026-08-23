@@ -6,7 +6,7 @@ import {
   buildPerformancePrompt, buildWatchdogPrompt, buildVetPrompt, buildStrategyPrompt,
   buildSprintPrompt,
   resolveNextAgent, DEFAULT_WORKFLOW, resolveWorkflow, listWorkflows,
-  BUILT_IN_WORKFLOWS, STAGE_MAP, nextStageForAgent, omitStage,
+  BUILT_IN_WORKFLOWS, STAGE_MAP, nextStageForAgent, omitStage, describeWorkflows,
 } from '../../lib/workflow.js';
 import { createTicket, moveTicket, findTicket, writeTicket } from '../../lib/tickets.js';
 import { AGENT_REGISTRY, VALID_AGENTS } from '../../lib/agent-registry.js';
@@ -872,6 +872,17 @@ describe('define workflow', () => {
     expect(text).toMatch(/"skip"/i);
     // `bobby run define-mockups <id>` dispatches via VALID_AGENTS.
     expect(VALID_AGENTS).toContain('define-mockups');
+  });
+
+  // The Feature view draws one node per step of /api/workflows, which serves
+  // describeWorkflows — the extended chain reaches the dashboard from here
+  // with no pro-repo change (length costs height only).
+  test('describeWorkflows serves the extended define chain to the dashboard', () => {
+    const described = describeWorkflows({});
+    expect(described.define.map(s => s.stage)).toEqual([
+      'define-brief', 'define-personas', 'define-journeys', 'define-features',
+      'define-mockups', 'define-blueprint',
+    ]);
   });
 
   test('single-agent prompt injects the product-context step only when hasProduct', () => {
