@@ -20,8 +20,17 @@ describe('onboarding composes studio primitives (BOB-024)', () => {
 
   test('an idea becomes a repo, a project, and a real first ticket', () => {
     const r = onboardStudio(root, { idea: 'A site where local bakeries list day-old bread' });
-    expect(r.project).toBe('a-site-where-local-bakeries-list-day-old');   // 40-char slug, trailing dash trimmed
+    // Design-check round 2, finding 3: the name is whole words within a short
+    // budget — never the raw 40-char slug cut mid-thought.
+    expect(r.project).toBe('a-site-where-local-bakeries');
     expect(r.stack).toBe('nextjs');
+
+    // Design-check round 2, finding 2: the id must carry the prefix
+    // createStudioProject wrote into the project config — Home's Next action
+    // prints `bobby run workflow <id>`, and `undefined-001` is not a command
+    // against anything. (The original 4/4 mutation cases never asserted shape.)
+    expect(r.ticketId).toMatch(/^[A-Z][A-Z0-9]*-\d{3}$/);
+    expect(r.ticketId).not.toMatch(/undefined/);
 
     // The repo exists, with git and a README carrying the idea
     const repo = path.join(root, 'repos', r.project);
@@ -31,6 +40,20 @@ describe('onboarding composes studio primitives (BOB-024)', () => {
     const ticketDirs = fs.readdirSync(path.join(root, '.bobby', r.project, 'tickets'))
       .filter((d) => d.startsWith(r.ticketId));
     expect(ticketDirs.length).toBe(1);
+  });
+
+  test('the project name is built from whole words — deterministic, never cut mid-word', () => {
+    // Short ideas keep every word.
+    const r1 = onboardStudio(root, { idea: 'twin project' });
+    expect(r1.project).toBe('twin-project');
+    // Long ideas stop at a word boundary inside the budget — re-running the
+    // same idea derives the same name (determinism is what makes the collision
+    // message honest).
+    const r2 = onboardStudio(root, { idea: 'A site where local bakeries list day-old bread at closing time' });
+    expect(r2.project).toBe('a-site-where-local-bakeries');
+    // A single monster word cannot be word-boundary split — hard cap, no crash.
+    const r3 = onboardStudio(root, { idea: 'x'.repeat(80) });
+    expect(r3.project).toBe('x'.repeat(40));
   });
 
   test('THE BOB-117 GUARD: the repo carries no .bobbyrc.yml, so the studio resolves it', () => {
