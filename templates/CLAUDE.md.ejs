@@ -114,7 +114,7 @@ All agents must follow these rules. Violations are treated as critical failures.
 
 ## Workflows
 
-A workflow is the ordered set of stages a ticket runs through. Built-in: **default** (plan→build→review→test), **secure** (adds a security stage), **quick** (plan→build→test), **freewill** (one agent does all four on few instructions — Opus 5 / Fable 5 only).
+A workflow is the ordered set of stages a ticket runs through. Built-in: **default** (plan→build→review→test), **secure** (adds a security stage), **quick** (plan→build→test), **library** (plan→build→review — for CLI/library projects with no live app; review runs the suite), **library-secure** (adds a security stage), **freewill** (one agent does all four on few instructions — Opus 5 / Fable 5 only).
 
 - **Run one:** `bobby run workflow TKT-001` — auto-chains the default workflow
 - **Named workflow:** `bobby run secure TKT-001` (or `--workflow secure`) — built-in or your own
