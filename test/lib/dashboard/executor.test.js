@@ -268,6 +268,48 @@ describe('claudeSessionIdFromEvent (TKT-021)', () => {
   });
 });
 
+describe('codex buildArgs — every flag verified against codex-cli 0.146.0 (BOB-080)', () => {
+  const build = (opts) => resolveExecutor({ target: 'codex' }).buildArgs(opts);
+
+  test('exec is the subcommand and the prompt is positional, last', () => {
+    expect(build({ prompt: 'do the thing' })).toEqual(['exec', 'do the thing']);
+  });
+
+  test('structured output maps to --json — the only structured mode codex has', () => {
+    // outputFormat's VALUE is claude vocabulary (stream-json); codex has one
+    // structured switch, so any request maps to it.
+    expect(build({ prompt: 'p', outputFormat: 'stream-json' }))
+      .toEqual(['exec', '--json', 'p']);
+  });
+
+  test('permission modes map to the verified sandbox policies', () => {
+    // bypassPermissions must NOT be workspace-write: the agent runs
+    // `bobby ticket move`, which writes the studio board OUTSIDE the worktree
+    // cwd, and workspace-write would block the workflow's own bookkeeping.
+    expect(build({ prompt: 'p', permissionMode: 'bypassPermissions' }))
+      .toEqual(['exec', '--dangerously-bypass-approvals-and-sandbox', 'p']);
+    expect(build({ prompt: 'p', permissionMode: 'acceptEdits' }))
+      .toEqual(['exec', '--sandbox', 'workspace-write', 'p']);
+    expect(build({ prompt: 'p', permissionMode: 'plan' }))
+      .toEqual(['exec', '--sandbox', 'read-only', 'p']);
+  });
+
+  test('resume is exec\'s own subcommand, before the prompt', () => {
+    expect(build({ prompt: 'p', resume: 'sess-1' }))
+      .toEqual(['exec', 'resume', 'sess-1', 'p']);
+  });
+
+  test('allowedTools has no codex equivalent and is dropped, like cursor-agent', () => {
+    expect(build({ prompt: 'p', allowedTools: 'Bash' }))
+      .toEqual(['exec', 'p']);
+  });
+
+  test('model passes through', () => {
+    expect(build({ prompt: 'p', model: 'gpt-5.2' }))
+      .toEqual(['exec', '--model', 'gpt-5.2', 'p']);
+  });
+});
+
 describe('resolveExecutor', () => {
   test('defaults to claude when nothing is configured', () => {
     expect(resolveExecutor({}).name).toBe('claude');
@@ -289,6 +331,14 @@ describe('resolveExecutor', () => {
     expect(resolveExecutor({ target: 'cursor', dashboard: { executor: 'claude' } }).name).toBe('claude');
     expect(resolveExecutor({ target: 'claude-code', dashboard: { executor: 'cursor-agent' } }).name)
       .toBe('cursor-agent');
+  });
+
+  test('derives codex from target=codex (BOB-080)', () => {
+    const e = resolveExecutor({ target: 'codex' });
+    expect(e.name).toBe('codex');
+    expect(e.bin).toBe('codex');
+    // ...and the explicit override still wins, same as every flavor.
+    expect(resolveExecutor({ target: 'codex', dashboard: { executor: 'claude' } }).name).toBe('claude');
   });
 
   test('an unrecognized executor is treated as a custom binary path', () => {
