@@ -26,6 +26,24 @@ All notable changes to Bobby are documented here. The format is based on
 
 ### Added
 
+- **The define pipeline gains an optional mockups stage.** `bobby run define`
+  now runs brief → personas → journeys → feature map → **mockups** →
+  blueprint: after the feature map locks, the new `bobby-define-mockups`
+  agent designs the v1 screens *from* the locked artifacts — the PRIMARY
+  persona is the audience, the headline journey's Success line is the page's
+  job, the Must rows are the screens — and presents options built with the
+  product's own copy. It never re-asks what the artifacts already answer;
+  the only questions allowed are the ones they can't (structure, references,
+  fidelity). Design is a stage, not a toll, so skipping is first-class two
+  ways: `--no-mockups` filters the stage out of the resolved chain (the new
+  `omitStage` helper — handoffs recompute automatically, so the feature map
+  hands straight to the blueprint), and answering "skip" at the gate exits
+  with a comment and no artifact. On a pick, `.bobby/product/mockups.md`
+  records the chosen direction and the blueprint page shows one
+  design-direction line; on a skip nothing is written and nothing downstream
+  changes. `bobby ticket move <id> mockups` reaches the stage (`mockup`,
+  singular, still means the design pipeline's stage).
+
 - **Codex CLI target + executor** (`target: codex`): scaffolds `AGENTS.md`,
   `.codex/skills/`, and prompt-referenced agents; the dashboard drives
   `codex exec --json` headlessly. Every convention verified against the
