@@ -4,18 +4,6 @@ All notable changes to Bobby are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and Bobby follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
-
-- **Codex CLI target + executor** (`target: codex`): scaffolds `AGENTS.md`,
-  `.codex/skills/`, and prompt-referenced agents; the dashboard drives
-  `codex exec --json` headlessly. Every convention verified against the
-  shipped codex-cli 0.146.0 binary — including two the docs implied wrongly
-  (no project agent registry; no command surface).
-- **Generic `agents-md` target**: rules + skills for any AGENTS.md-reading
-  tool. Claims-limited by design.
-- **Target-matrix invariant suite**: every registered target runs the same
-  contract tests; new targets land pre-verified with zero test edits.
-
 ## [Unreleased]
 
 ### Fixed
@@ -37,6 +25,16 @@ All notable changes to Bobby are documented here. The format is based on
   seed, and pre-existing studio files are still read and appended in place.
 
 ### Added
+
+- **Codex CLI target + executor** (`target: codex`): scaffolds `AGENTS.md`,
+  `.codex/skills/`, and prompt-referenced agents; the dashboard drives
+  `codex exec --json` headlessly. Every convention verified against the
+  shipped codex-cli 0.146.0 binary — including two the docs implied wrongly
+  (no project agent registry; no command surface).
+- **Generic `agents-md` target**: rules + skills for any AGENTS.md-reading
+  tool. Claims-limited by design.
+- **Target-matrix invariant suite**: every registered target runs the same
+  contract tests; new targets land pre-verified with zero test edits.
 - **`bobby-freewill` — one agent, the whole ticket, deliberately few
   instructions.** `bobby run freewill <id>` (or `--workflow freewill`) collapses
   plan → build → review → test into a single agent that gets the goal and the
