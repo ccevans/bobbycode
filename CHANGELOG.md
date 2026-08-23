@@ -26,6 +26,33 @@ All notable changes to Bobby are documented here. The format is based on
 
 ### Added
 
+- **The define pipeline gains data-model and forward-architecture stages.**
+  `bobby run define` now runs brief → personas → journeys → **data model** →
+  **architecture** → feature map → mockups → blueprint: after the journeys
+  lock and before the feature map is cut, `bobby-define-data-model` derives
+  the entities from what journey steps store and show — never a brainstorm —
+  and makes a **source-of-truth call** per entity (this system, a named
+  external system, or the user), writing `.bobby/product/DATA-MODEL.md`; then
+  `bobby-define-architecture` records the **forward view** in
+  `.bobby/product/ARCHITECTURE.md` — the components that WILL exist, kept
+  deliberately distinct from `bobby run arch`'s `.bobby/architecture.md`,
+  which discovers what DOES exist — and turns every load-bearing call into an
+  ADR through the existing `bobby decision add`, so `bobby-review` holds every
+  ticket to those decisions from day one with no new machinery and no
+  review-side change (ARCHITECTURE.md cites the decision ids; the entries
+  land with the feature-map lock commit, which now stages
+  `.bobby/decisions.yaml` too). The feature map is cut against the data
+  model, not the other way around — a Must feature needing an entity the
+  model lacks amends the model, never invents one locally — and bobby-plan's
+  Product-Aware decomposition reads both files when present. Both stages are
+  optional the same two ways mockups is: `--no-data-model` /
+  `--no-architecture` filter the chain via `omitStage` (handoffs recompute,
+  so with both flags journeys hands straight to features), and "skip" at
+  either gate moves on with a comment and no artifact — every downstream
+  reader treats the artifacts as "when present", so skipping costs nothing.
+  `bobby ticket move <id> data-model` and `… architecture` reach the stages
+  (full words on purpose: `arch` stays `bobby run arch`'s name).
+
 - **The define pipeline gains an optional mockups stage.** `bobby run define`
   now runs brief → personas → journeys → feature map → **mockups** →
   blueprint: after the feature map locks, the new `bobby-define-mockups`
