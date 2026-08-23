@@ -33,8 +33,15 @@ import { verifyRoundTrip, verifyMessage } from '../lib/remote/verify.js';
 import { loadOrCreatePairing } from '../lib/remote/pairing-store.js';
 import { bold, dim, success, error, warn } from '../lib/colors.js';
 
-const DEFAULT_RELAY = process.env.BOBBY_RELAY_URL || 'ws://127.0.0.1:8790';
-const DEFAULT_APP = process.env.BOBBY_APP_URL || 'http://127.0.0.1:8791';
+// The shipped defaults are the hosted relay (BOB-091): TLS at Fly's edge, one
+// origin serving both the app and the wss:// channel (hq/fly.toml in the pro
+// repo). Local dev keeps every override: BOBBY_RELAY_URL / BOBBY_APP_URL env,
+// `remote.relay` / `remote.app` in .bobbyrc.yml, or --relay/--app flags —
+// loopback ws:// stays legal because browsers grant it a secure context.
+// Exported so the secure-default promise is testable (an insecure default can
+// never ship again — test/commands/remote-defaults.test.js).
+export const DEFAULT_RELAY = process.env.BOBBY_RELAY_URL || 'wss://bobby-relay.fly.dev';
+export const DEFAULT_APP = process.env.BOBBY_APP_URL || 'https://bobby-relay.fly.dev';
 
 export function registerRemote(program) {
   program
