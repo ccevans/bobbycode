@@ -266,7 +266,7 @@ All configuration lives in `.bobbyrc.yml`, generated with comments during `bobby
 # Project identity
 project: my-app
 stack: nextjs                  # nextjs | rails-react | django | python-flask | go | rust | polyglot | generic
-target: claude-code            # claude-code | cursor | cline
+target: claude-code            # claude-code | cursor | cline | codex | agents-md
 
 # Directories
 bobby_dir: .bobby
@@ -363,7 +363,7 @@ Bobby auto-detects your tech stack during `bobby init` and configures commands, 
 
 **Custom stacks:** Create `.bobby/stacks/<name>.json` with your own commands, areas, and health checks. Custom stacks appear at the top of the `bobby init` selection menu. See [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) for the JSON schema.
 
-## Editors: Claude Code, Cursor, Cline
+## Editors: Claude Code, Cursor, Cline, Codex — and any AGENTS.md tool
 
 Bobby's CLI never calls a model itself — tickets, audits, scoring, sprints, and
 `bobby vet` are all deterministic local code. The AI half is a set of markdown
@@ -375,6 +375,19 @@ reads. Set that with `target` in `.bobbyrc.yml`, or pick it in `bobby init --cus
 | `claude-code` | `CLAUDE.md` | `.claude/skills/` | `.claude/commands/` | `.claude/agents/` | Yes |
 | `cursor` | `AGENTS.md` | `.cursor/skills/` | `.cursor/commands/` | `.cursor/agents/` | Yes (3.13+) |
 | `cline` | `.clinerules/rules.md` | `.clinerules/skills/` | `.clinerules/workflows/` | `.clinerules/agents/` | No |
+| `codex` | `AGENTS.md` | `.codex/skills/` | `.codex/commands/`¹ | `.codex/agents/`¹ | No² |
+| `agents-md` | `AGENTS.md` | `.agents/skills/` | `.agents/commands/`¹ | `.agents/agents/`¹ | No |
+
+¹ Reference docs the prompts can cite — these tools have no native command or
+project-agent surface (verified against the shipped binaries; see the adapter
+headers for citations). ² Codex has subagent *tools* but no file registry.
+
+`codex` also drives the dashboard headlessly (`codex exec --json`, derived from
+`target: codex`). `agents-md` is the generic tier for the AGENTS.md ecosystem —
+Copilot, Windsurf, Zed, Jules, Amp, opencode and the rest: **rules + skills
+work; nothing more is claimed.** Verification status per target lives in the
+adapter headers; every convention cites a real CLI run or a shipped-binary
+reading.
 
 To switch, set `target:` and run `bobby init --refresh`. Your tickets, sessions,
 and `.local` files carry over untouched — they live in `.bobby/`, which is

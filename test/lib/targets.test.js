@@ -474,5 +474,39 @@ describe('agents-md target identity (BOB-081)', () => {
     expect(out).toContain('# Body');
     // untouched when there is nothing to strip
     expect(t.transformCommand('# Plain\n')).toBe('# Plain\n');
+    // quoted scalars lose their quotes - F10 shipped *"..."* on every command
+    const quoted = t.transformCommand('---\ndescription: "Quoted thing"\n---\n# B\n');
+    expect(quoted).toContain('*Quoted thing*');
+    expect(quoted).not.toContain('"');
+  });
+});
+
+describe('cline identity — content the matrix cannot know (BOB-078 F3a)', () => {
+  test('.clineignore protects the bobby state, not just exists', async () => {
+    // The matrix asserts existence and idempotency; an EMPTY .clineignore
+    // passed both. The content is the point: without these two entries Cline
+    // indexes and edits the board.
+    const fs = await import('fs'); const path = await import('path'); const os = await import('os');
+    const { getTarget } = await import('../../lib/targets/index.js');
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-clineignore-'));
+    try {
+      getTarget('cline').scaffoldExtras(tmp);
+      const body = fs.readFileSync(path.join(tmp, '.clineignore'), 'utf8');
+      expect(body).toContain('.bobby/');
+      expect(body).toContain('.bobbyrc.yml');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+});
+
+describe('codex identity (BOB-079 review note)', () => {
+  test('the verified paths are pinned — the matrix passes any self-consistent set', async () => {
+    const { getTarget } = await import('../../lib/targets/index.js');
+    const t = getTarget('codex');
+    expect(t.paths()).toEqual({
+      agents: '.codex/agents', skills: '.codex/skills',
+      commands: '.codex/commands', rules: 'AGENTS.md',
+    });
+    expect(t.supportsSubagents()).toBe(false);
+    expect(t.keepsCommandFrontmatter()).toBe(false);
   });
 });

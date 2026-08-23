@@ -41,6 +41,12 @@ const DISTINCTIVE = {
   'agents-md': ['.agents'],
 };
 
+test('the leakage map covers every registered target — a new target cannot skip it', () => {
+  // Deleting one entry left 40/40 green (review F2): a target absent from the
+  // map has its artifacts checked as leakage in NO other target, silently.
+  expect(Object.keys(DISTINCTIVE).sort()).toEqual([...TARGETS].sort());
+});
+
 describe.each(TARGETS)('target contract: %s', (name) => {
   let tmp;
   const t = getTarget(name);
@@ -120,6 +126,33 @@ describe.each(TARGETS)('target contract: %s', (name) => {
       // no-op, or the adapter mangles content on any re-scaffold.
       expect(t.transformCommand(body)).toBe(body);
     }
+  });
+
+  test('scaffolded commands carry frontmatter iff the target declares it parses them', () => {
+    // The ticket's invariant, not a proxy: idempotency is satisfied trivially
+    // by the identity function, so disabling a strip left the matrix green
+    // (review F1 / mutation M3). The adapter DECLARES the property and the
+    // matrix asserts the shipped files against the declaration.
+    const keeps = t.keepsCommandFrontmatter();
+    const dir = path.join(tmp, t.paths().commands);
+    const files = walk(dir).filter((f) => f.endsWith('.md'));
+    expect(files.length).toBeGreaterThan(0);
+    const withFm = files.filter((f) => /^---\r?\n/.test(fs.readFileSync(f, 'utf8')));
+    if (keeps) {
+      expect(withFm.length).toBeGreaterThan(0);
+    } else {
+      expect(withFm.map((f) => path.relative(tmp, f))).toEqual([]);
+    }
+  });
+
+  test('the scaffolded agents cite THIS target\'s rules file — the positive half', () => {
+    // Invariant 3 is purely negative (no FOREIGN rules file named); retiring
+    // the hand-written cursor test lost the positive half, so a template that
+    // dropped the safety-rules pointer entirely passed every leg (review F3b).
+    const agents = walk(path.join(tmp, t.paths().agents));
+    const ownRules = path.basename(t.paths().rules);
+    const citing = agents.filter((f) => fs.readFileSync(f, 'utf8').includes(ownRules));
+    expect(citing.length).toBeGreaterThan(0);
   });
 
   test('extraPaths and scaffoldExtras agree, and re-scaffold is idempotent', () => {

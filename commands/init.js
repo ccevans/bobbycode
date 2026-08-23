@@ -526,7 +526,7 @@ export function registerInit(program) {
               { name: 'Claude Code — scaffolds to .claude/ (agents, skills, commands, CLAUDE.md)', value: 'claude-code' },
               { name: 'Cursor — scaffolds to .cursor/ (skills, commands, agents) + AGENTS.md', value: 'cursor' },
               { name: 'Codex CLI — scaffolds to .codex/ (skills, agents) + AGENTS.md', value: 'codex' },
-              { name: 'AGENTS.md (generic) — rules + skills for any AGENTS.md tool', value: 'agents-md' },
+              { name: 'AGENTS.md (generic) — rules + skills for Copilot, Windsurf, Zed, opencode…', value: 'agents-md' },
               { name: 'Cline (VS Code) — scaffolds to .clinerules/ (agents, skills, workflows)', value: 'cline' },
             ],
             default: existingConfig?.target || 'claude-code',
