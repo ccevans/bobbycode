@@ -43,14 +43,22 @@ describe('E2E: define pipeline', () => {
     expect(out).toContain('bobby run define TKT-001');
   });
 
-  test('run define emits the four-stage orchestration ending at planning', () => {
+  test('run define emits the full orchestration ending at planning', () => {
     const out = run('run define TKT-001');
-    for (const stage of ['define-brief', 'define-personas', 'define-journeys', 'define-features']) {
+    for (const stage of ['define-brief', 'define-personas', 'define-journeys', 'define-features', 'define-mockups']) {
       expect(out).toContain(stage);
     }
     // The terminal move goes to planning, never shipping.
     expect(out).toContain('move {TICKET_ID} plan');
     expect(out).not.toContain('move {TICKET_ID} ship');
+  });
+
+  test('run define --no-mockups omits the stage but still completes the chain', () => {
+    const out = run('run define TKT-001 --no-mockups');
+    expect(out).not.toContain('define-mockups');
+    expect(out).toContain('define-brief');
+    expect(out).toContain('define-blueprint');
+    expect(out).toContain('move {TICKET_ID} plan');
   });
 
   test('the epic walks the stages via aliases, artifacts landing per stage', () => {
@@ -68,6 +76,14 @@ describe('E2E: define pipeline', () => {
     expect(board).toContain('TKT-001');
     const go = run('go');
     expect(go).toMatch(/definition is in progress/);
+
+    // The optional mockups stage sits between features and blueprint.
+    run('ticket move TKT-001 mockups');
+    const mockupsBoard = run('ticket list define-mockups');
+    expect(mockupsBoard).toContain('TKT-001');
+    run('ticket move TKT-001 blueprint');
+    const blueprintBoard = run('ticket list define-blueprint');
+    expect(blueprintBoard).toContain('TKT-001');
 
     run('ticket move TKT-001 plan');
   });

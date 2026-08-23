@@ -152,6 +152,14 @@ describe('define-pipeline routing', () => {
     expect(b.nextAction.reason).toMatch(/definition is in progress \(define-journeys\)/);
   });
 
+  test('an epic parked in define-mockups resumes define', () => {
+    run('ticket create -t "An idea" --epic');
+    run('ticket move TKT-001 mockups');
+    const b = buildBrief(ticketsDir(), sprintsDir(), { productDir: productDir() });
+    expect(b.nextAction.argv).toEqual(['run', 'define', 'TKT-001']);
+    expect(b.nextAction.reason).toMatch(/definition is in progress \(define-mockups\)/);
+  });
+
   test('without productDir, legacy behavior: fresh epic goes to plan', () => {
     run('ticket create -t "An idea" --epic');
     const b = buildBrief(ticketsDir(), sprintsDir());

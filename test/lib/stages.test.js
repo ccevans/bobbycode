@@ -2,8 +2,8 @@
 import { STAGES, TRANSITIONS, isValidStage, stageColor, stageIndex, resolveTransition } from '../../lib/stages.js';
 
 describe('stages', () => {
-  test('STAGES has 18 entries', () => {
-    expect(STAGES).toHaveLength(18);
+  test('STAGES has 19 entries', () => {
+    expect(STAGES).toHaveLength(19);
   });
 
   test('STAGES starts with backlog and ends with blocked', () => {
@@ -14,7 +14,7 @@ describe('stages', () => {
   test('STAGES contains all expected stages', () => {
     expect(STAGES).toEqual([
       'backlog',
-      'define-brief', 'define-personas', 'define-journeys', 'define-features', 'define-blueprint',
+      'define-brief', 'define-personas', 'define-journeys', 'define-features', 'define-mockups', 'define-blueprint',
       'planning',
       'design-research', 'design-analyze', 'design-mockup', 'design-spec',
       'building', 'security', 'reviewing',
@@ -130,6 +130,18 @@ describe('stage invariants (every pipeline, forever)', () => {
     expect(resolveTransition('personas')).toBe('define-personas');
     expect(resolveTransition('journeys')).toBe('define-journeys');
     expect(resolveTransition('features')).toBe('define-features');
+    expect(resolveTransition('mockups')).toBe('define-mockups');
     expect(resolveTransition('blueprint')).toBe('define-blueprint');
+  });
+
+  // One letter apart, two different pipelines — these must never cross.
+  test('`mockup` and `mockups` resolve to their own stages', () => {
+    expect(resolveTransition('mockup')).toBe('design-mockup');
+    expect(resolveTransition('mockups')).toBe('define-mockups');
+  });
+
+  // Guards the TRANSITIONS edit from silently widening what resolveTransition accepts.
+  test('a typo near the new alias is still refused', () => {
+    expect(resolveTransition('mockupz')).toBeNull();
   });
 });

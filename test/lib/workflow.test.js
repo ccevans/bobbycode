@@ -6,9 +6,10 @@ import {
   buildPerformancePrompt, buildWatchdogPrompt, buildVetPrompt, buildStrategyPrompt,
   buildSprintPrompt,
   resolveNextAgent, DEFAULT_WORKFLOW, resolveWorkflow, listWorkflows,
-  BUILT_IN_WORKFLOWS, STAGE_MAP, nextStageForAgent,
+  BUILT_IN_WORKFLOWS, STAGE_MAP, nextStageForAgent, omitStage,
 } from '../../lib/workflow.js';
 import { createTicket, moveTicket, findTicket, writeTicket } from '../../lib/tickets.js';
+import { AGENT_REGISTRY, VALID_AGENTS } from '../../lib/agent-registry.js';
 import { isValidStage } from '../../lib/stages.js';
 import fs from 'fs';
 import path from 'path';
@@ -836,13 +837,14 @@ describe('workflow', () => {
 });
 
 describe('define workflow', () => {
-  test('resolves to five define stages with matching agents', () => {
+  test('resolves to six define stages with matching agents', () => {
     const wf = resolveWorkflow({}, 'define');
     expect(wf).toEqual([
       { stage: 'define-brief', agent: 'bobby-define-brief' },
       { stage: 'define-personas', agent: 'bobby-define-personas' },
       { stage: 'define-journeys', agent: 'bobby-define-journeys' },
       { stage: 'define-features', agent: 'bobby-define-features' },
+      { stage: 'define-mockups', agent: 'bobby-define-mockups' },
       { stage: 'define-blueprint', agent: 'bobby-define-blueprint' },
     ]);
   });
@@ -851,9 +853,25 @@ describe('define workflow', () => {
     const wf = resolveWorkflow({}, 'define');
     const prompt = buildOrchestrationPrompt(['TKT-001'], wf, 3);
     expect(prompt).toContain('bobby ticket move {TICKET_ID} define-personas');
+    // The features step hands to mockups, and mockups hands to blueprint.
+    expect(prompt).toContain('bobby ticket move {TICKET_ID} define-mockups');
     expect(prompt).toContain('bobby ticket move {TICKET_ID} define-blueprint');
     expect(prompt).toContain('bobby ticket move {TICKET_ID} plan');
     expect(prompt).not.toContain('move {TICKET_ID} ship');
+  });
+
+  test('the mockups registry entry names the artifacts, forbids re-asking, and offers skip', () => {
+    const entry = AGENT_REGISTRY['define-mockups'];
+    expect(entry.label).toBe('Define Mockups');
+    expect(entry.agentName).toBe('bobby-define-mockups');
+    expect(entry.cowork).toBe(true);
+    const text = [entry.promptHeader, ...entry.promptSteps].join('\n');
+    expect(text).toContain('personas.md');
+    expect(text).toContain('journeys.md');
+    expect(text).toMatch(/never re-ask|do not re-ask|not re-ask/i);
+    expect(text).toMatch(/"skip"/i);
+    // `bobby run define-mockups <id>` dispatches via VALID_AGENTS.
+    expect(VALID_AGENTS).toContain('define-mockups');
   });
 
   test('single-agent prompt injects the product-context step only when hasProduct', () => {
@@ -865,6 +883,27 @@ describe('define workflow', () => {
     // Step numbering stays sequential either way.
     expect(withIt).toContain('4. Follow the instructions');
     expect(without).toContain('3. Follow the instructions');
+  });
+});
+
+describe('omitStage', () => {
+  test('filters the named stage out of the define workflow', () => {
+    const wf = omitStage(resolveWorkflow({}, 'define'), 'define-mockups');
+    expect(wf.map(s => s.stage)).toEqual([
+      'define-brief', 'define-personas', 'define-journeys', 'define-features', 'define-blueprint',
+    ]);
+  });
+
+  test('the filtered chain hands define-features straight to define-blueprint', () => {
+    const wf = omitStage(resolveWorkflow({}, 'define'), 'define-mockups');
+    const prompt = buildOrchestrationPrompt(['TKT-001'], wf, 3);
+    expect(prompt).not.toContain('define-mockups');
+    expect(prompt).toContain('bobby ticket move {TICKET_ID} define-blueprint');
+    expect(prompt).toContain('bobby ticket move {TICKET_ID} plan');
+  });
+
+  test('is a no-op on workflows without the stage', () => {
+    expect(omitStage(DEFAULT_WORKFLOW, 'define-mockups')).toEqual(DEFAULT_WORKFLOW);
   });
 });
 
