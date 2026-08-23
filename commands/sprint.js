@@ -254,6 +254,9 @@ export function registerSprint(program) {
         const sprintPlanPath = path.join(sprintsDir, path.basename(sprint.path), 'sprint-plan.md');
         const prompt = buildSprintPrompt(d, sprintTickets, pipeline, {
           maxRetries,
+          // BOB-090: no health checks = no live app for the testing stage —
+          // the prompt blocks the ticket loudly instead of launching bobby-test.
+          hasHealthChecks: (config.health_checks ?? []).length > 0,
           // Absolute, main-rooted: a sprint runs in an isolated worktree, which
           // does not contain tickets created on a feature branch (TKT-052).
           ticketsDir,

@@ -58,6 +58,22 @@ describe('createProject', () => {
     expect(fs.existsSync(path.join(result.root, 'README.md'))).toBe(true);
   });
 
+  // BOB-090: `bobby new` derives the default workflow per stack — a stack with
+  // no dev command and no health checks has no live app for the test stage.
+  it('derives default_workflow: library for a no-live-app stack', () => {
+    const result = createProject('a cli thing', { dir: 'libproj', stack: 'generic', cwd: tmp });
+    expect(result.config.default_workflow).toBe('library');
+    const rc = fs.readFileSync(path.join(result.root, '.bobbyrc.yml'), 'utf8');
+    expect(rc).toContain('default_workflow: library');
+  });
+
+  it('does not set default_workflow for a stack with a dev server', () => {
+    const result = createProject('an api', { dir: 'appproj', stack: 'node', cwd: tmp });
+    expect(result.config.default_workflow).toBeUndefined();
+    const rc = fs.readFileSync(path.join(result.root, '.bobbyrc.yml'), 'utf8');
+    expect(rc).not.toContain('default_workflow');
+  });
+
   it('returns the facts a caller needs instead of printing them', () => {
     const result = createProject('a url shortener', { dir: 'short', cwd: tmp });
 

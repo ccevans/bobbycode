@@ -8,6 +8,7 @@ import { createRequire } from 'module';
 import { success, warn, error, bold, dim } from '../lib/colors.js';
 import { getTarget, TARGETS } from '../lib/targets/index.js';
 import { detectServices, aggregateAreas, aggregateHealthChecks } from '../lib/services.js';
+import { deriveDefaultWorkflow } from '../lib/workflow.js';
 import { runLocalProfileWizard, saveLocalProfile } from './local-init.js';
 import { detectProjectContext, detectGitIdentity } from '../lib/detect.js';
 import { mergeRulesContent, isBobbyGenerated } from '../lib/rules-merge.js';
@@ -732,6 +733,13 @@ export function registerInit(program) {
           areas: aggregateAreas(configBase),
           health_checks: aggregateHealthChecks(configBase),
         };
+
+        // BOB-090: no live app (no health checks, no dev command) means the
+        // test stage has nothing to exercise — default such projects to the
+        // `library` workflow, visibly in .bobbyrc.yml. Derived HERE and not in
+        // scaffoldProject: refresh/re-scaffold never rewrites config (BOB-123).
+        const derivedWorkflow = deriveDefaultWorkflow(stack, config);
+        if (derivedWorkflow) config.default_workflow = derivedWorkflow;
 
         const scaffoldResult = scaffoldProject(rootDir, config);
         const gitInitialized = gitInitializedEarly || scaffoldResult?.gitInitialized;
