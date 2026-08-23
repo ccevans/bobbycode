@@ -1,13 +1,14 @@
 ---
 name: define-product
-description: "Product Definition Skill: Takes a committed idea through the artifact chain the pros run — brief → personas → journeys → feature map → blueprint — so decomposition builds the right thing instead of guessing, and you see the whole plan before a line is written. Each artifact feeds the next; the human reacts at a gate after every stage; every v1 ticket ends up traceable to a feature, a journey step, and a persona. MANDATORY TRIGGERS: define, define the product, product definition, write the brief, product brief, personas, user personas, user journeys, journey map, feature map, feature list, blueprint, show me the plan, what are we building, overview before building, what should v1 be, scope v1, MVP scope, requirements. NOT for pressure-testing whether an idea is worth building at all — that is bobby-vet (before a project exists). NOT for visual design — that is bobby-design (after the feature map names the screens)."
+description: "Product Definition Skill: Takes a committed idea through the artifact chain the pros run — brief → personas → journeys → feature map → mockups (optional) → blueprint — so decomposition builds the right thing instead of guessing, and you see the whole plan before a line is written. Each artifact feeds the next; the human reacts at a gate after every stage; every v1 ticket ends up traceable to a feature, a journey step, and a persona. MANDATORY TRIGGERS: define, define the product, product definition, write the brief, product brief, personas, user personas, user journeys, journey map, feature map, feature list, blueprint, show me the plan, what are we building, overview before building, what should v1 be, scope v1, MVP scope, requirements. NOT for pressure-testing whether an idea is worth building at all — that is bobby-vet (before a project exists). NOT for visual design — that is bobby-design (after the feature map names the screens)."
 argument-hint: "<epic id — e.g. TKT-001>"
 ---
 
 # Bobby Define Skill
 
 > Product definer — takes the MVP epic from a one-line idea to a locked product
-> definition: brief, personas, journeys, feature map, and a blueprint you can
+> definition: brief, personas, journeys, feature map, optionally mockups of the
+> v1 screens, and a blueprint you can
 > read on one page. Runs the process a real
 > product team runs, so that when bobby-plan decomposes the epic, every ticket
 > traces to a feature, a journey step, and a persona — instead of being invented.
@@ -213,7 +214,52 @@ _none_
 
 ---
 
-## Step 5: The Blueprint — the glimpse before building
+## Step 5: Mockups — the v1 screens, from YOUR artifacts (optional)
+
+**Tags:** [Structure] [References] [Fidelity] · **Budget:** 3–5 questions.
+
+Runs after the feature map locks, before the Blueprint step. The bobby-design
+craft, with the interview already done: the locked artifacts ARE the design
+brief, so the founder reacts to screens built from their own product instead
+of answering the same questions twice.
+
+**The brief, derived — never asked:**
+
+- **Audience** = the PRIMARY persona (personas.md), verbatim.
+- **The page's job** = the headline journey's Success line (journeys.md).
+- **The screens to mock** = the Must features and the journey steps they serve
+  (feature-map.md).
+- **Real content** = the artifacts' own copy — persona names, journey
+  language, feature titles. Never lorem, never invented.
+
+Never re-ask what the artifacts answer. The only questions allowed are the
+ones they cannot: structure (what shape is this thing?), references (whose
+look do you like?), fidelity (how closely to follow them?) — the design
+skill's own gates, within the budget above.
+
+Then run the design skill's arc (`<%= paths.skills %>/bobby-design/SKILL.md`
+steps 1b–3 and its `references/slop_checklist.md`) — cite references, tear
+them down, build comparable mockup options with the product's real content
+identical across options. Everything lands under `.bobby/design/` (the design pipeline's home,
+so `bobby run design` can later resume from these files).
+
+⛳ **Gate — your final message:** present the options built from THEIR
+artifacts and ask, verbatim:
+> "Which of these is the product you meant — or say **skip** and we go
+> straight to the blueprint."
+
+- **On a pick:** write `.bobby/product/mockups.md` (Locked/Status header, the
+  chosen direction, pointers to the option files), commit it with
+  `.bobby/product/`, comment on the epic (`--by bobby-define-mockups`).
+- **On "skip":** comment `bobby ticket comment <EPIC> --by bobby-define-mockups
+  "Mockups skipped at the gate."` and move on. No `mockups.md` is written; the
+  blueprint tolerates its absence.
+
+**Skipping is first-class, two ways:** `bobby run define <EPIC> --no-mockups`
+never enters this stage at all (the chain hands feature map straight to
+blueprint), and "skip" at the gate exits it. Design is a stage, not a toll.
+
+## Step 6: The Blueprint — the glimpse before building
 
 **No interview.** This stage generates, explains, and gates.
 
@@ -229,7 +275,9 @@ map. If it reports drift, fix the cause and re-run — never explain it away.
 
 Walk the human through it in this order: **the crux** (what the product
 resolves to), **the tracks** (what unlocks what), **what's out** (Later and
-Never). Then commit the page alongside the artifacts.
+Never) — and, if `.bobby/product/mockups.md` exists, **the design direction**
+the page now carries. If it does not (the Mockups step was skipped), say so
+and move on. Then commit the page alongside the artifacts.
 
 ⛳ **Gate — your final message**, verbatim:
 > "Does this look like the thing you want built — and what's missing?"
@@ -250,7 +298,7 @@ Then hand off: `bobby ticket move <EPIC> plan`.
 
 ## Ticket Integration
 
-Each stage comments on the epic when it reaches its gate (commands shown per step). The epic's stage tracks progress through the pipeline (`define-brief` → … → `define-features` → `planning`), so `bobby brief` and the app always know where definition stands.
+Each stage comments on the epic when it reaches its gate (commands shown per step). The epic's stage tracks progress through the pipeline (`define-brief` → … → `define-features` → `define-mockups` → `define-blueprint` → `planning`), so `bobby brief` and the app always know where definition stands.
 
 ## Completing Work
 
