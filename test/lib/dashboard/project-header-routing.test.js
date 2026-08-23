@@ -100,8 +100,51 @@ describe('per-request project routing (BOB-067)', () => {
   });
 
   test('an unknown project 400s naming the real ones, not a silent fallback', async () => {
+    // Exactly 400 — the earlier `>= 400` let a 500 'Internal error' pass for
+    // the whole life of this feature (the live TC-10 rejection). A phone with
+    // a stale roster must see a CLIENT error whose body names the projects
+    // that do exist, not a server crash with the names buried in details.
     const r = await get(port, '/api/tickets', { 'x-bobby-project': 'nope' });
-    expect(r.status).toBeGreaterThanOrEqual(400);
+    expect(r.status).toBe(400);
+    expect(r.body.error).toContain("No such project 'nope'");
+    expect(r.body.error).toContain('alpha');
+    expect(r.body.error).toContain('beta');
+  });
+
+  test('EVERY board-scoped route 400s the same way — one seam, not per-route luck', async () => {
+    // The six routes the live rejection probed, plus sessions. Each one must
+    // give the same clean 400 naming the real projects.
+    const routes = [
+      '/api/tickets',
+      '/api/brief',
+      '/api/tickets/AL-001',
+      '/api/config',
+      '/api/features',
+      '/api/workflows',
+      '/api/sessions',
+    ];
+    for (const route of routes) {
+      const r = await get(port, route, { 'x-bobby-project': 'nope' });
+      expect({ route, status: r.status }).toEqual({ route, status: 400 });
+      expect(r.body.error).toContain("No such project 'nope'");
+      expect(r.body.error).toContain('alpha');
+      expect(r.body.error).toContain('beta');
+    }
+  });
+
+  test('the relay-frame path gets the same 400 — tunnel project field, real server', async () => {
+    // End-to-end minus the websocket: a frame naming an unknown project rides
+    // the tunnel's own header stamping into the real studio server.
+    const tunnel = new RemoteTunnel({ relayUrl: 'ws://127.0.0.1:1', channel: 'x', key: Buffer.alloc(32), localPort: port });
+    const frame = await new Promise((resolve) => {
+      tunnel.sendFrame = (f) => resolve(f);
+      tunnel.handleRequest({ id: 'p1', method: 'GET', path: '/api/tickets', project: 'nope' });
+    });
+    expect(frame.t).toBe('res');
+    expect(frame.status).toBe(400);
+    expect(frame.body.error).toContain("No such project 'nope'");
+    expect(frame.body.error).toContain('alpha');
+    expect(frame.body.error).toContain('beta');
   });
 
   test('interleaved requests for different projects never cross boards', async () => {
