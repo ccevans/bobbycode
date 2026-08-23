@@ -148,17 +148,6 @@ export function registerRemote(program) {
           console.log(`  ${dim(`Local:    127.0.0.1:${port} (loopback only)`)}`);
           console.log(`  ${dim(`Pairing:  ${pairing.file}${opts.newCode ? '  (rotated — old phones are out)' : ''}`)}`);
           console.log('');
-          if (opts.qr !== false) {
-            qrcode.generate(link, { small: true }, (q) => {
-              console.log(q.replace(/^/gm, '  '));
-            });
-            console.log(`  ${dim('Scan with your phone camera, or open:')}`);
-          }
-          console.log(`  ${link}`);
-          console.log('');
-          console.log(`  ${dim('Pairing code (paste into the app if you prefer):')}`);
-          console.log(`  ${code}`);
-          console.log('');
           // Prove the path rather than asserting it (BOB-064). connect() does not
           // block, so the old unconditional success printed BEFORE the relay was
           // connected — its own log had the verdict two lines above "relay
@@ -176,6 +165,23 @@ export function registerRemote(program) {
             return;
           }
           success('  Team is reachable — verified by an encrypted round trip. Press Ctrl+C to stop.');
+          console.log('');
+          // The QR, link, and pairing code print only now, AFTER the verdict is
+          // earned (BOB-064 rejection round). The verifier attaches to the relay
+          // as its own client, so nothing needs the QR on screen first — and a
+          // QR that sits scannable for the whole verify timeout while the relay
+          // is down is an invitation to the exact forty minutes this ticket is
+          // about. Failure paths above exit without ever printing one.
+          if (opts.qr !== false) {
+            qrcode.generate(link, { small: true }, (q) => {
+              console.log(q.replace(/^/gm, '  '));
+            });
+            console.log(`  ${dim('Scan with your phone camera, or open:')}`);
+          }
+          console.log(`  ${link}`);
+          console.log('');
+          console.log(`  ${dim('Pairing code (paste into the app if you prefer):')}`);
+          console.log(`  ${code}`);
           console.log('');
 
           const shutdown = async () => {
