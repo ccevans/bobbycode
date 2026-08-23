@@ -43,14 +43,41 @@ describe('E2E: define pipeline', () => {
     expect(out).toContain('bobby run define TKT-001');
   });
 
-  test('run define emits the four-stage orchestration ending at planning', () => {
+  test('run define emits the full orchestration ending at planning', () => {
     const out = run('run define TKT-001');
-    for (const stage of ['define-brief', 'define-personas', 'define-journeys', 'define-features']) {
+    for (const stage of ['define-brief', 'define-personas', 'define-journeys', 'define-data-model', 'define-architecture', 'define-features', 'define-mockups']) {
       expect(out).toContain(stage);
     }
     // The terminal move goes to planning, never shipping.
     expect(out).toContain('move {TICKET_ID} plan');
     expect(out).not.toContain('move {TICKET_ID} ship');
+  });
+
+  test('run define --no-mockups omits the stage but still completes the chain', () => {
+    const out = run('run define TKT-001 --no-mockups');
+    expect(out).not.toContain('define-mockups');
+    expect(out).toContain('define-brief');
+    expect(out).toContain('define-blueprint');
+    expect(out).toContain('move {TICKET_ID} plan');
+  });
+
+  test('run define --no-data-model hands journeys straight to architecture', () => {
+    // Commander negation: `--no-data-model` parses to opts.dataModel === false
+    // (camelCase) — asserted here via behaviour, not memory.
+    const out = run('run define TKT-001 --no-data-model');
+    expect(out).not.toContain('define-data-model');
+    expect(out).toContain('move {TICKET_ID} define-architecture');
+    expect(out).toContain('define-features');
+    expect(out).toContain('move {TICKET_ID} plan');
+  });
+
+  test('run define --no-data-model --no-architecture omits both, chain still completes', () => {
+    const out = run('run define TKT-001 --no-data-model --no-architecture');
+    expect(out).not.toContain('define-data-model');
+    expect(out).not.toContain('define-architecture');
+    expect(out).toContain('define-features');
+    expect(out).toContain('define-blueprint');
+    expect(out).toContain('move {TICKET_ID} plan');
   });
 
   test('the epic walks the stages via aliases, artifacts landing per stage', () => {
@@ -60,6 +87,16 @@ describe('E2E: define pipeline', () => {
     writeArtifact('personas.md');
     run('ticket move TKT-001 journeys');
     writeArtifact('journeys.md');
+
+    // The data-model and architecture stages sit between journeys and
+    // features — the feature map is cut against the data model.
+    run('ticket move TKT-001 data-model');
+    writeArtifact('DATA-MODEL.md');
+    run('ticket move TKT-001 architecture');
+    writeArtifact('ARCHITECTURE.md');
+    const archBoard = run('ticket list define-architecture');
+    expect(archBoard).toContain('TKT-001');
+
     run('ticket move TKT-001 features');
     writeArtifact('feature-map.md');
 
@@ -68,6 +105,14 @@ describe('E2E: define pipeline', () => {
     expect(board).toContain('TKT-001');
     const go = run('go');
     expect(go).toMatch(/definition is in progress/);
+
+    // The optional mockups stage sits between features and blueprint.
+    run('ticket move TKT-001 mockups');
+    const mockupsBoard = run('ticket list define-mockups');
+    expect(mockupsBoard).toContain('TKT-001');
+    run('ticket move TKT-001 blueprint');
+    const blueprintBoard = run('ticket list define-blueprint');
+    expect(blueprintBoard).toContain('TKT-001');
 
     run('ticket move TKT-001 plan');
   });

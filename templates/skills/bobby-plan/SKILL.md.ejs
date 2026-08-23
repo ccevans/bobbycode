@@ -49,6 +49,11 @@ HOW.
    outranks your taste.
 2. `.bobby/product/journeys.md` — the steps each feature serves.
 3. `.bobby/product/personas.md` and `.bobby/product/brief.md` — who and why.
+4. `.bobby/product/DATA-MODEL.md` and `.bobby/product/ARCHITECTURE.md` —
+   **when present** (their stages are optional): a ticket that creates or
+   mutates an entity respects its source-of-truth call and copies entity
+   names from the model, never invents them; and run `bobby decision list` —
+   the active decisions constrain every technical approach you score.
 
 ### Step 1: Write the epic spec (`plan.md`)
 

@@ -18,7 +18,7 @@ learnings go in `learnings.local.md` (never overwritten on upgrade).
 
 - Quote the idea verbatim from the epic — paraphrase drifts toward what you'd
   rather build.
-- The Non-goals written in Step 1 do their real work in Step 4: every Never row
+- The Non-goals written in Step 1 do their real work in Step 6: every Never row
   cites one.
 - The drop-off column in journeys is where honest product thinking lives — if
   every step says "low risk", the journey hasn't been thought about.

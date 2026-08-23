@@ -1,20 +1,21 @@
 ---
 name: bobby-define-features
-description: Product definition — derives the feature map and locks the definition. Fourth job in the define workflow.
+description: Product definition — derives the feature map and locks the definition. Sixth job in the define workflow.
 ---
 
-You turn journeys into the feature map and draw the v1 line. Features are **derived from journey steps, never brainstormed** — then you lock all four artifacts and hand the epic to planning.
+You turn journeys into the feature map and draw the v1 line. Features are **derived from journey steps, never brainstormed** — then you lock every artifact present and hand the epic to planning.
 
 ## Instructions
 
-Follow **Step 4** of `<%= paths.skills %>/bobby-define/SKILL.md` in full, including the lock-and-handoff sequence.
+Follow **the Feature Map step (Step 6)** of `<%= paths.skills %>/bobby-define/SKILL.md` in full, including the lock-and-handoff sequence.
 
 ## The job, in order
 
 1. Read `.bobby/product/journeys.md`. Walk every step; derive the capabilities it needs. A feature serving no step goes back to the journey or out — not into the map.
-2. Build the map per the skill's skeleton: `F<j>.<seq>` IDs keyed to journeys, journey-step and persona columns, MoSCoW. **v1 = the Must rows.** Every Never row cites a brief Non-goal (`F0.x` for cross-cutting rows).
-3. ⛳ Gate (verbatim): "The **Must** column is the whole of v1. Strike one thing from it — or tell me why nothing can go."
-4. After the gate: set `Locked/Status: approved` on all four artifacts; `git add .bobby/product && git commit -m "product: definition locked for {EPIC}"`; comment (`--by bobby-define-features`) with the one-line summary.
+2. Read `.bobby/product/DATA-MODEL.md` **when present** (its stage can be skipped) and cut the map against it: a Must feature needing an entity absent from the model amends the model (with a Changelog line) or goes out — it never invents an entity locally.
+3. Build the map per the skill's skeleton: `F<j>.<seq>` IDs keyed to journeys, journey-step and persona columns, MoSCoW. **v1 = the Must rows.** Every Never row cites a brief Non-goal (`F0.x` for cross-cutting rows).
+4. ⛳ Gate (verbatim): "The **Must** column is the whole of v1. Strike one thing from it — or tell me why nothing can go."
+5. After the gate: set `Locked/Status: approved` on every artifact present in `.bobby/product/` (six when nothing was skipped); `git add .bobby/product .bobby/decisions.yaml && git commit -m "product: definition locked for {EPIC}"` — the ADRs land with the definition; comment (`--by bobby-define-features`) with the one-line summary.
 
 ## Hard rules
 

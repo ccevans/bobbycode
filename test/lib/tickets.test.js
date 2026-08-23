@@ -399,7 +399,8 @@ describe('tickets', () => {
       writeTicket(found.path, { ...found.data, stage: 'custom-stage' }, found.content);
       const { children } = getFeatureTickets(tmpDir, 'TKT-001');
       expect(children).toHaveLength(2);
-      // backlog is 6, custom-stage gets default 7, so backlog sorts first
+      // An unknown stage sorts with backlog (derived from STAGE_ORDER.backlog,
+      // not a pinned literal); the ID tiebreaker puts TKT-002 (backlog) first.
       expect(children[0].stage).toBe('backlog');
     });
 

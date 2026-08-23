@@ -741,7 +741,7 @@ describe('define pipeline scaffolding', () => {
   beforeEach(() => { tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-init-define-')); });
   afterEach(() => { fs.rmSync(tmpDir, { recursive: true }); });
 
-  test('init scaffolds the define skill, all four agents, and the slash command', () => {
+  test('init scaffolds the define skill, all seven agents, and the slash command', () => {
     scaffoldProject(tmpDir, {
       project: 'test-app', stack: 'generic',
       health_checks: [], areas: [], commands: {},
@@ -749,7 +749,7 @@ describe('define pipeline scaffolding', () => {
     });
 
     expect(fs.existsSync(path.join(tmpDir, '.claude', 'skills', 'bobby-define', 'SKILL.md'))).toBe(true);
-    for (const stage of ['brief', 'personas', 'journeys', 'features']) {
+    for (const stage of ['brief', 'personas', 'journeys', 'data-model', 'architecture', 'features', 'mockups']) {
       expect(fs.existsSync(path.join(tmpDir, '.claude', 'agents', `bobby-define-${stage}.md`))).toBe(true);
     }
     expect(fs.existsSync(path.join(tmpDir, '.claude', 'commands', 'bobby-define.md'))).toBe(true);
@@ -757,6 +757,11 @@ describe('define pipeline scaffolding', () => {
     // The routing table advertises the pipeline to Claude Code sessions.
     const rules = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
     expect(rules).toContain('bobby run define');
+
+    // bobby-plan's decomposition reads the data model when present (BOB-076).
+    const planSkill = fs.readFileSync(path.join(tmpDir, '.claude', 'skills', 'bobby-plan', 'SKILL.md'), 'utf8');
+    expect(planSkill).toContain('DATA-MODEL.md');
+    expect(planSkill).toContain('ARCHITECTURE.md');
   });
 });
 

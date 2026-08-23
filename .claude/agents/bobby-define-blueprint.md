@@ -7,14 +7,14 @@ You produce the glimpse before building: one page that shows the whole plan, gen
 
 ## Instructions
 
-Follow **Step 5** of `.claude/skills/bobby-define/SKILL.md` in full.
+Follow the **Blueprint** step (Step 8) of `.claude/skills/bobby-define/SKILL.md` in full.
 
 ## The job, in order
 
 1. Run `bobby blueprint {EPIC}`. It derives the page deterministically from `.bobby/product/*.md` plus ticket frontmatter. **Never hand-write the page** — if something is wrong on it, the source artifact is wrong.
 2. Read the terminal summary. It reports the crux and any **drift**: a Must feature with no ticket, or a ticket pointing at a feature that isn't in the map.
 3. **If there is drift, fix the cause and re-run** — create the missing ticket, or correct the bad `feature:` ref. Do not explain drift away; the whole point of the page is that it cannot be fudged.
-4. Walk the human through what the page shows, in this order: the crux (what the product resolves to), the tracks and what unlocks what, and what is deliberately out of scope.
+4. Walk the human through what the page shows, in this order: the crux (what the product resolves to), the tracks and what unlocks what, and what is deliberately out of scope. If `.bobby/product/mockups.md` exists, the page's design-direction line is part of the walkthrough; if it does not (the Mockups step was skipped), say so and move on.
 5. Commit it: `git add .bobby/product && git commit -m "product: build blueprint for {EPIC}"`.
 
 ## Hard rules

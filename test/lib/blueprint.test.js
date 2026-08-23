@@ -207,3 +207,31 @@ describe('renderBlueprint', () => {
     expect(html).not.toContain('<img src=x');
   });
 });
+
+// The mockups artifact is OPTIONAL — a skipped mockups stage must cost the
+// blueprint nothing. Presence adds one design-direction line; absence changes
+// nothing at all.
+describe('optional mockups input', () => {
+  const MOCKUPS = `# Mockups — TKT-001
+
+**Locked:** 2026-08-23 · **Status:** approved
+
+- **Chosen direction:** Ledger-style week view, warm paper ground
+`;
+
+  it('absent mockups.md: model.mockups is null and the page renders without a design-direction line', () => {
+    const bp = buildBlueprint(productDir, ticketsDir, 'TKT-001');
+    expect(bp.mockups).toBeNull();
+    const html = renderBlueprint(bp);
+    expect(html).not.toContain('Design direction');
+  });
+
+  it('present mockups.md: the model carries it and the page shows the chosen direction', () => {
+    fs.writeFileSync(path.join(productDir, 'mockups.md'), MOCKUPS);
+    const bp = buildBlueprint(productDir, ticketsDir, 'TKT-001');
+    expect(bp.mockups).not.toBeNull();
+    const html = renderBlueprint(bp);
+    expect(html).toContain('Design direction');
+    expect(html).toContain('Ledger-style week view');
+  });
+});
