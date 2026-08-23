@@ -741,7 +741,7 @@ describe('define pipeline scaffolding', () => {
   beforeEach(() => { tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-init-define-')); });
   afterEach(() => { fs.rmSync(tmpDir, { recursive: true }); });
 
-  test('init scaffolds the define skill, all four agents, and the slash command', () => {
+  test('init scaffolds the define skill, all five agents, and the slash command', () => {
     scaffoldProject(tmpDir, {
       project: 'test-app', stack: 'generic',
       health_checks: [], areas: [], commands: {},
@@ -749,7 +749,7 @@ describe('define pipeline scaffolding', () => {
     });
 
     expect(fs.existsSync(path.join(tmpDir, '.claude', 'skills', 'bobby-define', 'SKILL.md'))).toBe(true);
-    for (const stage of ['brief', 'personas', 'journeys', 'features']) {
+    for (const stage of ['brief', 'personas', 'journeys', 'features', 'mockups']) {
       expect(fs.existsSync(path.join(tmpDir, '.claude', 'agents', `bobby-define-${stage}.md`))).toBe(true);
     }
     expect(fs.existsSync(path.join(tmpDir, '.claude', 'commands', 'bobby-define.md'))).toBe(true);
