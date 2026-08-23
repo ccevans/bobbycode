@@ -449,3 +449,30 @@ describe('pipeline prompts with cline target', () => {
     expect(prompt).not.toContain('.claude/agents/');
   });
 });
+
+describe('agents-md target identity (BOB-081)', () => {
+  test('the paths are the shared convention, verified against a shipped binary', async () => {
+    const { getTarget } = await import('../../lib/targets/index.js');
+    const t = getTarget('agents-md');
+    // .agents/skills is scanned by cursor-agent 2026.07.23 (strings of its
+    // shipped bundle) beside .claude/skills and .codex/skills.
+    expect(t.paths()).toEqual({
+      agents: '.agents/agents', skills: '.agents/skills',
+      commands: '.agents/commands', rules: 'AGENTS.md',
+    });
+    // The tier claims nothing it cannot deliver.
+    expect(t.supportsSubagents()).toBe(false);
+  });
+
+  test('transformCommand strips frontmatter no generic tool parses', async () => {
+    const { getTarget } = await import('../../lib/targets/index.js');
+    const t = getTarget('agents-md');
+    const out = t.transformCommand('---\ndescription: Do a thing\nallowed: x\n---\n\n# Body\n');
+    expect(out).not.toContain('---');
+    expect(out).not.toContain('allowed:');
+    expect(out).toContain('*Do a thing*');
+    expect(out).toContain('# Body');
+    // untouched when there is nothing to strip
+    expect(t.transformCommand('# Plain\n')).toBe('# Plain\n');
+  });
+});

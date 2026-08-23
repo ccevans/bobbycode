@@ -38,6 +38,7 @@ const DISTINCTIVE = {
   'cline': ['.clinerules', '.clineignore'],
   'cursor': ['.cursor'],
   'codex': ['.codex'],
+  'agents-md': ['.agents'],
 };
 
 describe.each(TARGETS)('target contract: %s', (name) => {
