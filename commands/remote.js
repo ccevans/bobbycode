@@ -27,6 +27,7 @@ import { loadDashboardPlugins } from '../lib/dashboard/plugins.js';
 import { isGitRepo } from '../lib/dashboard/worktree.js';
 import { resolveWorkflow } from './run.js';
 import { RemoteTunnel } from '../lib/remote/tunnel.js';
+import { createNotifier } from '../lib/remote/notifier.js';
 import { encodePairingCode } from '../lib/remote/crypto.js';
 import { pairingBlocker } from '../lib/remote/reachability.js';
 import { verifyRoundTrip, verifyMessage } from '../lib/remote/verify.js';
@@ -171,6 +172,17 @@ export function registerRemote(program) {
             setTimeout(() => process.exit(1), 3000).unref();
             return;
           }
+          // Push has a producer now (BOB-130). Wired only after verifyRoundTrip
+          // succeeds, for the same reason the QR is (BOB-064): a session that is
+          // about to exit must not put frames on a relay it could not reach.
+          // Its own subscriber, deliberately separate from the SSE fan-out
+          // above — merging them would put relay-protocol knowledge into the
+          // SSE path.
+          const stopNotifier = createNotifier({
+            store,
+            send: (kind) => tunnel.sendNotify(kind),
+          });
+
           success('  Team is reachable — verified by an encrypted round trip. Press Ctrl+C to stop.');
           console.log('');
           // The QR, link, and pairing code print only now, AFTER the verdict is
@@ -194,6 +206,7 @@ export function registerRemote(program) {
           const shutdown = async () => {
             console.log('');
             console.log(`  ${dim('Shutting down — stopping agents...')}`);
+            stopNotifier();
             tunnel.close();
             await orchestrator.stopAll();
             server.close(() => process.exit(0));
