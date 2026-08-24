@@ -40,6 +40,7 @@ const DISTINCTIVE = {
   'codex': ['.codex'],
   'agents-md': ['.agents'],
   'copilot': ['.github'],
+  'opencode': ['.opencode'],
 };
 
 test('the leakage map covers every registered target — a new target cannot skip it', () => {

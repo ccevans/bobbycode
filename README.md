@@ -266,7 +266,7 @@ All configuration lives in `.bobbyrc.yml`, generated with comments during `bobby
 # Project identity
 project: my-app
 stack: nextjs                  # nextjs | rails-react | django | python-flask | go | rust | polyglot | generic
-target: claude-code            # claude-code | cursor | cline | codex | agents-md | copilot
+target: claude-code            # claude-code | cursor | cline | codex | agents-md | copilot | opencode
 
 # Directories
 bobby_dir: .bobby
@@ -363,7 +363,7 @@ Bobby auto-detects your tech stack during `bobby init` and configures commands, 
 
 **Custom stacks:** Create `.bobby/stacks/<name>.json` with your own commands, areas, and health checks. Custom stacks appear at the top of the `bobby init` selection menu. See [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) for the JSON schema.
 
-## Editors: Claude Code, Cursor, Cline, Codex, Copilot — and any AGENTS.md tool
+## Editors: Claude Code, Cursor, Cline, Codex, Copilot, OpenCode — and any AGENTS.md tool
 
 Bobby's CLI never calls a model itself — tickets, audits, scoring, sprints, and
 `bobby vet` are all deterministic local code. The AI half is a set of markdown
@@ -378,12 +378,20 @@ reads. Set that with `target` in `.bobbyrc.yml`, or pick it in `bobby init --cus
 | `codex` | `AGENTS.md` | `.codex/skills/` | `.codex/commands/`¹ | `.codex/agents/`¹ | No² |
 | `agents-md` | `AGENTS.md` | `.agents/skills/` | `.agents/commands/`¹ | `.agents/agents/`¹ | No |
 | `copilot` | `AGENTS.md` | `.github/skills/` | `.github/prompts/*.prompt.md`³ | `.github/bobby/agents/`¹ | No |
+| `opencode` | `AGENTS.md` | `.opencode/skills/` | `.opencode/commands/` | `.opencode/bobby/agents/`¹ | No |
 
 ¹ Reference docs the prompts can cite — these tools have no native command or
 project-agent surface (verified against the shipped binaries; see the adapter
 headers for citations). For `copilot` the agent files deliberately avoid the
 native `.github/agents/` registry — its profile dialect is unverified without
-a live install, so Bobby keeps unconforming files out of it. ² Codex has
+a live install, so Bobby keeps unconforming files out of it. For `opencode`
+the agent files likewise avoid the native `.opencode/agent(s)/` registry —
+it is real (every `.md` there becomes an agent config), but Bobby's agent
+files do not conform to its dialect, so they live in `.opencode/bobby/agents/`,
+which no shipped scan matches (verified on the real binary: `opencode agent
+list` shows only built-ins with the scaffold present). Its commands cell has
+no marker: `.opencode/commands/` are real slash commands, with frontmatter
+reduced to the documented `description` key. ² Codex has
 subagent *tools* but no file registry. ³ Prompt files are IDE-only — the docs
 state "Prompt files are only available in VS Code, Visual Studio, and JetBrains
 IDEs" — so CLI and coding-agent users drive the same flows through
@@ -393,7 +401,7 @@ skill).
 `codex` also drives the dashboard headlessly (`codex exec --json`, derived from
 `target: codex`). `agents-md` is the generic tier for the AGENTS.md ecosystem —
 Devin Desktop (formerly Windsurf), Zed, Antigravity CLI (the
-Gemini CLI successor), Jules, Amp, opencode and the rest: **rules + skills
+Gemini CLI successor), Jules, Amp and the rest: **rules + skills
 work; nothing more is claimed.** The support matrix below is the summary of
 how each target was verified; the full citations live in the adapter headers
 (`lib/targets/*.js`), which stay the source of truth.
@@ -420,6 +428,7 @@ convention only, with the claims limited to match).
 | `cline` | dedicated | — | convention — Cline docs only; **not verified against a Cline binary** (its adapter header says so) | — |
 | `codex` | dedicated | `codex` (incl. chat resume) | real-CLI — codex-cli 0.146.0 runs, 2026-08-22/23, incl. the exec-resume cross-product; scaffold paths from the binary's own strings | weekly |
 | `copilot` | dedicated | — | convention — official GitHub/VS Code docs, fetched 2026-08-23 (full URLs + quotes in lib/targets/copilot.js header) | — |
+| `opencode` | dedicated | — | real-CLI — opencode 1.18.21 probes (debug config / debug skill / agent list) against the actual scaffold, 2026-08-24; SHA-pinned source permalinks (sst/opencode@03bba46, fetched 2026-08-23) in lib/targets/opencode.js header | — |
 | `agents-md` | generic | — | convention — files land per the AGENTS.md spec; the `.agents/skills/` root corroborated by the cursor-agent 2026.07.23 binary; no per-tool claim | — |
 
 Every dashboard executor above marked `weekly` is canary-monitored:
