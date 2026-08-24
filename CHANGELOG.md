@@ -42,6 +42,16 @@ All notable changes to Bobby are documented here. The format is based on
   docs (fetched 2026-08-23) in the adapter header; no dashboard executor.
   `.github/copilot-instructions.md` is detected but never written — the CLI
   combines instruction files, so duplicating rules there would drift.
+- **Dedicated OpenCode target** (`target: opencode`): scaffolds `AGENTS.md`,
+  slash-invocable commands at `.opencode/commands/` (frontmatter reduced to
+  the documented `description` key — the shipped loader throws on schema
+  failure, so only schema-named keys ship), native skills at
+  `.opencode/skills/`, and prompt-referenced agents in
+  `.opencode/bobby/agents/` (deliberately not the real `.opencode/agent(s)/`
+  registry — its dialect is unverified for Bobby's files). Every convention
+  cited to SHA-pinned source permalinks (sst/opencode@03bba46) in the adapter
+  header and confirmed by real opencode 1.18.21 probes against the actual
+  scaffold. No dashboard executor yet — that is BOB-085.
 - **Target-matrix invariant suite**: every registered target runs the same
   contract tests; new targets land pre-verified with zero test edits.
 - **README harness support matrix** with a per-target verification-status
