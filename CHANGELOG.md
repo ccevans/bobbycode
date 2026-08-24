@@ -35,6 +35,12 @@ All notable changes to Bobby are documented here. The format is based on
   tool. Claims-limited by design.
 - **Target-matrix invariant suite**: every registered target runs the same
   contract tests; new targets land pre-verified with zero test edits.
+- **README harness support matrix** with a per-target verification-status
+  column (`real-CLI` / `shipped-code` / `convention` — every verified cell
+  names its evidence) and canary coverage, plus a contributor guide for new
+  targets. Enforced by `test/docs/support-matrix.test.js`: a target without an
+  honest row, an executor without a flag-canary leg, or an overclaimed
+  generic tier is a red PR.
 - **`bobby-freewill` — one agent, the whole ticket, deliberately few
   instructions.** `bobby run freewill <id>` (or `--workflow freewill`) collapses
   plan → build → review → test into a single agent that gets the goal and the
