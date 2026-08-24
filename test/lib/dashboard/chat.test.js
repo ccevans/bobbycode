@@ -262,3 +262,93 @@ describe('codex chat resume (BOB-133)', () => {
     expect(synced.chatSessionId).toBe(THREAD_ID);
   });
 });
+
+// BOB-085: opencode announces its conversation id as top-level camelCase
+// `sessionID` on EVERY `run --format json` event (run.ts ~L408-417 @03bba464)
+// — never `session_id` or `thread_id` — so the capture seam reads it as its
+// third field. Resume is `run --session <id>`, a flag on the same parser.
+describe('opencode chat resume (BOB-085)', () => {
+  // Real opencode 1.18.21 event, captured 2026-08-23 (BOB-085 plan V2), error
+  // body shape from the 2026-08-24 re-capture against the same binary.
+  const SESSION_ID = 'ses_fce7411fbffeS3C7aYXhpXidaZ';
+  const EVENT_LINE = `{"type":"error","timestamp":1787537649689,"sessionID":"${SESSION_ID}","error":{"name":"UnknownError","data":{"message":"Unexpected server error. Check server logs for details.","ref":"err_4c0b7f36"}}}\n`;
+
+  /**
+   * Like makeCodexSetup: boot config resolves the opencode executor via
+   * `target: 'opencode'`, and the shim drives the REAL `runAgent` — the argv
+   * asserted below is what the real opencode buildArgs produced. Only `spawn`
+   * is faked: it records [bin, args] and replays the V2 stream line.
+   */
+  function makeOpencodeSetup() {
+    const repoRoot = initRepo(path.join(tmp, 'repo'));
+    const ticketsDir = path.join(repoRoot, '.bobby', 'tickets');
+    fs.mkdirSync(ticketsDir, { recursive: true });
+    const sessionsDir = path.join(repoRoot, '.bobby', 'sessions');
+
+    const store = new WorkspaceStore(path.join(repoRoot, '.bobby', 'workspaces.json'));
+    const o = new Orchestrator({
+      repoRoot, config: { git_conventions: {}, target: 'opencode' }, ticketsDir, sessionsDir,
+      agentsPath: null, store, sseHub: null,
+    });
+
+    o.spawned = []; // [[bin, args]]
+    const fakeOpencodeSpawn = (bin, args) => {
+      o.spawned.push([bin, args]);
+      const child = new EventEmitter();
+      child.stdout = new EventEmitter();
+      child.stderr = new EventEmitter();
+      child.kill = () => {};
+      child.killed = false;
+      child.exitCode = null;
+      child.pid = 4242;
+      // V3: every event re-announces the SAME sessionID — it is the session
+      // being run, so a resumed turn's re-announcement never overwrites.
+      setTimeout(() => {
+        child.stdout.emit('data', Buffer.from(EVENT_LINE));
+        child.exitCode = 0;
+        child.emit('exit', 0, null);
+      }, 0);
+      return child;
+    };
+    o._runExecutor = (opts) => runAgent({ ...opts, spawn: fakeOpencodeSpawn });
+
+    const chatManager = new ChatManager({ orchestrator: o, filePath: path.join(repoRoot, '.bobby', 'chats.json') });
+    return { o, chatManager, ticketsDir };
+  }
+
+  test('turn 1 captures sessionID; turn 2 resumes via --session with the plan agent (V1/V2/V6)', async () => {
+    const { o, chatManager, ticketsDir } = makeOpencodeSetup();
+    const id = seedTicket(ticketsDir);
+    const chat = chatManager.startChat(id);
+
+    await chatManager.sendMessage(chat.id, 'first message');
+
+    // Turn 1: a fresh run, nothing to resume yet — and the prompt positional.
+    expect(o.spawned).toHaveLength(1);
+    const [bin1, args1] = o.spawned[0];
+    expect(bin1).toBe('opencode');
+    expect(args1[0]).toBe('run');
+    expect(args1).not.toContain('--session');
+
+    // The camelCase sessionID landed in the same capture seam claude's
+    // session_id and codex's thread_id use.
+    expect(o.store.get(chat.workspaceId).chatId).toBe(SESSION_ID);
+    expect(chatManager.getChat(chat.id).chatSessionId).toBe(SESSION_ID);
+
+    const synced = await chatManager.sendMessage(chat.id, 'expand on the option you proposed');
+
+    // Turn 2 resumes the captured session — real orchestrator, real
+    // buildArgs, at the actually-spawned-argv level. Exact argv per the V6
+    // cross-product: resume + plan mode keeps BOTH --session and --agent plan.
+    expect(o.spawned).toHaveLength(2);
+    const [bin2, args2] = o.spawned[1];
+    expect(bin2).toBe('opencode');
+    expect(args2.slice(0, 7)).toEqual(['run', '--session', SESSION_ID, '--format', 'json', '--agent', 'plan']);
+    expect(args2).toHaveLength(8); // the prompt is the only thing after --agent plan
+    expect(args2[7]).toContain('expand on the option');
+
+    // The resumed stream re-announced the same sessionID — no overwrite.
+    expect(o.store.get(chat.workspaceId).chatId).toBe(SESSION_ID);
+    expect(synced.chatSessionId).toBe(SESSION_ID);
+  });
+});

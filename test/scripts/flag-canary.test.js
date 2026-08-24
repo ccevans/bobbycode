@@ -104,9 +104,23 @@ describe('buildProbeSet', () => {
     expect(argvs.length).toBe(3);
   });
 
+  test('opencode set contains the resume+bypass cross-product argv (BOB-085, plan V6)', () => {
+    const argvs = buildProbeSet('opencode').map((p) => p.argv);
+    // The --session + --auto leg: verified as a real cross-product run against
+    // opencode 1.18.21 (runtime "Session not found" AFTER a clean parse).
+    expect(argvs.some((a) => a.includes('--session') && a.includes('--auto'))).toBe(true);
+    expect(argvs.some((a) => a.includes('--session') && a.includes('--agent'))).toBe(true);
+    // The prompt is positional and last on every probe (-p is basic auth).
+    for (const a of argvs) {
+      expect(a[0]).toBe('run');
+      expect(a).not.toContain('-p');
+    }
+  });
+
   test('an unregistered flavor throws naming the valid flavors, never falls back to claude flags', () => {
-    expect(() => buildProbeSet('opencode')).toThrow(/opencode/);
-    expect(() => buildProbeSet('opencode')).toThrow(new RegExp(EXECUTOR_NAMES.join(', ')));
+    // 'windsurf' has no executor (editor launcher, no headless mode — BOB-086).
+    expect(() => buildProbeSet('windsurf')).toThrow(/windsurf/);
+    expect(() => buildProbeSet('windsurf')).toThrow(new RegExp(EXECUTOR_NAMES.join(', ')));
   });
 });
 
@@ -124,6 +138,13 @@ describe('classify', () => {
       "error: option '--permission-mode <mode>' argument 'default' is invalid. Allowed choices are acceptEdits, bypassPermissions, plan."],
     ['getopt family (defensive)',
       "cursor-agent: unrecognized option '--force'"],
+    // BOB-085 plan V7: opencode rejects an unknown flag with exit 1 and a
+    // full usage dump on stderr — NO "unknown option" text at all. The dump's
+    // first line is the pattern; classify sees it because runOnce feeds it
+    // combined stdout+stderr. Real opencode 1.18.21 output, 2026-08-23,
+    // re-captured 2026-08-24.
+    ['V7 opencode usage dump on unknown flag (no error text)',
+      'opencode run [message..]\n\nrun opencode with a message\n\nPositionals:\n  message  message to send'],
   ])('%s → drift', (_label, output) => {
     expect(classify(output)).toBe('drift');
   });
@@ -135,8 +156,21 @@ describe('classify', () => {
     ['codex login prompt', 'Please run `codex login` to authenticate.'],
     ['cursor-agent login prompt', 'Not logged in. Run cursor-agent login first.'],
     ['empty output (timeout)', ''],
+    // BOB-085 plan V6: opencode's resume probe with a bogus session id fails
+    // at RUNTIME, after a clean parse — a passing state, never drift.
+    ['opencode bogus-session runtime error (V6)', 'Error: Session not found'],
+    // BOB-085 plan V2: opencode's bogus-model probe emits a JSON error event
+    // (with sessionID) after a clean parse — also a passing state. The usage
+    // pattern must not fire on it: no usage dump accompanies runtime errors.
+    ['opencode JSON error event after clean parse (V2)',
+      '{"type":"error","timestamp":1787537649689,"sessionID":"ses_fce7411fbffeS3C7aYXhpXidaZ","error":{"name":"UnknownError","data":{"message":"Unexpected server error. Check server logs for details.","ref":"err_4c0b7f36"}}}'],
   ])('%s → pass', (_label, output) => {
     expect(classify(output)).toBe('pass');
+  });
+
+  test('the opencode usage pattern is anchored to line start — a mention mid-text never drifts', () => {
+    // e.g. an agent's own prose or a log echoing the command line.
+    expect(classify('ran: opencode run [message..] earlier')).toBe('pass');
   });
 });
 

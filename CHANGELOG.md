@@ -51,7 +51,18 @@ All notable changes to Bobby are documented here. The format is based on
   registry — its dialect is unverified for Bobby's files). Every convention
   cited to SHA-pinned source permalinks (sst/opencode@03bba46) in the adapter
   header and confirmed by real opencode 1.18.21 probes against the actual
-  scaffold. No dashboard executor yet — that is BOB-085.
+  scaffold.
+- **OpenCode dashboard executor** (derived from `target: opencode`): the
+  dashboard drives `opencode run --format json` headlessly, with chat resume
+  via `--session <id>` (opencode's camelCase `sessionID` captured off its
+  stream events) and permission modes mapped to run-mode's own posture
+  (`--auto` for bypass, the built-in `plan` agent for plan mode, no flag for
+  acceptEdits/default — which IS run-mode's default posture). Every flag
+  verified against the real opencode 1.18.21 binary as cross-products, prompt
+  passed positionally (`-p` is opencode's basic-auth password flag), and the
+  flavor registered in the weekly flag-drift canary with a dedicated
+  usage-dump drift pattern (opencode rejects unknown flags with a bare help
+  dump, no error text).
 - **Target-matrix invariant suite**: every registered target runs the same
   contract tests; new targets land pre-verified with zero test edits.
 - **README harness support matrix** with a per-target verification-status

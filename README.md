@@ -399,7 +399,9 @@ IDEs" — so CLI and coding-agent users drive the same flows through
 skill).
 
 `codex` also drives the dashboard headlessly (`codex exec --json`, derived from
-`target: codex`). `agents-md` is the generic tier for the AGENTS.md ecosystem —
+`target: codex`), as does `opencode` (`opencode run --format json`, derived
+from `target: opencode`). `agents-md` is the generic tier for the AGENTS.md
+ecosystem —
 Devin Desktop (formerly Windsurf), Zed, Antigravity CLI (the
 Gemini CLI successor), Jules, Amp and the rest: **rules + skills
 work; nothing more is claimed.** The support matrix below is the summary of
@@ -428,7 +430,7 @@ convention only, with the claims limited to match).
 | `cline` | dedicated | — | convention — Cline docs only; **not verified against a Cline binary** (its adapter header says so) | — |
 | `codex` | dedicated | `codex` (incl. chat resume) | real-CLI — codex-cli 0.146.0 runs, 2026-08-22/23, incl. the exec-resume cross-product; scaffold paths from the binary's own strings | weekly |
 | `copilot` | dedicated | — | convention — official GitHub/VS Code docs, fetched 2026-08-23 (full URLs + quotes in lib/targets/copilot.js header) | — |
-| `opencode` | dedicated | — | real-CLI — opencode 1.18.21 probes (debug config / debug skill / agent list) against the actual scaffold, 2026-08-24; SHA-pinned source permalinks (sst/opencode@03bba46, fetched 2026-08-23) in lib/targets/opencode.js header | — |
+| `opencode` | dedicated | `opencode` (incl. chat resume) | real-CLI — opencode 1.18.21 probes (debug config / debug skill / agent list) against the actual scaffold, 2026-08-24; executor argv (`run --format json --session --auto --agent plan`, incl. the resume cross-products) verified against the same binary 2026-08-23/24; SHA-pinned source permalinks (sst/opencode@03bba46, fetched 2026-08-23) in lib/targets/opencode.js header | weekly |
 | `agents-md` | generic | — | convention — files land per the AGENTS.md spec; the `.agents/skills/` root corroborated by the cursor-agent 2026.07.23 binary; no per-tool claim | — |
 
 Every dashboard executor above marked `weekly` is canary-monitored:
