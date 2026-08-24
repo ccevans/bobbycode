@@ -402,11 +402,15 @@ skill).
 `target: codex`), as does `opencode` (`opencode run --format json`, derived
 from `target: opencode`). `agents-md` is the generic tier for the AGENTS.md
 ecosystem —
-Devin Desktop (formerly Windsurf), Zed, Antigravity CLI (the
-Gemini CLI successor), Jules, Amp and the rest: **rules + skills
-work; nothing more is claimed.** The support matrix below is the summary of
-how each target was verified; the full citations live in the adapter headers
-(`lib/targets/*.js`), which stay the source of truth.
+Devin Desktop (formerly Windsurf, renamed June 2026), Zed, Antigravity CLI
+(the Gemini CLI successor), Jules, Amp and the rest: **rules + skills
+work; nothing more is claimed.** For Devin Desktop both halves are
+first-party-documented: root `AGENTS.md` is an always-on rule fed into
+Cascade's system prompt, and `.agents/skills/` is a documented cross-agent
+skill root (docs.devin.ai, fetched 2026-08-23, re-verified 2026-08-24; full
+citations in the `agents-md` adapter header). The support matrix below is the
+summary of how each target was verified; the full citations live in the
+adapter headers (`lib/targets/*.js`), which stay the source of truth.
 
 ### Support matrix
 

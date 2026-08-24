@@ -32,7 +32,11 @@ All notable changes to Bobby are documented here. The format is based on
   shipped codex-cli 0.146.0 binary — including two the docs implied wrongly
   (no project agent registry; no command surface).
 - **Generic `agents-md` target**: rules + skills for any AGENTS.md-reading
-  tool. Claims-limited by design.
+  tool. Claims-limited by design. Windsurf (now Devin Desktop, renamed June
+  2026) is declared covered by this tier — its docs first-party-document root
+  `AGENTS.md` as an always-on rule and `.agents/skills/` as a cross-agent
+  skill root (docs.devin.ai, fetched 2026-08-23; citations in
+  `lib/targets/agents-md.js`) — so no dedicated Windsurf adapter ships.
 - **Dedicated GitHub Copilot target** (`target: copilot`): scaffolds
   `AGENTS.md`, `.github/skills/`, slash-invocable prompt files at
   `.github/prompts/*.prompt.md` (frontmatter kept — the shipped keys are the
