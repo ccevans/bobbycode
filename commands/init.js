@@ -538,7 +538,7 @@ export function registerInit(program) {
               { name: 'Codex CLI — scaffolds to .codex/ (skills, agents) + AGENTS.md', value: 'codex' },
               { name: 'GitHub Copilot — scaffolds to .github/ (prompts, skills) + AGENTS.md', value: 'copilot' },
               { name: 'OpenCode — scaffolds to .opencode/ (commands, skills) + AGENTS.md', value: 'opencode' },
-              { name: 'AGENTS.md (generic) — rules + skills for Windsurf, Zed…', value: 'agents-md' },
+              { name: 'AGENTS.md (generic) — rules + skills for Windsurf (Devin Desktop), Zed…', value: 'agents-md' },
               { name: 'Cline (VS Code) — scaffolds to .clinerules/ (agents, skills, workflows)', value: 'cline' },
             ],
             default: existingConfig?.target || 'claude-code',
