@@ -403,8 +403,8 @@ skill).
 from `target: opencode`). `agents-md` is the generic tier for the AGENTS.md
 ecosystem —
 Devin Desktop (formerly Windsurf, renamed June 2026), Zed, Antigravity CLI
-(the Gemini CLI successor), Jules, Amp and the rest: **rules + skills
-work; nothing more is claimed.** For Devin Desktop both halves are
+(`agy` — successor to Gemini CLI, retired June 2026), Jules, Amp and the rest:
+**rules + skills work; nothing more is claimed.** For Devin Desktop both halves are
 first-party-documented: root `AGENTS.md` is an always-on rule fed into
 Cascade's system prompt, and `.agents/skills/` is a documented cross-agent
 skill root (docs.devin.ai, fetched 2026-08-23, re-verified 2026-08-24; full
@@ -412,7 +412,12 @@ citations in the `agents-md` adapter header). For Zed both halves are verified
 in its shipped source (release v1.16.1, fetched 2026-08-23 — a shipped-code
 reading, a stronger verification than a docs citation): `AGENTS.md` is in its
 rules-file list and `.agents/skills/` is its project skills root (SHA-pinned
-source permalinks in the `agents-md` adapter header). The support matrix below is the
+source permalinks in the `agents-md` adapter header). For Antigravity CLI both
+halves are first-party-documented in its own CLI docs: a root `AGENTS.md` is
+parsed as rules on startup and `.agents/skills/` is its documented project
+skills root (antigravity.google/docs/cli, fetched 2026-08-23, re-verified
+2026-08-24; full citations in the `agents-md` adapter header — closed source,
+so convention tier is the ceiling). The support matrix below is the
 summary of how each target was verified; the full citations live in the
 adapter headers (`lib/targets/*.js`), which stay the source of truth.
 

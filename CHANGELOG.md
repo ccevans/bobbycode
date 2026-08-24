@@ -42,7 +42,13 @@ All notable changes to Bobby are documented here. The format is based on
   `.agents/skills/` as its project skills root (SHA-pinned permalinks in the
   same adapter header) — so no dedicated Zed adapter ships either, and a
   `.rules` adapter would be a same-list filename swap that loses the AGENTS.md
-  ecosystem.
+  ecosystem. Antigravity CLI (`agy`, Gemini CLI's successor — the consumer
+  Gemini CLI was retired June 2026) is likewise declared covered: its own CLI
+  docs name a root `AGENTS.md` as a rules file parsed on startup and
+  `.agents/skills/` as its project skills root (antigravity.google/docs/cli,
+  fetched 2026-08-23; citations in the same adapter header) — so no dedicated
+  adapter ships, and a future `agy` dashboard executor is deferred behind a
+  recorded re-open condition rather than claimed from docs alone.
 - **Dedicated GitHub Copilot target** (`target: copilot`): scaffolds
   `AGENTS.md`, `.github/skills/`, slash-invocable prompt files at
   `.github/prompts/*.prompt.md` (frontmatter kept — the shipped keys are the
