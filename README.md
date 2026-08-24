@@ -408,7 +408,11 @@ work; nothing more is claimed.** For Devin Desktop both halves are
 first-party-documented: root `AGENTS.md` is an always-on rule fed into
 Cascade's system prompt, and `.agents/skills/` is a documented cross-agent
 skill root (docs.devin.ai, fetched 2026-08-23, re-verified 2026-08-24; full
-citations in the `agents-md` adapter header). The support matrix below is the
+citations in the `agents-md` adapter header). For Zed both halves are verified
+in its shipped source (release v1.16.1, fetched 2026-08-23 — a shipped-code
+reading, a stronger verification than a docs citation): `AGENTS.md` is in its
+rules-file list and `.agents/skills/` is its project skills root (SHA-pinned
+source permalinks in the `agents-md` adapter header). The support matrix below is the
 summary of how each target was verified; the full citations live in the
 adapter headers (`lib/targets/*.js`), which stay the source of truth.
 
