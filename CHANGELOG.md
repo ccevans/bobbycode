@@ -35,6 +35,18 @@ All notable changes to Bobby are documented here. The format is based on
 
 ### Added
 
+- **Push notifications actually fire (BOB-130).** The relay could already turn a
+  `{type:'notify'}` frame into a Web Push, but nothing in the host ever sent one
+  — so the Needs-you queue gained tickets in silence. `bobby remote` now carries
+  a notifier that watches the workspace store and sends on the *edge* into a
+  push-worthy state: `needs_you` when a run stops for you, `failed` when one
+  ends badly. It fires once per transition, not once per store write, and its
+  seed is taken before subscribing so a restart with work already parked stays
+  quiet. `bobby app` is unaffected — no tunnel, no notifier. The frame stays
+  cleartext by design and carries only `{type, kind}` with `kind` drawn from a
+  two-value set, so a push reveals that something wants you and nothing about
+  what: no ticket, title, stage, or project.
+
 - **Codex CLI target + executor** (`target: codex`): scaffolds `AGENTS.md`,
   `.codex/skills/`, and prompt-referenced agents; the dashboard drives
   `codex exec --json` headlessly. Every convention verified against the
