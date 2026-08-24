@@ -36,7 +36,13 @@ All notable changes to Bobby are documented here. The format is based on
   2026) is declared covered by this tier — its docs first-party-document root
   `AGENTS.md` as an always-on rule and `.agents/skills/` as a cross-agent
   skill root (docs.devin.ai, fetched 2026-08-23; citations in
-  `lib/targets/agents-md.js`) — so no dedicated Windsurf adapter ships.
+  `lib/targets/agents-md.js`) — so no dedicated Windsurf adapter ships. Zed is
+  likewise declared covered, on shipped-code evidence: its released source
+  (v1.16.1) lists `AGENTS.md` in its rules-file array and scans
+  `.agents/skills/` as its project skills root (SHA-pinned permalinks in the
+  same adapter header) — so no dedicated Zed adapter ships either, and a
+  `.rules` adapter would be a same-list filename swap that loses the AGENTS.md
+  ecosystem.
 - **Dedicated GitHub Copilot target** (`target: copilot`): scaffolds
   `AGENTS.md`, `.github/skills/`, slash-invocable prompt files at
   `.github/prompts/*.prompt.md` (frontmatter kept — the shipped keys are the
