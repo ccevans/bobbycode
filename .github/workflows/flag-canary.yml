@@ -41,6 +41,8 @@ jobs:
               echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           - flavor: codex
             install: npm install -g @openai/codex
+          - flavor: opencode
+            install: npm install -g opencode-ai
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

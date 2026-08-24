@@ -60,6 +60,13 @@ const DRIFT_PATTERNS = [
   /invalid value '[^']*' for '--/, // V4 clap value-set drift (e.g. sandbox mode renamed)
   /error: option '.*' argument '.*' is invalid/, // commander choices refusal (defensive; V5)
   /unrecognized (option|argument|flag)/i, // getopt family (defensive)
+  // opencode (yargs) rejects an unknown flag with exit 1 + a full usage dump
+  // on stderr and NO error text at all — BOB-085 plan V7, real opencode
+  // 1.18.21 runs 2026-08-23/24. This first line of the dump is printed only
+  // on parse failure; runtime failures print `Error: Session not found` or a
+  // JSON error event instead (V2/V6), which never match. Relies on classify
+  // reading combined stdout+stderr (runOnce concatenates them).
+  /^opencode run \[message\.\.\]/m, // V7 opencode 1.18.21 (yargs usage dump)
 ];
 
 /**
