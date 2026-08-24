@@ -181,7 +181,10 @@ export function scaffoldProject(rootDir, config, { writeConfig = true } = {}) {
     const rendered = renderTemplate(`commands/${file}`, templateData);
     // Targets that don't parse command frontmatter get a rewritten body.
     const content = target.transformCommand ? target.transformCommand(rendered) : rendered;
-    const outName = file.replace('.ejs', '');
+    // Optional adapter seam: harnesses that mandate a command file extension
+    // (Copilot's *.prompt.md) name the output file; everyone else keeps .md.
+    const base = file.replace('.md.ejs', '');
+    const outName = target.commandFileName ? target.commandFileName(base) : `${base}.md`;
     fs.writeFileSync(path.join(commandsDir, outName), content, 'utf8');
   }
 
@@ -268,7 +271,8 @@ export function registerInit(program) {
           // Non-interactive refresh — how `bobby upgrade` delivers new skills,
           // agents and commands. Your .local.md overlays are never touched.
           if (opts.refresh) {
-            const tp = getTarget(existingConfig.target || 'claude-code').paths();
+            const refreshTarget = getTarget(existingConfig.target || 'claude-code');
+            const tp = refreshTarget.paths();
 
             // Guard: a tracked-but-uncommitted edit to a shipped file would be
             // destroyed with NO recovery path — git cannot restore what was
@@ -303,8 +307,14 @@ export function registerInit(program) {
             // all .local.md files are never candidates.
             const shippedAgents = new Set(fs.readdirSync(AGENT_TEMPLATES_DIR)
               .filter(f => f.endsWith('.md.ejs')).map(f => f.replace(/\.ejs$/, '')));
+            // Shipped command names go through the same commandFileName seam as
+            // the scaffold, or the prune would delete what was just written
+            // (copilot's *.prompt.md files are not `<base>.md`).
             const shippedCommands = new Set(fs.readdirSync(COMMAND_TEMPLATES_DIR)
-              .filter(f => f.endsWith('.md.ejs')).map(f => f.replace(/\.ejs$/, '')));
+              .filter(f => f.endsWith('.md.ejs')).map(f => {
+                const base = f.replace('.md.ejs', '');
+                return refreshTarget.commandFileName ? refreshTarget.commandFileName(base) : `${base}.md`;
+              }));
             const pruned = [
               ...pruneStaleShipped(path.join(rootDir, tp.agents), shippedAgents).map(f => `${tp.agents}/${f}`),
               ...pruneStaleShipped(path.join(rootDir, tp.commands), shippedCommands).map(f => `${tp.commands}/${f}`),
@@ -526,7 +536,8 @@ export function registerInit(program) {
               { name: 'Claude Code — scaffolds to .claude/ (agents, skills, commands, CLAUDE.md)', value: 'claude-code' },
               { name: 'Cursor — scaffolds to .cursor/ (skills, commands, agents) + AGENTS.md', value: 'cursor' },
               { name: 'Codex CLI — scaffolds to .codex/ (skills, agents) + AGENTS.md', value: 'codex' },
-              { name: 'AGENTS.md (generic) — rules + skills for Copilot, Windsurf, Zed, opencode…', value: 'agents-md' },
+              { name: 'GitHub Copilot — scaffolds to .github/ (prompts, skills) + AGENTS.md', value: 'copilot' },
+              { name: 'AGENTS.md (generic) — rules + skills for Windsurf, Zed, opencode…', value: 'agents-md' },
               { name: 'Cline (VS Code) — scaffolds to .clinerules/ (agents, skills, workflows)', value: 'cline' },
             ],
             default: existingConfig?.target || 'claude-code',

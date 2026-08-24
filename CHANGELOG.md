@@ -33,6 +33,15 @@ All notable changes to Bobby are documented here. The format is based on
   (no project agent registry; no command surface).
 - **Generic `agents-md` target**: rules + skills for any AGENTS.md-reading
   tool. Claims-limited by design.
+- **Dedicated GitHub Copilot target** (`target: copilot`): scaffolds
+  `AGENTS.md`, `.github/skills/`, slash-invocable prompt files at
+  `.github/prompts/*.prompt.md` (frontmatter kept — the shipped keys are the
+  documented prompt-file dialect), and prompt-referenced agents in
+  `.github/bobby/agents/` (deliberately not the native `.github/agents/`
+  registry). Convention tier: every path cited to official GitHub/VS Code
+  docs (fetched 2026-08-23) in the adapter header; no dashboard executor.
+  `.github/copilot-instructions.md` is detected but never written — the CLI
+  combines instruction files, so duplicating rules there would drift.
 - **Target-matrix invariant suite**: every registered target runs the same
   contract tests; new targets land pre-verified with zero test edits.
 - **README harness support matrix** with a per-target verification-status
