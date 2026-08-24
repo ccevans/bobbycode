@@ -7,7 +7,7 @@ import {
   resolveExecutor,
   commandExists,
   cleanExecutorEnv,
-  claudeSessionIdFromEvent,
+  sessionIdFromEvent,
   EXECUTOR_NAMES,
 } from '../../../lib/dashboard/executor.js';
 
@@ -248,23 +248,34 @@ describe('--resume passthrough (TKT-021)', () => {
   });
 });
 
-// TKT-021. To use --resume, the chat manager must capture the CLAUDE session id
-// the CLI reports on its stream events (not bobby's own ses- id).
-describe('claudeSessionIdFromEvent (TKT-021)', () => {
+// TKT-021 / BOB-133. To resume a conversation, the chat manager must capture
+// the CLI's OWN conversation id off its stream events (not bobby's own ses- id):
+// claude's `session_id`, codex's `thread_id`.
+describe('sessionIdFromEvent (TKT-021, BOB-133)', () => {
   const ev = (data) => ({ type: 'stdout', kind: 'json', data, at: 'now' });
 
-  test('reads session_id off a json stdout event', () => {
-    expect(claudeSessionIdFromEvent(ev({ type: 'system', session_id: 'claude-1' }))).toBe('claude-1');
+  test('reads session_id off a json stdout event (claude shape)', () => {
+    expect(sessionIdFromEvent(ev({ type: 'system', session_id: 'claude-1' }))).toBe('claude-1');
   });
 
-  test('returns null for events without a session_id', () => {
-    expect(claudeSessionIdFromEvent(ev({ type: 'assistant' }))).toBeNull();
+  test('reads thread_id off a thread.started event (codex shape, V1 capture verbatim)', () => {
+    // Real codex-cli 0.146.0 first event, captured 2026-08-23 (BOB-133 plan V1).
+    expect(sessionIdFromEvent(ev({ type: 'thread.started', thread_id: '01a0316a-5d66-7a80-900b-f0af9fe878d8' })))
+      .toBe('01a0316a-5d66-7a80-900b-f0af9fe878d8');
+  });
+
+  test('session_id wins when an event carries both fields', () => {
+    expect(sessionIdFromEvent(ev({ session_id: 'sid-1', thread_id: 'tid-1' }))).toBe('sid-1');
+  });
+
+  test('returns null for events with neither id', () => {
+    expect(sessionIdFromEvent(ev({ type: 'assistant' }))).toBeNull();
   });
 
   test('returns null for text or non-stdout events', () => {
-    expect(claudeSessionIdFromEvent({ type: 'stdout', kind: 'text', data: 'session_id: x' })).toBeNull();
-    expect(claudeSessionIdFromEvent({ type: 'stderr', text: 'x' })).toBeNull();
-    expect(claudeSessionIdFromEvent(null)).toBeNull();
+    expect(sessionIdFromEvent({ type: 'stdout', kind: 'text', data: 'session_id: x' })).toBeNull();
+    expect(sessionIdFromEvent({ type: 'stderr', text: 'x' })).toBeNull();
+    expect(sessionIdFromEvent(null)).toBeNull();
   });
 });
 
