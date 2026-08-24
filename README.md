@@ -384,10 +384,43 @@ headers for citations). ² Codex has subagent *tools* but no file registry.
 
 `codex` also drives the dashboard headlessly (`codex exec --json`, derived from
 `target: codex`). `agents-md` is the generic tier for the AGENTS.md ecosystem —
-Copilot, Windsurf, Zed, Jules, Amp, opencode and the rest: **rules + skills
-work; nothing more is claimed.** Verification status per target lives in the
-adapter headers; every convention cites a real CLI run or a shipped-binary
-reading.
+GitHub Copilot, Devin Desktop (formerly Windsurf), Zed, Antigravity CLI (the
+Gemini CLI successor), Jules, Amp, opencode and the rest: **rules + skills
+work; nothing more is claimed.** The support matrix below is the summary of
+how each target was verified; the full citations live in the adapter headers
+(`lib/targets/*.js`), which stay the source of truth.
+
+### Support matrix
+
+Two tiers. A **dedicated** target has a hand-verified adapter: every scaffold
+path is cited in its header, and it may drive the dashboard through a CLI
+executor. The **generic** tier (`agents-md`) claims exactly rules + skills per
+the AGENTS.md convention, for any tool that reads it — no dashboard
+derivation, no subagent claim, nothing more. Tools we evaluated and found
+fully served by the generic tier — Devin Desktop, Zed, Antigravity CLI — are
+named in the prose above and deliberately get no rows of their own. The
+Verified column exists because three claims in the original Cursor work
+shipped wrong by trusting docs over binaries; every cell now states how its
+row was checked — `real-CLI` (a real run of the named binary), `shipped-code`
+(a reading of the shipped binary or source), or `convention` (published
+convention only, with the claims limited to match).
+
+| `target` | Tier | Dashboard | Verified | Canary |
+|---|---|---|---|---|
+| `claude-code` | dedicated | `claude` (default) | real-CLI — daily-driven; probe runs against claude 2.1.233, 2026-08-23 (BOB-089 verification ledger) | weekly |
+| `cursor` | dedicated | `cursor-agent` | shipped-code — Cursor 3.13 bundle reading (adapter header) + real cursor-agent 2026.07.23-e383d2b runs, 2026-08-23 | weekly |
+| `cline` | dedicated | — | convention — Cline docs only; **not verified against a Cline binary** (its adapter header says so) | — |
+| `codex` | dedicated | `codex` (incl. chat resume) | real-CLI — codex-cli 0.146.0 runs, 2026-08-22/23, incl. the exec-resume cross-product; scaffold paths from the binary's own strings | weekly |
+| `agents-md` | generic | — | convention — files land per the AGENTS.md spec; the `.agents/skills/` root corroborated by the cursor-agent 2026.07.23 binary; no per-tool claim | — |
+
+Every dashboard executor above marked `weekly` is canary-monitored:
+[`.github/workflows/flag-canary.yml`](.github/workflows/flag-canary.yml)
+reinstalls each CLI on a schedule and re-runs the exact argv Bobby's
+`buildArgs` builders emit (every permission mode × resume) against it;
+unknown-flag drift files an issue. Merge-time verification decays — this is
+what keeps the Verified column true over time. A future executor whose CLI has
+no non-interactive install can't be canaried; its row says
+`not canaried: <reason>` rather than faking a leg.
 
 To switch, set `target:` and run `bobby init --refresh`. Your tickets, sessions,
 and `.local` files carry over untouched — they live in `.bobby/`, which is
@@ -454,6 +487,35 @@ roots, and `CLAUDE.md` needs that extra setting — so prefer `target: cursor`.
 Bobby also writes `.cursorindexingignore` to keep session logs out of codebase
 search. That is deliberately *not* `.cursorignore` — the latter would block the
 agent from reading your tickets.
+
+### Adding a new target (contributors)
+
+Start from [`lib/targets/cursor.js`](lib/targets/cursor.js) — it exercises the
+whole adapter contract, with every convention cited in its header;
+[`lib/targets/codex.js`](lib/targets/codex.js) shows frontmatter stripping for
+a harness that parses none. The acceptance bar is the target matrix suite,
+[`test/lib/target-matrix.test.js`](test/lib/target-matrix.test.js): register
+your adapter in [`lib/targets/index.js`](lib/targets/index.js) and add one
+entry to the suite's `DISTINCTIVE` map, and every invariant runs against the
+new target with zero further test edits.
+
+The obligations, each enforced by a test:
+
+- **Register everywhere users pick a target**: `lib/targets/index.js`, the
+  `DISTINCTIVE` map, the `bobby init --custom` wizard choices, and the
+  `# Options:` comment `.bobbyrc.yml` is written with (`lib/config.js`).
+- **Cite every convention claim in the adapter header** — a real CLI run or a
+  reading of the shipped binary/source. Docs alone cap the row's status at
+  `convention`, with claims-limited wording to match.
+- **Add the target's row to the [support matrix](#support-matrix)** —
+  `test/docs/support-matrix.test.js` fails without an honest one.
+- **Shipping a dashboard executor too?** Add the `EXECUTORS` entry in
+  `lib/dashboard/executor.js` **and** one matrix entry (flavor +
+  non-interactive install) in
+  [`.github/workflows/flag-canary.yml`](.github/workflows/flag-canary.yml) —
+  `test/scripts/flag-canary.test.js` enforces the pairing. A CLI with no
+  non-interactive install cannot be canaried: say so in the matrix row, never
+  fake a leg.
 
 ## Dashboard
 

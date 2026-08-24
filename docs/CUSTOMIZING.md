@@ -236,6 +236,16 @@ Use areas when creating tickets: `bobby ticket create -t "Fix login" --area auth
 
 This means when building a ticket with `area: api`, the build agent will also read `.claude/skills/dev/backend/SKILL.md`.
 
+## Adding a New Editor Target
+
+Which editors Bobby supports, at what tier, and how each claim was verified
+lives in the [README support matrix](../README.md#support-matrix). To
+contribute a new target, follow
+[Adding a new target](../README.md#adding-a-new-target-contributors):
+`lib/targets/cursor.js` is the template, and the target matrix suite
+(`test/lib/target-matrix.test.js`) plus the support-matrix consistency test
+(`test/docs/support-matrix.test.js`) are the acceptance bar.
+
 ## Configuration Reference
 
 All options are documented with comments in the generated `.bobbyrc.yml`. Run `bobby init` to see the full commented config, or refer to the optional sections at the bottom of your existing config file.
