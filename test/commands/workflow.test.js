@@ -51,4 +51,34 @@ describe('bobby workflow', () => {
   test('workflows alias works', () => {
     expect(run('workflows list')).toContain('default');
   });
+
+  // BOB-090
+  test('list shows the library built-ins', () => {
+    const out = run('workflow list');
+    expect(out).toMatch(/library.*plan → build → review/);
+    expect(out).toMatch(/library-secure.*plan → build → security → review/);
+  });
+
+  test('list shows the effective stages for an overridden built-in', () => {
+    run('workflow add default plan build review');
+    let out = run('workflow list');
+    let row = out.split('\n').find(l => l.includes('default') && l.includes('(overridden)'));
+    expect(row).toContain('plan → build → review');
+    expect(row).not.toContain('test');
+    // Write path: the display tracks the config when the override changes.
+    run('workflow add default plan build test');
+    out = run('workflow list');
+    row = out.split('\n').find(l => l.includes('default') && l.includes('(overridden)'));
+    expect(row).toContain('plan → build → test');
+  });
+
+  test('list names the project default when default_workflow is set', () => {
+    const cfgPath = path.join(tmpDir, '.bobbyrc.yml');
+    const cfg = YAML.parse(fs.readFileSync(cfgPath, 'utf8'));
+    cfg.default_workflow = 'library';
+    fs.writeFileSync(cfgPath, YAML.stringify(cfg));
+    const out = run('workflow list');
+    expect(out).toContain('Default for this project: library');
+    expect(out).toContain('default_workflow in .bobbyrc.yml');
+  });
 });

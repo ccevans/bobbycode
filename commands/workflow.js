@@ -37,8 +37,13 @@ export function registerWorkflow(program) {
         console.log('');
         console.log(`  ${dim('Built-in:')}`);
         for (const [name, steps] of Object.entries(BUILT_IN_WORKFLOWS)) {
-          const overridden = userDefined[name] ? dim(' (overridden)') : '';
-          console.log(`    ${bold(name)}${overridden}  ${dim(steps.join(' → '))}`);
+          const ov = userDefined[name];
+          const overridden = ov ? dim(' (overridden)') : '';
+          // Show the EFFECTIVE stages: an overridden built-in runs the user's
+          // steps, and printing the built-in list next to "(overridden)"
+          // misstated what the workflow actually does (BOB-090).
+          const effective = Array.isArray(ov) ? ov : steps;
+          console.log(`    ${bold(name)}${overridden}  ${dim(effective.join(' → '))}`);
         }
         const custom = Object.entries(userDefined).filter(([n]) => !BUILT_IN_WORKFLOWS[n]);
         if (custom.length > 0) {
@@ -48,6 +53,10 @@ export function registerWorkflow(program) {
             const stepList = Array.isArray(steps) ? steps.join(' → ') : String(steps);
             console.log(`    ${bold(name)}  ${dim(stepList)}`);
           }
+        }
+        if (config.default_workflow) {
+          console.log('');
+          console.log(`  Default for this project: ${bold(config.default_workflow)} ${dim('(default_workflow in .bobbyrc.yml)')}`);
         }
         console.log('');
         console.log(`  ${dim('Add one: bobby workflow add fast build test')}`);

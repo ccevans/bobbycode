@@ -28,7 +28,7 @@ export function registerRun(program) {
     .description('Run an agent on ticket(s) — workflow, feature, next, plan, build, review, test, ship, and more')
     .addHelpText('after', `
 Modes:
-  Workflow:   bobby run workflow <id>    — auto-chains the default workflow (or: secure, quick)
+  Workflow:   bobby run workflow <id>    — auto-chains the default workflow (or: secure, quick, library)
   Feature:    bobby run feature [epic]   — full epic workflow on one branch
   Slow mode:  bobby run next <id>        — runs next agent for current stage
   Batch:      bobby run plan             — runs agent on all tickets in matching stage
@@ -43,7 +43,7 @@ Modes:
   Debug:      bobby run debug <id>       — root-cause investigation
   Freewill:   bobby run freewill <id>    — one agent, whole ticket, few instructions (Opus 5 / Fable 5)
   Freeform:   bobby run docs|performance|watchdog — no ticket required
-  Workflow:   bobby run <workflow-name> <id> — run a named workflow (default, secure, quick, or your own)`)
+  Workflow:   bobby run <workflow-name> <id> — run a named workflow (default, secure, quick, library, or your own)`)
     .option('--max-retries <n>', 'Max retry loops on rejection per ticket', '3')
     .option('--max-iterations <n>', 'Max total agent invocations across all tickets')
     .option('--workflow <name>', 'Named workflow to use (built-in or from .bobbyrc.yml workflows)', 'default')
