@@ -7,6 +7,15 @@ All notable changes to Bobby are documented here. The format is based on
 ## [Unreleased]
 
 ### Fixed
+- **README Executor prose caught up with the registry (BOB-134).** The
+  Dashboard section still said the dashboard drives `claude` or `cursor-agent`
+  only — three flavors stale after codex (BOB-080) and opencode (BOB-085)
+  shipped, and wrong about the default rule, which derives from `target`, not
+  "claude unless cursor". The prose, the YAML example's `executor:` comment,
+  and the permission-posture paragraph now match `lib/dashboard/executor.js`,
+  and a new `test/docs/executor-prose.test.js` anchors all three against
+  `EXECUTOR_NAMES` the way BOB-082's suite guards the support-matrix table —
+  the next flavor added cannot leave them stale silently.
 - **`.bobby/decisions.yaml` finally has a writer (TKT-063).** Nothing in the
   codebase ever appended to the architectural decision log — `bobby init` seeded
   it, `bobby-review` read it in prose, and every entry was put there by an agent

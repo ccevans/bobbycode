@@ -562,21 +562,34 @@ bobby dashboard --no-open   # Don't auto-open the browser
 
 **Workspace model.** Each workspace = one ticket + one git worktree on its own branch + one agent CLI subprocess. Multiple workspaces run in parallel without colliding — each agent lives in its own isolated checkout.
 
-**Executor.** The dashboard drives `claude` by default, or `cursor-agent` when
-`target: cursor`. Override either with `dashboard.executor`, and pass a specific
-model with `dashboard.model`:
+**Executor.** The dashboard can drive four CLI flavors, and picks one from
+`target`: `target: cursor` drives `cursor-agent`, `target: codex` drives
+`codex`, `target: opencode` drives `opencode`, and every other target drives
+`claude` (`resolveExecutor` in `lib/dashboard/executor.js`). An explicit
+`dashboard.executor` overrides the derivation — one of the four names, or an
+absolute path to a binary that takes claude-style flags. Pass a specific model
+with `dashboard.model`:
 
 ```yaml
 dashboard:
-  executor: cursor-agent           # claude | cursor-agent | /abs/path/to/a/binary
+  executor: cursor-agent           # claude | cursor-agent | codex | opencode
+                                   # (default: derived from target) — or /abs/path/to/a/binary
   model: composer-2.5              # optional — passed through as --model
   worktree_permission_mode: bypassPermissions   # ticket runs — see below
   repo_permission_mode: acceptEdits             # freeform runs — see below
 ```
 
 **Permission posture — two keys, because the two kinds of run aren't equally
-risky.** These map to `--permission-mode` for `claude` and `--force` for
-`cursor-agent`.
+risky.** Each executor gets the chosen mode in its own vocabulary (the flag
+logic, with its verification notes, lives in `lib/dashboard/executor.js`):
+`claude` takes it verbatim as `--permission-mode`; `cursor-agent` is
+all-or-nothing, so `bypassPermissions` and `acceptEdits` become `--force` and
+`plan` becomes `--mode plan`; `codex` maps it to a sandbox policy —
+`bypassPermissions` → `--dangerously-bypass-approvals-and-sandbox`,
+`acceptEdits` → `--sandbox workspace-write`, `plan` → `--sandbox read-only`
+(resumed sessions keep their posture); `opencode` passes `--auto` for
+`bypassPermissions` and `--agent plan` for `plan`, while `acceptEdits` adds no
+flag — its run-mode default already is that posture.
 
 - `worktree_permission_mode` (default `bypassPermissions`) covers **ticket
   runs**, which happen inside a throwaway git worktree. That copy *is* the
