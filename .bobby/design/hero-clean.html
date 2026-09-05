@@ -1,0 +1,425 @@
+<title>A Clean Track Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#181820; --ink:#E8E4EC; --dim:#9A94A6; --line:#FFFFFF1A;
+  --berry:#C8412C; --ylw:#FFD200;
+  --sans:"Archivo",Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --pixel:"Press Start 2P",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%; overflow-x:hidden}
+body{margin:0; background:var(--page); color:var(--ink); font:400 16px/1.6 var(--sans); overflow-x:hidden}
+canvas{display:block; max-width:100%}
+:focus-visible{outline:3px solid var(--ylw); outline-offset:3px}
+.wrap{max-width:1120px; margin:0 auto; padding:0 24px}
+h1,h2,h3,h4{margin:0} p{margin:0 0 1em}
+code{font-family:var(--mono); font-size:.92em; color:var(--ylw)}
+
+.top{padding:52px 0 40px; border-bottom:1px solid var(--line)}
+.top h1{font-family:var(--sans); font-variation-settings:'wdth' 112; font-weight:800;
+  font-size:clamp(26px,3.4vw,40px); line-height:1.06; letter-spacing:-.02em; text-transform:uppercase}
+.top p{color:var(--dim); max-width:64ch; margin-top:16px; font-size:17px}
+
+.part{padding:46px 0 10px}
+.part .k{font:400 13px/1 var(--pixel); color:var(--ylw); margin-bottom:16px; display:block}
+.part h2{font-family:var(--sans); font-variation-settings:'wdth' 112; font-weight:800;
+  font-size:clamp(21px,2.6vw,30px); line-height:1.08; letter-spacing:-.02em; text-transform:uppercase}
+.part p{color:var(--dim); max-width:64ch; margin-top:14px}
+.part p b{color:var(--ink); font-weight:600}
+
+/* the measured rules, as a table of numbers */
+.rules{width:100%; border-collapse:collapse; margin:26px 0 8px; font-size:15px; color:var(--ink)}
+.rules tr,.rules td,.rules th{color:inherit}
+.rules th{text-align:left; padding:11px 12px; font:400 13px/1.4 var(--pixel); color:var(--ylw);
+  border-bottom:1px solid var(--line)}
+.rules td{padding:12px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+.rules td.n{font-family:var(--mono); color:var(--ylw); white-space:nowrap; width:96px}
+.rules td.d{color:var(--dim)}
+.tscroll{overflow-x:auto}
+.rules{min-width:600px}
+
+/* specimen sheet */
+.spec{display:grid; grid-template-columns:repeat(2,1fr); gap:2px; margin-top:30px;
+  background:var(--line); border:1px solid var(--line)}
+@media (min-width:620px){ .spec{grid-template-columns:repeat(3,1fr)} }
+@media (min-width:940px){ .spec{grid-template-columns:repeat(4,1fr)} }
+.sp{background:#E4E9F0; padding:14px 14px 12px}
+.sp canvas{margin:0 auto 10px}
+.sp b{display:block; font:400 13px/1.4 var(--pixel); color:#2A2337; text-align:center}
+.sp i{display:block; font-style:normal; font-size:13px; color:#6B6379; text-align:center; margin-top:7px}
+.sp.hero{grid-column:1/-1; background:#E4E9F0}
+
+/* the composition */
+.comp{margin-top:30px}
+.comp .band{display:block; width:100%; height:auto}
+.comp .cap{display:flex; gap:14px; flex-wrap:wrap; align-items:baseline; margin-top:14px;
+  font-family:var(--mono); font-size:14px; color:var(--dim)}
+.comp .cap b{color:var(--ylw); font-weight:400}
+.comp .cap .rt{margin-left:auto}
+.mock{padding:36px 0 0}
+.mock .in{max-width:1120px; margin:0 auto; padding:0 24px}
+.mock .h{font-family:var(--sans); font-variation-settings:'wdth' 118; font-weight:800;
+  font-size:clamp(24px,3.2vw,42px); line-height:1.02; letter-spacing:-.018em; text-transform:uppercase}
+.mock .h em{font-style:normal}
+.mock .s{margin:16px 0 0; max-width:42ch; font-size:16px}
+.mock .b{display:inline-flex; align-items:center; gap:9px; margin:22px 0 0;
+  font-family:var(--sans); font-variation-settings:'wdth' 108; font-weight:800; font-size:14px;
+  letter-spacing:.06em; text-transform:uppercase; padding:13px 24px; border-radius:3px; text-decoration:none}
+.foot{padding:40px 0 60px; border-top:1px solid var(--line); margin-top:48px}
+.foot p{color:var(--dim); max-width:64ch}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <h1>What makes railcode's band clean</h1>
+    <p>I measured it rather than guessed. The answer is not "fewer ideas" — the park has a
+      coaster, a ferris wheel, a carousel, a stall, trees and dozens of people. The answer is
+      <b>separation</b>, and it comes out as numbers you can build to.</p>
+  </div>
+</header>
+
+<div class="part"><div class="wrap">
+  <span class="k">MEASURED</span>
+  <h2>The 89 / 11 rule</h2>
+  <p>Sampled from the live band at 1440&times;200. Four colours carry nearly the whole frame,
+    and the objects are a thin garnish on top of a lot of nothing.</p>
+  <div class="tscroll">
+  <table class="rules">
+    <thead><tr><th>WHAT</th><th>MEASURED</th><th>WHAT IT MEANS FOR US</th></tr></thead>
+    <tbody>
+      <tr><td>Sky + ground</td><td class="n">88.9%</td>
+        <td class="d">Two flat colours and one shade do almost all the work. No gradient, no stars, no texture beyond a soft dither.</td></tr>
+      <tr><td>Objects</td><td class="n">11.1%</td>
+        <td class="d">Everything &mdash; coaster, wheel, carousel, stalls, trees, people &mdash; adds up to a ninth of the frame.</td></tr>
+      <tr><td>Distinct colours</td><td class="n">189</td>
+        <td class="d">Sounds like a lot, but the top four are 89%. The rest are tiny accents on small objects.</td></tr>
+      <tr><td>Bottom 40px</td><td class="n">0%</td>
+        <td class="d">Completely empty ground in front. Nothing in the foreground, ever. No occlusion.</td></tr>
+      <tr><td>Sky rows (20&ndash;100)</td><td class="n">1.5&ndash;9%</td>
+        <td class="d">The top half is almost pure sky. Only the coaster reaches up into it.</td></tr>
+      <tr><td>Densest rows</td><td class="n">30%</td>
+        <td class="d">Even where the objects sit, most of the row is still ground.</td></tr>
+      <tr><td>Busiest 160px column</td><td class="n">18.6%</td>
+        <td class="d">No crowded region anywhere. Density is even, and low, right across the band.</td></tr>
+      <tr><td>Emptiest 160px column</td><td class="n">7.4%</td>
+        <td class="d">And no empty region either. Objects are spread, not clustered.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</div></div>
+
+<div class="part"><div class="wrap">
+  <span class="k">THE PARTS</span>
+  <h2>Things we could put on the track</h2>
+  <p>Everything is drawn in the same projection as the layout &mdash; from directly above. That is
+    what a circuit map does, and it is why nothing has to overlap. Here is the vocabulary &mdash;
+    tell me which ones you want and I will compose them.</p>
+  <div class="spec">
+    <div class="sp hero"><canvas data-o="ribbon" aria-hidden="true"></canvas>
+      <b>THE LAYOUT</b><i>The hero object: bobby's circuit, drawn the way F1 draws one. Flat,
+        top&#8209;down, uniform width, irregular on purpose &mdash; a long straight with the pit lane
+        inside it, a stop&#8209;and&#8209;go hairpin, an esses section, a chicane. The three sectors are
+        coloured segments of the same ribbon, which is how a real map marks its zones.</i></div>
+    <div class="sp"><canvas data-o="gantry" aria-hidden="true"></canvas><b>GANTRY</b><i>Start / finish</i></div>
+    <div class="sp"><canvas data-o="garage" aria-hidden="true"></canvas><b>PIT GARAGE</b><i>Low building, open box</i></div>
+    <div class="sp"><canvas data-o="stand" aria-hidden="true"></canvas><b>GRANDSTAND</b><i>Tiered, with a crowd</i></div>
+    <div class="sp"><canvas data-o="tower" aria-hidden="true"></canvas><b>TIMING TOWER</b><i>Tall thin silhouette</i></div>
+    <div class="sp"><canvas data-o="podium" aria-hidden="true"></canvas><b>PODIUM</b><i>1 &middot; 2 &middot; 3</i></div>
+    <div class="sp"><canvas data-o="marshal" aria-hidden="true"></canvas><b>MARSHAL POST</b><i>With a yellow flag</i></div>
+    <div class="sp"><canvas data-o="tyres" aria-hidden="true"></canvas><b>TYRE BARRIER</b><i>Stacked, red-and-white topped</i></div>
+    <div class="sp"><canvas data-o="crane" aria-hidden="true"></canvas><b>RECOVERY CRANE</b><i>Yellow, jib out</i></div>
+    <div class="sp"><canvas data-o="safety" aria-hidden="true"></canvas><b>SAFETY CAR</b><i>Parked, lights on</i></div>
+    <div class="sp"><canvas data-o="board" aria-hidden="true"></canvas><b>HOARDING</b><i>Trackside board</i></div>
+    <div class="sp"><canvas data-o="chicane" aria-hidden="true"></canvas><b>TYRE CHICANE</b><i>Kerbs and a kink</i></div>
+    <div class="sp"><canvas data-o="tree" aria-hidden="true"></canvas><b>TREES</b><i>Filler, spaced out</i></div>
+    <div class="sp"><canvas data-o="flag" aria-hidden="true"></canvas><b>FLAG POLES</b><i>Thin verticals</i></div>
+    <div class="sp"><canvas data-o="people" aria-hidden="true"></canvas><b>SPECTATORS</b><i>Three pixels each. No detail.</i></div>
+    <div class="sp"><canvas data-o="kart" aria-hidden="true"></canvas><b>KARTS</b><i>Small, on the ribbon</i></div>
+  </div>
+</div></div>
+
+<div class="part"><div class="wrap">
+  <span class="k">COMPOSED</span>
+  <h2>One hero, built to those numbers</h2>
+  <p>The layout is the hero and the infield is left as plain ground, which is where the
+    cleanliness comes from &mdash; a circuit is a thin line enclosing a lot of nothing. The readout
+    under each band is measured from the canvas after it draws, not a claim.</p>
+</div></div>
+
+<div class="mock" style="background:#E4E9F0; color:#2A2337">
+  <div class="in">
+    <p class="h">You drive.<br><em style="color:#C8412C">bobby</em> runs the pit.</p>
+    <p class="s" style="color:#5A5268">A free workflow for building software with AI. It plans the
+      work, writes the tests first, reviews its own diff, and opens the PR.</p>
+    <a class="b" href="#" style="background:#C8412C;color:#fff;box-shadow:4px 4px 0 #8E2A1C">Install bobby</a>
+  </div>
+  <canvas class="band" id="band-light" role="img"
+    aria-label="A racetrack seen from trackside: a raised curving section of track with karts on it, with a gantry, grandstand, timing tower and trees spread along a wide empty apron."></canvas>
+  <div class="in"><div class="comp"><div class="cap" style="color:#6B6379">
+    <span>LIGHT GROUND</span><span class="rt" id="m-light" style="color:#8E2A1C">measuring…</span>
+  </div></div></div>
+</div>
+
+<div class="mock" style="background:#14101C; margin-top:44px">
+  <div class="in">
+    <p class="h" style="color:#F4F1EC">You drive.<br><em style="color:#F07A63">bobby</em> runs the pit.</p>
+    <p class="s" style="color:#D6CDE2">A free workflow for building software with AI. It plans the
+      work, writes the tests first, reviews its own diff, and opens the PR.</p>
+    <a class="b" href="#" style="background:#C8412C;color:#fff;box-shadow:4px 4px 0 #9E2E1E">Install bobby</a>
+  </div>
+  <canvas class="band" id="band-dark" role="img"
+    aria-label="The same trackside composition on a dark ground."></canvas>
+  <div class="in"><div class="comp"><div class="cap">
+    <span>DARK GROUND</span><span class="rt" id="m-dark">measuring…</span>
+  </div></div></div>
+</div>
+
+<footer class="foot"><div class="wrap">
+  <p>Both bands are the same composition and the same objects. Only the ground changes. Tell me
+    which parts you want kept, which dropped, and which ground &mdash; and whether the density
+    reads right or should go sparser still.</p>
+</div></footer>
+
+<script>
+(function(){
+'use strict';
+if(!document.querySelector('meta[name="viewport"]')){
+  var mv=document.createElement('meta'); mv.name='viewport';
+  mv.content='width=device-width, initial-scale=1'; document.head.appendChild(mv);
+}
+function px(cv,w,h,s){ cv.width=w; cv.height=h;
+  if(s){ cv.style.width=(w*s)+'px'; cv.style.height=(h*s)+'px'; }
+  else { cv.style.width='100%'; cv.style.height='auto'; }
+  cv.style.imageRendering='pixelated';
+  var c=cv.getContext('2d'); c.imageSmoothingEnabled=false; return c; }
+function R(c,col,x,y,w,h){ c.fillStyle=col; c.fillRect(Math.round(x),Math.round(y),Math.max(0,Math.round(w)),Math.max(0,Math.round(h))); }
+
+var LIGHT={ gnd:'#E4E9F0', gnd2:'#D6DDE7', ink:'#2A2337', ink2:'#5A5268', pale:'#F4F1EC',
+            grass:'#B7CCA6', treeD:'#7E9A73', s1:'#B07A08', s2:'#C8412C', s3:'#2A2337', road:'#8E8799' };
+var DARK ={ gnd:'#14101C', gnd2:'#1B1526', ink:'#0C0814', ink2:'#5B5170', pale:'#F4F1EC',
+            grass:'#2E4429', treeD:'#22351C', s1:'#FFD200', s2:'#F07A63', s3:'#F4F1EC', road:'#6B6280' };
+var RED='#E23B2E', WHT='#F4F1EC', YLW='#FFD200', BERRY='#C8412C';
+
+/* ══════════════════════════════════════════════════════════════════
+   BOBBY'S CIRCUIT — an F1-style layout. Flat, top-down, uniform width,
+   irregular on purpose: a long straight, a stop-and-go hairpin, an
+   esses section, a chicane. Drawn as a spline and stamped in pixels.
+   ══════════════════════════════════════════════════════════════════ */
+var CIRCUIT = [
+  [ 58,116],[118,117],[168,116],[199,112],[216,101],[217, 88],[205, 82],[186, 81],
+  [170, 71],[181, 60],[165, 51],[177, 39],[158, 30],[128, 25],[ 99, 24],[ 77, 29],
+  [ 62, 39],[ 75, 49],[ 58, 59],[ 40, 68],[ 27, 84],[ 30,102],[ 42,113]
+];
+/* where one sector ends and the next is clocked, as a fraction of the lap */
+var SPLIT = [0.00, 0.30, 0.62];
+
+function catmull(pts, per){
+  var out=[];
+  for(var i=0;i<pts.length;i++){
+    var p0=pts[(i-1+pts.length)%pts.length], p1=pts[i],
+        p2=pts[(i+1)%pts.length], p3=pts[(i+2)%pts.length];
+    for(var s=0;s<per;s++){
+      var t=s/per, t2=t*t, t3=t2*t;
+      out.push([
+        0.5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
+        0.5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3)
+      ]);
+    }
+  }
+  return out;
+}
+var PATH = catmull(CIRCUIT, 22);
+
+function stamp(c,col,p,w,ox,oy,k){
+  var h=w/2;
+  R(c,col,ox+p[0]*k-h,oy+p[1]*k-h,w,w);
+}
+function sectorOf(i){
+  var t=i/PATH.length;
+  return (t<SPLIT[1]) ? 0 : (t<SPLIT[2]) ? 1 : 2;
+}
+
+/* draws the circuit at scale k with its top-left at (ox,oy) */
+function circuit(c,g,ox,oy,k,opts){
+  opts=opts||{};
+  var W=opts.w||7;
+  /* run-off, only at the two fastest corners — not a halo round the whole lap */
+  if(opts.runoff!==false){
+    for(var i=0;i<PATH.length;i++){
+      var t=i/PATH.length;
+      if((t>0.10&&t<0.20)||(t>0.52&&t<0.60)) stamp(c,g.gnd2,PATH[i],W+7,ox,oy,k);
+    }
+  }
+  /* the dark edge, then the racing surface, sector by sector */
+  for(var m=0;m<PATH.length;m++) stamp(c,g.ink,PATH[m],W+2,ox,oy,k);
+  for(var n=0;n<PATH.length;n++){
+    var col=[g.s1,g.s2,g.s3][sectorOf(n)];
+    stamp(c,col,PATH[n],W,ox,oy,k);
+  }
+  /* start-finish, laid across the main straight */
+  var sf=PATH[6];
+  for(var cy=0;cy<W+2;cy+=2) for(var cx=0;cx<6;cx+=2)
+    R(c,((cx/2+cy/2)%2?WHT:g.ink), ox+sf[0]*k+cx-3, oy+sf[1]*k+cy-(W+2)/2, 2,2);
+  /* direction of travel */
+  if(opts.arrow!==false){
+    var ar=PATH[26];
+    R(c,g.ink,ox+ar[0]*k-1,oy+ar[1]*k-13,2,7);
+    R(c,g.ink,ox+ar[0]*k-3,oy+ar[1]*k-9,6,2);
+    R(c,g.ink,ox+ar[0]*k-2,oy+ar[1]*k-11,4,2);
+  }
+  /* the two timing loops */
+  for(var q=1;q<3;q++){
+    var sp=PATH[Math.floor(SPLIT[q]*PATH.length)];
+    R(c,YLW, ox+sp[0]*k-1, oy+sp[1]*k-(W+2)/2, 2, W+2);
+  }
+  /* corner markers on the outside of the tight ones */
+  if(opts.corners!==false){
+    var cn=[4,8,11,16,20];
+    for(var z=0;z<cn.length;z++){
+      var cp=PATH[cn[z]*22];
+      if(!cp) continue;
+      R(c,g.ink, ox+cp[0]*k-4, oy+cp[1]*k-11, 7, 7);
+      R(c,RED,   ox+cp[0]*k-3, oy+cp[1]*k-10, 5, 5);
+    }
+  }
+  /* the pit lane, running inside the main straight */
+  if(opts.pit!==false){
+    var pl=[[64,108],[100,109],[140,108],[176,105]];
+    var pp=catmull(pl.concat([[176,105],[64,108]]),10);
+    for(var v=0;v<pp.length*0.5;v++) stamp(c,g.ink,pp[v],5,ox,oy,k);
+    for(var v2=0;v2<pp.length*0.5;v2++) stamp(c,g.road,pp[v2],3,ox,oy,k);
+    for(var bx=0;bx<6;bx++)
+      R(c,[BERRY,YLW,'#E8836F',WHT,'#8FD3FF','#9C6A48'][bx],
+        ox+(72+bx*18)*k, oy+103*k, 5, 3);
+  }
+  /* cars on track */
+  if(opts.cars!==false){
+    var pos=[0.08,0.37,0.66,0.88];
+    for(var q2=0;q2<pos.length;q2++){
+      var cp2=PATH[Math.floor(pos[q2]*PATH.length)];
+      R(c,g.ink, ox+cp2[0]*k-3, oy+cp2[1]*k-3, 6, 6);
+      R(c,[BERRY,YLW,WHT,'#E8836F'][q2], ox+cp2[0]*k-2, oy+cp2[1]*k-2, 4, 4);
+    }
+  }
+}
+
+/* ══ top-down trackside objects · the same projection as the circuit ══ */
+var OBJ={
+  stand:function(c,x,y,g){ R(c,g.ink,x,y,30,10); R(c,g.ink2,x+1,y+1,28,8);
+    for(var r=0;r<2;r++) for(var s=2;s<26;s+=4)
+      R(c,[BERRY,YLW,WHT][(s+r)%3],x+2+s,y+2+r*4,2,2); },
+  pitbox:function(c,x,y,g){ R(c,g.ink,x,y,34,12); R(c,g.gnd2,x+2,y+2,30,8);
+    for(var b=0;b<4;b++) R(c,[BERRY,YLW,WHT,'#8FD3FF'][b],x+3+b*8,y+4,5,4); },
+  gravel:function(c,x,y,g){ for(var i=0;i<26;i++) for(var j=0;j<12;j++)
+    if(((i*5+j*3)%7)<3) R(c,g.gnd2,x+i,y+j,1,1); },
+  marshal:function(c,x,y,g){ R(c,g.ink,x,y,6,6); R(c,YLW,x+1,y+1,4,4); },
+  trees:function(c,x,y,g){ for(var i=0;i<6;i++){ var tx=x+(i*9)%28, ty=y+((i*7)%11);
+    R(c,g.treeD,tx+1,ty,4,1); R(c,g.treeD,tx,ty+1,6,4); R(c,g.treeD,tx+1,ty+5,4,1);
+    R(c,g.grass,tx+1,ty+1,3,3); } },
+  helipad:function(c,x,y,g){ R(c,g.ink,x,y,16,16); R(c,g.gnd2,x+1,y+1,14,14);
+    R(c,g.ink,x+4,y+4,2,8); R(c,g.ink,x+10,y+4,2,8); R(c,g.ink,x+4,y+7,8,2); },
+  paddock:function(c,x,y,g){ R(c,g.ink,x,y,28,14); R(c,g.gnd2,x+1,y+1,26,12);
+    for(var t=0;t<3;t++){ R(c,g.ink2,x+3+t*8,y+3,5,8); } },
+  car:function(c,x,y,g){ R(c,g.ink,x,y,7,7); R(c,BERRY,x+1,y+1,5,5); },
+  flagpts:function(c,x,y,g){ for(var i=0;i<3;i++){ R(c,g.ink,x+i*10,y,2,8);
+    R(c,[RED,YLW,WHT][i],x+i*10+2,y,6,4); } }
+};
+
+/* ══ specimen tiles ══ */
+function specimen(cv,key){
+  var big = key==='ribbon';
+  if(big){
+    var c=px(cv,190,80,3);
+    R(c,LIGHT.gnd,0,0,190,80);
+    circuit(c,LIGHT,8,-8,0.62,{w:5,corners:true});
+    return;
+  }
+  var c2=px(cv,64,46,3);
+  R(c2,LIGHT.gnd,0,0,64,46);
+  var map={gantry:'pitbox',garage:'pitbox',stand:'stand',tower:'paddock',podium:'paddock',
+           marshal:'marshal',tyres:'gravel',crane:'helipad',safety:'car',board:'flagpts',
+           chicane:'gravel',tree:'trees',flag:'flagpts',people:'stand',kart:'car'};
+  var fn=OBJ[map[key]||'stand'];
+  var pos={stand:[17,18],pitbox:[15,17],gravel:[19,17],marshal:[29,20],trees:[17,18],
+           helipad:[24,15],paddock:[18,16],car:[28,20],flagpts:[18,19]};
+  var nm=map[key]||'stand', p=pos[nm]||[16,16];
+  fn(c2,p[0],p[1],LIGHT);
+}
+
+/* ══ the composed hero band ══ */
+function band(cv,g){
+  var Wpx=document.documentElement.clientWidth;
+  var W=Math.ceil(Wpx/2), H=150;
+  var c=px(cv,W,H);
+  var narrow=W<420;
+  function at(f){ return Math.round(W*f); }
+
+  R(c,g.gnd,0,0,W,H);
+  var k = narrow ? 0.90 : 1.10;
+  var cw = 245*k;
+  var ox = Math.round(W*0.5 - cw*0.5), oy = Math.round((H - 132*k)/2);
+  circuit(c,g,ox,oy,k,{w: narrow?6:7});
+
+  if(!narrow){
+    /* facilities, placed where a real circuit puts them: stands on the outside of
+       corners and along the main straight, paddock behind the pits */
+    OBJ.stand(c,   ox+Math.round(46*k),  oy+Math.round(130*k), g);
+    OBJ.stand(c,   ox+Math.round(152*k), oy+Math.round(130*k), g);
+    OBJ.paddock(c, ox+Math.round(96*k),  oy+Math.round(88*k),  g);
+    OBJ.helipad(c, ox+Math.round(238*k), oy+Math.round(112*k), g);
+    OBJ.trees(c,   ox+Math.round(232*k), oy+Math.round(18*k),  g);
+    OBJ.trees(c,   ox+Math.round(8*k),   oy+Math.round(14*k),  g);
+    OBJ.gravel(c,  ox+Math.round(186*k), oy+Math.round(26*k),  g);
+    OBJ.marshal(c, ox+Math.round(206*k), oy+Math.round(96*k),  g);
+    OBJ.marshal(c, ox+Math.round(46*k),  oy+Math.round(40*k),  g);
+    OBJ.flagpts(c, ox+Math.round(112*k), oy+Math.round(136*k), g);
+  }
+  return c;
+}
+
+function density(c,cv,ground){
+  var d=c.getImageData(0,0,cv.width,cv.height).data, tot=cv.width*cv.height, obj=0;
+  var set={}; ground.forEach(function(h){ set[h.toUpperCase()]=1; });
+  for(var i=0;i<d.length;i+=4){
+    var hex=('#'+((1<<24)+(d[i]<<16)+(d[i+1]<<8)+d[i+2]).toString(16).slice(1)).toUpperCase();
+    if(!set[hex]) obj++;
+  }
+  return 100*obj/tot;
+}
+function columnPeak(c,cv,ground){
+  var d=c.getImageData(0,0,cv.width,cv.height).data;
+  var set={}; ground.forEach(function(h){ set[h.toUpperCase()]=1; });
+  var bandw=Math.max(20,Math.round(cv.width/9)), peak=0;
+  for(var x0=0;x0<cv.width;x0+=bandw){
+    var w=Math.min(bandw,cv.width-x0), n=0, tot=w*cv.height;
+    for(var y=0;y<cv.height;y++) for(var x=x0;x<x0+w;x++){
+      var i=(y*cv.width+x)*4;
+      var hex=('#'+((1<<24)+(d[i]<<16)+(d[i+1]<<8)+d[i+2]).toString(16).slice(1)).toUpperCase();
+      if(!set[hex]) n++;
+    }
+    var pc=100*n/tot; if(pc>peak) peak=pc;
+  }
+  return peak;
+}
+
+function boot(){
+  var sp=document.querySelectorAll('[data-o]');
+  for(var i=0;i<sp.length;i++) specimen(sp[i], sp[i].getAttribute('data-o'));
+  var lc=document.getElementById('band-light'), dc=document.getElementById('band-dark');
+  if(lc){ var c1=band(lc,LIGHT), gl=[LIGHT.gnd,LIGHT.gnd2];
+    document.getElementById('m-light').textContent =
+      'objects ' + density(c1,lc,gl).toFixed(1) + '%  ·  busiest column ' +
+      columnPeak(c1,lc,gl).toFixed(1) + '%  ·  railcode 11.1% / 18.6%'; }
+  if(dc){ var c2=band(dc,DARK), gd=[DARK.gnd,DARK.gnd2];
+    document.getElementById('m-dark').textContent =
+      'objects ' + density(c2,dc,gd).toFixed(1) + '%  ·  busiest column ' +
+      columnPeak(c2,dc,gd).toFixed(1) + '%  ·  railcode 11.1% / 18.6%'; }
+  var t; addEventListener('resize',function(){ clearTimeout(t); t=setTimeout(boot,220); });
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
+})();
+</script>
