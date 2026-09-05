@@ -7,7 +7,7 @@ import {
   resolveExecutor,
   commandExists,
   cleanExecutorEnv,
-  claudeSessionIdFromEvent,
+  sessionIdFromEvent,
   EXECUTOR_NAMES,
 } from '../../../lib/dashboard/executor.js';
 
@@ -248,23 +248,215 @@ describe('--resume passthrough (TKT-021)', () => {
   });
 });
 
-// TKT-021. To use --resume, the chat manager must capture the CLAUDE session id
-// the CLI reports on its stream events (not bobby's own ses- id).
-describe('claudeSessionIdFromEvent (TKT-021)', () => {
+// TKT-021 / BOB-133. To resume a conversation, the chat manager must capture
+// the CLI's OWN conversation id off its stream events (not bobby's own ses- id):
+// claude's `session_id`, codex's `thread_id`.
+describe('sessionIdFromEvent (TKT-021, BOB-133)', () => {
   const ev = (data) => ({ type: 'stdout', kind: 'json', data, at: 'now' });
 
-  test('reads session_id off a json stdout event', () => {
-    expect(claudeSessionIdFromEvent(ev({ type: 'system', session_id: 'claude-1' }))).toBe('claude-1');
+  test('reads session_id off a json stdout event (claude shape)', () => {
+    expect(sessionIdFromEvent(ev({ type: 'system', session_id: 'claude-1' }))).toBe('claude-1');
   });
 
-  test('returns null for events without a session_id', () => {
-    expect(claudeSessionIdFromEvent(ev({ type: 'assistant' }))).toBeNull();
+  test('reads thread_id off a thread.started event (codex shape, V1 capture verbatim)', () => {
+    // Real codex-cli 0.146.0 first event, captured 2026-08-23 (BOB-133 plan V1).
+    expect(sessionIdFromEvent(ev({ type: 'thread.started', thread_id: '01a0316a-5d66-7a80-900b-f0af9fe878d8' })))
+      .toBe('01a0316a-5d66-7a80-900b-f0af9fe878d8');
+  });
+
+  test('session_id wins when an event carries both fields', () => {
+    expect(sessionIdFromEvent(ev({ session_id: 'sid-1', thread_id: 'tid-1' }))).toBe('sid-1');
+  });
+
+  test('reads camelCase sessionID off an opencode event (BOB-085, plan V2 capture verbatim)', () => {
+    // Real opencode 1.18.21 `run --format json` event, captured 2026-08-23
+    // (BOB-085 plan V2); every opencode event carries sessionID (run.ts
+    // ~L408-417 @03bba464). Error body shape from the 2026-08-24 re-capture.
+    expect(sessionIdFromEvent(ev({
+      type: 'error',
+      timestamp: 1787537649689,
+      sessionID: 'ses_fce7411fbffeS3C7aYXhpXidaZ',
+      error: { name: 'UnknownError', data: { message: 'Unexpected server error. Check server logs for details.', ref: 'err_4c0b7f36' } },
+    }))).toBe('ses_fce7411fbffeS3C7aYXhpXidaZ');
+  });
+
+  test('session_id wins over sessionID when both are present (claude field first, no cross-contamination)', () => {
+    expect(sessionIdFromEvent(ev({ session_id: 'a', sessionID: 'b' }))).toBe('a');
+  });
+
+  test('a text event containing the string sessionID still yields null', () => {
+    expect(sessionIdFromEvent({ type: 'stdout', kind: 'text', data: 'sessionID: ses_x' })).toBeNull();
+  });
+
+  test('returns null for events with neither id', () => {
+    expect(sessionIdFromEvent(ev({ type: 'assistant' }))).toBeNull();
   });
 
   test('returns null for text or non-stdout events', () => {
-    expect(claudeSessionIdFromEvent({ type: 'stdout', kind: 'text', data: 'session_id: x' })).toBeNull();
-    expect(claudeSessionIdFromEvent({ type: 'stderr', text: 'x' })).toBeNull();
-    expect(claudeSessionIdFromEvent(null)).toBeNull();
+    expect(sessionIdFromEvent({ type: 'stdout', kind: 'text', data: 'session_id: x' })).toBeNull();
+    expect(sessionIdFromEvent({ type: 'stderr', text: 'x' })).toBeNull();
+    expect(sessionIdFromEvent(null)).toBeNull();
+  });
+});
+
+describe('codex buildArgs — every flag verified against codex-cli 0.146.0 (BOB-080)', () => {
+  const build = (opts) => resolveExecutor({ target: 'codex' }).buildArgs(opts);
+
+  test('exec is the subcommand and the prompt is positional, last', () => {
+    expect(build({ prompt: 'do the thing' })).toEqual(['exec', 'do the thing']);
+  });
+
+  test('structured output maps to --json — the only structured mode codex has', () => {
+    // outputFormat's VALUE is claude vocabulary (stream-json); codex has one
+    // structured switch, so any request maps to it.
+    expect(build({ prompt: 'p', outputFormat: 'stream-json' }))
+      .toEqual(['exec', '--json', 'p']);
+  });
+
+  test('permission modes map to the verified sandbox policies', () => {
+    // bypassPermissions must NOT be workspace-write: the agent runs
+    // `bobby ticket move`, which writes the studio board OUTSIDE the worktree
+    // cwd, and workspace-write would block the workflow's own bookkeeping.
+    expect(build({ prompt: 'p', permissionMode: 'bypassPermissions' }))
+      .toEqual(['exec', '--dangerously-bypass-approvals-and-sandbox', 'p']);
+    expect(build({ prompt: 'p', permissionMode: 'acceptEdits' }))
+      .toEqual(['exec', '--sandbox', 'workspace-write', 'p']);
+    expect(build({ prompt: 'p', permissionMode: 'plan' }))
+      .toEqual(['exec', '--sandbox', 'read-only', 'p']);
+  });
+
+  test('resume is exec\'s own subcommand, before the prompt', () => {
+    expect(build({ prompt: 'p', resume: 'sess-1' }))
+      .toEqual(['exec', 'resume', 'sess-1', 'p']);
+  });
+
+  test('allowedTools has no codex equivalent and is dropped, like cursor-agent', () => {
+    expect(build({ prompt: 'p', allowedTools: 'Bash' }))
+      .toEqual(['exec', 'p']);
+  });
+
+  test('model passes through', () => {
+    expect(build({ prompt: 'p', model: 'gpt-5.2' }))
+      .toEqual(['exec', '--model', 'gpt-5.2', 'p']);
+  });
+});
+
+describe('codex through runAgent — the shim test AC 3 demands (BOB-080)', () => {
+  test('spawns the codex bin with the built argv, cwd=worktree, session env', () => {
+    const spawn = fakeSpawn();
+    runAgent({
+      worktreePath: '/tmp/wt', prompt: 'do it',
+      executor: 'codex',
+      outputFormat: 'stream-json', permissionMode: 'bypassPermissions',
+      sessionId: 'ses-123', spawn,
+    });
+    const [bin, args, opts] = spawn.mock.calls[0];
+    expect(bin).toBe('codex');
+    expect(args).toEqual(['exec', '--json', '--dangerously-bypass-approvals-and-sandbox', 'do it']);
+    expect(opts.cwd).toBe('/tmp/wt');
+    expect(opts.env.BOBBY_SESSION_ID).toBe('ses-123');
+  });
+
+  test('resume never carries a sandbox flag — a subcommand\'s flags are not its parent\'s (F7)', () => {
+    // The bug: `exec resume <id> --sandbox …` — refused by the real parser,
+    // generated by exactly the chat path (resume + plan). Cross-product pinned.
+    const build = resolveExecutor({ target: 'codex' }).buildArgs;
+    for (const pm of ['acceptEdits', 'plan']) {
+      const args = build({ prompt: 'p', resume: 'sess-1', permissionMode: pm, outputFormat: 'stream-json' });
+      expect(args).toEqual(['exec', 'resume', 'sess-1', '--json', 'p']);
+    }
+    // bypass IS in resume's flag set — verified — and must survive.
+    expect(build({ prompt: 'p', resume: 's', permissionMode: 'bypassPermissions' }))
+      .toEqual(['exec', 'resume', 's', '--dangerously-bypass-approvals-and-sandbox', 'p']);
+  });
+});
+
+// BOB-085. Every flag verified against the real binary — opencode 1.18.21
+// (npm opencode-ai), `opencode run --help` run 2026-08-23 and re-run
+// 2026-08-24 (plan.md verification ledger V1), cross-products re-run against
+// the same binary 2026-08-24 (V6) — never from remembered help text.
+describe('opencode buildArgs — every flag verified against opencode 1.18.21 (BOB-085)', () => {
+  const build = (opts) => resolveExecutor({ target: 'opencode' }).buildArgs(opts);
+
+  test('run is the subcommand and the prompt is positional, last — -p is the basic-auth password flag, never the prompt (V1)', () => {
+    expect(build({ prompt: 'do the thing' })).toEqual(['run', 'do the thing']);
+  });
+
+  test('structured output maps to --format json — the only structured mode opencode has (V1/V2)', () => {
+    // outputFormat's VALUE is claude vocabulary (stream-json); opencode has
+    // one structured choice, so any request for structured output maps to it.
+    expect(build({ prompt: 'p', outputFormat: 'stream-json' }))
+      .toEqual(['run', '--format', 'json', 'p']);
+  });
+
+  test('model passes through in provider/model form (V1)', () => {
+    expect(build({ prompt: 'p', model: 'anthropic/claude-sonnet-4-6' }))
+      .toEqual(['run', '--model', 'anthropic/claude-sonnet-4-6', 'p']);
+  });
+
+  test('allowedTools has no opencode equivalent and is dropped, like cursor-agent and codex', () => {
+    expect(build({ prompt: 'p', allowedTools: 'Bash' })).toEqual(['run', 'p']);
+  });
+
+  test('permission modes map to the verified run-mode posture (V4/V5)', () => {
+    // bypassPermissions → --auto: run mode AUTO-REJECTS permission asks
+    // without it (run.ts ~L551-565 @03bba464), and `bobby ticket move`
+    // writes the studio board OUTSIDE the worktree cwd.
+    expect(build({ prompt: 'p', permissionMode: 'bypassPermissions' }))
+      .toEqual(['run', '--auto', 'p']);
+    // plan → the built-in plan agent, whose policy denies edits (V5).
+    expect(build({ prompt: 'p', permissionMode: 'plan' }))
+      .toEqual(['run', '--agent', 'plan', 'p']);
+    // acceptEdits / default → NO flag: run-mode's default posture already IS
+    // acceptEdits (edits allowed in-project, external asks auto-rejected).
+    expect(build({ prompt: 'p', permissionMode: 'acceptEdits' })).toEqual(['run', 'p']);
+    expect(build({ prompt: 'p', permissionMode: 'default' })).toEqual(['run', 'p']);
+  });
+
+  test('resume is a flag on the same parser — --session <id>, long form (V1/V6)', () => {
+    expect(build({ prompt: 'p', resume: 'ses_x', outputFormat: 'stream-json' }))
+      .toEqual(['run', '--session', 'ses_x', '--format', 'json', 'p']);
+  });
+
+  test('resume × mode cross-products keep both flags — verified as cross-products, not each flag once (V6, the F7 class)', () => {
+    // `opencode run` is a single yargs parser — no codex-style subcommand
+    // flag-set trap — but the combos were still verified as real runs (V6).
+    expect(build({ prompt: 'p', resume: 'ses_x', permissionMode: 'plan', outputFormat: 'stream-json' }))
+      .toEqual(['run', '--session', 'ses_x', '--format', 'json', '--agent', 'plan', 'p']);
+    expect(build({ prompt: 'p', resume: 'ses_x', permissionMode: 'bypassPermissions', outputFormat: 'stream-json' }))
+      .toEqual(['run', '--session', 'ses_x', '--format', 'json', '--auto', 'p']);
+    expect(build({ prompt: 'p', resume: 'ses_x', permissionMode: 'acceptEdits', outputFormat: 'stream-json' }))
+      .toEqual(['run', '--session', 'ses_x', '--format', 'json', 'p']);
+  });
+
+  test('never emits flags absent from opencode run --help', () => {
+    for (const permissionMode of ['default', 'acceptEdits', 'bypassPermissions', 'plan']) {
+      for (const resume of [undefined, 'ses_x']) {
+        const args = build({ prompt: 'p', outputFormat: 'stream-json', permissionMode, resume });
+        expect(args).not.toContain('--force');
+        expect(args).not.toContain('--sandbox');
+        expect(args).not.toContain('--permission-mode');
+        expect(args).not.toContain('-p');
+        expect(args[args.length - 1]).toBe('p'); // prompt positional, last
+      }
+    }
+  });
+});
+
+describe('opencode through runAgent — the shim test (BOB-085)', () => {
+  test('spawns the opencode bin with the built argv, cwd=worktree, session env', () => {
+    const spawn = fakeSpawn();
+    runAgent({
+      worktreePath: '/tmp/wt', prompt: 'do it',
+      executor: 'opencode',
+      outputFormat: 'stream-json', permissionMode: 'bypassPermissions',
+      sessionId: 'ses-123', spawn,
+    });
+    const [bin, args, opts] = spawn.mock.calls[0];
+    expect(bin).toBe('opencode');
+    expect(args).toEqual(['run', '--format', 'json', '--auto', 'do it']);
+    expect(opts.cwd).toBe('/tmp/wt');
+    expect(opts.env.BOBBY_SESSION_ID).toBe('ses-123');
   });
 });
 
@@ -282,6 +474,7 @@ describe('resolveExecutor', () => {
 
   test('leaves other targets on claude', () => {
     expect(resolveExecutor({ target: 'cline' }).name).toBe('claude');
+    expect(resolveExecutor({ target: 'agents-md' }).name).toBe('claude');
     expect(resolveExecutor({ target: 'claude-code' }).name).toBe('claude');
   });
 
@@ -289,6 +482,22 @@ describe('resolveExecutor', () => {
     expect(resolveExecutor({ target: 'cursor', dashboard: { executor: 'claude' } }).name).toBe('claude');
     expect(resolveExecutor({ target: 'claude-code', dashboard: { executor: 'cursor-agent' } }).name)
       .toBe('cursor-agent');
+  });
+
+  test('derives codex from target=codex (BOB-080)', () => {
+    const e = resolveExecutor({ target: 'codex' });
+    expect(e.name).toBe('codex');
+    expect(e.bin).toBe('codex');
+    // ...and the explicit override still wins, same as every flavor.
+    expect(resolveExecutor({ target: 'codex', dashboard: { executor: 'claude' } }).name).toBe('claude');
+  });
+
+  test('derives opencode from target=opencode (BOB-085)', () => {
+    const e = resolveExecutor({ target: 'opencode' });
+    expect(e.name).toBe('opencode');
+    expect(e.bin).toBe('opencode');
+    // ...and the explicit override still wins, same as every flavor.
+    expect(resolveExecutor({ target: 'opencode', dashboard: { executor: 'claude' } }).name).toBe('claude');
   });
 
   test('an unrecognized executor is treated as a custom binary path', () => {
@@ -299,8 +508,10 @@ describe('resolveExecutor', () => {
       .toEqual(['-p', 'p', '--output-format', 'stream-json', '--verbose']);
   });
 
-  test('EXECUTOR_NAMES lists both known flavors', () => {
-    expect(EXECUTOR_NAMES).toEqual(expect.arrayContaining(['claude', 'cursor-agent']));
+  test('EXECUTOR_NAMES lists every known flavor', () => {
+    // EXECUTOR_NAMES is what wires the app/remote startup banner and the
+    // missing-binary warning text, so registration alone discharges those.
+    expect(EXECUTOR_NAMES).toEqual(expect.arrayContaining(['claude', 'cursor-agent', 'codex', 'opencode']));
   });
 });
 

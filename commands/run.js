@@ -4,9 +4,10 @@ import path from 'path';
 import inquirer from 'inquirer';
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir, resolveProductDir } from '../lib/config.js';
 import { getFeatureTickets, listEpics } from '../lib/tickets.js';
-import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, listWorkflows } from '../lib/workflow.js';
+import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, listWorkflows, assertTicketFree } from '../lib/workflow.js';
 import { findTicket } from '../lib/tickets.js';
 import { VALID_AGENTS } from '../lib/agent-registry.js';
+import { resolveModel } from '../lib/models.js';
 import { bold, dim, error } from '../lib/colors.js';
 import { getTarget } from '../lib/targets/index.js';
 import { overlayPromptClause, repoTargetingClause } from '../lib/skills.js';
@@ -147,6 +148,25 @@ Modes:
           epicData = { epicId, epic, children };
         }
 
+        // One live run per ticket (BOB-120), guarding EVERY prompt-building
+        // path below — not just the standard-agent one.
+        //
+        // Placed here, not inside buildPromptFor, because the ORCHESTRATOR calls
+        // that builder in-process for its own agents and already holds the
+        // claim. This is the CLI: a genuinely separate operator. An agent
+        // launched BY the app carries its claim token in the environment, so its
+        // own `bobby run <stage> <ticket>` passes.
+        //
+        // EVERY id, not ids[0]. The earlier rationale — "the builders act on
+        // ids[0]" — is false for the one builder that consumes them all:
+        // `bobby run workflow A B` orchestrates both, so checking only the first
+        // meant `bobby run workflow <free> <claimed>` handed out a prompt
+        // driving the claimed ticket. Order-dependent bugs are still bugs.
+        for (const id of ticketIds) assertTicketFree(ticketsDir, id);
+        // A feature run drives its CHILDREN, so the epic's claim says nothing
+        // about whether the work is free.
+        if (epicData) for (const child of epicData.children) assertTicketFree(ticketsDir, child.id);
+
         // Build the prompt via the unified dispatcher
         let built;
         if (customAgent) {
@@ -203,6 +223,15 @@ Modes:
           console.log(`  ${dim(built.subtitle)}`);
         }
         console.log(`  ${dim(hint)}`);
+        // Which model this stage will actually run on. Worth printing because
+        // it is NOT the model of the session reading this line: the agent file
+        // the harness launches carries its own, so a plan run and a build run
+        // started from the same session land on different models. Only shown
+        // where that file is really read — see target.supportsAgentModel().
+        if (!customAgent && target.supportsAgentModel && target.supportsAgentModel()) {
+          const model = resolveModel(agent, config);
+          if (model) console.log(`  ${dim(`Model: ${model}`)}`);
+        }
         if (agent === 'feature') {
           console.log(`  ${dim('Launch with: isolation: "worktree" (keeps main clean)')}`);
         }

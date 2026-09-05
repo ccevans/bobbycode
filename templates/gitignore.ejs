@@ -1,6 +1,10 @@
 # Bobby — session logs (not committed)
 .bobby/sessions/
 
+# Bobby — a live claim on a ticket, never a fact about it (BOB-120). Committed,
+# it would block that ticket on every other machine until the staleness ceiling.
+.bobby/tickets/*/run.lock
+
 # Dependencies
 node_modules/
 vendor/

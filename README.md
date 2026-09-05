@@ -266,7 +266,7 @@ All configuration lives in `.bobbyrc.yml`, generated with comments during `bobby
 # Project identity
 project: my-app
 stack: nextjs                  # nextjs | rails-react | django | python-flask | go | rust | polyglot | generic
-target: claude-code            # claude-code | cursor | cline
+target: claude-code            # claude-code | cursor | cline | codex | agents-md | copilot | opencode
 
 # Directories
 bobby_dir: .bobby
@@ -333,6 +333,13 @@ dashboard:
                                   # is refused (with the running ones named),
                                   # never queued.
 
+# Models, per stage (see "Models — A Tier Per Stage" below)
+models:
+  default: sonnet                # Every stage, unless named below
+  review: opus
+  test: haiku
+  watchdog: inherit              # Pass no model — use whatever the harness is on
+
 # Parallel isolation for batch operations
 parallel_isolation: none         # none | worktree
 
@@ -345,6 +352,69 @@ conductor: true
 ```
 
 </details>
+
+## Models — A Tier Per Stage
+
+Bobby's stages are not the same kind of work, so they do not run on the same
+model. Reviewing a diff for the regression it does not admit to is judgment.
+Writing the code the plan already specified is execution. Recording a page's
+load time is bookkeeping. Running all three on one model means either paying
+frontier prices for the bookkeeping or shipping frontier decisions from a small
+model.
+
+Every agent declares a **tier** — the kind of model its work wants:
+
+| Tier | The work | Agents |
+|---|---|---|
+| `opus` | Judgment — deciding what to build, drawing the v1 line, finding what a diff hides, critiquing a design | `plan`, `review`, `workflow`, `feature`, `next`, `security`, `freewill`, `debug`, `ux`, `design-mockup`, `design-build`, `design-check`, `define-brief`, `define-features`, `pm`, `vet`, `strategy`, `arch` |
+| `sonnet` | Execution — writing the code the plan specified, driving a browser, transcribing decisions | `build`, `test`, `ship`, `design-research`, `design-analyze`, `design-spec`, `define-personas`, `define-journeys`, `define-blueprint`, `qe`, `intake`, `docs`, `lighthouse` |
+| `haiku` | Bookkeeping — recording a load time, checking a deploy returned 200 | `performance`, `watchdog` |
+
+`workflow`, `feature` and `next` chain several stages inside one process, so
+one model has to serve all of them — they are tiered to the most demanding
+link in the chain rather than the average one.
+
+You get this with no configuration. Both paths honour it:
+
+- **From the CLI** — each scaffolded agent file (`.claude/agents/bobby-*.md`)
+  carries its own `model:`, so `bobby run review` lands on the review model
+  whatever model the session that typed the command is on. `bobby run` prints
+  the resolved model in its header.
+- **From the dashboard and the app** — the orchestrator resolves the model per
+  agent and passes it to the executor as `--model`.
+
+### Overriding it
+
+```yaml
+models:
+  default: sonnet     # every stage, unless named
+  review: opus        # this stage
+  test: haiku
+  watchdog: inherit   # pass no model at all; use whatever the harness is on
+```
+
+Precedence, most specific first: `models.<stage>` → `models.default` →
+`dashboard.model` → the shipped tier. The older `dashboard.model` sits **above**
+the tiers on purpose — a project that already pinned one model for everything
+keeps meaning that, and never quietly acquires per-stage defaults.
+
+### Cursor, Codex and OpenCode
+
+`opus` / `sonnet` / `haiku` are aliases the `claude` CLI and Claude Code
+subagent frontmatter accept, which is what lets the shipped tiers survive models
+being replaced. `cursor-agent`, `codex` and `opencode` take full model names
+instead, so **the shipped tiers do not apply to them** — passing `opus` to a CLI
+with no such name does not degrade a run, it kills it. Those projects run with
+no model flag, exactly as they did before, until they name models themselves:
+
+```yaml
+models:
+  review: anthropic/claude-opus-4-5   # opencode's provider/model form
+  build: anthropic/claude-sonnet-4-6
+```
+
+Names come from `cursor-agent --list-models` and each CLI's own docs — Bobby
+does not write a model name it has not verified against the real binary.
 
 ## Stacks
 
@@ -363,7 +433,7 @@ Bobby auto-detects your tech stack during `bobby init` and configures commands, 
 
 **Custom stacks:** Create `.bobby/stacks/<name>.json` with your own commands, areas, and health checks. Custom stacks appear at the top of the `bobby init` selection menu. See [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) for the JSON schema.
 
-## Editors: Claude Code, Cursor, Cline
+## Editors: Claude Code, Cursor, Cline, Codex, Copilot, OpenCode — and any AGENTS.md tool
 
 Bobby's CLI never calls a model itself — tickets, audits, scoring, sprints, and
 `bobby vet` are all deterministic local code. The AI half is a set of markdown
@@ -375,6 +445,85 @@ reads. Set that with `target` in `.bobbyrc.yml`, or pick it in `bobby init --cus
 | `claude-code` | `CLAUDE.md` | `.claude/skills/` | `.claude/commands/` | `.claude/agents/` | Yes |
 | `cursor` | `AGENTS.md` | `.cursor/skills/` | `.cursor/commands/` | `.cursor/agents/` | Yes (3.13+) |
 | `cline` | `.clinerules/rules.md` | `.clinerules/skills/` | `.clinerules/workflows/` | `.clinerules/agents/` | No |
+| `codex` | `AGENTS.md` | `.codex/skills/` | `.codex/commands/`¹ | `.codex/agents/`¹ | No² |
+| `agents-md` | `AGENTS.md` | `.agents/skills/` | `.agents/commands/`¹ | `.agents/agents/`¹ | No |
+| `copilot` | `AGENTS.md` | `.github/skills/` | `.github/prompts/*.prompt.md`³ | `.github/bobby/agents/`¹ | No |
+| `opencode` | `AGENTS.md` | `.opencode/skills/` | `.opencode/commands/` | `.opencode/bobby/agents/`¹ | No |
+
+¹ Reference docs the prompts can cite — these tools have no native command or
+project-agent surface (verified against the shipped binaries; see the adapter
+headers for citations). For `copilot` the agent files deliberately avoid the
+native `.github/agents/` registry — its profile dialect is unverified without
+a live install, so Bobby keeps unconforming files out of it. For `opencode`
+the agent files likewise avoid the native `.opencode/agent(s)/` registry —
+it is real (every `.md` there becomes an agent config), but Bobby's agent
+files do not conform to its dialect, so they live in `.opencode/bobby/agents/`,
+which no shipped scan matches (verified on the real binary: `opencode agent
+list` shows only built-ins with the scaffold present). Its commands cell has
+no marker: `.opencode/commands/` are real slash commands, with frontmatter
+reduced to the documented `description` key. ² Codex has
+subagent *tools* but no file registry. ³ Prompt files are IDE-only — the docs
+state "Prompt files are only available in VS Code, Visual Studio, and JetBrains
+IDEs" — so CLI and coding-agent users drive the same flows through
+`.github/skills/` instead (every command body is a one-line pointer at its
+skill).
+
+`codex` also drives the dashboard headlessly (`codex exec --json`, derived from
+`target: codex`), as does `opencode` (`opencode run --format json`, derived
+from `target: opencode`). `agents-md` is the generic tier for the AGENTS.md
+ecosystem —
+Devin Desktop (formerly Windsurf, renamed June 2026), Zed, Antigravity CLI
+(`agy` — successor to Gemini CLI, retired June 2026), Jules, Amp and the rest:
+**rules + skills work; nothing more is claimed.** For Devin Desktop both halves are
+first-party-documented: root `AGENTS.md` is an always-on rule fed into
+Cascade's system prompt, and `.agents/skills/` is a documented cross-agent
+skill root (docs.devin.ai, fetched 2026-08-23, re-verified 2026-08-24; full
+citations in the `agents-md` adapter header). For Zed both halves are verified
+in its shipped source (release v1.16.1, fetched 2026-08-23 — a shipped-code
+reading, a stronger verification than a docs citation): `AGENTS.md` is in its
+rules-file list and `.agents/skills/` is its project skills root (SHA-pinned
+source permalinks in the `agents-md` adapter header). For Antigravity CLI both
+halves are first-party-documented in its own CLI docs: a root `AGENTS.md` is
+parsed as rules on startup and `.agents/skills/` is its documented project
+skills root (antigravity.google/docs/cli, fetched 2026-08-23, re-verified
+2026-08-24; full citations in the `agents-md` adapter header — closed source,
+so convention tier is the ceiling). The support matrix below is the
+summary of how each target was verified; the full citations live in the
+adapter headers (`lib/targets/*.js`), which stay the source of truth.
+
+### Support matrix
+
+Two tiers. A **dedicated** target has a hand-verified adapter: every scaffold
+path is cited in its header, and it may drive the dashboard through a CLI
+executor. The **generic** tier (`agents-md`) claims exactly rules + skills per
+the AGENTS.md convention, for any tool that reads it — no dashboard
+derivation, no subagent claim, nothing more. Tools we evaluated and found
+fully served by the generic tier — Devin Desktop, Zed, Antigravity CLI — are
+named in the prose above and deliberately get no rows of their own. The
+Verified column exists because three claims in the original Cursor work
+shipped wrong by trusting docs over binaries; every cell now states how its
+row was checked — `real-CLI` (a real run of the named binary), `shipped-code`
+(a reading of the shipped binary or source), or `convention` (published
+convention only, with the claims limited to match).
+
+| `target` | Tier | Dashboard | Verified | Canary |
+|---|---|---|---|---|
+| `claude-code` | dedicated | `claude` (default) | real-CLI — daily-driven; probe runs against claude 2.1.233, 2026-08-23 (BOB-089 verification ledger) | weekly |
+| `cursor` | dedicated | `cursor-agent` | shipped-code — Cursor 3.13 bundle reading (adapter header) + real cursor-agent 2026.07.23-e383d2b runs, 2026-08-23 | weekly |
+| `cline` | dedicated | — | convention — Cline docs only; **not verified against a Cline binary** (its adapter header says so) | — |
+| `codex` | dedicated | `codex` (incl. chat resume) | real-CLI — codex-cli 0.146.0 runs, 2026-08-22/23, incl. the exec-resume cross-product; scaffold paths from the binary's own strings | weekly |
+| `copilot` | dedicated | — | convention — official GitHub/VS Code docs, fetched 2026-08-23 (full URLs + quotes in lib/targets/copilot.js header) | — |
+| `opencode` | dedicated | `opencode` (incl. chat resume) | real-CLI — opencode 1.18.21 probes (debug config / debug skill / agent list) against the actual scaffold, 2026-08-24; executor argv (`run --format json --session --auto --agent plan`, incl. the resume cross-products) verified against the same binary 2026-08-23/24; SHA-pinned source permalinks (sst/opencode@03bba46, fetched 2026-08-23) in lib/targets/opencode.js header | weekly |
+| `agents-md` | generic | — | convention — files land per the AGENTS.md spec; the `.agents/skills/` root corroborated by the cursor-agent 2026.07.23 binary; no per-tool claim | — |
+
+Every dashboard executor above marked `weekly` is canary-monitored:
+[`.github/workflows/flag-canary.yml`](.github/workflows/flag-canary.yml)
+reinstalls each CLI on a schedule and re-runs the exact argv Bobby's
+`buildArgs` builders emit (every permission mode × resume) against it;
+unknown-flag drift files an issue. Merge-time verification decays — this is
+what keeps the Verified column true over time. A future executor whose CLI has
+no non-interactive install can't be canaried; its row says
+`not canaried: <reason>` rather than faking a leg.
 
 To switch, set `target:` and run `bobby init --refresh`. Your tickets, sessions,
 and `.local` files carry over untouched — they live in `.bobby/`, which is
@@ -442,6 +591,35 @@ Bobby also writes `.cursorindexingignore` to keep session logs out of codebase
 search. That is deliberately *not* `.cursorignore` — the latter would block the
 agent from reading your tickets.
 
+### Adding a new target (contributors)
+
+Start from [`lib/targets/cursor.js`](lib/targets/cursor.js) — it exercises the
+whole adapter contract, with every convention cited in its header;
+[`lib/targets/codex.js`](lib/targets/codex.js) shows frontmatter stripping for
+a harness that parses none. The acceptance bar is the target matrix suite,
+[`test/lib/target-matrix.test.js`](test/lib/target-matrix.test.js): register
+your adapter in [`lib/targets/index.js`](lib/targets/index.js) and add one
+entry to the suite's `DISTINCTIVE` map, and every invariant runs against the
+new target with zero further test edits.
+
+The obligations, each enforced by a test:
+
+- **Register everywhere users pick a target**: `lib/targets/index.js`, the
+  `DISTINCTIVE` map, the `bobby init --custom` wizard choices, and the
+  `# Options:` comment `.bobbyrc.yml` is written with (`lib/config.js`).
+- **Cite every convention claim in the adapter header** — a real CLI run or a
+  reading of the shipped binary/source. Docs alone cap the row's status at
+  `convention`, with claims-limited wording to match.
+- **Add the target's row to the [support matrix](#support-matrix)** —
+  `test/docs/support-matrix.test.js` fails without an honest one.
+- **Shipping a dashboard executor too?** Add the `EXECUTORS` entry in
+  `lib/dashboard/executor.js` **and** one matrix entry (flavor +
+  non-interactive install) in
+  [`.github/workflows/flag-canary.yml`](.github/workflows/flag-canary.yml) —
+  `test/scripts/flag-canary.test.js` enforces the pairing. A CLI with no
+  non-interactive install cannot be canaried: say so in the matrix row, never
+  fake a leg.
+
 ## Dashboard
 
 Bobby ships with a local web dashboard for kicking off agents in parallel, isolated workspaces and watching them work in real time.
@@ -454,21 +632,34 @@ bobby dashboard --no-open   # Don't auto-open the browser
 
 **Workspace model.** Each workspace = one ticket + one git worktree on its own branch + one agent CLI subprocess. Multiple workspaces run in parallel without colliding — each agent lives in its own isolated checkout.
 
-**Executor.** The dashboard drives `claude` by default, or `cursor-agent` when
-`target: cursor`. Override either with `dashboard.executor`, and pass a specific
-model with `dashboard.model`:
+**Executor.** The dashboard can drive four CLI flavors, and picks one from
+`target`: `target: cursor` drives `cursor-agent`, `target: codex` drives
+`codex`, `target: opencode` drives `opencode`, and every other target drives
+`claude` (`resolveExecutor` in `lib/dashboard/executor.js`). An explicit
+`dashboard.executor` overrides the derivation — one of the four names, or an
+absolute path to a binary that takes claude-style flags. Pass a specific model
+with `dashboard.model`:
 
 ```yaml
 dashboard:
-  executor: cursor-agent           # claude | cursor-agent | /abs/path/to/a/binary
+  executor: cursor-agent           # claude | cursor-agent | codex | opencode
+                                   # (default: derived from target) — or /abs/path/to/a/binary
   model: composer-2.5              # optional — passed through as --model
   worktree_permission_mode: bypassPermissions   # ticket runs — see below
   repo_permission_mode: acceptEdits             # freeform runs — see below
 ```
 
 **Permission posture — two keys, because the two kinds of run aren't equally
-risky.** These map to `--permission-mode` for `claude` and `--force` for
-`cursor-agent`.
+risky.** Each executor gets the chosen mode in its own vocabulary (the flag
+logic, with its verification notes, lives in `lib/dashboard/executor.js`):
+`claude` takes it verbatim as `--permission-mode`; `cursor-agent` is
+all-or-nothing, so `bypassPermissions` and `acceptEdits` become `--force` and
+`plan` becomes `--mode plan`; `codex` maps it to a sandbox policy —
+`bypassPermissions` → `--dangerously-bypass-approvals-and-sandbox`,
+`acceptEdits` → `--sandbox workspace-write`, `plan` → `--sandbox read-only`
+(resumed sessions keep their posture); `opencode` passes `--auto` for
+`bypassPermissions` and `--agent plan` for `plan`, while `acceptEdits` adds no
+flag — its run-mode default already is that posture.
 
 - `worktree_permission_mode` (default `bypassPermissions`) covers **ticket
   runs**, which happen inside a throwaway git worktree. That copy *is* the

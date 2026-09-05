@@ -7,6 +7,15 @@ All notable changes to Bobby are documented here. The format is based on
 ## [Unreleased]
 
 ### Fixed
+- **README Executor prose caught up with the registry (BOB-134).** The
+  Dashboard section still said the dashboard drives `claude` or `cursor-agent`
+  only — three flavors stale after codex (BOB-080) and opencode (BOB-085)
+  shipped, and wrong about the default rule, which derives from `target`, not
+  "claude unless cursor". The prose, the YAML example's `executor:` comment,
+  and the permission-posture paragraph now match `lib/dashboard/executor.js`,
+  and a new `test/docs/executor-prose.test.js` anchors all three against
+  `EXECUTOR_NAMES` the way BOB-082's suite guards the support-matrix table —
+  the next flavor added cannot leave them stale silently.
 - **`.bobby/decisions.yaml` finally has a writer (TKT-063).** Nothing in the
   codebase ever appended to the architectural decision log — `bobby init` seeded
   it, `bobby-review` read it in prose, and every entry was put there by an agent
@@ -25,6 +34,107 @@ All notable changes to Bobby are documented here. The format is based on
   seed, and pre-existing studio files are still read and appended in place.
 
 ### Added
+
+- **A model per stage, not one for the whole board (BOB-135).** Bobby ran every
+  agent on whatever single model `dashboard.model` named — or, from the CLI, on
+  whatever model the operator's session happened to be on — so reviewing a diff
+  and recording a page's load time cost the same. Each agent now declares a
+  **tier** in `lib/agent-registry.js`: `opus` for judgment (plan, review,
+  security, debug, arch, vet, strategy, the design critiques), `sonnet` for
+  execution (build, test, qe, ship, docs), `haiku` for bookkeeping (performance,
+  watchdog). `lib/models.js` resolves a tier plus the project's config into the
+  model an agent actually gets, and BOTH paths honour it: the orchestrator
+  passes it to the executor as `--model`, and `bobby init`/`bobby upgrade` stamp
+  it into each scaffolded `.claude/agents/bobby-*.md` frontmatter so a stage
+  launched from your own session lands on the right model too. `bobby run`
+  prints the resolved model in its header.
+
+  Override any of it with a `models:` block in `.bobbyrc.yml` — `models.<stage>`
+  beats `models.default` beats `dashboard.model` beats the shipped tier, and
+  `inherit` at any level means "pass no model at all". Two deliberate
+  restraints: an existing `dashboard.model` still governs every stage, so a
+  project that already pinned one model keeps meaning that and never quietly
+  acquires per-stage defaults; and because `opus`/`sonnet`/`haiku` are aliases
+  only the `claude` CLI and Claude Code frontmatter accept, the shipped tiers
+  are withheld from `cursor-agent`, `codex` and `opencode`, which take full
+  model names — passing one an alias it does not have kills the run rather than
+  degrading it. Those projects behave exactly as before until they name models
+  themselves. `test/docs/model-tiers-prose.test.js` anchors the README's tier
+  table against the registry so it cannot drift.
+
+- **Push notifications actually fire (BOB-130).** The relay could already turn a
+  `{type:'notify'}` frame into a Web Push, but nothing in the host ever sent one
+  — so the Needs-you queue gained tickets in silence. `bobby remote` now carries
+  a notifier that watches the workspace store and sends on the *edge* into a
+  push-worthy state: `needs_you` when a run stops for you, `failed` when one
+  ends badly. It fires once per transition, not once per store write, and its
+  seed is taken before subscribing so a restart with work already parked stays
+  quiet. `bobby app` is unaffected — no tunnel, no notifier. The frame stays
+  cleartext by design and carries only `{type, kind}` with `kind` drawn from a
+  two-value set, so a push reveals that something wants you and nothing about
+  what: no ticket, title, stage, or project.
+
+- **Codex CLI target + executor** (`target: codex`): scaffolds `AGENTS.md`,
+  `.codex/skills/`, and prompt-referenced agents; the dashboard drives
+  `codex exec --json` headlessly. Every convention verified against the
+  shipped codex-cli 0.146.0 binary — including two the docs implied wrongly
+  (no project agent registry; no command surface).
+- **Generic `agents-md` target**: rules + skills for any AGENTS.md-reading
+  tool. Claims-limited by design. Windsurf (now Devin Desktop, renamed June
+  2026) is declared covered by this tier — its docs first-party-document root
+  `AGENTS.md` as an always-on rule and `.agents/skills/` as a cross-agent
+  skill root (docs.devin.ai, fetched 2026-08-23; citations in
+  `lib/targets/agents-md.js`) — so no dedicated Windsurf adapter ships. Zed is
+  likewise declared covered, on shipped-code evidence: its released source
+  (v1.16.1) lists `AGENTS.md` in its rules-file array and scans
+  `.agents/skills/` as its project skills root (SHA-pinned permalinks in the
+  same adapter header) — so no dedicated Zed adapter ships either, and a
+  `.rules` adapter would be a same-list filename swap that loses the AGENTS.md
+  ecosystem. Antigravity CLI (`agy`, Gemini CLI's successor — the consumer
+  Gemini CLI was retired June 2026) is likewise declared covered: its own CLI
+  docs name a root `AGENTS.md` as a rules file parsed on startup and
+  `.agents/skills/` as its project skills root (antigravity.google/docs/cli,
+  fetched 2026-08-23; citations in the same adapter header) — so no dedicated
+  adapter ships, and a future `agy` dashboard executor is deferred behind a
+  recorded re-open condition rather than claimed from docs alone.
+- **Dedicated GitHub Copilot target** (`target: copilot`): scaffolds
+  `AGENTS.md`, `.github/skills/`, slash-invocable prompt files at
+  `.github/prompts/*.prompt.md` (frontmatter kept — the shipped keys are the
+  documented prompt-file dialect), and prompt-referenced agents in
+  `.github/bobby/agents/` (deliberately not the native `.github/agents/`
+  registry). Convention tier: every path cited to official GitHub/VS Code
+  docs (fetched 2026-08-23) in the adapter header; no dashboard executor.
+  `.github/copilot-instructions.md` is detected but never written — the CLI
+  combines instruction files, so duplicating rules there would drift.
+- **Dedicated OpenCode target** (`target: opencode`): scaffolds `AGENTS.md`,
+  slash-invocable commands at `.opencode/commands/` (frontmatter reduced to
+  the documented `description` key — the shipped loader throws on schema
+  failure, so only schema-named keys ship), native skills at
+  `.opencode/skills/`, and prompt-referenced agents in
+  `.opencode/bobby/agents/` (deliberately not the real `.opencode/agent(s)/`
+  registry — its dialect is unverified for Bobby's files). Every convention
+  cited to SHA-pinned source permalinks (sst/opencode@03bba46) in the adapter
+  header and confirmed by real opencode 1.18.21 probes against the actual
+  scaffold.
+- **OpenCode dashboard executor** (derived from `target: opencode`): the
+  dashboard drives `opencode run --format json` headlessly, with chat resume
+  via `--session <id>` (opencode's camelCase `sessionID` captured off its
+  stream events) and permission modes mapped to run-mode's own posture
+  (`--auto` for bypass, the built-in `plan` agent for plan mode, no flag for
+  acceptEdits/default — which IS run-mode's default posture). Every flag
+  verified against the real opencode 1.18.21 binary as cross-products, prompt
+  passed positionally (`-p` is opencode's basic-auth password flag), and the
+  flavor registered in the weekly flag-drift canary with a dedicated
+  usage-dump drift pattern (opencode rejects unknown flags with a bare help
+  dump, no error text).
+- **Target-matrix invariant suite**: every registered target runs the same
+  contract tests; new targets land pre-verified with zero test edits.
+- **README harness support matrix** with a per-target verification-status
+  column (`real-CLI` / `shipped-code` / `convention` — every verified cell
+  names its evidence) and canary coverage, plus a contributor guide for new
+  targets. Enforced by `test/docs/support-matrix.test.js`: a target without an
+  honest row, an executor without a flag-canary leg, or an overclaimed
+  generic tier is a red PR.
 - **`bobby-freewill` — one agent, the whole ticket, deliberately few
   instructions.** `bobby run freewill <id>` (or `--workflow freewill`) collapses
   plan → build → review → test into a single agent that gets the goal and the

@@ -200,7 +200,7 @@ describe('bobby app serves studio project switching (TKT-022)', () => {
   test('GET /api/projects lists the studio projects', async () => {
     const { status, body } = await api('GET', '/api/projects');
     expect(status).toBe(200);
-    expect(body.projects).toEqual(['alpha', 'beta']);
+    expect(body.projects.map((p) => p.name ?? p)).toEqual(['alpha', 'beta']);   // rows since BOB-067
     expect(body.active).toBe('alpha');
   });
 

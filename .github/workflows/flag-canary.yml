@@ -1,0 +1,111 @@
+name: Flag canary
+
+# Agent CLIs ship weekly; per-PR verification proves Bobby's argv only at merge
+# time. This probes the real binaries on a schedule — a canary, not a gate: it
+# never runs on push or pull_request, so a failure here can never block PR CI.
+#
+# The probe mechanism (parse-vs-auth, plus a control probe so a CLI that
+# ignores unknown args can't produce a vacuous pass) lives in
+# scripts/flag-canary.js. Every argv is built by the real buildArgs functions
+# at run time — no argument literal may appear in this file, enforced by
+# test/scripts/flag-canary.test.js.
+
+on:
+  schedule:
+    - cron: '17 6 * * 1' # Mondays 06:17 UTC — off the top-of-hour scheduler pileup
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write # to file/update a drift or install-failure report
+
+concurrency:
+  group: flag-canary
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false # one CLI drifting must not hide another's result
+      matrix:
+        include: # REGISTRATION POINT — one entry per executor flavor.
+          # A flavor in EXECUTOR_NAMES but missing here fails the unit suite
+          # (registration-completeness test), so new executors cannot skip
+          # the canary.
+          - flavor: claude
+            install: npm install -g @anthropic-ai/claude-code
+          - flavor: cursor-agent
+            install: |
+              curl https://cursor.com/install -fsS | bash
+              echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          - flavor: codex
+            install: npm install -g @openai/codex
+          - flavor: opencode
+            install: npm install -g opencode-ai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # no npm ci — the probe script uses node builtins only
+
+      - name: Install ${{ matrix.flavor }}
+        id: install
+        continue-on-error: true
+        run: ${{ matrix.install }}
+
+      - name: Probe ${{ matrix.flavor }}
+        id: probe
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        run: node scripts/flag-canary.js "${{ matrix.flavor }}"
+
+      # The single red step: files/updates the issue first, then fails, so a
+      # scheduled failure still notifies through the normal red-run channel.
+      - name: Report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FLAVOR: ${{ matrix.flavor }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          PROBE_OUTCOME: ${{ steps.probe.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # Idempotent upsert: exact-title search among open issues — found ->
+          # comment with the new report, not found -> create. Closed issues are
+          # not reopened; a recurrence after a fix files fresh.
+          upsert() {
+            title="$1"; bodyfile="$2"
+            printf '\nRun: %s\n' "$RUN_URL" >> "$bodyfile"
+            # gh api instead of gh issue list: the list command's json flag is
+            # spelled like a probe token, which the no-duplication test forbids
+            # anywhere in this file.
+            num=$(gh api "repos/${GITHUB_REPOSITORY}/issues?state=open&per_page=100" \
+              --jq ".[] | select(.pull_request == null) | select(.title == \"$title\") | .number" | head -n1)
+            if [ -n "$num" ]; then
+              gh issue comment "$num" --body-file "$bodyfile"
+            else
+              gh issue create --title "$title" --body-file "$bodyfile"
+            fi
+          }
+
+          if [ "$INSTALL_OUTCOME" != "success" ]; then
+            printf 'The %s install command failed on the canary runner — its own outcome, never reported as flag drift. Check the install step log.\n' "$FLAVOR" > install-failed.md
+            upsert "flag canary: $FLAVOR install failed" install-failed.md
+            exit 1
+          fi
+
+          if [ "$PROBE_OUTCOME" != "success" ]; then
+            body=.canary/report.md
+            if [ ! -f "$body" ]; then
+              printf 'The %s probe failed before writing a report — see the probe step log.\n' "$FLAVOR" > probe-crash.md
+              body=probe-crash.md
+            fi
+            if grep -q '^outcome: install-failed$' "$body"; then
+              upsert "flag canary: $FLAVOR install failed" "$body"
+            else
+              upsert "flag drift: $FLAVOR" "$body"
+            fi
+            exit 1
+          fi
+
+          echo "$FLAVOR: canary pass"

@@ -4,6 +4,7 @@ import path from 'path';
 import inquirer from 'inquirer';
 import { writeConfig, writeConfigCommented, readConfig, configExists } from '../lib/config.js';
 import { renderTemplate, renderSkillTemplates, pruneStaleShipped, isUserOwned } from '../lib/template.js';
+import { withAgentModel, resolveModelForFile } from '../lib/models.js';
 import { createRequire } from 'module';
 import { success, warn, error, bold, dim } from '../lib/colors.js';
 import { getTarget, TARGETS } from '../lib/targets/index.js';
@@ -60,7 +61,18 @@ function ensureGitRepo(rootDir) {
   return true;
 }
 
-export function scaffoldProject(rootDir, config) {
+/**
+ * Scaffold (or re-scaffold) a project's skills, agents, commands and rules.
+ *
+ * `writeConfig` exists because .bobbyrc.yml is YOURS, not shipped (see the
+ * shipped-vs-yours table in CLAUDE.md). writeConfigCommented() regenerates it
+ * from the template using only the keys the generator knows, so re-scaffolding
+ * an EXISTING install silently dropped anything it does not model — a
+ * `workflows:` override, a `dashboard:` block, every inline comment — while
+ * reporting only that skills and agents were refreshed (BOB-123). First-time
+ * init still writes it; refresh and re-scaffold must not.
+ */
+export function scaffoldProject(rootDir, config, { writeConfig = true } = {}) {
   // Derive bobby_dir, sessions_dir if not explicitly provided
   const bobbyDir = config.bobby_dir || '.bobby';
   if (!config.tickets_dir) config.tickets_dir = `${bobbyDir}/tickets`;
@@ -83,8 +95,9 @@ export function scaffoldProject(rootDir, config) {
   // Ensure the project directory is a git repo
   const gitInitialized = ensureGitRepo(rootDir);
 
-  // Write config (commented version for init, plain for programmatic updates)
-  writeConfigCommented(rootDir, config);
+  // Write config (commented version for init, plain for programmatic updates).
+  // Never on a refresh: the file already exists and belongs to the user.
+  if (writeConfig) writeConfigCommented(rootDir, config);
 
   // Build template data with target paths
   const templateData = {
@@ -152,10 +165,21 @@ export function scaffoldProject(rootDir, config) {
   fs.mkdirSync(agentsDir, { recursive: true });
 
   const agentFiles = ['bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship', 'bobby-ux', 'bobby-define-brief', 'bobby-define-personas', 'bobby-define-journeys', 'bobby-define-features', 'bobby-define-blueprint', 'bobby-design-research', 'bobby-design-analyze', 'bobby-design-mockup', 'bobby-design-spec', 'bobby-design-build', 'bobby-design-check', 'bobby-pm', 'bobby-qe', 'bobby-vet', 'bobby-strategy', 'bobby-security', 'bobby-debug', 'bobby-docs', 'bobby-performance', 'bobby-lighthouse', 'bobby-watchdog', 'bobby-arch', 'bobby-ticket-intake', 'bobby-freewill'];
+  // Whether this harness reads a model out of subagent frontmatter at all. On
+  // one that does not, the line would be inert noise in every agent file, so
+  // the per-stage model reaches those projects only through the executor.
+  const agentModels = target.supportsAgentModel && target.supportsAgentModel();
+
   for (const agent of agentFiles) {
     const agentTemplate = path.join(AGENT_TEMPLATES_DIR, `${agent}.md.ejs`);
     if (fs.existsSync(agentTemplate)) {
-      const content = renderTemplate(`agents/${agent}.md.ejs`, templateData);
+      const rendered = renderTemplate(`agents/${agent}.md.ejs`, templateData);
+      // The stage's own model, stamped into the file the harness launches it
+      // from — so `bobby run review` gets the review model whatever model the
+      // session that ran the command happens to be on.
+      const content = agentModels
+        ? withAgentModel(rendered, resolveModelForFile(agent, config))
+        : rendered;
       fs.writeFileSync(path.join(agentsDir, `${agent}.md`), content, 'utf8');
     }
   }
@@ -169,7 +193,10 @@ export function scaffoldProject(rootDir, config) {
     const rendered = renderTemplate(`commands/${file}`, templateData);
     // Targets that don't parse command frontmatter get a rewritten body.
     const content = target.transformCommand ? target.transformCommand(rendered) : rendered;
-    const outName = file.replace('.ejs', '');
+    // Optional adapter seam: harnesses that mandate a command file extension
+    // (Copilot's *.prompt.md) name the output file; everyone else keeps .md.
+    const base = file.replace('.md.ejs', '');
+    const outName = target.commandFileName ? target.commandFileName(base) : `${base}.md`;
     fs.writeFileSync(path.join(commandsDir, outName), content, 'utf8');
   }
 
@@ -256,7 +283,8 @@ export function registerInit(program) {
           // Non-interactive refresh — how `bobby upgrade` delivers new skills,
           // agents and commands. Your .local.md overlays are never touched.
           if (opts.refresh) {
-            const tp = getTarget(existingConfig.target || 'claude-code').paths();
+            const refreshTarget = getTarget(existingConfig.target || 'claude-code');
+            const tp = refreshTarget.paths();
 
             // Guard: a tracked-but-uncommitted edit to a shipped file would be
             // destroyed with NO recovery path — git cannot restore what was
@@ -284,15 +312,21 @@ export function registerInit(program) {
               process.exit(1);
             }
 
-            scaffoldProject(rootDir, existingConfig);
+            scaffoldProject(rootDir, existingConfig, { writeConfig: false });
 
             // Prune bobby-* files that no longer ship, so upgrades can remove
             // and rename — not only add. Custom (non bobby-prefixed) files and
             // all .local.md files are never candidates.
             const shippedAgents = new Set(fs.readdirSync(AGENT_TEMPLATES_DIR)
               .filter(f => f.endsWith('.md.ejs')).map(f => f.replace(/\.ejs$/, '')));
+            // Shipped command names go through the same commandFileName seam as
+            // the scaffold, or the prune would delete what was just written
+            // (copilot's *.prompt.md files are not `<base>.md`).
             const shippedCommands = new Set(fs.readdirSync(COMMAND_TEMPLATES_DIR)
-              .filter(f => f.endsWith('.md.ejs')).map(f => f.replace(/\.ejs$/, '')));
+              .filter(f => f.endsWith('.md.ejs')).map(f => {
+                const base = f.replace('.md.ejs', '');
+                return refreshTarget.commandFileName ? refreshTarget.commandFileName(base) : `${base}.md`;
+              }));
             const pruned = [
               ...pruneStaleShipped(path.join(rootDir, tp.agents), shippedAgents).map(f => `${tp.agents}/${f}`),
               ...pruneStaleShipped(path.join(rootDir, tp.commands), shippedCommands).map(f => `${tp.commands}/${f}`),
@@ -341,7 +375,7 @@ export function registerInit(program) {
           if (reinitMode === 'cancel') { console.log('Cancelled.'); return; }
 
           if (reinitMode === 'rescaffold') {
-            scaffoldProject(rootDir, existingConfig);
+            scaffoldProject(rootDir, existingConfig, { writeConfig: false });
 
             const targetAdapter = getTarget(existingConfig.target || 'claude-code');
             const tp = targetAdapter.paths();
@@ -513,6 +547,10 @@ export function registerInit(program) {
             choices: [
               { name: 'Claude Code — scaffolds to .claude/ (agents, skills, commands, CLAUDE.md)', value: 'claude-code' },
               { name: 'Cursor — scaffolds to .cursor/ (skills, commands, agents) + AGENTS.md', value: 'cursor' },
+              { name: 'Codex CLI — scaffolds to .codex/ (skills, agents) + AGENTS.md', value: 'codex' },
+              { name: 'GitHub Copilot — scaffolds to .github/ (prompts, skills) + AGENTS.md', value: 'copilot' },
+              { name: 'OpenCode — scaffolds to .opencode/ (commands, skills) + AGENTS.md', value: 'opencode' },
+              { name: 'AGENTS.md (generic) — rules + skills for Windsurf (Devin Desktop), Zed, Antigravity…', value: 'agents-md' },
               { name: 'Cline (VS Code) — scaffolds to .clinerules/ (agents, skills, workflows)', value: 'cline' },
             ],
             default: existingConfig?.target || 'claude-code',

@@ -15,6 +15,7 @@ import {
   isGitRepo,
   resolveWorktreeRoot,
 } from '../../../lib/dashboard/worktree.js';
+import { findProjectRoot } from '../../../lib/config.js';
 
 const git = (cwd, cmd) => execSync(`git ${cmd}`, { cwd, stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim();
 
@@ -81,6 +82,11 @@ describe('worktree manager', () => {
       studioRoot = path.join(tmpDir, 'studio');
       codeRepo = path.join(studioRoot, 'repos', 'app');
       fs.mkdirSync(codeRepo, { recursive: true });
+      // A studio HAS a .bobbyrc.yml — that file is what makes findProjectRoot
+      // stop there, which is the whole mechanism board resolution depends on.
+      // Without it these fixtures described a studio that does not exist on
+      // disk, which is how a guard checking mere containment looked sufficient.
+      fs.writeFileSync(path.join(studioRoot, '.bobbyrc.yml'), 'studio: acme\n');
     });
 
     test('refuses a studio worktree_root OUTSIDE the studio root', () => {
@@ -111,6 +117,33 @@ describe('worktree manager', () => {
       const config = { studio: 'acme' };
       const resolved = resolveWorktreeRoot(codeRepo, config, studioRoot);
       expect(resolved).toBe(path.resolve(codeRepo, '../bobby-wt'));
+    });
+
+    test('refuses a root that is INSIDE the studio but shadowed by another .bobbyrc.yml', () => {
+      // Containment was necessary, not sufficient. A code repo carrying a
+      // leftover single-project config — which this studio's own repos did until
+      // the BOB migration retired them — shadows the studio, so findProjectRoot
+      // stops at the repo and every board write lands on the repo's own board.
+      // The old guard accepted this; it is the exact failure BOB-117 was filed for.
+      fs.writeFileSync(path.join(codeRepo, '.bobbyrc.yml'), 'project: app\n');
+      const config = { studio: 'acme', dashboard: { worktree_root: './wt' } };
+
+      let err;
+      try { resolveWorktreeRoot(codeRepo, config, studioRoot); } catch (e) { err = e; }
+
+      expect(err).toBeInstanceOf(Error);
+      expect(err.message).toContain(codeRepo);       // names where it WOULD resolve
+      expect(err.message).toMatch(/shadows the studio/);
+    });
+
+    test('board resolution from inside an accepted worktree reaches the studio — AC2', () => {
+      // The assertion AC2 literally asks for, and the one nobody had written:
+      // drive findProjectRoot from a worktree PATH, not just the resolver.
+      const config = { studio: 'acme', dashboard: { worktree_root: '../../wt' } };
+      const root = resolveWorktreeRoot(codeRepo, config, studioRoot);
+      fs.mkdirSync(path.join(root, 'BOB-1-build'), { recursive: true });
+
+      expect(findProjectRoot(path.join(root, 'BOB-1-build'))).toBe(studioRoot);
     });
 
     test('non-studio project is unaffected — worktree_root outside repo is allowed', () => {
