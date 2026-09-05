@@ -333,6 +333,13 @@ dashboard:
                                   # is refused (with the running ones named),
                                   # never queued.
 
+# Models, per stage (see "Models — A Tier Per Stage" below)
+models:
+  default: sonnet                # Every stage, unless named below
+  review: opus
+  test: haiku
+  watchdog: inherit              # Pass no model — use whatever the harness is on
+
 # Parallel isolation for batch operations
 parallel_isolation: none         # none | worktree
 
@@ -345,6 +352,69 @@ conductor: true
 ```
 
 </details>
+
+## Models — A Tier Per Stage
+
+Bobby's stages are not the same kind of work, so they do not run on the same
+model. Reviewing a diff for the regression it does not admit to is judgment.
+Writing the code the plan already specified is execution. Recording a page's
+load time is bookkeeping. Running all three on one model means either paying
+frontier prices for the bookkeeping or shipping frontier decisions from a small
+model.
+
+Every agent declares a **tier** — the kind of model its work wants:
+
+| Tier | The work | Agents |
+|---|---|---|
+| `opus` | Judgment — deciding what to build, drawing the v1 line, finding what a diff hides, critiquing a design | `plan`, `review`, `workflow`, `feature`, `next`, `security`, `freewill`, `debug`, `ux`, `design-mockup`, `design-build`, `design-check`, `define-brief`, `define-features`, `pm`, `vet`, `strategy`, `arch` |
+| `sonnet` | Execution — writing the code the plan specified, driving a browser, transcribing decisions | `build`, `test`, `ship`, `design-research`, `design-analyze`, `design-spec`, `define-personas`, `define-journeys`, `define-blueprint`, `qe`, `intake`, `docs`, `lighthouse` |
+| `haiku` | Bookkeeping — recording a load time, checking a deploy returned 200 | `performance`, `watchdog` |
+
+`workflow`, `feature` and `next` chain several stages inside one process, so
+one model has to serve all of them — they are tiered to the most demanding
+link in the chain rather than the average one.
+
+You get this with no configuration. Both paths honour it:
+
+- **From the CLI** — each scaffolded agent file (`.claude/agents/bobby-*.md`)
+  carries its own `model:`, so `bobby run review` lands on the review model
+  whatever model the session that typed the command is on. `bobby run` prints
+  the resolved model in its header.
+- **From the dashboard and the app** — the orchestrator resolves the model per
+  agent and passes it to the executor as `--model`.
+
+### Overriding it
+
+```yaml
+models:
+  default: sonnet     # every stage, unless named
+  review: opus        # this stage
+  test: haiku
+  watchdog: inherit   # pass no model at all; use whatever the harness is on
+```
+
+Precedence, most specific first: `models.<stage>` → `models.default` →
+`dashboard.model` → the shipped tier. The older `dashboard.model` sits **above**
+the tiers on purpose — a project that already pinned one model for everything
+keeps meaning that, and never quietly acquires per-stage defaults.
+
+### Cursor, Codex and OpenCode
+
+`opus` / `sonnet` / `haiku` are aliases the `claude` CLI and Claude Code
+subagent frontmatter accept, which is what lets the shipped tiers survive models
+being replaced. `cursor-agent`, `codex` and `opencode` take full model names
+instead, so **the shipped tiers do not apply to them** — passing `opus` to a CLI
+with no such name does not degrade a run, it kills it. Those projects run with
+no model flag, exactly as they did before, until they name models themselves:
+
+```yaml
+models:
+  review: anthropic/claude-opus-4-5   # opencode's provider/model form
+  build: anthropic/claude-sonnet-4-6
+```
+
+Names come from `cursor-agent --list-models` and each CLI's own docs — Bobby
+does not write a model name it has not verified against the real binary.
 
 ## Stacks
 

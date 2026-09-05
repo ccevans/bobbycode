@@ -4,6 +4,7 @@ import path from 'path';
 import inquirer from 'inquirer';
 import { writeConfig, writeConfigCommented, readConfig, configExists } from '../lib/config.js';
 import { renderTemplate, renderSkillTemplates, pruneStaleShipped, isUserOwned } from '../lib/template.js';
+import { withAgentModel, resolveModelForFile } from '../lib/models.js';
 import { createRequire } from 'module';
 import { success, warn, error, bold, dim } from '../lib/colors.js';
 import { getTarget, TARGETS } from '../lib/targets/index.js';
@@ -164,10 +165,21 @@ export function scaffoldProject(rootDir, config, { writeConfig = true } = {}) {
   fs.mkdirSync(agentsDir, { recursive: true });
 
   const agentFiles = ['bobby-plan', 'bobby-build', 'bobby-review', 'bobby-test', 'bobby-ship', 'bobby-ux', 'bobby-define-brief', 'bobby-define-personas', 'bobby-define-journeys', 'bobby-define-features', 'bobby-define-blueprint', 'bobby-design-research', 'bobby-design-analyze', 'bobby-design-mockup', 'bobby-design-spec', 'bobby-design-build', 'bobby-design-check', 'bobby-pm', 'bobby-qe', 'bobby-vet', 'bobby-strategy', 'bobby-security', 'bobby-debug', 'bobby-docs', 'bobby-performance', 'bobby-lighthouse', 'bobby-watchdog', 'bobby-arch', 'bobby-ticket-intake', 'bobby-freewill'];
+  // Whether this harness reads a model out of subagent frontmatter at all. On
+  // one that does not, the line would be inert noise in every agent file, so
+  // the per-stage model reaches those projects only through the executor.
+  const agentModels = target.supportsAgentModel && target.supportsAgentModel();
+
   for (const agent of agentFiles) {
     const agentTemplate = path.join(AGENT_TEMPLATES_DIR, `${agent}.md.ejs`);
     if (fs.existsSync(agentTemplate)) {
-      const content = renderTemplate(`agents/${agent}.md.ejs`, templateData);
+      const rendered = renderTemplate(`agents/${agent}.md.ejs`, templateData);
+      // The stage's own model, stamped into the file the harness launches it
+      // from — so `bobby run review` gets the review model whatever model the
+      // session that ran the command happens to be on.
+      const content = agentModels
+        ? withAgentModel(rendered, resolveModelForFile(agent, config))
+        : rendered;
       fs.writeFileSync(path.join(agentsDir, `${agent}.md`), content, 'utf8');
     }
   }

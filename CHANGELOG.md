@@ -35,6 +35,33 @@ All notable changes to Bobby are documented here. The format is based on
 
 ### Added
 
+- **A model per stage, not one for the whole board (BOB-135).** Bobby ran every
+  agent on whatever single model `dashboard.model` named — or, from the CLI, on
+  whatever model the operator's session happened to be on — so reviewing a diff
+  and recording a page's load time cost the same. Each agent now declares a
+  **tier** in `lib/agent-registry.js`: `opus` for judgment (plan, review,
+  security, debug, arch, vet, strategy, the design critiques), `sonnet` for
+  execution (build, test, qe, ship, docs), `haiku` for bookkeeping (performance,
+  watchdog). `lib/models.js` resolves a tier plus the project's config into the
+  model an agent actually gets, and BOTH paths honour it: the orchestrator
+  passes it to the executor as `--model`, and `bobby init`/`bobby upgrade` stamp
+  it into each scaffolded `.claude/agents/bobby-*.md` frontmatter so a stage
+  launched from your own session lands on the right model too. `bobby run`
+  prints the resolved model in its header.
+
+  Override any of it with a `models:` block in `.bobbyrc.yml` — `models.<stage>`
+  beats `models.default` beats `dashboard.model` beats the shipped tier, and
+  `inherit` at any level means "pass no model at all". Two deliberate
+  restraints: an existing `dashboard.model` still governs every stage, so a
+  project that already pinned one model keeps meaning that and never quietly
+  acquires per-stage defaults; and because `opus`/`sonnet`/`haiku` are aliases
+  only the `claude` CLI and Claude Code frontmatter accept, the shipped tiers
+  are withheld from `cursor-agent`, `codex` and `opencode`, which take full
+  model names — passing one an alias it does not have kills the run rather than
+  degrading it. Those projects behave exactly as before until they name models
+  themselves. `test/docs/model-tiers-prose.test.js` anchors the README's tier
+  table against the registry so it cannot drift.
+
 - **Push notifications actually fire (BOB-130).** The relay could already turn a
   `{type:'notify'}` frame into a Web Push, but nothing in the host ever sent one
   — so the Needs-you queue gained tickets in silence. `bobby remote` now carries
