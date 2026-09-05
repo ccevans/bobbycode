@@ -14,7 +14,9 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
+import { EventEmitter } from 'events';
 import { Orchestrator } from '../../../lib/dashboard/orchestrator.js';
+import { runAgent } from '../../../lib/dashboard/executor.js';
 import { WorkspaceStore } from '../../../lib/dashboard/state.js';
 import { buildServer } from '../../../lib/dashboard/server.js';
 import { resolveWorkflow } from '../../../lib/workflow.js';
@@ -541,5 +543,81 @@ describe('a failed run names the executor that actually ran (BOB-136)', () => {
     const ws = await runOnce(o, { ticketId: 'TKT-001' });
 
     expect(ws.lastError).toBe('spawn opencode ENOENT');
+  });
+});
+
+// BOB-137. The flavor resolution rule, driven through the REAL orchestrator to
+// a REAL spawn. Everything above fakes `_runExecutor` wholesale, which is
+// exactly the seam that hid this bug: the argv and the binary are decided
+// BELOW that fake.
+describe('an absolute-path executor is driven with its own CLI (BOB-137)', () => {
+  const OPENCODE_PATH = '/opt/tools/node_modules/.bin/opencode';
+
+  /**
+   * Like `makeOrchestrator`, but `_runExecutor` delegates to the REAL
+   * `runAgent` with only `spawn` faked — so the recorded `[bin, args]` is what
+   * the production path would really have executed.
+   */
+  function makeSpawnRecordingOrchestrator(config) {
+    const o = makeOrchestrator({ config });
+    o.spawned = []; // [[bin, args]]
+    const fakeSpawn = (bin, args) => {
+      o.spawned.push([bin, args]);
+      const child = new EventEmitter();
+      child.stdout = new EventEmitter();
+      child.stderr = new EventEmitter();
+      child.kill = () => {};
+      child.killed = false;
+      child.exitCode = null;
+      child.pid = 4242;
+      setTimeout(() => {
+        child.exitCode = 0;
+        child.emit('exit', 0, null);
+      }, 0);
+      return child;
+    };
+    o._runExecutor = (opts) => runAgent({ ...opts, spawn: fakeSpawn });
+    return o;
+  }
+
+  it('spawns the ABSOLUTE PATH, not the bare flavor bin (TC9)', async () => {
+    const o = makeSpawnRecordingOrchestrator({ dashboard: { executor: OPENCODE_PATH } });
+
+    await runOnce(o, { ticketId: 'TKT-001' });
+
+    expect(o.spawned).toHaveLength(1);
+    const [bin, args] = o.spawned[0];
+    // `_launch` passes the resolved FLAVOR name, and `runAgent` would otherwise
+    // re-derive the bin from the registry and spawn a bare `opencode` — which
+    // is precisely the not-on-PATH binary the user was working around. Removing
+    // `claudeBin: executor.bin` from `_launch` must turn this red.
+    expect(bin).toBe(OPENCODE_PATH);
+    expect(bin).not.toBe('opencode');
+    // ...and it gets OPENCODE's argv, never claude's.
+    expect(args[0]).toBe('run');
+    expect(args).not.toContain('-p');
+    expect(args).not.toContain('--permission-mode');
+    expect(typeof args[args.length - 1]).toBe('string');
+    expect(args[args.length - 1]).toContain('TKT-001');
+  });
+
+  it('a refusing config fails the run without stranding the workspace (TC10)', async () => {
+    const o = makeSpawnRecordingOrchestrator({ dashboard: { executor: '/opt/bin/mystery' } });
+    seedTicket(o, { id: 'TKT-001', stage: 'building' });
+    const ws = o.createWorkspace({ ticketId: 'TKT-001', agent: 'build' });
+
+    await expect(o.runAgent(ws.id)).rejects.toThrow(/dashboard\.executor/);
+    await settle();
+
+    // Resolution runs BEFORE anything is mutated. Left where it was — after
+    // initSession, the running mark and the run_start broadcast — a throw here
+    // wedges the workspace in `running` forever with no process, which is a
+    // worse bug than the one being fixed.
+    const stored = o.store.get(ws.id);
+    expect(stored.status).not.toBe('running');
+    expect(stored.pid).toBeFalsy();
+    expect(stored.sessionId).toBeFalsy();
+    expect(o.spawned).toHaveLength(0);
+    expect(fs.readdirSync(o.sessionsDir)).toHaveLength(0);
   });
 });

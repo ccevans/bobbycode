@@ -66,10 +66,23 @@ export function registerRemote(program) {
         const target = getTarget(config.target || 'claude-code');
         const agentsPath = target.paths().agents;
 
-        const executor = resolveExecutor(config);
-        if (!commandExists(executor.bin)) {
-          warn(`Executor '${executor.bin}' not found — running agents will fail.`);
-          console.log(`  ${dim(`Install it, or set dashboard.executor in .bobbyrc.yml (${EXECUTOR_NAMES.join(' | ')}).`)}`);
+        // A `dashboard.executor` whose CLI flavor cannot be placed is refused
+        // (BOB-137) — loudly, but NOT fatally. A studio serves many projects,
+        // and one project's bad executor key must not stop the app that is the
+        // only way to fix it (the BOB-024 boot-on-an-empty-studio posture).
+        // Every run then 400s with this same message, so nothing runs silently
+        // on the wrong flags. The twin of this block lives in commands/app.js,
+        // which additionally keeps a null `executor` for its summary line —
+        // change the two together.
+        try {
+          const executor = resolveExecutor(config);
+          if (!commandExists(executor.bin)) {
+            warn(`Executor '${executor.bin}' not found — running agents will fail.`);
+            console.log(`  ${dim(`Install it, or set dashboard.executor in .bobbyrc.yml (${EXECUTOR_NAMES.join(' | ')}).`)}`);
+          }
+        } catch (e) {
+          error(e.message);
+          console.log(`  ${dim('Agent runs will refuse with this message until the config is fixed.')}`);
         }
 
         const ticketsDir = resolveTicketsDir(root, config);

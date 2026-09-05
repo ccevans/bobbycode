@@ -6,6 +6,30 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+- **`dashboard.executor` names the binary; `dashboard.executor_flavor` names the
+  CLI it speaks (BOB-137).** An absolute path used to fall through to claude's
+  argv builder, and against a real non-claude binary that is not merely
+  "unrecognized" — it is wrong: opencode's `-p` is the basic-auth *password*
+  flag, so `dashboard.executor: /abs/path/to/opencode` delivered the prompt as a
+  password and the binary exited 1 on a usage dump with the prompt never seen
+  (captured live against opencode 1.18.22). The flavor is now resolved
+  explicitly: `dashboard.executor_flavor` if set, otherwise the binary's own
+  basename (lowercased, extension stripped — so `/opt/bin/opencode`,
+  `node_modules/.bin/cursor-agent` and the always-documented `/abs/path/to/claude`
+  all just work). If neither resolves, Bobby **refuses to run** and the error
+  names the setting to fix and the values it accepts — never the binary, which
+  has not run. `bobby app` and `bobby remote` print that error and keep booting,
+  because a studio must stay reachable to be fixable.
+
+  **This is a behaviour change, not only a fix.** A config pointing at a wrapper
+  whose name says nothing about the CLI underneath (`/opt/bin/my-agent`) works
+  today and refuses after this release — it only ever worked when the wrapper
+  really was claude-flavored, and was silently broken otherwise. The remedy is
+  one line, and the error message hands it over: `dashboard.executor_flavor:
+  opencode`. A relative path now refuses too; it could only ever ENOENT, since
+  agents are spawned with cwd set to their own worktree.
+
 ### Fixed
 - **A failed run now names the executor that actually ran (BOB-136).** Every
   non-zero exit reported `claude exited with code N` regardless of which CLI the
