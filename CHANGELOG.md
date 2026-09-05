@@ -30,6 +30,13 @@ All notable changes to Bobby are documented here. The format is based on
   opencode`. A relative path now refuses too; it could only ever ENOENT, since
   agents are spawned with cwd set to their own worktree.
 
+  Both keys are documented in the README's Executor section and in the
+  `.bobbyrc.yml` that `bobby init` generates, so the escape hatch is findable
+  before you hit the refusal rather than only from the error text (BOB-147). A
+  path mistakenly put in `dashboard.executor_flavor` now names *that* key and
+  tells you the only thing it accepts — a bare flavor name — instead of blaming
+  `dashboard.executor` and sending you to an absolute path that key never takes.
+
 ### Fixed
 - **A failed run now names the executor that actually ran (BOB-136).** Every
   non-zero exit reported `claude exited with code N` regardless of which CLI the

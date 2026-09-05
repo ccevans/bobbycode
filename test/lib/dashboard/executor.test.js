@@ -659,6 +659,30 @@ describe('resolveExecutor flavor resolution (BOB-137)', () => {
     })).toThrow(/absolute/i);
   });
 
+  test('a path in executor_flavor blames the flavor key, not the executor (F2)', () => {
+    // BOB-137's review (F2) and its tester both hit this, at BOOT as well as
+    // per-run: with NO `dashboard.executor` anywhere in the file, the refusal
+    // read "dashboard.executor is set to 'bin/opencode'" — naming a key the
+    // user never wrote, and offering a remedy ("use an absolute path") that is
+    // never valid for this key. Only a bare registered flavor name ever is.
+    let message = '';
+    try {
+      resolveExecutor({ dashboard: { executor_flavor: 'bin/opencode' } });
+      throw new Error('expected resolveExecutor to refuse');
+    } catch (e) {
+      message = e.message;
+    }
+
+    expect(message).toMatch(/dashboard\.executor_flavor/);
+    expect(message).toContain("'bin/opencode'");
+    // The key the user never set must not be blamed for the one they did.
+    expect(message.replace(/dashboard\.executor_flavor/g, '')).not.toContain('dashboard.executor');
+    // And the remedy must be one that works here: an absolute path is never a
+    // valid executor_flavor, so the message must not send the user to one.
+    expect(message).not.toMatch(/absolute/i);
+    for (const name of EXECUTOR_NAMES) expect(message).toContain(name);
+  });
+
   test('the target derivation is untouched when no executor is configured', () => {
     expect(resolveExecutor({ target: 'opencode' }).name).toBe('opencode');
     expect(resolveExecutor({ target: 'cursor' }).name).toBe('cursor-agent');
