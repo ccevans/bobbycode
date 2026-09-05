@@ -488,3 +488,58 @@ describe('merge timestamps (TKT-013)', () => {
     expect(body.children.find(c => c.id === 'TKT-002').mergedAt).toBeNull();
   });
 });
+
+describe('a failed run names the executor that actually ran (BOB-136)', () => {
+  // `lastError` is the line a user reads in the App when a run goes red. It
+  // hardcoded `claude` from 6c01c85 until BOB-136, so a failed opencode run
+  // sent the user to the wrong binary, the wrong docs and the wrong auth.
+  it('blames opencode when opencode is what ran', async () => {
+    const o = makeOrchestrator({ config: { dashboard: { executor: 'opencode' } } });
+    o.exitQueue = [{ exitCode: 1, signal: null }];
+
+    const ws = await runOnce(o, { ticketId: 'TKT-001' });
+
+    expect(ws.lastError).toBe('opencode exited with code 1');
+    // The positive assertion alone would still pass if the name were swapped
+    // for another hardcode; this is the one that pins the bug.
+    expect(ws.lastError).not.toMatch(/claude/);
+  });
+
+  it.each(['claude', 'cursor-agent', 'codex', 'opencode'])(
+    'names %s when %s is the configured executor',
+    async (flavor) => {
+      const o = makeOrchestrator({ config: { dashboard: { executor: flavor } } });
+      o.exitQueue = [{ exitCode: 2, signal: null }];
+
+      const ws = await runOnce(o, { ticketId: 'TKT-001' });
+
+      expect(ws.lastError).toBe(`${flavor} exited with code 2`);
+    }
+  );
+
+  // The AC's "meaningful rather than a bare path" case: a custom binary is
+  // named by its CLI, not by the 40 characters of path the user already typed.
+  it('names a custom absolute-path executor by its binary', async () => {
+    const o = makeOrchestrator({
+      config: { dashboard: { executor: '/opt/tools/node_modules/.bin/opencode' } },
+    });
+    o.exitQueue = [{ exitCode: 1, signal: null }];
+
+    const ws = await runOnce(o, { ticketId: 'TKT-001' });
+
+    expect(ws.lastError).toBe('opencode exited with code 1');
+    expect(ws.lastError).not.toContain('/opt/tools');
+    expect(ws.lastError).not.toMatch(/claude/);
+  });
+
+  // The branch immediately above the fix: a crash has its own message and must
+  // not be rewritten into a bogus "exited with code null".
+  it('leaves a spawn failure with its own message', async () => {
+    const o = makeOrchestrator({ config: { dashboard: { executor: 'opencode' } } });
+    o.exitQueue = [{ exitCode: null, signal: null, error: 'spawn opencode ENOENT' }];
+
+    const ws = await runOnce(o, { ticketId: 'TKT-001' });
+
+    expect(ws.lastError).toBe('spawn opencode ENOENT');
+  });
+});

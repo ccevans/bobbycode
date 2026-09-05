@@ -7,6 +7,17 @@ All notable changes to Bobby are documented here. The format is based on
 ## [Unreleased]
 
 ### Fixed
+- **A failed run now names the executor that actually ran (BOB-136).** Every
+  non-zero exit reported `claude exited with code N` regardless of which CLI the
+  dashboard had launched, so a failed opencode, codex or cursor-agent run sent
+  its user to the wrong binary, the wrong docs and the wrong auth. The line was
+  hardcoded from 6c01c85, long before the dashboard grew four flavors. `_launch`
+  now stamps the run's own resolved executor on the result it settles — one seam
+  covering all three exit paths, including chat turns — and a new
+  `executorLabel()` names it, falling back to a custom binary's basename so an
+  absolute-path `dashboard.executor` reads as `opencode`, not as forty
+  characters of path. Nothing is re-resolved at exit: the run's config is pinned,
+  and a throw inside an exit handler would strand the workspace in `running`.
 - **README Executor prose caught up with the registry (BOB-134).** The
   Dashboard section still said the dashboard drives `claude` or `cursor-agent`
   only — three flavors stale after codex (BOB-080) and opencode (BOB-085)

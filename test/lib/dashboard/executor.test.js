@@ -5,6 +5,7 @@ import {
   runClaude,
   runAgent,
   resolveExecutor,
+  executorLabel,
   commandExists,
   cleanExecutorEnv,
   sessionIdFromEvent,
@@ -512,6 +513,42 @@ describe('resolveExecutor', () => {
     // EXECUTOR_NAMES is what wires the app/remote startup banner and the
     // missing-binary warning text, so registration alone discharges those.
     expect(EXECUTOR_NAMES).toEqual(expect.arrayContaining(['claude', 'cursor-agent', 'codex', 'opencode']));
+  });
+});
+
+describe('executorLabel (BOB-136)', () => {
+  test('a registered flavor is named by itself', () => {
+    expect(executorLabel(resolveExecutor({ target: 'opencode' }))).toBe('opencode');
+    expect(executorLabel(resolveExecutor({ target: 'codex' }))).toBe('codex');
+    expect(executorLabel(resolveExecutor({ target: 'cursor' }))).toBe('cursor-agent');
+    expect(executorLabel(resolveExecutor({}))).toBe('claude');
+  });
+
+  test('a custom binary path is named by its binary, not by the path', () => {
+    // What `resolveExecutor` returns today for `dashboard.executor: <a path>`.
+    const label = executorLabel({ name: '/abs/path/to/opencode', bin: '/abs/path/to/opencode' });
+    expect(label).toBe('opencode');
+    expect(label).not.toContain('/');
+  });
+
+  test('a resolved flavor keeps the flavor name even when its bin says otherwise', () => {
+    // The shape BOB-137 will produce: a path resolved to a registered flavor.
+    // The bin here is deliberately a wrapper whose basename is NOT the flavor
+    // name — the case where "registered flavor wins" is the only thing that
+    // separates this branch from a bare basename.
+    expect(executorLabel({ name: 'opencode', bin: '/opt/wrappers/oc-shim' })).toBe('opencode');
+    expect(executorLabel({ name: 'opencode', bin: '/abs/path/to/opencode' })).toBe('opencode');
+  });
+
+  test('an unregistered bare name is kept as-is', () => {
+    expect(executorLabel({ name: 'aider', bin: 'aider' })).toBe('aider');
+  });
+
+  test('degrades to an honest phrase rather than to undefined or empty', () => {
+    // `${undefined} exited with code 1` is worse than the hardcode it replaced.
+    expect(executorLabel({})).toBe('the agent CLI');
+    expect(executorLabel(undefined)).toBe('the agent CLI');
+    expect(executorLabel({ name: '', bin: '' })).toBe('the agent CLI');
   });
 });
 

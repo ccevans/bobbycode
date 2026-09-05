@@ -279,7 +279,7 @@ describe('opencode chat resume (BOB-085)', () => {
    * asserted below is what the real opencode buildArgs produced. Only `spawn`
    * is faked: it records [bin, args] and replays the V2 stream line.
    */
-  function makeOpencodeSetup() {
+  function makeOpencodeSetup({ exitCode = 0 } = {}) {
     const repoRoot = initRepo(path.join(tmp, 'repo'));
     const ticketsDir = path.join(repoRoot, '.bobby', 'tickets');
     fs.mkdirSync(ticketsDir, { recursive: true });
@@ -305,8 +305,8 @@ describe('opencode chat resume (BOB-085)', () => {
       // being run, so a resumed turn's re-announcement never overwrites.
       setTimeout(() => {
         child.stdout.emit('data', Buffer.from(EVENT_LINE));
-        child.exitCode = 0;
-        child.emit('exit', 0, null);
+        child.exitCode = exitCode;
+        child.emit('exit', exitCode, null);
       }, 0);
       return child;
     };
@@ -350,5 +350,19 @@ describe('opencode chat resume (BOB-085)', () => {
     // The resumed stream re-announced the same sessionID — no overwrite.
     expect(o.store.get(chat.workspaceId).chatId).toBe(SESSION_ID);
     expect(synced.chatSessionId).toBe(SESSION_ID);
+  });
+
+  // BOB-136: a chat turn passes its own `onExit` and so takes the OTHER branch
+  // of `_launch`'s settle — the branch a fix aimed only at `_onExit` misses.
+  test('a failed turn blames opencode, not claude (BOB-136)', async () => {
+    const { o, chatManager, ticketsDir } = makeOpencodeSetup({ exitCode: 1 });
+    const id = seedTicket(ticketsDir);
+    const chat = chatManager.startChat(id);
+
+    await chatManager.sendMessage(chat.id, 'hello');
+
+    const ws = o.store.get(chat.workspaceId);
+    expect(ws.lastError).toBe('opencode exited with code 1');
+    expect(ws.lastError).not.toMatch(/claude/);
   });
 });
