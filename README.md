@@ -636,14 +636,33 @@ bobby dashboard --no-open   # Don't auto-open the browser
 `target`: `target: cursor` drives `cursor-agent`, `target: codex` drives
 `codex`, `target: opencode` drives `opencode`, and every other target drives
 `claude` (`resolveExecutor` in `lib/dashboard/executor.js`). An explicit
-`dashboard.executor` overrides the derivation — one of the four names, or an
-absolute path to a binary that takes claude-style flags. Pass a specific model
-with `dashboard.model`:
+`dashboard.executor` overrides the derivation, and it names the **binary** —
+one of the four flavor names, or an *absolute* path to one. A relative path is
+refused: agents are spawned with cwd set to their own worktree, so it would
+resolve somewhere different on every run.
+
+Which CLI *dialect* Bobby drives that binary with is a separate question, and
+`dashboard.executor_flavor` answers it. Left unset, the flavor is inferred from
+the binary's own basename, lowercased with any extension stripped — so
+`/opt/bin/opencode` gets `opencode`'s flags, not `claude`'s. When neither the
+key nor the basename lands on a registered flavor, Bobby refuses the run with
+an error naming the setting rather than guessing: the wrong dialect hands your
+prompt to whatever `-p` means to that CLI (for `opencode` it is the basic-auth
+password), so the agent never receives it and the run fails on a usage dump.
+Pass a specific model with `dashboard.model`:
 
 ```yaml
 dashboard:
   executor: cursor-agent           # claude | cursor-agent | codex | opencode
-                                   # (default: derived from target) — or /abs/path/to/a/binary
+                                   # (default: derived from target) — or an
+                                   # /abs/path/to/a/binary, never a relative one
+  executor_flavor: cursor-agent    # optional — which of those four dialects the
+                                   # binary above speaks. A bare flavor name
+                                   # only, never a path. Redundant here, since
+                                   # the basename already says it; you need it
+                                   # for a wrapper, or any binary whose name
+                                   # says nothing about the CLI underneath —
+                                   # /opt/bin/agent-shim + executor_flavor: opencode
   model: composer-2.5              # optional — passed through as --model
   worktree_permission_mode: bypassPermissions   # ticket runs — see below
   repo_permission_mode: acceptEdits             # freeform runs — see below

@@ -380,5 +380,9 @@ describe('config', () => {
     // all still there, which is what "degrades" has to mean.
     expect(body.project).toBe(path.basename(tmp));
     expect(body.stages).toContain('backlog');
+    // The default TARGET, not an executor flavor — the one `claude` string in
+    // lib/dashboard/ that BOB-136's sweep must leave alone. This is the guard
+    // rail on the next over-eager sweep.
+    expect(body.target).toBe('claude-code');
   });
 });

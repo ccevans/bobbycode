@@ -14,7 +14,9 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
+import { EventEmitter } from 'events';
 import { Orchestrator } from '../../../lib/dashboard/orchestrator.js';
+import { runAgent } from '../../../lib/dashboard/executor.js';
 import { WorkspaceStore } from '../../../lib/dashboard/state.js';
 import { buildServer } from '../../../lib/dashboard/server.js';
 import { resolveWorkflow } from '../../../lib/workflow.js';
@@ -486,5 +488,136 @@ describe('merge timestamps (TKT-013)', () => {
     const { body } = await api('GET', '/api/features/TKT-001');
 
     expect(body.children.find(c => c.id === 'TKT-002').mergedAt).toBeNull();
+  });
+});
+
+describe('a failed run names the executor that actually ran (BOB-136)', () => {
+  // `lastError` is the line a user reads in the App when a run goes red. It
+  // hardcoded `claude` from 6c01c85 until BOB-136, so a failed opencode run
+  // sent the user to the wrong binary, the wrong docs and the wrong auth.
+  it('blames opencode when opencode is what ran', async () => {
+    const o = makeOrchestrator({ config: { dashboard: { executor: 'opencode' } } });
+    o.exitQueue = [{ exitCode: 1, signal: null }];
+
+    const ws = await runOnce(o, { ticketId: 'TKT-001' });
+
+    expect(ws.lastError).toBe('opencode exited with code 1');
+    // The positive assertion alone would still pass if the name were swapped
+    // for another hardcode; this is the one that pins the bug.
+    expect(ws.lastError).not.toMatch(/claude/);
+  });
+
+  it.each(['claude', 'cursor-agent', 'codex', 'opencode'])(
+    'names %s when %s is the configured executor',
+    async (flavor) => {
+      const o = makeOrchestrator({ config: { dashboard: { executor: flavor } } });
+      o.exitQueue = [{ exitCode: 2, signal: null }];
+
+      const ws = await runOnce(o, { ticketId: 'TKT-001' });
+
+      expect(ws.lastError).toBe(`${flavor} exited with code 2`);
+    }
+  );
+
+  // The AC's "meaningful rather than a bare path" case: a custom binary is
+  // named by its CLI, not by the 40 characters of path the user already typed.
+  it('names a custom absolute-path executor by its binary', async () => {
+    const o = makeOrchestrator({
+      config: { dashboard: { executor: '/opt/tools/node_modules/.bin/opencode' } },
+    });
+    o.exitQueue = [{ exitCode: 1, signal: null }];
+
+    const ws = await runOnce(o, { ticketId: 'TKT-001' });
+
+    expect(ws.lastError).toBe('opencode exited with code 1');
+    expect(ws.lastError).not.toContain('/opt/tools');
+    expect(ws.lastError).not.toMatch(/claude/);
+  });
+
+  // The branch immediately above the fix: a crash has its own message and must
+  // not be rewritten into a bogus "exited with code null".
+  it('leaves a spawn failure with its own message', async () => {
+    const o = makeOrchestrator({ config: { dashboard: { executor: 'opencode' } } });
+    o.exitQueue = [{ exitCode: null, signal: null, error: 'spawn opencode ENOENT' }];
+
+    const ws = await runOnce(o, { ticketId: 'TKT-001' });
+
+    expect(ws.lastError).toBe('spawn opencode ENOENT');
+  });
+});
+
+// BOB-137. The flavor resolution rule, driven through the REAL orchestrator to
+// a REAL spawn. Everything above fakes `_runExecutor` wholesale, which is
+// exactly the seam that hid this bug: the argv and the binary are decided
+// BELOW that fake.
+describe('an absolute-path executor is driven with its own CLI (BOB-137)', () => {
+  const OPENCODE_PATH = '/opt/tools/node_modules/.bin/opencode';
+
+  /**
+   * Like `makeOrchestrator`, but `_runExecutor` delegates to the REAL
+   * `runAgent` with only `spawn` faked — so the recorded `[bin, args]` is what
+   * the production path would really have executed.
+   */
+  function makeSpawnRecordingOrchestrator(config) {
+    const o = makeOrchestrator({ config });
+    o.spawned = []; // [[bin, args]]
+    const fakeSpawn = (bin, args) => {
+      o.spawned.push([bin, args]);
+      const child = new EventEmitter();
+      child.stdout = new EventEmitter();
+      child.stderr = new EventEmitter();
+      child.kill = () => {};
+      child.killed = false;
+      child.exitCode = null;
+      child.pid = 4242;
+      setTimeout(() => {
+        child.exitCode = 0;
+        child.emit('exit', 0, null);
+      }, 0);
+      return child;
+    };
+    o._runExecutor = (opts) => runAgent({ ...opts, spawn: fakeSpawn });
+    return o;
+  }
+
+  it('spawns the ABSOLUTE PATH, not the bare flavor bin (TC9)', async () => {
+    const o = makeSpawnRecordingOrchestrator({ dashboard: { executor: OPENCODE_PATH } });
+
+    await runOnce(o, { ticketId: 'TKT-001' });
+
+    expect(o.spawned).toHaveLength(1);
+    const [bin, args] = o.spawned[0];
+    // `_launch` passes the resolved FLAVOR name, and `runAgent` would otherwise
+    // re-derive the bin from the registry and spawn a bare `opencode` — which
+    // is precisely the not-on-PATH binary the user was working around. Removing
+    // `claudeBin: executor.bin` from `_launch` must turn this red.
+    expect(bin).toBe(OPENCODE_PATH);
+    expect(bin).not.toBe('opencode');
+    // ...and it gets OPENCODE's argv, never claude's.
+    expect(args[0]).toBe('run');
+    expect(args).not.toContain('-p');
+    expect(args).not.toContain('--permission-mode');
+    expect(typeof args[args.length - 1]).toBe('string');
+    expect(args[args.length - 1]).toContain('TKT-001');
+  });
+
+  it('a refusing config fails the run without stranding the workspace (TC10)', async () => {
+    const o = makeSpawnRecordingOrchestrator({ dashboard: { executor: '/opt/bin/mystery' } });
+    seedTicket(o, { id: 'TKT-001', stage: 'building' });
+    const ws = o.createWorkspace({ ticketId: 'TKT-001', agent: 'build' });
+
+    await expect(o.runAgent(ws.id)).rejects.toThrow(/dashboard\.executor/);
+    await settle();
+
+    // Resolution runs BEFORE anything is mutated. Left where it was — after
+    // initSession, the running mark and the run_start broadcast — a throw here
+    // wedges the workspace in `running` forever with no process, which is a
+    // worse bug than the one being fixed.
+    const stored = o.store.get(ws.id);
+    expect(stored.status).not.toBe('running');
+    expect(stored.pid).toBeFalsy();
+    expect(stored.sessionId).toBeFalsy();
+    expect(o.spawned).toHaveLength(0);
+    expect(fs.readdirSync(o.sessionsDir)).toHaveLength(0);
   });
 });
