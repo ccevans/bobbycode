@@ -8,6 +8,7 @@ import {
   promoteV1ToStudio,
 } from '../lib/studio.js';
 import { success, error, bold, dim, warn } from '../lib/colors.js';
+import { backsGlobalCli, inspectGlobalLink, repairCommand } from '../lib/self-link.js';
 
 // Read-only / management commands: require a studio that already exists.
 function studioRoot() {
@@ -113,6 +114,15 @@ export function registerStudio(program) {
         const root = growStudioRoot();
         const entry = addRepo(root, name, target, { stack: opts.stack, test: opts.test });
         success(`Repo '${name}' added → ${entry.path}`);
+        // BOB-154: adding the checkout that serves the global `bobby` puts it
+        // under the studio's management, and a later move of it breaks the
+        // command itself. Say so once, here, where the coupling is created.
+        const link = inspectGlobalLink();
+        if (backsGlobalCli(path.resolve(root, entry.path), link)) {
+          warn(`'${name}' is the checkout backing your global \`bobby\` command (npm link).`);
+          console.log(`  ${dim('Moving or renaming it breaks the command. To repair afterwards:')}`);
+          console.log(`  ${dim(repairCommand(link.entry, '<new path>'))}`);
+        }
       } catch (e) { error(e.message); process.exit(1); }
     });
   repo.command('list')
