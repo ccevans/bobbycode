@@ -136,6 +136,47 @@ describe('worktree manager', () => {
       expect(err.message).toMatch(/shadows the studio/);
     });
 
+    test('refuses a worktree_root that lands INSIDE a code repo (BOB-152)', () => {
+      // The gap the two checks above leave open. A repo in the group normally has
+      // NO .bobbyrc.yml of its own — the healthy studio shape — so a root inside
+      // it walks past the repo up to the studio and sameRoot passes. Note this
+      // fixture deliberately does NOT write a config into codeRepo, which is what
+      // separates it from the shadowing test.
+      const config = { studio: 'acme', dashboard: { worktree_root: 'worktrees' } };
+
+      let err;
+      try { resolveWorktreeRoot(codeRepo, config, studioRoot); } catch (e) { err = e; }
+
+      expect(err).toBeInstanceOf(Error);
+      expect(err.message).toContain(path.join(codeRepo, 'worktrees'));
+      expect(err.message).toContain(codeRepo);
+      expect(err.message).toMatch(/INSIDE a code repo/);
+      // and it names the value that actually works
+      expect(err.message).toContain('../../worktrees');
+    });
+
+    test('refuses a worktree_root inside ANOTHER repo in the group (BOB-152)', () => {
+      const other = path.join(studioRoot, 'repos', 'other');
+      fs.mkdirSync(other, { recursive: true });
+      const config = {
+        studio: 'acme',
+        repos: { app: { path: 'repos/app' }, other: { path: 'repos/other' } },
+        dashboard: { worktree_root: path.join(other, 'wt') },
+      };
+
+      let err;
+      try { resolveWorktreeRoot(codeRepo, config, studioRoot); } catch (e) { err = e; }
+
+      expect(err).toBeInstanceOf(Error);
+      expect(err.message).toContain(other);
+    });
+
+    test('still accepts the correct studio value from a repo under repos/ (BOB-152)', () => {
+      const config = { studio: 'acme', dashboard: { worktree_root: '../../worktrees' } };
+      expect(resolveWorktreeRoot(codeRepo, config, studioRoot))
+        .toBe(path.join(studioRoot, 'worktrees'));
+    });
+
     test('board resolution from inside an accepted worktree reaches the studio — AC2', () => {
       // The assertion AC2 literally asks for, and the one nobody had written:
       // drive findProjectRoot from a worktree PATH, not just the resolver.
