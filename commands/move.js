@@ -1,10 +1,41 @@
 // commands/move.js
 import path from 'path';
-import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
-import { moveTicket, findTicket } from '../lib/tickets.js';
+import { readConfig, findProjectRoot, resolveTicketsDir, findMainWorktreeRoot } from '../lib/config.js';
+import { moveTicket, findTicket, readTicket, writeTicket } from '../lib/tickets.js';
 import { resolveTransition, stageColor } from '../lib/stages.js';
-import { success, bold, error } from '../lib/colors.js';
+import { success, bold, dim, error } from '../lib/colors.js';
 import { tryLogEntry } from '../lib/session.js';
+import { computeWorktreePlacement, removeWorktree } from '../lib/dashboard/worktree.js';
+
+// Auto-reclaim a ticket's worktree once it ships. Ship has already pushed the
+// branch to origin by this point (bobby-ship's own pre-flight requires it),
+// so the local checkout is disposable — recreating it later just means
+// checking the still-existing remote branch out again. Best-effort and
+// silent on any failure (uncommitted changes, no worktree, not a git repo):
+// a cleanup miss must never turn `ticket move done` into a hard failure.
+function autoRemoveShippedWorktree(root, config, ticketsDir, id) {
+  const found = findTicket(ticketsDir, id);
+  if (!found || !found.data.worktree_path) return null;
+
+  try {
+    const repo = findMainWorktreeRoot() || root;
+    const { worktreePath: computedPath, branch: computedBranch } = computeWorktreePlacement(repo, config, id);
+    const targetPath = found.data.worktree_path || computedPath;
+    const targetBranch = found.data.worktree_branch || computedBranch;
+
+    const result = removeWorktree(repo, targetPath, { branch: targetBranch, force: false });
+    if (!result.removed) return null;
+
+    const ticket = readTicket(found.path);
+    delete ticket.data.worktree_path;
+    delete ticket.data.worktree_branch;
+    ticket.data.updated = new Date().toISOString().split('T')[0];
+    writeTicket(found.path, ticket.data, ticket.content);
+    return result;
+  } catch {
+    return null;
+  }
+}
 
 export function registerMove(program) {
   program
@@ -64,6 +95,11 @@ export function registerMove(program) {
         const colorFn = stageColor(targetStage);
         success(`${bold(id)} → ${colorFn(targetStage)}`);
         tryLogEntry(root, config, { type: 'move', ticket: id, from: fromStage, to: targetStage, detail: comment });
+
+        if (targetStage === 'done') {
+          const cleanup = autoRemoveShippedWorktree(root, config, ticketsDir, id);
+          if (cleanup) console.log(dim(`  worktree reclaimed${cleanup.docker?.tornDown ? ' (docker stack torn down)' : ''}`));
+        }
       } catch (e) {
         error(e.message);
         process.exit(1);

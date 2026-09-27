@@ -226,6 +226,74 @@ describe('worktree manager', () => {
     expect(branches).not.toContain('bobby/rm');
   });
 
+  // Docker teardown before deletion: a fake `docker` on PATH stands in for the
+  // real CLI so these stay fast and hermetic (no image pulls, no daemon
+  // dependency) while still proving the invocation and its ordering.
+  describe('removeWorktree docker teardown', () => {
+    let originalPath;
+
+    beforeEach(() => { originalPath = process.env.PATH; });
+    afterEach(() => { process.env.PATH = originalPath; });
+
+    function fakeDockerBin(dir) {
+      const binDir = path.join(dir, 'fakebin');
+      fs.mkdirSync(binDir, { recursive: true });
+      const script = path.join(binDir, 'docker');
+      fs.writeFileSync(script, `#!/bin/sh\necho "$@" >> "${path.join(binDir, 'calls.log')}"\n`);
+      fs.chmodSync(script, 0o755);
+      return binDir;
+    }
+
+    test('tears down a docker-compose stack before deleting the worktree', () => {
+      const binDir = fakeDockerBin(tmpDir);
+      process.env.PATH = `${binDir}:${originalPath}`;
+
+      const wtPath = path.join(tmpDir, 'wt-docker');
+      createWorktree(repoDir, { worktreePath: wtPath, branch: 'bobby/docker' });
+      fs.writeFileSync(path.join(wtPath, 'docker-compose.yml'), 'services:\n  db:\n    image: postgres\n');
+      git(wtPath, 'add -A');
+      git(wtPath, 'commit -q -m "add compose"');
+
+      const result = removeWorktree(repoDir, wtPath, { branch: 'bobby/docker' });
+
+      expect(result.removed).toBe(true);
+      expect(result.docker).toEqual({ attempted: true, tornDown: true });
+      expect(fs.existsSync(wtPath)).toBe(false);
+      const log = fs.readFileSync(path.join(binDir, 'calls.log'), 'utf8');
+      expect(log).toContain('compose down');
+    });
+
+    test('skips docker entirely when the worktree has no compose file', () => {
+      const binDir = fakeDockerBin(tmpDir);
+      process.env.PATH = `${binDir}:${originalPath}`;
+
+      const wtPath = path.join(tmpDir, 'wt-no-docker');
+      createWorktree(repoDir, { worktreePath: wtPath, branch: 'bobby/no-docker' });
+
+      const result = removeWorktree(repoDir, wtPath, { branch: 'bobby/no-docker' });
+
+      expect(result.removed).toBe(true);
+      expect(result.docker).toEqual({ attempted: false });
+      expect(fs.existsSync(path.join(binDir, 'calls.log'))).toBe(false);
+    });
+
+    test('refuses a dirty worktree WITHOUT tearing down docker first', () => {
+      const binDir = fakeDockerBin(tmpDir);
+      process.env.PATH = `${binDir}:${originalPath}`;
+
+      const wtPath = path.join(tmpDir, 'wt-dirty');
+      createWorktree(repoDir, { worktreePath: wtPath, branch: 'bobby/dirty' });
+      fs.writeFileSync(path.join(wtPath, 'docker-compose.yml'), 'services:\n  db:\n    image: postgres\n');
+      git(wtPath, 'add -A');
+      git(wtPath, 'commit -q -m "add compose"');
+      fs.writeFileSync(path.join(wtPath, 'stray.txt'), 'uncommitted work');
+
+      expect(() => removeWorktree(repoDir, wtPath, { branch: 'bobby/dirty' })).toThrow(/uncommitted changes/);
+      expect(fs.existsSync(path.join(binDir, 'calls.log'))).toBe(false);
+      expect(fs.existsSync(wtPath)).toBe(true);
+    });
+  });
+
   test('commitCheckpoint returns null when nothing to commit', () => {
     const wtPath = path.join(tmpDir, 'wt-empty');
     createWorktree(repoDir, { worktreePath: wtPath, branch: 'bobby/empty' });
