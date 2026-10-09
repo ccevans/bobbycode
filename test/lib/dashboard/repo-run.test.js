@@ -46,7 +46,7 @@ function initRepo(dir) {
  * releases it — which is how "while a repo run is running" becomes a state a
  * test can actually be in, rather than a comment.
  */
-function makeOrchestrator({ config = {}, behaviour } = {}) {
+function makeOrchestrator({ config = {}, behaviour, exit } = {}) {
   const ticketsDir = path.join(repoRoot, '.bobby', 'tickets');
   const sessionsDir = path.join(repoRoot, '.bobby', 'sessions');
   fs.mkdirSync(ticketsDir, { recursive: true });
@@ -69,7 +69,7 @@ function makeOrchestrator({ config = {}, behaviour } = {}) {
 
   o._runExecutor = ({ prompt, worktreePath }) => {
     o.launched.push({ prompt, worktreePath });
-    const finish = () => ({ exitCode: 0, signal: null });
+    const finish = () => ({ exitCode: 0, signal: null, ...exit });
     if (behaviour === 'manual') {
       let release;
       const done = new Promise((resolve) => { release = () => resolve(finish()); });
@@ -604,5 +604,25 @@ describe('every ticket-free agent is launchable through the API', () => {
     const { status, body } = await api('POST', '/api/repo-runs', {});
     expect(status).toBe(400);
     expect(body.error).toBe('agent is required');
+  });
+});
+
+describe('a failed repo run names the executor that actually ran (BOB-136)', () => {
+  // `_onRepoRunExit` is its own `_lastErrorFor` call site — a fix that only
+  // reached `_onExit` would leave every failed repo run still blaming claude.
+  it('blames codex when codex is what ran', async () => {
+    const o = makeOrchestrator({
+      config: { dashboard: { executor: 'codex' } },
+      exit: { exitCode: 1 },
+    });
+
+    const run = o.createRepoRun({ agent: 'ux' });
+    await o.runAgent(run.id);
+    await settle();
+
+    const after = o.store.get(run.id);
+    expect(after.status).toBe('failed');
+    expect(after.lastError).toBe('codex exited with code 1');
+    expect(after.lastError).not.toMatch(/claude/);
   });
 });

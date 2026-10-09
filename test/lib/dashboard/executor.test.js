@@ -5,6 +5,7 @@ import {
   runClaude,
   runAgent,
   resolveExecutor,
+  executorLabel,
   commandExists,
   cleanExecutorEnv,
   sessionIdFromEvent,
@@ -500,18 +501,254 @@ describe('resolveExecutor', () => {
     expect(resolveExecutor({ target: 'opencode', dashboard: { executor: 'claude' } }).name).toBe('claude');
   });
 
-  test('an unrecognized executor is treated as a custom binary path', () => {
-    const e = resolveExecutor({ dashboard: { executor: '/opt/bin/claude' } });
-    expect(e.bin).toBe('/opt/bin/claude');
-    // Custom bins keep claude-style flags, which is what this config meant before.
-    expect(e.buildArgs({ prompt: 'p', outputFormat: 'stream-json' }))
-      .toEqual(['-p', 'p', '--output-format', 'stream-json', '--verbose']);
-  });
-
   test('EXECUTOR_NAMES lists every known flavor', () => {
     // EXECUTOR_NAMES is what wires the app/remote startup banner and the
     // missing-binary warning text, so registration alone discharges those.
     expect(EXECUTOR_NAMES).toEqual(expect.arrayContaining(['claude', 'cursor-agent', 'codex', 'opencode']));
+  });
+});
+
+// BOB-137. `dashboard.executor` names the BINARY; the flavor it speaks is
+// `dashboard.executor_flavor` if set, otherwise the binary's own basename. If
+// neither resolves, resolution REFUSES — it used to fall back to claude's argv
+// builder, and against a real non-claude binary that is not "unrecognized", it
+// is wrong: opencode's `-p` is the basic-auth PASSWORD flag, so the prompt was
+// delivered as a password and the binary exited 1 on a usage dump with the
+// prompt never seen (captured live against opencode 1.18.22 — BOB-085
+// test-evidence/argv-abs-path-footgun.log).
+describe('resolveExecutor flavor resolution (BOB-137)', () => {
+  test('an absolute path to opencode gets OPENCODE argv, never claude flags (TC1)', () => {
+    const e = resolveExecutor({ dashboard: { executor: '/opt/tools/node_modules/.bin/opencode' } });
+
+    expect(e.name).toBe('opencode');
+    expect(e.bin).toBe('/opt/tools/node_modules/.bin/opencode');
+
+    const argv = e.buildArgs({ prompt: 'hello', outputFormat: 'stream-json', permissionMode: 'plan' });
+    expect(argv).toEqual(['run', '--format', 'json', '--agent', 'plan', 'hello']);
+    // The literal shape of the field-captured bug. `-p` here is opencode's
+    // password flag and `--permission-mode` is a flag it does not have at all.
+    expect(argv).not.toContain('-p');
+    expect(argv).not.toContain('--permission-mode');
+  });
+
+  test.each(EXECUTOR_NAMES)('infers %s from an absolute path to it (TC2)', (flavor) => {
+    const viaPath = resolveExecutor({ dashboard: { executor: `/opt/bin/${flavor}` } });
+    const viaName = resolveExecutor({ dashboard: { executor: flavor } });
+
+    expect(viaPath.name).toBe(flavor);
+    expect(viaPath.bin).toBe(`/opt/bin/${flavor}`);
+    // Same builder object, not merely an equal argv — a path and a bare name
+    // must be the same flavor, not two implementations that happen to agree.
+    expect(viaPath.buildArgs).toBe(viaName.buildArgs);
+  });
+
+  test.each([
+    ['/opt/bin/opencode.exe', 'opencode'],       // extension stripped
+    ['/Applications/OpenCode', 'opencode'],      // lowercased
+    ['/opt/bin/cursor-agent', 'cursor-agent'],   // the hyphen survives
+    ['/opt/bin/claude', 'claude'],               // the always-documented case
+  ])('normalizes the basename of %s to %s (TC3)', (bin, name) => {
+    const e = resolveExecutor({ dashboard: { executor: bin } });
+    expect(e.name).toBe(name);
+    expect(e.bin).toBe(bin);
+  });
+
+  test('/opt/bin/claude keeps claude argv AND claude tier aliases (TC3 regression)', () => {
+    // The config the README has advertised since the beginning. A fix that
+    // breaks it is a regression on a setup that was always correct.
+    const e = resolveExecutor({ dashboard: { executor: '/opt/bin/claude' } });
+    expect(e.buildArgs({ prompt: 'p', outputFormat: 'stream-json' }))
+      .toEqual(['-p', 'p', '--output-format', 'stream-json', '--verbose']);
+    expect(e.tierAliases).toBe(true);
+  });
+
+  test('an unknown BARE name is refused too, not just a path (TC4)', () => {
+    expect(() => resolveExecutor({ dashboard: { executor: 'aider' } })).toThrow();
+  });
+
+  test('the refusal names the SETTING, not the binary (TC5)', () => {
+    let message = '';
+    try {
+      resolveExecutor({ dashboard: { executor: '/opt/bin/my-agent' } });
+      throw new Error('expected resolveExecutor to refuse');
+    } catch (e) {
+      message = e.message;
+    }
+
+    expect(message).toMatch(/dashboard\.executor/);
+    expect(message).toMatch(/executor_flavor/);
+    // Built from the registry, never a literal, so a new flavor is listed for
+    // free — assert on the constant for the same reason.
+    for (const name of EXECUTOR_NAMES) expect(message).toContain(name);
+    expect(message).toContain("'/opt/bin/my-agent'");
+    // AC2: the user learns which SETTING is wrong. The binary has not run and
+    // must not be blamed for anything.
+    expect(message).not.toMatch(/exited|failed|not found/i);
+  });
+
+  test('an unknown executor_flavor is its own error and does not blame the executor (TC6)', () => {
+    // 'windsurf' is an editor launcher with no headless CLI, so it can never
+    // become a registered flavor and inherit a surprise red.
+    let message = '';
+    try {
+      resolveExecutor({ dashboard: { executor: '/opt/bin/x', executor_flavor: 'windsurf' } });
+      throw new Error('expected resolveExecutor to refuse');
+    } catch (e) {
+      message = e.message;
+    }
+
+    expect(message).toMatch(/executor_flavor/);
+    for (const name of EXECUTOR_NAMES) expect(message).toContain(name);
+    expect(message).toContain("'windsurf'");
+    // dashboard.executor was set correctly here; only the flavor key is wrong.
+    expect(message).not.toContain('/opt/bin/x');
+    expect(message.replace(/dashboard\.executor_flavor/g, '')).not.toContain('dashboard.executor');
+  });
+
+  test('executor_flavor drives a wrapper binary — the escape hatch (TC7)', () => {
+    const e = resolveExecutor({
+      dashboard: { executor: '/opt/bin/my-oc-wrapper', executor_flavor: 'opencode' },
+    });
+
+    expect(e.name).toBe('opencode');
+    expect(e.bin).toBe('/opt/bin/my-oc-wrapper');
+    expect(e.buildArgs({ prompt: 'p', outputFormat: 'stream-json', permissionMode: 'bypassPermissions' }))
+      .toEqual(['run', '--format', 'json', '--auto', 'p']);
+  });
+
+  test('executor_flavor overrides an inference that would have succeeded', () => {
+    // A binary NAMED claude that is really an opencode shim: inference alone
+    // gets this wrong and no probe can fix it, so the explicit key must win.
+    const e = resolveExecutor({
+      dashboard: { executor: '/opt/bin/claude', executor_flavor: 'opencode' },
+    });
+    expect(e.name).toBe('opencode');
+    expect(e.bin).toBe('/opt/bin/claude');
+    expect(e.buildArgs({ prompt: 'p', outputFormat: 'stream-json' }))
+      .toEqual(['run', '--format', 'json', 'p']);
+  });
+
+  test('executor_flavor alone is honoured rather than silently ignored', () => {
+    // Setting a key and having it do nothing is the failure class this ticket
+    // exists to remove; it must not be reintroduced by the fix.
+    const e = resolveExecutor({ target: 'claude-code', dashboard: { executor_flavor: 'opencode' } });
+    expect(e.name).toBe('opencode');
+    expect(e.bin).toBe('opencode');
+  });
+
+  test('a relative path is refused (TC8)', () => {
+    let message = '';
+    try {
+      resolveExecutor({ dashboard: { executor: 'bin/opencode' } });
+      throw new Error('expected resolveExecutor to refuse');
+    } catch (e) {
+      message = e.message;
+    }
+
+    // commandExists already rejects relative paths on purpose: the preflight
+    // resolves them against the repo root while agents are spawned with cwd set
+    // to their own worktree, so a relative path can only ever ENOENT.
+    expect(message).toMatch(/dashboard\.executor/);
+    expect(message).toMatch(/absolute/i);
+    expect(message).toContain("'bin/opencode'");
+  });
+
+  test('a relative path is refused even with a valid executor_flavor (TC8)', () => {
+    expect(() => resolveExecutor({
+      dashboard: { executor: 'bin/opencode', executor_flavor: 'opencode' },
+    })).toThrow(/absolute/i);
+  });
+
+  test('a path in executor_flavor blames the flavor key, not the executor (F2)', () => {
+    // BOB-137's review (F2) and its tester both hit this, at BOOT as well as
+    // per-run: with NO `dashboard.executor` anywhere in the file, the refusal
+    // read "dashboard.executor is set to 'bin/opencode'" — naming a key the
+    // user never wrote, and offering a remedy ("use an absolute path") that is
+    // never valid for this key. Only a bare registered flavor name ever is.
+    let message = '';
+    try {
+      resolveExecutor({ dashboard: { executor_flavor: 'bin/opencode' } });
+      throw new Error('expected resolveExecutor to refuse');
+    } catch (e) {
+      message = e.message;
+    }
+
+    expect(message).toMatch(/dashboard\.executor_flavor/);
+    expect(message).toContain("'bin/opencode'");
+    // The key the user never set must not be blamed for the one they did.
+    expect(message.replace(/dashboard\.executor_flavor/g, '')).not.toContain('dashboard.executor');
+    // And the remedy must be one that works here: an absolute path is never a
+    // valid executor_flavor, so the message must not send the user to one.
+    expect(message).not.toMatch(/absolute/i);
+    for (const name of EXECUTOR_NAMES) expect(message).toContain(name);
+  });
+
+  test('the target derivation is untouched when no executor is configured', () => {
+    expect(resolveExecutor({ target: 'opencode' }).name).toBe('opencode');
+    expect(resolveExecutor({ target: 'cursor' }).name).toBe('cursor-agent');
+    expect(resolveExecutor({}).name).toBe('claude');
+  });
+});
+
+// The second copy of the deleted fallback. Fixing resolveExecutor alone would
+// leave the hole open for every direct caller of runAgent.
+describe('runAgent refuses an unregistered flavor (BOB-137)', () => {
+  test('an unregistered executor name throws instead of getting claude argv', () => {
+    const spawn = fakeSpawn();
+    expect(() => runAgent({
+      worktreePath: '/tmp/wt', prompt: 'hi', sessionId: 'ses-1', spawn,
+      executor: '/opt/bin/mystery',
+    })).toThrow(/executor_flavor/);
+    expect(spawn).not.toHaveBeenCalled();
+  });
+
+  test('a registered flavor with an explicit bin still spawns the bin', () => {
+    const spawn = fakeSpawn();
+    runAgent({
+      worktreePath: '/tmp/wt', prompt: 'hi', sessionId: 'ses-1', spawn,
+      executor: 'opencode', claudeBin: '/opt/tools/node_modules/.bin/opencode',
+    });
+    const [bin, args] = spawn.mock.calls[0];
+    expect(bin).toBe('/opt/tools/node_modules/.bin/opencode');
+    expect(args[0]).toBe('run');
+  });
+});
+
+describe('executorLabel (BOB-136)', () => {
+  test('a registered flavor is named by itself', () => {
+    expect(executorLabel(resolveExecutor({ target: 'opencode' }))).toBe('opencode');
+    expect(executorLabel(resolveExecutor({ target: 'codex' }))).toBe('codex');
+    expect(executorLabel(resolveExecutor({ target: 'cursor' }))).toBe('cursor-agent');
+    expect(executorLabel(resolveExecutor({}))).toBe('claude');
+  });
+
+  test('a custom binary path is named by its binary, not by the path', () => {
+    // The pre-BOB-137 shape, where name and bin were both the raw path. Kept:
+    // `executorLabel` is the last line between a user and "undefined exited
+    // with code 1", so it must stay honest about shapes it no longer produces.
+    const label = executorLabel({ name: '/abs/path/to/opencode', bin: '/abs/path/to/opencode' });
+    expect(label).toBe('opencode');
+    expect(label).not.toContain('/');
+  });
+
+  test('a resolved flavor keeps the flavor name even when its bin says otherwise', () => {
+    // The shape BOB-137 will produce: a path resolved to a registered flavor.
+    // The bin here is deliberately a wrapper whose basename is NOT the flavor
+    // name — the case where "registered flavor wins" is the only thing that
+    // separates this branch from a bare basename.
+    expect(executorLabel({ name: 'opencode', bin: '/opt/wrappers/oc-shim' })).toBe('opencode');
+    expect(executorLabel({ name: 'opencode', bin: '/abs/path/to/opencode' })).toBe('opencode');
+  });
+
+  test('an unregistered bare name is kept as-is', () => {
+    expect(executorLabel({ name: 'aider', bin: 'aider' })).toBe('aider');
+  });
+
+  test('degrades to an honest phrase rather than to undefined or empty', () => {
+    // `${undefined} exited with code 1` is worse than the hardcode it replaced.
+    expect(executorLabel({})).toBe('the agent CLI');
+    expect(executorLabel(undefined)).toBe('the agent CLI');
+    expect(executorLabel({ name: '', bin: '' })).toBe('the agent CLI');
   });
 });
 

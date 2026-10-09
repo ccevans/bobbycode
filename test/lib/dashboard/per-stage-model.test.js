@@ -140,10 +140,24 @@ describe('tier aliases and the executor flavor', () => {
       .toBe('anthropic/claude-opus-4-5');
   });
 
-  // A custom binary is driven with claude-style flags, so it speaks the same
-  // vocabulary — including the aliases.
-  it('treats a custom executor binary as claude-compatible', () => {
-    const config = { dashboard: { executor: '/opt/bin/my-claude' } };
+  // The tier aliases follow the FLAVOR, not the path. Since BOB-137 an
+  // absolute path resolves to a registered flavor (by basename, or by
+  // `executor_flavor`) instead of being assumed claude-compatible — so the
+  // vocabulary a path inherits is the one its own CLI actually speaks.
+  it('gives an absolute path to claude the claude vocabulary', () => {
+    const config = { dashboard: { executor: '/opt/bin/claude' } };
+    expect(modelForStage(config, { agent: 'review', stage: 'reviewing' })).toBe('opus');
+  });
+
+  it('withholds the tiers from an absolute path to a CLI that has no tiers', () => {
+    // The old rule handed this config claude's `opus`, which opencode does not
+    // have — a model name that kills the run rather than degrading it.
+    const config = { dashboard: { executor: '/opt/tools/node_modules/.bin/opencode' } };
+    expect(modelForStage(config, { agent: 'review', stage: 'reviewing' })).toBeNull();
+  });
+
+  it('lets executor_flavor decide the vocabulary for a wrapper binary', () => {
+    const config = { dashboard: { executor: '/opt/bin/my-wrapper', executor_flavor: 'claude' } };
     expect(modelForStage(config, { agent: 'review', stage: 'reviewing' })).toBe('opus');
   });
 });
