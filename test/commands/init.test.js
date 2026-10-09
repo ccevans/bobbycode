@@ -396,6 +396,40 @@ dashboard:
     expect(rc).toContain('stack: generic');
   });
 
+  // BOB-090: a project with no dev server and no health checks has no live app
+  // for the test stage, so init writes the choice of the library workflow
+  // visibly into .bobbyrc.yml with an explanatory comment.
+  test('BOB-090: init on a no-live-app project writes default_workflow: library with a comment', async () => {
+    const program = mockProgram();
+    registerInit(program);
+    await program.getAction()({ yes: true, stack: 'generic' });
+
+    const rc = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
+    expect(rc).toContain('default_workflow: library');
+    expect(rc).toMatch(/#.*no dev server and no health checks/);
+    expect(rc).toMatch(/#.*Delete this line/);
+  });
+
+  test('BOB-090: init on a stack with health checks does not write default_workflow', async () => {
+    let promptCall = 0;
+    promptSpy = jest.spyOn(inquirer, 'prompt').mockImplementation(async () => {
+      promptCall++;
+      if (promptCall === 1) return { setupMode: 'full' };
+      if (promptCall === 2) return { project: 'test-proj', stack: 'nextjs' };
+      if (promptCall === 3) return { targetName: 'claude-code' };
+      if (promptCall === 4) return { devUrl: 'http://localhost:3000' };
+      if (promptCall === 5) return { bobbyDir: '.bobby' };
+      return {};
+    });
+
+    const program = mockProgram();
+    registerInit(program);
+    await program.getAction()({ custom: true });
+
+    const rc = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
+    expect(rc).not.toContain('default_workflow');
+  });
+
   test('re-init with cancel exits', async () => {
     scaffoldProject(tmpDir, {
       project: 'existing', stack: 'nextjs',

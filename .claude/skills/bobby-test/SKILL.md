@@ -22,6 +22,14 @@ argument-hint: "<ticket ID to test>"
 
 ## Health Check
 
+**No live app?** If `health_checks` in .bobbyrc.yml is empty or missing, there is
+no live app to test — this project should not be running a test stage at all. Do
+NOT emit BLOCKED test cases one by one. Move the ticket to blocked and stop:
+`bobby ticket move <id> block "no live app to test — use the library workflow"`.
+The fix is `default_workflow: library` in .bobbyrc.yml (the library workflow ends
+at review, which runs the test suite), or add `health_checks` if this project
+does have a live app.
+
 Verify the dev environment is running before testing:
 
 - `curl -s -o /dev/null -w "%{http_code}" <your dev server URL>` (app — configure `health_checks` in .bobbyrc.yml)

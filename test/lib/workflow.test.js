@@ -7,6 +7,7 @@ import {
   buildSprintPrompt,
   resolveNextAgent, DEFAULT_WORKFLOW, resolveWorkflow, listWorkflows,
   BUILT_IN_WORKFLOWS, STAGE_MAP, nextStageForAgent,
+  deriveDefaultWorkflow, buildPromptFor,
 } from '../../lib/workflow.js';
 import { createTicket, moveTicket, findTicket, writeTicket } from '../../lib/tickets.js';
 import { isValidStage } from '../../lib/stages.js';
@@ -732,7 +733,7 @@ describe('workflow', () => {
 
   describe('listWorkflows', () => {
     test('returns the built-in workflows when none configured', () => {
-      expect(listWorkflows({})).toEqual(['default', 'secure', 'quick', 'design', 'define', 'freewill']);
+      expect(listWorkflows({})).toEqual(['default', 'secure', 'quick', 'library', 'library-secure', 'design', 'define', 'freewill']);
     });
 
     test('includes custom workflow names plus default', () => {
@@ -1112,5 +1113,203 @@ describe('ticket-path resolution (PRO-029)', () => {
     expect(() => { prompt = buildSingleAgentPrompt('bobby-plan', 'TKT-999', tmpDir); }).not.toThrow();
     expect(prompt).toContain('TKT-999*');
     expect(prompt).toContain('bobby ticket assign TKT-999 bobby-plan');
+  });
+});
+
+// BOB-090. Every built-in workflow except `design`/`define` ended at the
+// live-app `testing` stage, so CLI/library projects (no dev server, no
+// health checks) stranded every ticket there: bobby-test is forbidden to run
+// specs or read source, and with nothing to curl it emitted BLOCKED test
+// cases one by one. These cover the fix's three parts: the built-in `library`
+// workflows, the `default_workflow` config key (derived at init), and the
+// loud block instruction that replaces the silent stall.
+describe('library workflow and no-live-app gates (BOB-090)', () => {
+  const REASON = 'no live app to test — use the library workflow';
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-bob090-'));
+    fs.writeFileSync(path.join(tmpDir, '.counter'), '0');
+  });
+
+  afterEach(() => { fs.rmSync(tmpDir, { recursive: true }); });
+
+  describe('built-in library workflows', () => {
+    test('library resolves to plan → build → review', () => {
+      expect(resolveWorkflow({}, 'library')).toEqual([
+        { stage: 'planning', agent: 'bobby-plan' },
+        { stage: 'building', agent: 'bobby-build' },
+        { stage: 'reviewing', agent: 'bobby-review' },
+      ]);
+    });
+
+    test('library-secure resolves to plan → build → security → review', () => {
+      expect(resolveWorkflow({}, 'library-secure')).toEqual([
+        { stage: 'planning', agent: 'bobby-plan' },
+        { stage: 'building', agent: 'bobby-build' },
+        { stage: 'security', agent: 'bobby-security' },
+        { stage: 'reviewing', agent: 'bobby-review' },
+      ]);
+    });
+  });
+
+  describe('default_workflow config key', () => {
+    test('redirects the name default', () => {
+      const steps = resolveWorkflow({ default_workflow: 'library' }, 'default');
+      expect(steps.map(s => s.stage)).toEqual(['planning', 'building', 'reviewing']);
+    });
+
+    test('loses to ticket frontmatter workflow', () => {
+      const steps = resolveWorkflow({ default_workflow: 'library' }, 'default', 'quick');
+      expect(steps.map(s => s.stage)).toEqual(['planning', 'building', 'testing']);
+    });
+
+    test('loses to an explicit workflow name', () => {
+      const steps = resolveWorkflow({ default_workflow: 'library' }, 'secure');
+      expect(steps.map(s => s.stage)).toEqual(['planning', 'building', 'security', 'reviewing', 'testing']);
+    });
+
+    test('loses to a user-defined workflows.default', () => {
+      const config = { default_workflow: 'library', workflows: { default: ['plan', 'build', 'test'] } };
+      const steps = resolveWorkflow(config, 'default');
+      expect(steps.map(s => s.stage)).toEqual(['planning', 'building', 'testing']);
+    });
+
+    test('unknown name throws and points at default_workflow in .bobbyrc.yml', () => {
+      expect(() => resolveWorkflow({ default_workflow: 'nope' }, 'default'))
+        .toThrow(/Unknown workflow 'nope'[\s\S]*default_workflow[\s\S]*\.bobbyrc\.yml/);
+    });
+  });
+
+  describe('deriveDefaultWorkflow', () => {
+    test('explicit stack field wins even with health checks present', () => {
+      const stack = { default_workflow: 'library' };
+      const config = { health_checks: [{ name: 'app', url: 'http://localhost:3000' }], commands: { dev: 'npm run dev' } };
+      expect(deriveDefaultWorkflow(stack, config)).toBe('library');
+    });
+
+    test('no health checks and no dev command derives library', () => {
+      expect(deriveDefaultWorkflow({}, { health_checks: [], commands: { dev: '' } })).toBe('library');
+    });
+
+    test('missing health_checks key still derives library', () => {
+      expect(deriveDefaultWorkflow({}, { commands: {} })).toBe('library');
+    });
+
+    test('health checks present derives null', () => {
+      expect(deriveDefaultWorkflow({}, { health_checks: [{ name: 'app', url: 'x' }], commands: {} })).toBeNull();
+    });
+
+    test('dev command present derives null', () => {
+      expect(deriveDefaultWorkflow({}, { health_checks: [], commands: { dev: 'npm run dev' } })).toBeNull();
+    });
+  });
+
+  describe('orchestration prompt testing gate', () => {
+    test('hasHealthChecks false replaces the pre-gate with a block instruction', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW, 3, '.bobby/tickets', 20, '.claude/agents', false, {}, false);
+      expect(prompt).toContain(`bobby ticket move {TICKET_ID} block "${REASON}"`);
+      expect(prompt).toContain('default_workflow: library');
+      expect(prompt).not.toContain('Pre-gate');
+      // The testing stage launches no subagent at all.
+      expect(prompt).not.toContain('bobby ticket assign {TICKET_ID} bobby-test');
+    });
+
+    test('hasHealthChecks true (explicit) keeps the existing pre-gate wording', () => {
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW, 3, '.bobby/tickets', 20, '.claude/agents', false, {}, true);
+      expect(prompt).toContain('Pre-gate');
+      expect(prompt).toContain('health check');
+      expect(prompt).toContain('live app, not run specs');
+      expect(prompt).not.toContain(REASON);
+    });
+
+    test('sprint prompt threads hasHealthChecks through its opts', () => {
+      const sprint = { id: 'SPR-001', name: 'Sprint', goal: '', branch: 'sprint/spr-001' };
+      const tickets = [{ id: 'TKT-001', title: 'T', stage: 'backlog', priority: 'high' }];
+      const blocked = buildSprintPrompt(sprint, tickets, DEFAULT_WORKFLOW, { hasHealthChecks: false });
+      expect(blocked).toContain(REASON);
+      expect(blocked).not.toContain('Pre-gate');
+      const normal = buildSprintPrompt(sprint, tickets, DEFAULT_WORKFLOW, {});
+      expect(normal).toContain('Pre-gate');
+      expect(normal).not.toContain(REASON);
+    });
+
+    test('feature prompt emits the block clause for the testing stage', () => {
+      const children = [{ id: 'TKT-002', title: 'Child', stage: 'building', priority: 'high' }];
+      const blocked = buildFeaturePrompt('TKT-001', 'Epic', children, DEFAULT_WORKFLOW, 3, '.bobby/tickets', undefined, '.claude/agents', {}, false);
+      expect(blocked).toContain(REASON);
+      expect(blocked).not.toContain('bobby ticket assign {TICKET_ID} bobby-test');
+      const normal = buildFeaturePrompt('TKT-001', 'Epic', children, DEFAULT_WORKFLOW, 3, '.bobby/tickets', undefined, '.claude/agents', {});
+      expect(normal).not.toContain(REASON);
+      expect(normal).toContain('bobby ticket assign {TICKET_ID} bobby-test');
+    });
+  });
+
+  describe('bobby-test gates in buildNextStepPrompt and buildPromptFor', () => {
+    test('slow mode on a ticket in testing gets the block instruction', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'A CLI thing' });
+      moveTicket(tmpDir, 'TKT-001', 'testing', 'dev');
+      const prompt = buildNextStepPrompt('TKT-001', DEFAULT_WORKFLOW, tmpDir, tmpDir, '.claude/agents', false);
+      expect(prompt).toContain(`bobby ticket move TKT-001 block "${REASON}"`);
+      expect(prompt).toContain('default_workflow: library');
+      expect(prompt).not.toContain('bobby ticket assign TKT-001 bobby-test');
+    });
+
+    test('slow mode with health checks builds the normal test prompt', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'A CLI thing' });
+      moveTicket(tmpDir, 'TKT-001', 'testing', 'dev');
+      const prompt = buildNextStepPrompt('TKT-001', DEFAULT_WORKFLOW, tmpDir, tmpDir, '.claude/agents', true);
+      expect(prompt).toContain('bobby ticket assign TKT-001 bobby-test');
+      expect(prompt).not.toContain(REASON);
+    });
+
+    const ctxFor = (config) => ({
+      config, ticketsDir: tmpDir, ticketsPath: tmpDir,
+      agentsPath: '.claude/agents', workflow: DEFAULT_WORKFLOW,
+    });
+
+    test('buildPromptFor test agent without health checks returns a block prompt', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'A CLI thing' });
+      const { prompt, label } = buildPromptFor('test', ['TKT-001'], ctxFor({ health_checks: [] }));
+      expect(label).toBe('Bobby Test — TKT-001 (no live app)');
+      expect(prompt).toContain(`bobby ticket move TKT-001 block "${REASON}"`);
+      expect(prompt).not.toContain('bobby ticket assign TKT-001 bobby-test');
+    });
+
+    test('buildPromptFor test agent with health checks builds the normal prompt', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'A CLI thing' });
+      const { prompt, label } = buildPromptFor('test', ['TKT-001'], ctxFor({ health_checks: [{ name: 'app', url: 'x' }] }));
+      expect(label).toBe('Bobby Test — TKT-001');
+      expect(prompt).toContain('bobby ticket assign TKT-001 bobby-test');
+      expect(prompt).not.toContain(REASON);
+    });
+
+    test('batch test run without health checks instructs blocking each listed ticket', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'First' });
+      createTicket(tmpDir, { prefix: 'TKT', title: 'Second' });
+      moveTicket(tmpDir, 'TKT-001', 'testing', 'dev');
+      moveTicket(tmpDir, 'TKT-002', 'testing', 'dev');
+      const { prompt, label } = buildPromptFor('test', [], ctxFor({ health_checks: [] }));
+      expect(label).toContain('(no live app)');
+      expect(prompt).toContain('TKT-001');
+      expect(prompt).toContain('TKT-002');
+      expect(prompt).toContain(REASON);
+    });
+
+    test('workflow mode threads the gate from config', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'A CLI thing' });
+      const { prompt } = buildPromptFor('workflow', ['TKT-001'], ctxFor({ health_checks: [] }));
+      expect(prompt).toContain(REASON);
+      const withHc = buildPromptFor('workflow', ['TKT-001'], ctxFor({ health_checks: [{ name: 'app', url: 'x' }] }));
+      expect(withHc.prompt).toContain('Pre-gate');
+      expect(withHc.prompt).not.toContain(REASON);
+    });
+
+    test('next mode threads the gate from config', () => {
+      createTicket(tmpDir, { prefix: 'TKT', title: 'A CLI thing' });
+      moveTicket(tmpDir, 'TKT-001', 'testing', 'dev');
+      const { prompt } = buildPromptFor('next', ['TKT-001'], ctxFor({ health_checks: [] }));
+      expect(prompt).toContain(REASON);
+    });
   });
 });
