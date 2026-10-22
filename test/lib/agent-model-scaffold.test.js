@@ -121,3 +121,13 @@ describe('pipeline agents are told they run unattended', () => {
     }
   });
 });
+
+describe('pipeline agents are told how to keep context small', () => {
+  test('all eight carry the efficiency block', () => {
+    scaffoldProject(tmpDir, baseConfig);
+    for (const name of ['plan', 'build', 'review', 'test', 'freewill', 'debug', 'security', 'ship']) {
+      const body = fs.readFileSync(path.join(tmpDir, '.claude', 'agents', `bobby-${name}.md`), 'utf8');
+      expect(`${name}: ${body.includes('## Working efficiently')}`).toBe(`${name}: true`);
+    }
+  });
+});
