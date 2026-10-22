@@ -121,7 +121,7 @@ shipping, and its instructions are deliberately thin.
 bobby run freewill TKT-001        # or: --workflow freewill
 ```
 
-It exists because Opus 5 and Fable 5 work better from a goal and its invariants than from a
+It exists because frontier models (Fable, Opus) work better from a goal and its invariants than from a
 four-stage script — a long procedure spends their attention on compliance and caps the work
 at whatever the procedure's author imagined. `.claude/skills/bobby-freewill/SKILL.md` is short
 on purpose; corrections belong in `bobby learn bobby-freewill`, not in new steps.

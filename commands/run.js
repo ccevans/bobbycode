@@ -7,7 +7,7 @@ import { getFeatureTickets, listEpics } from '../lib/tickets.js';
 import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, listWorkflows, assertTicketFree } from '../lib/workflow.js';
 import { findTicket } from '../lib/tickets.js';
 import { VALID_AGENTS } from '../lib/agent-registry.js';
-import { resolveModel } from '../lib/models.js';
+import { resolveModel, resolveEffort } from '../lib/models.js';
 import { bold, dim, error } from '../lib/colors.js';
 import { getTarget } from '../lib/targets/index.js';
 import { overlayPromptClause, repoTargetingClause } from '../lib/skills.js';
@@ -42,7 +42,7 @@ Modes:
   Strategy:   bobby run strategy [id]    — strategic validation gate
   Security:   bobby run security <id>    — OWASP + STRIDE audit
   Debug:      bobby run debug <id>       — root-cause investigation
-  Freewill:   bobby run freewill <id>    — one agent, whole ticket, few instructions (Opus 5 / Fable 5)
+  Freewill:   bobby run freewill <id>    — one agent, whole ticket, few instructions (runs on Fable)
   Freeform:   bobby run docs|performance|watchdog — no ticket required
   Workflow:   bobby run <workflow-name> <id> — run a named workflow (default, secure, quick, or your own)`)
     .option('--max-retries <n>', 'Max retry loops on rejection per ticket', '3')
@@ -230,10 +230,12 @@ Modes:
         // where that file is really read — see target.supportsAgentModel().
         if (!customAgent && target.supportsAgentModel && target.supportsAgentModel()) {
           const model = resolveModel(agent, config);
-          if (model) console.log(`  ${dim(`Model: ${model}`)}`);
+          const effort = resolveEffort(agent, config);
+          const parts = [model && `Model: ${model}`, effort && `Effort: ${effort}`].filter(Boolean);
+          if (parts.length) console.log(`  ${dim(parts.join(' · '))}`);
         }
         if (agent === 'feature') {
-          console.log(`  ${dim('Launch with: isolation: "worktree" (keeps main clean)')}`);
+          console.log(`  ${dim(`Feature worktree will be created: bobby worktree create ${ticketIds[0] || '{EPIC_ID}'} --feature`)}`);
         }
         console.log('');
         console.log(withSession(built.prompt, sessionId));

@@ -55,7 +55,7 @@ describe('scaffolded agent files carry their stage model', () => {
 
   test('the files do not all say the same thing', () => {
     const models = new Set(Object.values(scaffoldAgents()).map(f => f.model));
-    expect([...models].sort()).toEqual(['haiku', 'opus', 'sonnet']);
+    expect([...models].sort()).toEqual(['fable', 'haiku', 'opus', 'sonnet']);
   });
 
   test('the model sits alongside the name and description, not instead of them', () => {
@@ -86,6 +86,38 @@ describe('scaffolded agent files carry their stage model', () => {
     expect(Object.keys(agents).length).toBeGreaterThan(0);
     for (const front of Object.values(agents)) {
       expect(front.model).toBeUndefined();
+    }
+  });
+});
+
+describe('scaffolded agent files carry their stage effort', () => {
+  test('every shipped agent file names the effort its registry entry asks for', () => {
+    for (const [file, front] of Object.entries(scaffoldAgents())) {
+      expect(`${file}: ${front.effort}`).toBe(`${file}: ${AGENT_REGISTRY[agentKeyForFile(file)].effort}`);
+    }
+  });
+
+  test('a project that names its own efforts gets those', () => {
+    const agents = scaffoldAgents({ efforts: { review: 'xhigh', default: 'low' } });
+    expect(agents['bobby-review'].effort).toBe('xhigh');
+    expect(agents['bobby-build'].effort).toBe('low');
+  });
+
+  test('inherit writes no effort line at all', () => {
+    for (const front of Object.values(scaffoldAgents({ efforts: { default: 'inherit' } }))) {
+      expect(front.effort).toBeUndefined();
+    }
+  });
+});
+
+describe('pipeline agents are told they run unattended', () => {
+  const body = name => fs.readFileSync(path.join(tmpDir, '.claude', 'agents', `${name}.md`), 'utf8');
+
+  test('the six pipeline agents carry the block, rendered from the partial', () => {
+    scaffoldProject(tmpDir, baseConfig);
+    for (const name of ['bobby-build', 'bobby-review', 'bobby-test', 'bobby-freewill', 'bobby-debug', 'bobby-security']) {
+      expect(`${name}: ${body(name).includes('## Working unattended')}`).toBe(`${name}: true`);
+      expect(body(name)).not.toContain('include(');
     }
   });
 });

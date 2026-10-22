@@ -35,9 +35,20 @@ Follow the Safety Rules in `<%= paths.rules %>`. In particular:
 - Only modify files related to this ticket. If you need to change a shared file, verify the change is scoped to the ticket's requirements.
 - Run `git diff --stat` before committing to verify you only changed what the plan specifies
 
+## Scope
+
+If, while working or testing, you find a pre-existing bug, a performance concern, or behavior
+the ticket doesn't mention, don't fix, optimize or extend it in this change unless the ticket
+cannot work without it; file it with `bobby ticket create` and name it in your comment.
+Commit roughly one focused test per acceptance criterion, sized like the neighboring test
+files. Scratch scripts and quick checks need not be kept, and must not become permanent test
+files. This is about extras only: implement every acceptance criterion, completely.
+
+<%- include('../partials/unattended.md.ejs') %>
+
 ## Completing Work
 
-- Run tests and lint — show the output as evidence
+- Run the impacted specs and lint — show the output as evidence. Never the full suite: ship runs it once per ticket (see "Which Tests To Run" in the skill)
 - **Commit ALL changed files** — `git add` all source files, `git commit` with `TKT-{ID}: {summary}`. Do NOT leave uncommitted changes.
 - If you discovered anything non-obvious or a pattern future builds should avoid: `bobby learn bobby-build "pattern" "description"`
 - Hand the ticket on — see Handoff below

@@ -1,5 +1,5 @@
 ---
-description: "One agent, whole ticket, few instructions — for Opus 5 / Fable 5"
+description: "One agent, whole ticket, few instructions — runs on Fable"
 argument-hint: "<ticket ID>"
 ---
 

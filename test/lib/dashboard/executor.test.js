@@ -508,6 +508,17 @@ describe('resolveExecutor', () => {
       .toEqual(['-p', 'p', '--output-format', 'stream-json', '--verbose']);
   });
 
+  test('claude gets --effort; flavors without the flag never do', () => {
+    const claude = resolveExecutor({ dashboard: { executor: 'claude' } });
+    expect(claude.effortFlag).toBe(true);
+    expect(claude.buildArgs({ prompt: 'p', model: 'opus', effort: 'high' }))
+      .toEqual(['-p', 'p', '--model', 'opus', '--effort', 'high']);
+    expect(claude.buildArgs({ prompt: 'p' })).not.toContain('--effort');
+    for (const name of ['cursor-agent', 'codex', 'opencode']) {
+      expect(`${name}: ${!!resolveExecutor({ dashboard: { executor: name } }).effortFlag}`).toBe(`${name}: false`);
+    }
+  });
+
   test('EXECUTOR_NAMES lists every known flavor', () => {
     // EXECUTOR_NAMES is what wires the app/remote startup banner and the
     // missing-binary warning text, so registration alone discharges those.

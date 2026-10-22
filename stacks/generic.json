@@ -6,6 +6,7 @@
   "commands": {
     "dev": "",
     "test": "",
+    "test_impacted": "",
     "lint": "",
     "build": ""
   },

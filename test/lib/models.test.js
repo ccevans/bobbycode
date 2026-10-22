@@ -10,7 +10,11 @@ import {
   agentKeyForFile,
   resolvedModelTable,
   withAgentModel,
+  withAgentEffort,
+  resolveEffort,
+  resolveEffortForFile,
   MODEL_TIERS,
+  EFFORT_LEVELS,
   INHERIT,
 } from '../../lib/models.js';
 import { AGENT_REGISTRY, VALID_AGENTS } from '../../lib/agent-registry.js';
@@ -27,7 +31,7 @@ describe('registry tiers', () => {
   // feature is plumbing with no opinion behind it.
   test('the tiers are actually spread across the kinds of work', () => {
     const used = new Set(Object.values(AGENT_REGISTRY).map(e => e.tier));
-    expect([...used].sort()).toEqual(['haiku', 'opus', 'sonnet']);
+    expect([...used].sort()).toEqual(['fable', 'haiku', 'opus', 'sonnet']);
   });
 
   test('judgment stages are not tiered below execution ones', () => {
@@ -140,7 +144,72 @@ describe('resolvedModelTable', () => {
     const table = resolvedModelTable({});
     expect(table.map(r => r.agent)).toEqual(VALID_AGENTS);
     expect(table.find(r => r.agent === 'review')).toEqual({
-      agent: 'review', tier: 'opus', model: 'opus',
+      agent: 'review', tier: 'opus', model: 'opus', effort: 'high',
     });
+  });
+});
+
+describe('registry efforts', () => {
+  test('every agent declares an effort, and only a real one', () => {
+    for (const [key, entry] of Object.entries(AGENT_REGISTRY)) {
+      expect(`${key}: ${EFFORT_LEVELS.includes(entry.effort)}`).toBe(`${key}: true`);
+    }
+  });
+
+  // The reason efforts exist: Claude Code runs the 5.5 models at `medium`
+  // unless told otherwise, and these are the stages that must not run there.
+  test('judgment and code stages run at high', () => {
+    for (const key of ['plan', 'build', 'review', 'security', 'debug', 'freewill']) {
+      expect(`${key} → ${AGENT_REGISTRY[key].effort}`).toBe(`${key} → high`);
+    }
+  });
+
+  test('freewill runs on fable', () => {
+    expect(AGENT_REGISTRY.freewill.tier).toBe('fable');
+  });
+});
+
+describe('resolveEffort precedence', () => {
+  test('falls back to the registry effort when nothing is configured', () => {
+    expect(resolveEffort('review', {})).toBe('high');
+    expect(resolveEffort('watchdog', {})).toBe('low');
+  });
+
+  test('a named stage beats efforts.default, which beats the registry', () => {
+    const config = { efforts: { review: 'xhigh', default: 'medium' } };
+    expect(resolveEffort('review', config)).toBe('xhigh');
+    expect(resolveEffort('plan', config)).toBe('medium');
+  });
+
+  test('inherit means no effort at all', () => {
+    expect(resolveEffort('review', { efforts: { default: INHERIT } })).toBeNull();
+    expect(resolveEffort('review', { efforts: { review: INHERIT, default: 'max' } })).toBeNull();
+  });
+
+  test('a misspelled level is an error naming the key, not a silent default', () => {
+    expect(() => resolveEffort('review', { efforts: { review: 'hgih' } })).toThrow(/efforts\.review: 'hgih'/);
+    expect(() => resolveEffort('plan', { efforts: { default: 'ultra' } })).toThrow(/efforts\.default/);
+  });
+
+  test('an executor with no effort flag gets nothing, even when one is named', () => {
+    expect(resolveEffort('review', { efforts: { review: 'max' } }, { acceptsEffort: false })).toBeNull();
+  });
+
+  test('an agent Bobby never shipped gets no opinion', () => {
+    expect(resolveEffort('not-a-bobby-agent', {})).toBeNull();
+  });
+
+  test('resolveEffortForFile agrees with resolveEffort', () => {
+    expect(resolveEffortForFile('bobby-ticket-intake', {})).toBe(resolveEffort('intake', {}));
+    expect(resolveEffortForFile('not-an-agent', {})).toBeNull();
+  });
+});
+
+describe('withAgentEffort', () => {
+  test('adds the effort beside an existing model line, once', () => {
+    const file = '---\nname: x\nmodel: opus\n---\nbody\n';
+    const once = withAgentEffort(file, 'high');
+    expect(once).toBe('---\nname: x\nmodel: opus\neffort: high\n---\nbody\n');
+    expect(withAgentEffort(once, 'low')).toBe(once);
   });
 });

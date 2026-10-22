@@ -4,7 +4,7 @@ import path from 'path';
 import inquirer from 'inquirer';
 import { writeConfig, writeConfigCommented, readConfig, configExists } from '../lib/config.js';
 import { renderTemplate, renderSkillTemplates, pruneStaleShipped, isUserOwned } from '../lib/template.js';
-import { withAgentModel, resolveModelForFile } from '../lib/models.js';
+import { withAgentModel, withAgentEffort, resolveModelForFile, resolveEffortForFile } from '../lib/models.js';
 import { createRequire } from 'module';
 import { success, warn, error, bold, dim } from '../lib/colors.js';
 import { getTarget, TARGETS } from '../lib/targets/index.js';
@@ -21,6 +21,29 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STACKS_DIR = path.join(__dirname, '..', 'stacks');
 const AGENT_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'agents');
 const COMMAND_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'commands');
+
+/**
+ * The `repos` a template iterates: `[{name, path, stack, commands}]`.
+ *
+ * Outside a studio, `repos` is whatever the config says (usually nothing) and
+ * passes through. In a studio the project's `repos:` is a list of names and the
+ * studio's `repos:` map (`repo_group`) holds each one's path and commands; a
+ * project that lists no repos gets the whole group. A name the group does not
+ * know is an error, not a blank line — a blank line is exactly what hid this.
+ */
+function studioRepos(config) {
+  if (!config.studio) return config.repos;
+  const group = config.repo_group || {};
+  const names = Array.isArray(config.project_repos) && config.project_repos.length
+    ? config.project_repos
+    : Object.keys(group);
+  return names.map(name => {
+    const e = group[name];
+    if (!e) throw new Error(`Repo '${name}' is listed by project '${config._project}' but is not in the studio's repos: map`);
+    const entry = typeof e === 'string' ? { path: e } : e;
+    return { name, path: entry.path, stack: entry.stack || null, commands: entry.commands || {} };
+  });
+}
 const SKILL_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'skills');
 const pkgVersion = createRequire(import.meta.url)('../package.json').version;
 const HOOKS_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'hooks');
@@ -105,6 +128,11 @@ export function scaffoldProject(rootDir, config, { writeConfig = true } = {}) {
     commands: config.commands || {},
     build_skills: config.build_skills || [],
     services: config.services || {},
+    // Studio: a project's `repos:` is a list of NAMES into the studio's repo
+    // group. Templates iterate `repos` expecting `{name, path, commands}` —
+    // handing them the bare names rendered every repo as a blank line, so no
+    // agent ever saw a repo's path or its test commands.
+    repos: studioRepos(config),
     paths: targetPaths,
     target: config.target || 'claude-code',
     target_display: target.displayName ? target.displayName() : 'your agent',
@@ -169,6 +197,7 @@ export function scaffoldProject(rootDir, config, { writeConfig = true } = {}) {
   // one that does not, the line would be inert noise in every agent file, so
   // the per-stage model reaches those projects only through the executor.
   const agentModels = target.supportsAgentModel && target.supportsAgentModel();
+  const agentEfforts = target.supportsAgentEffort && target.supportsAgentEffort();
 
   for (const agent of agentFiles) {
     const agentTemplate = path.join(AGENT_TEMPLATES_DIR, `${agent}.md.ejs`);
@@ -177,9 +206,14 @@ export function scaffoldProject(rootDir, config, { writeConfig = true } = {}) {
       // The stage's own model, stamped into the file the harness launches it
       // from — so `bobby run review` gets the review model whatever model the
       // session that ran the command happens to be on.
-      const content = agentModels
+      const withModel = agentModels
         ? withAgentModel(rendered, resolveModelForFile(agent, config))
         : rendered;
+      // And its effort: without the line, Claude Code runs Opus/Sonnet/Haiku
+      // 5.5 at `medium` whatever the stage is for.
+      const content = agentEfforts
+        ? withAgentEffort(withModel, resolveEffortForFile(agent, config))
+        : withModel;
       fs.writeFileSync(path.join(agentsDir, `${agent}.md`), content, 'utf8');
     }
   }
