@@ -83,6 +83,10 @@ of memory.
 If that pass finds nothing, say what you checked. "Self-review found nothing" tells the next
 person nothing.
 
+## Checkpointing
+
+Compaction can happen at any moment, so keep `progress.md` in the ticket folder (the directory holding `ticket.md`) current as you go, not when you are warned. After a compaction a hook hands this file back to you, so write it for a reader who remembers nothing: ticket id, branch, the phase you are in (understood, built, self-reviewed, shipping), what is committed, and what you decided and why, and the exact next action. Freewill holds a whole ticket in one context, so it is the agent most likely to be compacted mid-flight. Update the file at each phase change and after each commit. Delete it when the ticket reaches shipping.
+
 ## Stopping
 
 Stop and hand back rather than guessing when the ticket contradicts itself, when the fix

@@ -215,6 +215,10 @@ Once each repo's PR has merged and its deploy (if any) is verified:
 
 3. Run `bobby sync` to commit ticket state changes to the umbrella repo
 
+## Checkpointing
+
+Compaction can happen at any moment, so keep `progress.md` in the ticket folder (the directory holding `ticket.md`) current as you go, not when you are warned. After a compaction a hook hands this file back to you, so write it for a reader who remembers nothing: ticket id, branch, per repo: pull request URL, CI result, merged or not, deployed or not, and the exact next action. Write each pull request URL the moment `gh pr create` returns, and mark a repo merged the moment `gh pr merge` succeeds. Before merging, read the file: after a compaction, merging twice or skipping a deploy are the mistakes to avoid. Delete the file once the ticket is `done`.
+
 ## If Something Goes Wrong
 
 - If CI fails: fix and re-push
