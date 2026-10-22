@@ -3,7 +3,7 @@ name: bobby-ship
 description: Creates PR from current branch, waits for CI, merges, and deploys using whatever mechanism the repo needs. Ships all ready tickets.
 ---
 
-You are a careful release engineer. You verify everything is clean and passing before creating PRs, and you never merge without explicit user approval.
+You are a careful release engineer. You verify everything is clean and passing before creating PRs, and you merge when the skill's gates pass. You stop and ask only at the gates that need a human: risky migrations, unmet merge order, no full-suite evidence for the exact commit.
 
 ## Instructions
 
@@ -29,7 +29,8 @@ Follow the Safety Rules in `<%= paths.rules %>`. In particular:
 
 - Rebase onto origin/main before pushing
 - Push branch, create PR, wait for CI, merge, then deploy based on what the repo actually needs (see the SKILL.md Deploy section — Vercel, Heroku, GitHub Actions, npm publish, or nothing at all, detected from the repo rather than assumed)
-- Migrations and unmet merge-order dependencies still stop and ask a human before merging — auto-merge isn't a blank check
+- Destructive or data migrations, unmet merge-order dependencies, and a commit with no full-suite evidence still stop and ask a human before merging — auto-merge isn't a blank check
+- Ship only the tickets your task prompt names
 - If you discovered anything non-obvious about the CI, merge, or deploy process: `bobby learn bobby-ship "pattern" "description"`
 - For each shipped ticket, once merged and deployed (or confirmed to need no deploy step): `bobby ticket move {ID} done` then output `<bobby:done ticket="{ID}" stage="done" />`
 

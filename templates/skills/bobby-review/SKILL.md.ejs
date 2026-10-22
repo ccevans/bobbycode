@@ -17,7 +17,8 @@ argument-hint: "<ticket ID to review>"
    - The ticket's `ticket.md` — acceptance criteria
    - The ticket's `plan.md` — intended approach
    - The ticket's `test-cases.md` — expected test coverage
-5. **Understand what was built** — `git log --oneline main..HEAD` to see all branch commits
+5. **Understand what was built** — `git fetch origin`, then `git log --oneline origin/main..HEAD` to see all branch commits. Compare against origin/main throughout: the local `main` in a studio checkout is often weeks old.
+6. **Which round is this?** Check the ticket's comments for earlier rejections. Round 1 gets the full review below. On a later round, review the fix: read the diff since your last review (`git diff <last reviewed sha>..HEAD`), confirm each earlier finding is fixed everywhere it applied, and check the fix didn't break what round 1 passed. Anything new you notice that is below the blocker bar is a follow-up ticket, not another rejection.
 
 ## Investigation First
 
@@ -35,8 +36,8 @@ This is the core of your job. Don't skim diffs — investigate the code like you
 
 ### 1. Trace the change boundaries
 
-- Run `git diff main...HEAD --stat` — get an overview of every file touched
-- For each changed file, **read the full file** (not just the diff hunk) to understand context
+- Run `git diff origin/main...HEAD --stat` — get an overview of every file touched
+- For each changed hunk, read the whole enclosing function or component and its callers, not just the hunk. For a short file that means the whole file; for a 4,000-line one it does not — search for the symbol and read the ranges that matter.
 - Cross-reference against `plan.md`:
   - Files in the plan that were NOT changed — were they supposed to be?
   - Changed files NOT in the plan — why were they touched? Is this scope creep?
@@ -162,23 +163,33 @@ Write `review.md` in the ticket directory with this structure:
 
 ## Decision
 
+### What blocks a ticket
+
+A finding is a **blocker** when it is one of: a user-visible error or crash; data loss, a data leak or a security hole; an acceptance criterion not met; a new fallback, default or swallowed error the project has not approved; a contradiction of `.bobby/decisions.yaml`; a data shape that doesn't match the `## Contract` or the real producer key for key; a test that would pass without the change. Everything else is a note.
+
+A note you would expect someone to have to fix later is not a note: either it meets the bar above (block on it) or file it now with `bobby ticket create` and link it in `review.md`. Don't leave "should fix" items as notes.
+
+### Fix forward when the fix is small
+
+When every blocker is contained (a few lines, one file, the fix is obvious and you can prove it with a test), fix it yourself: make the change, add or fix the test, run the impacted specs, commit as `TKT-{ID}: review fixes`, say exactly what you changed in `review.md`, and approve. Testing is still the second check. Bounce the ticket only when the fix needs a decision, touches the design, or is bigger than that. A rejection costs a full build and a full review; a ten-line fix costs neither.
+
 ### Approve
 All checks pass, no concerns:
 1. Write `review.md` in the ticket directory
 2. **Commit any changes** you made (lint fixes, debug cleanup): `TKT-{ID}: review fixes`
 3. Add comment: `bobby ticket comment {ID} --by bobby-review "Approved: {summary}"`
 4. If you discovered a pattern future reviews should catch: `bobby learn bobby-review "pattern" "description"`
-5. Move to testing: `bobby ticket move {ID} test`
+5. Hand the ticket on to the stage your task prompt names
 
 ### Approve with Notes
 Code works and ACs are met, but you have observations worth recording — minor style drift, a pattern that could become a problem, a suggestion for future work. These do NOT block the ticket:
 1. Write `review.md` with notes in the "Code Concerns" and "Notes" sections
 2. **Commit any changes** you made: `TKT-{ID}: review fixes`
 3. Add comment: `bobby ticket comment {ID} --by bobby-review "Approved with notes: {summary}. Notes: {observations}"`
-4. Move to testing: `bobby ticket move {ID} test`
+4. Hand the ticket on to the stage your task prompt names
 
 ### Reject
-Broken code, missing ACs, or serious quality issues:
+Blockers you can't fix forward (see above):
 1. Write `review.md` documenting every issue found
 2. Move back with specific feedback: `bobby ticket move {ID} reject "Specific issue description"`
 3. Be specific — the build agent needs to know exactly what to fix

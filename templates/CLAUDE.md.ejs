@@ -121,6 +121,7 @@ A workflow is the ordered set of stages a ticket runs through. Built-in: **defau
 - **Slow mode:** `bobby run next TKT-001` — runs next agent for current stage
 - **Batch mode:** `bobby run plan` (no ticket ID) — runs agent on all tickets in stage
 - **Ship:** `bobby run ship` — creates PR, merges, deploys per repo needs, moves to done
+- **Size:** bobby-plan records each ticket's size (`xs`–`xl`). An `xs` ticket runs `quick` (no separate review); `xl` is split into an epic; a ticket's own `workflow:` always wins. Override with `sizing:` in `.bobbyrc.yml`.
 
 ### Custom Workflows
 

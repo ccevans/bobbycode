@@ -14,7 +14,7 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-build/SKILL
 Read these files in parallel to minimize startup time:
 1. `<%= paths.skills %>/bobby-build/learnings.md` + `<%= paths.skills %>/bobby-build/learnings.local.md` — anti-patterns to avoid
 2. `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` — cross-agent patterns
-3. `.bobby/architecture-wakeup.md` (if it exists) — compressed codebase context
+3. `.bobby/architecture-wakeup.md` (if it exists) — compressed codebase context. In a studio it is a map of projects; also read the ticket's own project summary, `.bobby/<project>/architecture-wakeup.md`, where `<project>` is the folder the ticket lives under
 <% if (typeof build_skills !== 'undefined' && build_skills && build_skills.length > 0) { %>
 <% build_skills.forEach(function(skill) { %>
 2. `<%= paths.skills %>/<%= skill %>/SKILL.md` — project conventions

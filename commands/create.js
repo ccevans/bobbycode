@@ -2,6 +2,7 @@
 import path from 'path';
 import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
 import { createTicket, listTickets } from '../lib/tickets.js';
+import { assertSize } from '../lib/workflow.js';
 import { success, warn, error } from '../lib/colors.js';
 import { tryLogEntry } from '../lib/session.js';
 
@@ -21,6 +22,7 @@ export function registerCreate(program) {
     .option('--workflow <name>', 'Named workflow to run this ticket through (default, secure, quick, or your own)')
     .option('--feature <id>', 'Feature-map row this ticket implements (e.g. F1.2) — see .bobby/product/feature-map.md')
     .option('--persona <id>', 'Persona this ticket serves (e.g. P1) — see .bobby/product/personas.md')
+    .option('--size <size>', 'Size (xs, s, m, l, xl) — usually left to bobby-plan, which sizes after investigating')
     .action((opts) => {
       try {
         const root = findProjectRoot();
@@ -54,6 +56,7 @@ export function registerCreate(program) {
           workflow: opts.workflow || null,
           feature: opts.feature || null,
           persona: opts.persona || null,
+          size: opts.size ? assertSize(opts.size) : null,
         });
         success(`Created ${result.id} — ${opts.title}`);
         console.log(`  → ${config.tickets_dir}/${result.dirname}/`);

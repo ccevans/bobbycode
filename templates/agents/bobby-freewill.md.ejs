@@ -20,7 +20,7 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-freewill/SK
 Read these in parallel:
 1. `<%= paths.skills %>/bobby-freewill/learnings.md` + `<%= paths.skills %>/bobby-freewill/learnings.local.md`
 2. `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md`
-3. `.bobby/architecture-wakeup.md` (if it exists) — compressed codebase context
+3. `.bobby/architecture-wakeup.md` (if it exists) — compressed codebase context. In a studio it is a map of projects; also read the ticket's own project summary, `.bobby/<project>/architecture-wakeup.md`, where `<project>` is the folder the ticket lives under
 4. The ticket's `ticket.md`, plus `plan.md` and `test-cases.md` if they exist
 
 Then: `git branch --show-current` (if on main/master, `git checkout -b tkt-{ID}` before
@@ -46,7 +46,7 @@ this kind of change, sized like the neighbors; scratch checks are not permanent 
 
 ## Completing Work
 
-- Self-review your own diff adversarially, then run the impacted specs and lint — paste the output. Not the full suite: ship runs it once per ticket
+- Re-read your diff, then have a fresh `bobby-review` sub-agent review it (see the skill) and act on its blockers; run the impacted specs and lint and paste the output. Not the full suite: ship runs it once per ticket
 - Commit every changed file; `git status --short` must be clean
 - `bobby learn bobby-freewill "pattern" "description"` if you found something durable
 - `bobby ticket move {ID} ship` then output `<bobby:done ticket="{ID}" stage="shipping" />`

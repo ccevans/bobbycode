@@ -4,7 +4,7 @@ import path from 'path';
 import inquirer from 'inquirer';
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir, resolveProductDir } from '../lib/config.js';
 import { getFeatureTickets, listEpics } from '../lib/tickets.js';
-import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, listWorkflows, assertTicketFree } from '../lib/workflow.js';
+import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, listWorkflows, assertTicketFree, workflowNameForTicket, freewillRefusal } from '../lib/workflow.js';
 import { findTicket } from '../lib/tickets.js';
 import { VALID_AGENTS } from '../lib/agent-registry.js';
 import { resolveModel, resolveEffort } from '../lib/models.js';
@@ -106,16 +106,21 @@ Modes:
         const sessionsDir = resolveSessionsDir(root, config);
         const sessionId = initSession(sessionsDir, { ticketIds: ticketIds, agent, pipeline: opts.workflow || 'default' });
 
-        // Resolve ticket-level workflow override (if ticket has a `workflow` field in frontmatter)
+        // Ticket-level workflow: its own `workflow` field, else the one its size
+        // maps to (see workflowNameForTicket), else the run's default.
         let ticketPipeline = null;
         if (ticketIds.length > 0) {
           const ticket = findTicket(ticketsDir, ticketIds[0]);
-          if (ticket && (ticket.data.workflow || ticket.data.pipeline)) {
-            ticketPipeline = ticket.data.workflow || ticket.data.pipeline;
+          if (ticket) ticketPipeline = workflowNameForTicket(config, ticket.data);
+          // Freewill refuses the tickets that need the full pipeline, whether it
+          // was asked for as the agent or as the named workflow.
+          if (ticket && (agent === 'freewill' || opts.workflow === 'freewill' || ticketPipeline === 'freewill')) {
+            const why = freewillRefusal(ticket.data);
+            if (why) throw new Error(`${ticketIds[0]} can't run on freewill: ${why}.`);
           }
         }
 
-        // Resolve workflow: explicit flag > ticket frontmatter > default
+        // Resolve workflow: explicit flag > ticket workflow or size > default
         const pipeline = resolveWorkflow(config, opts.workflow || 'default', ticketPipeline);
 
         // Feature mode: if no epic id provided, let user pick interactively.

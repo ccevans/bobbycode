@@ -72,7 +72,10 @@ NEVER commit directly to main/master.
 
 1. Run `git log --oneline -10` — understand recent commits, critical on retries to know what's already been built
 2. Read the ticket's `ticket.md`, `plan.md`, and `test-cases.md` in parallel
-3. Check for rejection comments — if this is a retry, read the rejection feedback first
+3. Check for rejection comments — if this is a retry, read the rejection feedback first, then fix the whole class, not the instance. Most second-round rejections are "only partly fixed" or "the same problem elsewhere":
+   - for each finding, search for every other place the same mistake can occur (the other client, the read path and the write path, sibling components) and fix those too;
+   - re-run the reviewer's or tester's own repro for each finding, not just your new test;
+   - re-check what earlier rounds already passed, so this fix doesn't break it.
 
 ## Investigation First
 
@@ -83,6 +86,7 @@ Before writing any code:
 - When fixing a bug, reproduce it first and read the relevant code path end-to-end
 - Read multiple related files in parallel when possible to minimize round-trips
 - If you are unsure how an existing module works, read it rather than guessing
+- **Build against the real data shape.** When your code reads or writes data another repo or ticket produces, take the shape from the `## Contract` in `plan.md`, or from the producer's code on origin/main (`git show origin/main:<path>`) or a real response. Build fixtures from that shape and name where it came from in your comment. Never from a stub you wrote yourself: code that passes against an invented payload and fails against the real one is the most common reason builds get rejected. If the producer doesn't exist yet, use the shape the plan assigns to its owner, and say so.
 </investigation_rules>
 
 <% if (typeof services !== 'undefined' && services && Object.keys(services).length > 0) { %>
@@ -120,6 +124,7 @@ Read the ticket's `repos` frontmatter and run from inside each repo it names:
 <% } else { %>
 - Impacted specs: `<%= commands && commands.test_impacted || 'not configured — pass the impacted spec files to the test runner (set commands.test_impacted in .bobbyrc.yml)' %>`
 - Full suite (ship only): `<%= commands && commands.test || 'your test command (configure commands.test in .bobbyrc.yml)' %>`
+- Lint: `<%= commands && commands.lint || 'not configured (set commands.lint in .bobbyrc.yml)' %>`
 <% } %>
 
 `{files}` is whatever the runner addresses: spec files for rspec / pytest / node, the changed source files for jest `--findRelatedTests`, package dirs for go. Name the files you ran in the ticket comment.
@@ -139,12 +144,12 @@ Read the ticket's `repos` frontmatter and run from inside each repo it names:
 4. Repeat for each acceptance criterion
 <% } else { %>
 1. **RED** — Write a failing test first
-   - Run only that spec file: `<%= commands && commands.test_impacted || 'your impacted-specs command (configure commands.test_impacted in .bobbyrc.yml)' %>` with `{files}` = the spec you just wrote
+   - Run only that spec file with the impacted-specs command from Which Tests To Run, `{files}` = the spec you just wrote
    - Confirm the test fails for the right reason
 2. **GREEN** — Write the minimum code to make the test pass
    - Run that spec file again — should pass
 3. **REFACTOR** — Clean up while tests stay green
-   - Run: `<%= commands && commands.lint || 'your lint command (configure commands.lint in .bobbyrc.yml)' %>`
+   - Run the lint command from Which Tests To Run
 4. Repeat for each acceptance criterion
 <% } %>
 
@@ -185,12 +190,13 @@ Read the ticket's `repos` frontmatter and run from inside each repo it names:
 1. Run the impacted-specs and lint commands for each affected service (see Service-Aware Commands above) — not the full suite
 <% } else { %>
 1. Run the impacted specs (see Which Tests To Run) — not the full suite
-2. Run the linter: `<%= commands && commands.lint || 'your lint command (configure commands.lint in .bobbyrc.yml)' %>`
+2. Run the lint command (see Which Tests To Run)
 <% } %>
-3. **Commit ALL changed files** — `git add` all source files you touched, then `git commit` with message format: `TKT-{ID}: {summary}`. Do NOT leave uncommitted changes behind.
-4. Add comment: `bobby ticket comment {ID} --by bobby-build "Built: {summary}"`
-5. If you discovered anything non-obvious or a pattern future builds should avoid: `bobby learn bobby-build "pattern" "description"`
-6. Move to review: `bobby ticket move {ID} review`
+3. **Bring the branch up to date with origin/main** before handing off: `git fetch origin`, then `git merge origin/main` (a merge, never a force-push). If anything conflicts or a name you use was renamed on main, resolve it and re-run the impacted specs. A branch that can't merge cleanly gets rejected however good the code is.
+4. **Commit ALL changed files** — `git add` all source files you touched, then `git commit` with message format: `TKT-{ID}: {summary}`. Do NOT leave uncommitted changes behind.
+5. Add comment: `bobby ticket comment {ID} --by bobby-build "Built: {summary}. Specs run: {files}. Data shape from: {source}."`
+6. If you discovered anything non-obvious or a pattern future builds should avoid: `bobby learn bobby-build "pattern" "description"`
+7. Hand the ticket on to the stage your task prompt names
 
 ## Self-Check Before Completing
 
@@ -201,6 +207,12 @@ Before committing and moving the ticket forward, pause and verify:
 2. Confirm every file listed in `plan.md` was addressed. If you skipped a file, explain why in your commit message.
 3. Run `git diff --stat` and review what you changed. Are there files you modified that are not in the plan? Consider whether they are necessary.
 4. Run the impacted specs and lint — show the output as evidence, naming the spec files you ran. Assertions without proof are not accepted. Do not run the full suite here; ship does, once.
+5. Run the checks review rejects on, before review has to:
+   - every acceptance criterion maps to a test that would fail without your change (not one that passes against a mock of the thing it tests);
+   - nothing in `.bobby/decisions.yaml` (or the project's) is contradicted;
+   - no new fallback, default value or swallowed error the project has not approved;
+   - fixtures match the `## Contract` key for key.
+6. **If the diff changes anything a user sees,** look at it: with the dev server for this worktree running, run `node <%= paths.skills %>/bobby-test/browse.mjs <url> --sizes 390,1440 --axe --out <ticket folder>/build-evidence` for each changed route, open the screenshots, and fix what looks wrong (overlapping or clipped elements, a second `<main>`, missing focus styles, axe violations). Attach the paths in your comment.
 </self_check>
 
 ## Checkpointing
@@ -224,7 +236,7 @@ Compaction can happen at any moment, so do not wait for a warning. Update `progr
 **Blockers:** [anything unexpected]
 ```
 
-On resume, read `progress.md` first and pick up from the last completed step. Delete it after `bobby ticket move {ID} review`.
+On resume, read `progress.md` first and pick up from the last completed step. Delete it once you have handed the ticket on.
 
 ## If Something Goes Wrong
 
