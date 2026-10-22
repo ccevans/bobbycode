@@ -15,6 +15,19 @@ argument-hint: "<ticket ID to build>"
 
 
 
+## Worktree Isolation (Recommended for Concurrent Sessions)
+
+If multiple bobby sessions may run at once, work inside a per-ticket git worktree so concurrent sessions can't flip each other's branches mid-build.
+
+1. Check if the ticket already has a worktree: read the ticket frontmatter for `worktree_path`
+2. If not, create one: `bobby worktree create {ID}`
+3. `cd` into it: `` cd "$(bobby worktree path {ID})" ``
+4. All subsequent git/test/build commands run inside that worktree
+
+The worktree is on its own branch (`bobby/tkt-{id}-ticket` by default) branched off origin/main. Other sessions in the main checkout or other worktrees cannot affect it.
+
+If you skip worktree isolation, fall through to Branch Guard below.
+
 ## Branch Guard
 
 Before writing any code, check your branch — commits to main bypass review and can break CI:
@@ -54,16 +67,31 @@ Before writing any code:
 </investigation_rules>
 
 
+## Which Tests To Run
+
+The full suite runs **once per ticket, at ship**. Build runs only the specs the change touches — a full run here, multiplied by every ticket building at once, is what runs the machine out of memory.
+
+- **While coding (RED/GREEN):** run only the spec file you are writing.
+- **Before committing:** run the impacted specs — every changed spec file plus the spec of every changed source file in `git diff --name-only origin/main...HEAD`. Read the diff to find them; "I don't know which specs are impacted" is not a reason to run everything.
+- **Never here:** the full suite. Ship owns it.
+
+
+- Impacted specs: `NODE_OPTIONS=--experimental-vm-modules npx jest {files}`
+- Full suite (ship only): `npm test`
+
+
+`{files}` is whatever the runner addresses: spec files for rspec / pytest / node, the changed source files for jest `--findRelatedTests`, package dirs for go. Name the files you ran in the ticket comment.
+
 ## Development Process (TDD)
 
 ### For Feature Tickets
 
 
 1. **RED** — Write a failing test first
-   - Run: `npm test`
+   - Run only that spec file: `NODE_OPTIONS=--experimental-vm-modules npx jest {files}` with `{files}` = the spec you just wrote
    - Confirm the test fails for the right reason
 2. **GREEN** — Write the minimum code to make the test pass
-   - Run tests again — should pass
+   - Run that spec file again — should pass
 3. **REFACTOR** — Clean up while tests stay green
    - Run: `npm run lint`
 4. Repeat for each acceptance criterion
@@ -72,11 +100,11 @@ Before writing any code:
 <example label="TDD cycle for an AC">
 **AC:** "User can filter leads by status"
 
-**RED:** Write test: `it('filters leads by active status', () => { ... })`. Run tests. Test fails — filter function doesn't exist yet.
+**RED:** Write test: `it('filters leads by active status', () => { ... })`. Run that spec file. Test fails — filter function doesn't exist yet.
 
-**GREEN:** Add `filterByStatus()` to leads service. Add status dropdown to UI. Run tests — passes.
+**GREEN:** Add `filterByStatus()` to leads service. Add status dropdown to UI. Run that spec file — passes.
 
-**REFACTOR:** Extract dropdown into reusable `<StatusFilter>` component (only if plan.md calls for it). Run tests — still passes. Run lint — clean.
+**REFACTOR:** Extract dropdown into reusable `<StatusFilter>` component (only if plan.md calls for it). Run the impacted specs — still pass. Run lint — clean.
 
 **Commit:** `TKT-042: Add lead status filtering with dropdown UI`
 </example>
@@ -87,7 +115,7 @@ Before writing any code:
 2. **Write a failing test** that captures the bug
 3. **Fix** — Write the minimum fix
 4. **Verify** — Test passes, bug no longer reproduces
-5. **Regression check** — Run full test suite
+5. **Regression check** — Run the impacted specs (see Which Tests To Run); the full suite runs at ship
 
 ## Staying Lean
 
@@ -103,7 +131,7 @@ Before writing any code:
 ## Completing Work
 
 
-1. Run the full test suite: `npm test`
+1. Run the impacted specs (see Which Tests To Run) — not the full suite
 2. Run the linter: `npm run lint`
 
 3. **Commit ALL changed files** — `git add` all source files you touched, then `git commit` with message format: `TKT-{ID}: {summary}`. Do NOT leave uncommitted changes behind.
@@ -119,12 +147,12 @@ Before committing and moving the ticket forward, pause and verify:
 1. Re-read each acceptance criterion from `ticket.md`. For each one, identify the specific test that covers it. If any AC lacks a test, write one now.
 2. Confirm every file listed in `plan.md` was addressed. If you skipped a file, explain why in your commit message.
 3. Run `git diff --stat` and review what you changed. Are there files you modified that are not in the plan? Consider whether they are necessary.
-4. Run the full test suite and lint — show the output as evidence. Assertions without proof are not accepted.
+4. Run the impacted specs and lint — show the output as evidence, naming the spec files you ran. Assertions without proof are not accepted. Do not run the full suite here; ship does, once.
 </self_check>
 
-## Checkpointing Mid-Task
+## Checkpointing
 
-If you are interrupted or context limits are approaching during a multi-step implementation, write a checkpoint to `.bobby/tickets/{ID}*/progress.md` before stopping:
+Compaction can happen at any moment, so do not wait for a warning. Update `progress.md` in the ticket folder (the directory holding `ticket.md`) each time you commit an acceptance criterion's work. It costs a few lines; losing a half-built ticket costs the stage. After a compaction a hook hands you this file back, so write it for a reader who remembers nothing:
 
 ```markdown
 ## Progress Checkpoint — {ID}
@@ -138,7 +166,8 @@ If you are interrupted or context limits are approaching during a multi-step imp
 - [step N+1 from plan.md]
 - [step N+2 from plan.md]
 
-**Tests:** [passed N / M so far — or not yet run]
+**Tests:** [spec files run and result — or not yet run]
+**Next action:** [the exact next command or edit]
 **Blockers:** [anything unexpected]
 ```
 

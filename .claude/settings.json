@@ -1,13 +1,12 @@
 {
   "hooks": {
-
     "PreCompact": [
       {
         "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "hooks/precompact.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/precompact.sh"
           }
         ]
       }
@@ -18,7 +17,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "hooks/stop.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/stop.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/postcompact-restore.sh"
           }
         ]
       }
