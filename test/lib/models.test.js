@@ -31,7 +31,7 @@ describe('registry tiers', () => {
   // feature is plumbing with no opinion behind it.
   test('the tiers are actually spread across the kinds of work', () => {
     const used = new Set(Object.values(AGENT_REGISTRY).map(e => e.tier));
-    expect([...used].sort()).toEqual(['fable', 'haiku', 'opus', 'sonnet']);
+    expect([...used].sort()).toEqual(['haiku', 'opus', 'sonnet']);
   });
 
   test('judgment stages are not tiered below execution ones', () => {
@@ -164,8 +164,8 @@ describe('registry efforts', () => {
     }
   });
 
-  test('freewill runs on fable', () => {
-    expect(AGENT_REGISTRY.freewill.tier).toBe('fable');
+  test('no shipped agent defaults to fable', () => {
+    for (const [key, e] of Object.entries(AGENT_REGISTRY)) expect(`${key}: ${e.tier}`).not.toBe(`${key}: fable`);
   });
 });
 

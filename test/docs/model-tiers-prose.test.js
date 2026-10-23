@@ -25,7 +25,7 @@ const rows = (() => {
   if (start === -1) return null;
   const block = readme.slice(start).split('\n\n')[0].split('\n');
   return block
-    .filter(line => /^\| `(fable|opus|sonnet|haiku)` \|/.test(line))
+    .filter(line => /^\| `(opus|sonnet|haiku)` \|/.test(line))
     .map((line) => {
       const cells = line.split('|').map(c => c.trim());
       return {

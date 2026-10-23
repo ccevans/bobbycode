@@ -55,7 +55,7 @@ describe('scaffolded agent files carry their stage model', () => {
 
   test('the files do not all say the same thing', () => {
     const models = new Set(Object.values(scaffoldAgents()).map(f => f.model));
-    expect([...models].sort()).toEqual(['fable', 'haiku', 'opus', 'sonnet']);
+    expect([...models].sort()).toEqual(['haiku', 'opus', 'sonnet']);
   });
 
   test('the model sits alongside the name and description, not instead of them', () => {

@@ -366,8 +366,7 @@ Every agent declares a **tier** — the kind of model its work wants:
 
 | Tier | The work | Agents |
 |---|---|---|
-| `fable` | Unsupervised end-to-end work — the one agent with no reviewer behind it | `freewill` |
-| `opus` | Judgment — deciding what to build, drawing the v1 line, finding what a diff hides, critiquing a design | `plan`, `review`, `workflow`, `feature`, `next`, `security`, `debug`, `ux`, `design-mockup`, `design-build`, `design-check`, `define-brief`, `define-features`, `pm`, `vet`, `strategy`, `arch` |
+| `opus` | Judgment — deciding what to build, drawing the v1 line, finding what a diff hides, critiquing a design | `plan`, `review`, `workflow`, `feature`, `next`, `security`, `freewill`, `debug`, `ux`, `design-mockup`, `design-build`, `design-check`, `define-brief`, `define-features`, `pm`, `vet`, `strategy`, `arch` |
 | `sonnet` | Execution — writing the code the plan specified, driving a browser, transcribing decisions | `build`, `test`, `ship`, `design-research`, `design-analyze`, `design-spec`, `define-personas`, `define-journeys`, `define-blueprint`, `qe`, `intake`, `docs`, `lighthouse` |
 | `haiku` | Bookkeeping — recording a load time, checking a deploy returned 200 | `performance`, `watchdog` |
 
@@ -421,7 +420,7 @@ keeps meaning that, and never quietly acquires per-stage defaults.
 
 ### Cursor, Codex and OpenCode
 
-`fable` / `opus` / `sonnet` / `haiku` are aliases the `claude` CLI and Claude Code
+`opus` / `sonnet` / `haiku` are aliases the `claude` CLI and Claude Code
 subagent frontmatter accept, which is what lets the shipped tiers survive models
 being replaced. `cursor-agent`, `codex` and `opencode` take full model names
 instead, so **the shipped tiers do not apply to them** — passing `opus` to a CLI
@@ -1154,7 +1153,7 @@ Focused agents for specific concerns:
 | **bobby-watchdog** | Post-deploy verification — smoke tests, uptime, console errors |
 | **bobby-arch** | Architecture discovery — documents codebase structure and decisions |
 | **bobby-ticket-intake** | Converts PM specs into structured Bobby tickets |
-| **bobby-freewill** | One agent, whole ticket, deliberately few instructions — runs on Fable |
+| **bobby-freewill** | One agent, whole ticket, deliberately few instructions — runs on Opus |
 
 ## Skills (24)
 
