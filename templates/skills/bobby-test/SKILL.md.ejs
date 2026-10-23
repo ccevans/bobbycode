@@ -32,7 +32,7 @@ Verify the dev environment is running before testing:
 - `curl -s -o /dev/null -w "%{http_code}" <%= check.url %>` (<%= check.description || check.name %>)
 <% }); %>
 <% } else { %>
-- `curl -s -o /dev/null -w "%{http_code}" <your dev server URL>` (app — configure `health_checks` in .bobbyrc.yml)
+- No health checks are configured for this project. Use the dev server URL for this ticket's worktree (its port is in the project's `SKILL.local.md` recipes or `progress.md`); if none is running, start one (Service Recovery) before testing.
 <% } %>
 
 ### Required Services
@@ -49,7 +49,7 @@ If a service isn't running or a health check fails, attempt **one** restart per 
 <% if (commands && commands.dev) { %>
 - Web: Run `<%= commands.dev %>` in the background
 <% } else { %>
-- Web: Run `npm run dev` in the background
+- Web: start the project's dev server for this worktree on its own port, as the project's `SKILL.local.md` describes; if it describes none, ask in a block rather than guessing a command
 <% } %>
 - Workers: `docker compose up -d sidekiq` or the project's equivalent
 - Wait up to 15 seconds, then re-check
@@ -133,13 +133,12 @@ Steps taken: Selected "Active" from status dropdown → URL changed to /leads?st
 <% if (testing_tools.includes('playwright')) { %>
 ### Playwright (Browser Automation)
 
-Use Playwright MCP for all UI testing when available. Prefer real browser interaction over screenshots-only:
-- `mcp__playwright__browser_navigate` to load pages
-- `mcp__playwright__browser_click` / `mcp__playwright__browser_type` for interactions
-- `mcp__playwright__browser_screenshot` for evidence capture
-- `mcp__playwright__browser_snapshot` to read the accessibility tree
+Each test run gets its own headless browser. Never use a shared browser profile (a shared Chrome or MCP profile is locked by whichever agent opened it first, and blocks every other ticket).
 
-Fall back to curl + screenshots only if Playwright MCP is not connected.
+- **Screenshots, console errors, failed requests and axe:** use the shared driver instead of writing a script:
+  `node <%= paths.skills %>/bobby-test/browse.mjs <url> --sizes 390,1440 --out <ticket folder>/test-evidence/screenshots [--axe] [--storage <state.json>] [--disable-web-security]`
+  Run it from the project or worktree folder (it uses the project's Playwright). Exit 0 = pass, 1 = the page failed, 2 = bad flag or setup; console errors, failed requests and horizontal overflow are in its JSON, so read them. `--storage` for logged-in pages, `--disable-web-security` when a localhost UI calls a localhost API.
+- **Clicking through a flow:** write a short Playwright script only for the interactions themselves, launched headless from the project's `node_modules`, with its own context, wrapped in `timeout 300`. Save it in `test-evidence/` so a retest can rerun it rather than rewrite it.
 <% } %>
 <% if (testing_tools.includes('curl')) { %>
 ### curl (API Testing)
@@ -158,6 +157,16 @@ Run Cypress tests for e2e verification: `npx cypress run --spec "cypress/e2e/{re
 Use curl for API testing and browser screenshots for UI verification.
 <% } %>
 
+## What counts as evidence
+
+Several flows passed every ticket's testing and failed their first real use. The rules below are what was missing.
+
+- **Say where it ran.** Each test case records the URL, the route and the commit or deploy it ran against. A run on a local dev server is fine for a ticket, against the real API and real data; a harness rendering test fixtures is not evidence for a UI acceptance criterion, and neither is evidence from a different flow or an older version of this one.
+- **Use it, don't just look at it.** At 1440 use each control with a mouse and keyboard; at 390 by touch. A screenshot proves a page rendered, not that it works.
+- **Real inputs.** Pick from autocomplete suggestions instead of typing; run the flow a second time with the same identity; use the owner's real handle and email where the flow takes them.
+- **Every screenshot gets looked at.** Check it for overlapping, clipped or unreadable elements, and run the shared driver with `--axe` on every UI case. A defect visible in your own evidence is a failure even when it matches a spec value; report the spec value as the cause.
+- **Unchecked means not passed.** An acceptance criterion you could not verify (the deploy isn't up, the flow stops before it) is BLOCKED with the reason. The ticket doesn't pass with one left open, and you don't hand a "please walk it yourself" to a human as a substitute for your own run.
+
 ## Testing Process
 
 1. Read `ticket.md` for acceptance criteria
@@ -170,7 +179,7 @@ Use curl for API testing and browser screenshots for UI verification.
 ### UI Testing
 
 <% if (typeof testing_tools !== 'undefined' && testing_tools && testing_tools.includes('playwright')) { %>
-Use Playwright MCP for browser testing. For each AC with a UI surface:
+Use the shared driver and, for interactions, a headless Playwright script (see Preferred Testing Tools). For each AC with a UI surface:
 <% } else { %>
 For each AC with a UI surface:
 <% } %>
@@ -257,7 +266,7 @@ If the ticket or its parent epic references a design mockup (HTML file, screensh
 
 1. **Locate the reference** — Check the ticket's `ticket.md` description and the parent epic's `feature-plan.md` for a `## Design Reference` or `## File References` section pointing to a mockup file.
 2. **Read the mockup** — If it's an HTML file, read the relevant section (use grep to find the tab/component, not the whole file). Note the expected layout, colors, spacing, and structure.
-3. **Screenshot the live app** — Navigate to the page the ticket affects and take a full-page screenshot at desktop (1440px) and mobile (375px) viewports.
+3. **Screenshot the live app** — Navigate to the page the ticket affects and take a full-page screenshot at desktop (1440px) and mobile (390px) viewports (the driver does both with `--sizes 390,1440`).
 4. **Compare structure** — Verify the live app matches the mockup in:
    - Layout (grid columns, card arrangement, section order)
    - Colors (accent colors, backgrounds, text colors match design tokens)
@@ -307,13 +316,17 @@ If all acceptance criteria are verified through the live app:
 1. Write `test-evidence/results.md` with all AC results and evidence references
 2. Add comment: `bobby ticket comment {ID} --by bobby-test "Passed: all AC verified through live app — evidence in test-evidence/"`
 3. If you discovered anything non-obvious or a pattern future testing should catch: `bobby learn bobby-test "pattern" "description"`
-4. Move to shipping: `bobby ticket move {ID} ship`
+4. Hand the ticket on to the stage your task prompt names
 
 ### Reject
 If any acceptance criteria fail in the live app:
 1. Write `test-evidence/results.md` with all AC results including failures
 2. Move back with specific feedback: `bobby ticket move {ID} reject "Live test failure: {specific description} — evidence in test-evidence/"`
 3. Be specific — describe what you saw vs. what was expected, reference screenshots by filename
+
+## Checkpointing
+
+Compaction can happen at any moment, so keep `progress.md` in the ticket folder (the directory holding `ticket.md`) current as you go, not when you are warned. After a compaction a hook hands this file back to you, so write it for a reader who remembers nothing: ticket id, branch, each test case done with its verdict and evidence path, and the ones still to run, and the exact next action. Record a case's verdict and its evidence file as soon as you have it, before starting the next case; a compaction should cost you at most one case. Delete the file once the verdict is moved.
 
 ## Key Principles
 

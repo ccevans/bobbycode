@@ -1,0 +1,645 @@
+<title>Hero Pixel Variations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#181820; --ink:#E8E4EC; --dim:#9A94A6; --line:#FFFFFF1A;
+  --berry:#C8412C; --berry-lit:#F07A63; --ylw:#FFD200;
+  --sans:"Archivo",Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --pixel:"Press Start 2P",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%; overflow-x:hidden}
+body{margin:0; background:var(--page); color:var(--ink); font:400 16px/1.6 var(--sans); overflow-x:hidden}
+canvas{display:block; max-width:100%}
+:focus-visible{outline:3px solid var(--ylw); outline-offset:3px}
+.wrap{max-width:1120px; margin:0 auto; padding:0 24px}
+h1,h2,h3,h4{margin:0}
+p{margin:0 0 1em}
+code{font-family:var(--mono); font-size:.92em}
+
+.top{padding:52px 0 36px; border-bottom:1px solid var(--line)}
+.top h1{font-family:var(--sans); font-variation-settings:'wdth' 112; font-weight:800;
+  font-size:clamp(26px,3.4vw,40px); line-height:1.06; letter-spacing:-.02em; text-transform:uppercase}
+.top p{color:var(--dim); max-width:64ch; margin-top:16px; font-size:17px}
+
+.part{padding:44px 0 8px; border-bottom:1px solid var(--line)}
+.part .k{font:400 13px/1 var(--pixel); color:var(--ylw); margin-bottom:16px; display:block}
+.part h2{font-family:var(--sans); font-variation-settings:'wdth' 112; font-weight:800;
+  font-size:clamp(22px,2.7vw,32px); line-height:1.08; letter-spacing:-.02em; text-transform:uppercase}
+.part p{color:var(--dim); max-width:62ch; margin-top:14px}
+
+.opt{border-bottom:1px solid var(--line); padding:40px 0}
+.opt-head{display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; margin-bottom:8px}
+.opt-head h3{font-family:var(--sans); font-variation-settings:'wdth' 108; font-weight:800;
+  font-size:22px; letter-spacing:-.01em; text-transform:uppercase}
+.opt-head .n{font:400 13px/1 var(--pixel); color:var(--ylw)}
+.opt-head .rt{margin-left:auto; font-family:var(--mono); font-size:14px; color:var(--dim)}
+.opt .why{color:var(--dim); max-width:64ch; margin:0 0 22px; font-size:16px}
+.opt .why b{color:var(--ink); font-weight:600}
+
+/* the hero mock · same copy every time, so only the art and the ground change */
+.mock{padding:38px 28px 34px; border-radius:4px; overflow:hidden}
+.mock .h{font-family:var(--sans); font-variation-settings:'wdth' 118; font-weight:800;
+  font-size:clamp(24px,3.2vw,40px); line-height:1.02; letter-spacing:-.018em; text-transform:uppercase}
+.mock .h em{font-style:normal}
+.mock .s{margin:16px 0 0; max-width:40ch; font-size:16px}
+.mock .b{display:inline-flex; align-items:center; gap:9px; margin-top:20px;
+  font-family:var(--sans); font-variation-settings:'wdth' 108; font-weight:800; font-size:14px;
+  letter-spacing:.06em; text-transform:uppercase; padding:13px 24px; border-radius:3px;
+  text-decoration:none}
+.art{margin-top:28px; position:relative}
+.mock-wide{padding-left:0; padding-right:0}
+.art-bleed{margin:28px 0 24px}
+.art-bleed canvas{width:100%; height:auto}
+.art canvas{width:100%; height:auto}
+
+/* the crew legend under the pit-stop scene */
+.crew{display:grid; grid-template-columns:repeat(2,1fr); gap:10px 18px; margin-top:20px}
+@media (min-width:720px){ .crew{grid-template-columns:repeat(3,1fr)} }
+@media (min-width:980px){ .crew{grid-template-columns:repeat(6,1fr)} }
+.crew span{display:flex; align-items:center; gap:9px; font:400 13px/1.4 var(--pixel)}
+.crew i{width:13px; height:13px; flex:none; display:block}
+
+/* labels drawn over a scene */
+.tag{position:absolute; transform:translate(-50%,-50%); font:400 13px/1.4 var(--pixel);
+  white-space:nowrap; pointer-events:none; text-align:center}
+.tag b{display:block; font-weight:400; margin-top:5px}
+
+/* part two · the same scene on five grounds */
+.swatches{display:grid; gap:26px; padding-bottom:44px}
+@media (min-width:860px){ .swatches{grid-template-columns:repeat(2,1fr)} }
+.sw h4{font-family:var(--sans); font-variation-settings:'wdth' 108; font-weight:700;
+  font-size:17px; text-transform:uppercase; letter-spacing:.03em; margin-bottom:6px}
+.sw .chips{display:flex; gap:6px; margin:0 0 12px}
+.sw .chips i{width:26px; height:14px; display:block; border:1px solid #FFFFFF22}
+.sw .note{color:var(--dim); font-size:14px; margin:10px 0 0}
+.sw .frame{border-radius:4px; overflow:hidden}
+.sw .frame canvas{width:100%; height:auto}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <h1>Hero pixel &amp; colour variations</h1>
+    <p>Two things are being decided here and they're easy to confuse, so they're separated.
+      <b>Part one</b> is four pixel treatments for the hero, all on the same ground, so you're
+      only judging the art. <b>Part two</b> is one treatment shown on five grounds, so you're
+      only judging the colour. Same headline and button throughout.</p>
+  </div>
+</header>
+
+<!-- ═══════════ PART ONE · THE ART ═══════════ -->
+<div class="part"><div class="wrap">
+  <span class="k">PART ONE</span>
+  <h2>Four things the hero could be</h2>
+  <p>All four on the current ground, so nothing is flattered by a nicer colour. Every one is a
+    racing view that actually exists — a pit stop, the road ahead, the grid, the map.</p>
+</div></div>
+
+<section class="opt"><div class="wrap">
+  <div class="opt-head"><span class="n">01</span><h3>The pit lane</h3>
+    <span class="rt">full-bleed · four boxes · pit wall</span></div>
+  <p class="why">The headline says <b>bobby runs the pit</b> and the current hero never shows a
+    pit. This does, at railcode's density: four garage boxes, your stop happening in the middle
+    one, engineers on the pit wall in the foreground, and the grandstand behind. Six of the
+    figures are your agents; the rest is a working pit lane.</p>
+  </div>
+  <div class="mock mock-wide" style="background:#14101C"><div class="wrap">
+    <p class="h" style="color:#F4F1EC">You drive.<br><em style="color:#F07A63">bobby</em> runs the pit.</p>
+    <p class="s" style="color:#D6CDE2">Six specialists, one box, one lap per ticket. You stay at the wheel.</p>
+    <a class="b" href="#" style="background:#C8412C;color:#fff;box-shadow:4px 4px 0 #9E2E1E">Install bobby</a>
+    </div>
+    <div class="art art-bleed"><canvas data-scene="pit" role="img"
+      aria-label="A pit lane at night: four lit garage boxes with mechanics working, a kart up on jacks in the middle box with six crew around it, engineers at monitors on the pit wall in the foreground, and a grandstand behind."></canvas></div>
+    <div class="wrap">
+    <div class="crew">
+      <span><i style="background:#C8412C"></i>PLANNER</span>
+      <span><i style="background:#FFD200"></i>BUILDER</span>
+      <span><i style="background:#F07A63"></i>REVIEWER</span>
+      <span><i style="background:#8FD3FF"></i>TESTER</span>
+      <span><i style="background:#6B4028"></i>SCRUTINEER</span>
+      <span><i style="background:#F4F1EC"></i>SHIPPER</span>
+    </div>
+    </div>
+  </div>
+</section>
+
+<section class="opt"><div class="wrap">
+  <div class="opt-head"><span class="n">02</span><h3>The road ahead</h3>
+    <span class="rt">from behind the car · moving</span></div>
+  <p class="why">The Pole Position view: road running to a vanishing point, kerbs and centre
+    line scrolling toward you. It is the only option that conveys <b>speed</b> rather than
+    describing it, and it reads as a racing game from across the room.</p>
+  <div class="mock" style="background:#14101C">
+    <p class="h" style="color:#F4F1EC">You drive.<br><em style="color:#F07A63">bobby</em> runs the pit.</p>
+    <p class="s" style="color:#D6CDE2">Tell it what you want. It plans, tests, reviews, and opens the PR.</p>
+    <a class="b" href="#" style="background:#C8412C;color:#fff;box-shadow:4px 4px 0 #9E2E1E">Install bobby</a>
+    <div class="art"><canvas data-scene="road" data-ground="mid" role="img"
+      aria-label="The view from behind a kart: a road running to the horizon with kerbs and a dashed centre line."></canvas></div>
+  </div>
+</div></section>
+
+<section class="opt"><div class="wrap">
+  <div class="opt-head"><span class="n">03</span><h3>The grid</h3>
+    <span class="rt">head-on · lights counting out</span></div>
+  <p class="why">Five red lights over a staggered grid, going out one by one. All the tension of
+    a race is in the two seconds before it starts, and this is the only option with a
+    <b>moment</b> in it rather than a state.</p>
+  <div class="mock" style="background:#14101C">
+    <p class="h" style="color:#F4F1EC">You drive.<br><em style="color:#F07A63">bobby</em> runs the pit.</p>
+    <p class="s" style="color:#D6CDE2">Plan, build, review, ship. Four words, in the order that matters.</p>
+    <a class="b" href="#" style="background:#C8412C;color:#fff;box-shadow:4px 4px 0 #9E2E1E">Install bobby</a>
+    <div class="art"><canvas data-scene="grid" role="img"
+      aria-label="A starting grid seen head on, with karts in staggered rows under a gantry of five red lights."></canvas></div>
+  </div>
+</div></section>
+
+<section class="opt"><div class="wrap">
+  <div class="opt-head"><span class="n">04</span><h3>The map</h3>
+    <span class="rt">top-down · what is built today</span></div>
+  <p class="why">The current hero, here for comparison. It is the most <b>informative</b> — it
+    is the only one that shows the whole lap and names the sectors — and the least atmospheric.</p>
+  <div class="mock" style="background:#14101C">
+    <p class="h" style="color:#F4F1EC">You drive.<br><em style="color:#F07A63">bobby</em> runs the pit.</p>
+    <p class="s" style="color:#D6CDE2">One ticket, one lap, three timed sectors.</p>
+    <a class="b" href="#" style="background:#C8412C;color:#fff;box-shadow:4px 4px 0 #9E2E1E">Install bobby</a>
+    <div class="art" id="mapart"><canvas data-scene="map" role="img"
+      aria-label="A race circuit seen from above with the lap divided into three timed sectors."></canvas>
+      <span class="tag" style="left:80%;top:47%;color:#F4F1EC;text-shadow:0 2px 0 #14101C,0 -2px 0 #14101C,2px 0 0 #14101C,-2px 0 0 #14101C">S1<b style="color:#FFD200">PLAN</b></span>
+      <span class="tag" style="left:34%;top:42%;color:#F4F1EC;text-shadow:0 2px 0 #14101C,0 -2px 0 #14101C,2px 0 0 #14101C,-2px 0 0 #14101C">S2<b style="color:#FFD200">BUILD</b></span>
+      <span class="tag" style="left:17%;top:47%;color:#F4F1EC;text-shadow:0 2px 0 #14101C,0 -2px 0 #14101C,2px 0 0 #14101C,-2px 0 0 #14101C">S3<b style="color:#FFD200">SHIP</b></span>
+    </div>
+  </div>
+</div></section>
+
+<!-- ═══════════ PART TWO · THE COLOUR ═══════════ -->
+<div class="part"><div class="wrap">
+  <span class="k">PART TWO</span>
+  <h2>Five grounds for the hero</h2>
+  <p>The same scene five times, so only the colour changes. Whichever art wins in part one, these
+    palettes apply to it. Every one keeps the brand red <code>#C8412C</code> on the button.</p>
+</div></div>
+
+<div class="wrap swatches">
+  <div class="sw">
+    <h4>01 · Midnight</h4>
+    <div class="chips"><i style="background:#14101C"></i><i style="background:#241D2E"></i><i style="background:#403050"></i><i style="background:#C8412C"></i></div>
+    <div class="frame"><canvas data-scene="road" data-ground="mid" aria-hidden="true"></canvas></div>
+    <p class="note">What's built today. Plum near-black, sampled from Super Sprint's tarmac. Quiet, and the pixel colour does all the talking.</p>
+  </div>
+  <div class="sw">
+    <h4>02 · Dusk</h4>
+    <div class="chips"><i style="background:#1A0F28"></i><i style="background:#43204C"></i><i style="background:#8A3560"></i><i style="background:#C8412C"></i></div>
+    <div class="frame"><canvas data-scene="road" data-ground="dusk" aria-hidden="true"></canvas></div>
+    <p class="note">Violet into magenta. The warmest option that still reads as evening, and it hands the page a real sky.</p>
+  </div>
+  <div class="sw">
+    <h4>03 · Golden hour</h4>
+    <div class="chips"><i style="background:#2A1420"></i><i style="background:#7A3320"></i><i style="background:#E0762C"></i><i style="background:#FFC24A"></i></div>
+    <div class="frame"><canvas data-scene="road" data-ground="gold" aria-hidden="true"></canvas></div>
+    <p class="note">Le Mans in the last hour of light. The boldest, and the one that fights hardest with the brand red.</p>
+  </div>
+  <div class="sw">
+    <h4>04 · Floodlit</h4>
+    <div class="chips"><i style="background:#0A0E14"></i><i style="background:#141C26"></i><i style="background:#2E3A46"></i><i style="background:#FFD200"></i></div>
+    <div class="frame"><canvas data-scene="road" data-ground="flood" aria-hidden="true"></canvas></div>
+    <p class="note">A cool, hard night race. Colder than today's ground, and it makes the yellow read as light rather than paint.</p>
+  </div>
+  <div class="sw">
+    <h4>05 · Attract</h4>
+    <div class="chips"><i style="background:#000000"></i><i style="background:#600070"></i><i style="background:#703070"></i><i style="background:#70B030"></i></div>
+    <div class="frame"><canvas data-scene="road" data-ground="att" aria-hidden="true"></canvas></div>
+    <p class="note">Super Sprint's own attract screen, sampled: <code>#600070</code> at 52% of the frame. The loudest, and the most obviously a game.</p>
+  </div>
+  <div class="sw" style="align-self:end">
+    <h4>How to answer</h4>
+    <p class="note" style="margin-top:0">Two words is enough: a number from part one and a number
+      from part two. <b style="color:var(--ink)">"01 and 03"</b> is a complete answer. If none of
+      the grounds is right, saying which direction to push — warmer, colder, lighter, louder —
+      is just as useful.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+if(!document.querySelector('meta[name="viewport"]')){
+  var mv=document.createElement('meta'); mv.name='viewport';
+  mv.content='width=device-width, initial-scale=1'; document.head.appendChild(mv);
+}
+var RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function px(cv,w,h){ cv.width=w; cv.height=h;
+  cv.style.width='100%'; cv.style.height='auto'; cv.style.imageRendering='pixelated';
+  var c=cv.getContext('2d'); c.imageSmoothingEnabled=false; return c; }
+function rect(c,col,x,y,w,h){ c.fillStyle=col; c.fillRect(Math.round(x),Math.round(y),Math.max(0,Math.round(w)),Math.max(0,Math.round(h))); }
+function dither(c,col,x0,x1,y,rows){ c.fillStyle=col;
+  for(var d=0;d<rows;d++){ var step=d+2;
+    for(var x=x0;x<x1;x++) if(((x+d*3)%step)===0) c.fillRect(x,y+d,1,1); } }
+function wheel(c,x,y,d){ d=d||10; rect(c,'#171220',x,y,d,d); rect(c,'#2A2337',x+3,y+3,d-6,d-6); }
+/* side-on kart: nose, sidepod, raised cockpit, roll hoop, four wheels */
+function kartSide(c,x,y,col,shade,helm){
+  wheel(c,x+1,y+6); wheel(c,x+40,y+6);
+  rect(c,'#171220',x+2,y+1,50,12);
+  rect(c,col,x+4,y+3,46,7);
+  rect(c,shade,x+4,y+8,46,2);
+  rect(c,'#171220',x+15,y-2,22,6);
+  rect(c,col,x+16,y-1,20,4);
+  rect(c,'#171220',x+18,y-6,11,5);
+  rect(c,helm,x+20,y-5,7,3);
+  rect(c,'#171220',x+50,y+3,7,4);
+  rect(c,col,x+51,y+4,6,2);
+  rect(c,'#171220',x+8,y+11,38,1);
+}
+/* rear view: gearbox, wing, tyres wider than the body */
+function kartRear(c,x,y,col,shade,helm){
+  rect(c,'#171220',x-5,y+9,13,10); rect(c,'#2A2337',x-3,y+12,9,5);
+  rect(c,'#171220',x+34,y+9,13,10); rect(c,'#2A2337',x+36,y+12,9,5);
+  rect(c,'#171220',x-1,y-1,44,17);
+  rect(c,col,x+1,y+1,40,13);
+  rect(c,shade,x+1,y+10,40,4);
+  rect(c,'#171220',x+11,y-6,20,7);
+  rect(c,helm,x+13,y-5,16,5);
+  rect(c,'#171220',x-3,y-2,48,4);
+  rect(c,shade,x-2,y-1,46,2);
+  rect(c,'#E23B2E',x+3,y+10,5,3); rect(c,'#E23B2E',x+34,y+10,5,3);
+  rect(c,'#FF8A72',x+4,y+11,3,1); rect(c,'#FF8A72',x+35,y+11,3,1);
+}
+
+/* ── grounds · part two swaps only this object ── */
+var GROUNDS = {
+  mid:  { sky:['#14101C','#1B1526','#241D2E'], far:'#2A2337', road:'#403050', edge:'#201828',
+          line:'#5C4A72', grass:'#1E2A1C', grass2:'#27391F', obj:'#3B3149', hi:'#4E3D62' },
+  dusk: { sky:['#1A0F28','#43204C','#8A3560'], far:'#3A2440', road:'#4A3358', edge:'#2A1830',
+          line:'#6E5686', grass:'#26202E', grass2:'#33293C', obj:'#4C3452', hi:'#5E4570' },
+  gold: { sky:['#2A1420','#7A3320','#E0762C'], far:'#5A2A22', road:'#4A3546', edge:'#2A1A22',
+          line:'#7A6270', grass:'#3A2620', grass2:'#4A3226', obj:'#5E3A2C', hi:'#6B4E5E' },
+  flood:{ sky:['#0A0E14','#111820','#1B2530'], far:'#22303C', road:'#2E3A46', edge:'#141C26',
+          line:'#4E6070', grass:'#16211C', grass2:'#1F2E24', obj:'#33424E', hi:'#455868' },
+  att:  { sky:['#000000','#2E0038','#600070'], far:'#703070', road:'#403050', edge:'#1A0020',
+          line:'#8A5A94', grass:'#0E2A08', grass2:'#70B030', obj:'#703070', hi:'#9A5AA4' }
+};
+var KERB_R='#E23B2E', KERB_W='#F4F1EC', BERRY='#C8412C', YLW='#FFD200';
+
+/* ══ 01 · THE PIT STOP ══════════════════════════════════════════════════
+   Side-on, in the box. Six crew, one per agent, colour-keyed to the legend. */
+function pitStop(cv){
+  var Wpx=document.documentElement.clientWidth;
+  var S = Wpx < 760 ? 2 : 4;
+  var W = Math.ceil(Wpx / S), H = 104, c = px(cv, W, H);
+  var G=GROUNDS.mid;
+  var P={ sky1:'#100C1A', sky2:'#181228', sky3:'#221836',
+          bld:'#332A44', bldHi:'#4A3E60', bldLo:'#221B2E', dark:'#0C0814',
+          steel:'#5B5170', steelLo:'#3B3350', lit:'#FFD200', glow:'#FFD2001A',
+          wall:'#2A2337', wallHi:'#463B58' };
+  function at(f){ return Math.round(W*f); }
+
+  /* ── people ─────────────────────────────────────────────── */
+  function crew(x,y,suit,helm,pose){
+    rect(c,'#171220',x-1,y-1,8,17);
+    rect(c,suit,x,y+4,6,7);
+    rect(c,'#241D2E',x,y+11,2,4); rect(c,'#241D2E',x+4,y+11,2,4);
+    rect(c,'#171220',x-1,y+15,3,1); rect(c,'#171220',x+4,y+15,3,1);
+    rect(c,helm,x,y,6,5); rect(c,'#171220',x+1,y+2,4,2);
+    if(pose===1){ rect(c,'#171220',x+6,y+1,3,6); rect(c,suit,x+6,y+2,2,5); }        // arm up
+    else if(pose===2){ rect(c,'#171220',x-3,y+4,4,3); rect(c,suit,x-3,y+5,3,2); }   // arm left
+    else { rect(c,'#171220',x+6,y+4,4,3); rect(c,suit,x+6,y+5,3,2); }               // arm right
+  }
+  function bgFig(x,y,suit){                                    /* dimmer, inside a box */
+    rect(c,'#120E1C',x-1,y-1,7,15);
+    rect(c,suit,x,y+4,5,6); rect(c,'#1E1828',x,y+10,2,4); rect(c,'#1E1828',x+3,y+10,2,4);
+    rect(c,'#5A4E6E',x,y,5,4);
+  }
+
+  /* ── objects ────────────────────────────────────────────── */
+  function tyreStack(x,y,n){ for(var i=0;i<n;i++){
+    rect(c,'#171220',x,y-i*4,10,4); rect(c,'#2E2540',x+2,y-i*4+1,6,2); } }
+  function chest(x,y){ rect(c,'#2A2337',x,y,15,14); rect(c,'#E23B2E',x,y,15,3);
+    rect(c,'#4A3E60',x+2,y+6,11,1); rect(c,'#4A3E60',x+2,y+10,11,1); }
+  function genset(x,y){ rect(c,'#2A2337',x,y,13,10); rect(c,'#FFD200',x,y,13,2);
+    rect(c,'#171220',x+2,y+4,4,4); rect(c,'#4A3E60',x+8,y+4,3,4); }
+  function fuel(x,y){ rect(c,'#2A2337',x,y-14,9,14); rect(c,KERB_R,x,y-14,9,3);
+    rect(c,'#4A3E60',x+9,y-9,5,1); rect(c,'#4A3E60',x+13,y-9,1,5); }
+  function cone(x,y){ rect(c,'#171220',x-1,y-1,7,2);
+    rect(c,'#E2662E',x+1,y-5,3,4); rect(c,'#F4F1EC',x+1,y-4,3,1); rect(c,'#E2662E',x,y-2,5,2); }
+  function trolley(x,y){ rect(c,'#4A3E60',x,y-6,14,2); rect(c,'#332A44',x,y-4,14,3);
+    rect(c,'#171220',x+1,y-1,3,2); rect(c,'#171220',x+10,y-1,3,2); }
+  function scooter(x,y){
+    rect(c,'#171220',x,y-4,5,5); rect(c,'#2E2540',x+1,y-3,3,3);
+    rect(c,'#171220',x+11,y-4,5,5); rect(c,'#2E2540',x+12,y-3,3,3);
+    rect(c,'#8FD3FF',x+3,y-8,11,4); rect(c,'#5FA8D4',x+3,y-5,11,1);
+    rect(c,'#4A3E60',x+12,y-13,2,6); rect(c,'#4A3E60',x+10,y-13,6,2);
+    rect(c,'#171220',x+4,y-11,4,3); }
+  function hose(x,y,w){ for(var i=0;i<w;i+=4){ rect(c,'#3B3350',x+i,y+((i/4)%2?0:1),3,1); } }
+  function camera(x,y){ rect(c,'#171220',x+3,y-9,2,9); rect(c,'#171220',x+1,y-1,7,1);
+    rect(c,'#332A44',x,y-14,10,5); rect(c,'#8FD3FF',x+8,y-13,2,2); rect(c,KERB_R,x+1,y-13,2,1); }
+  function monitor(x,y,t){ rect(c,'#171220',x,y-9,12,9); rect(c,'#4A3E60',x+4,y,4,2);
+    var on=((t/20|0)%2)===0;
+    rect(c, on?'#1E3A4A':'#18303E', x+1,y-8,10,7);
+    for(var r=0;r<3;r++) rect(c, r===((t/14|0)%3)?'#8FD3FF':'#2E5468', x+2, y-7+r*2, 8, 1); }
+
+  function paint(t){
+    /* ── sky, grandstand, floodlights ── */
+    rect(c,P.sky1,0,0,W,10); rect(c,P.sky2,0,10,W,8); rect(c,P.sky3,0,18,W,6);
+    dither(c,P.sky2,0,W,8,3); dither(c,P.sky3,0,W,16,3);
+    for(var st=0;st<W;st+=7) if((st*13)%11<3) rect(c,'#6B5A82',st,(st*7)%9,1,1);
+    rect(c,'#241D31',0,20,W,10); rect(c,'#4E4262',0,20,W,2);
+    for(var r=0;r<2;r++) for(var sx=2;sx<W;sx+=6)
+      rect(c, ((sx*7+r*13)%9)===0?'#8E3325':((sx*5+r*3)%11)===0?'#B39420':
+              ((sx*3+r*7)%13)===0?'#A9A2B4':'#4E4560', sx, 23+r*4, 3, 3);
+    var fl=[0.09,0.46,0.84];
+    for(var i=0;i<fl.length;i++){ var fx=at(fl[i]);
+      rect(c,P.steelLo,fx+4,4,2,18); rect(c,P.steel,fx,1,11,4);
+      for(var q=0;q<3;q++) rect(c,P.lit,fx+1+q*3,2,2,2);
+      for(var g=0;g<5;g++) rect(c,'#FFD2000C',fx-1-g*2,5+g*4,13+g*4,4); }
+
+    /* ── the garage building ── */
+    rect(c,P.bldLo,0,30,W,4); rect(c,P.bldHi,0,30,W,1);
+    rect(c,P.bld,0,34,W,32);
+    var N = (W < 210) ? 2 : Math.max(3, Math.round(W/86));
+    var pad=6, bw=(W-pad*2)/N, mid=(N===2)?1:Math.floor(N/2);
+    var teamCol=[ '#8FD3FF', BERRY, '#6B4028', '#F07A63', YLW, '#F4F1EC' ];
+    for(var b=0;b<N;b++){
+      var bx=Math.round(pad+b*bw), iw=Math.round(bw)-10;
+      /* team signage above the box */
+      rect(c,'#171220',bx+3,31,iw+4,3);
+      rect(c,teamCol[b%teamCol.length],bx+4,31,iw+2,2);
+      /* the opening */
+      rect(c,P.dark,bx+4,36,iw,30);
+      rect(c,'#3B2E14',bx+4,36,iw,2);
+      rect(c,P.glow,bx+5,38,iw-2,26);
+      rect(c,'#241D31',bx+4,36,2,30); rect(c,'#241D31',bx+2+iw,36,2,30);
+      rect(c,'#4A3E60',bx+6,40,iw-4,1);        // strip light across the ceiling
+      /* what is going on inside each box */
+      var kind=(b===mid)?9:(b%4);
+      if(kind===0){ tyreStack(bx+9,64,5); tyreStack(bx+22,64,4);
+                    rect(c,'#2A2337',bx+36,44,20,14); rect(c,'#8FD3FF',bx+38,46,16,6);   // wall screen
+                    bgFig(bx+40,50,'#6B5F80'); bgFig(bx+52,50,'#8FD3FF'); chest(bx+iw-20,52); }
+      if(kind===1){ chest(bx+10,50); bgFig(bx+30,50,'#8FD3FF'); genset(bx+46,54);
+                    tyreStack(bx+iw-16,64,4); rect(c,'#4A3E60',bx+28,44,18,2); }
+      if(kind===2){ kartSide(c,bx+10,46,teamCol[b%teamCol.length],'#2A2337','#C8B8D4');
+                    bgFig(bx+iw-16,48,'#6B5F80'); }
+      if(kind===3){ fuel(bx+11,64); bgFig(bx+24,50,'#F07A63');
+                    tyreStack(bx+38,64,3); genset(bx+52,54); trolley(bx+iw-22,64);
+                    rect(c,'#2A2337',bx+iw-18,44,14,10); rect(c,YLW,bx+iw-16,46,10,3); }
+      if(kind===9){ /* our box, kept clear — the stop happens on the apron in front */
+        rect(c,'#FFD20026',bx+5,38,iw-2,26);
+        rect(c,'#171220',bx+8,42,iw-16,11);            /* the pit board on the back wall */
+        rect(c,'#4E4262',bx+8,42,iw-16,1);
+        for(var q2=0;q2<5;q2++)
+          rect(c, q2<=((t/26|0)%5) ? YLW : '#3E3420', bx+11+q2*7, 45, 5, 6);
+        tyreStack(bx+iw-14,62,3);
+      }
+    }
+    /* overhead gantry sign, above the signage row */
+    var sx0=at(0.5)-30;
+    rect(c,P.steelLo,sx0-3,12,3,18); rect(c,P.steelLo,sx0+60,12,3,18);
+    rect(c,'#171220',sx0,12,60,9); rect(c,P.steelLo,sx0,12,60,1);
+    for(var d0=0;d0<6;d0++) rect(c,YLW,sx0+6+d0*9,15,5,3);
+
+    /* ── apron and pit lane ── */
+    rect(c,'#33283F',0,66,W,5);
+    rect(c,'#F4F1EC55',0,70,W,1);
+    rect(c,G.road,0,71,W,17);
+    for(var d=2;d<W;d+=18) rect(c,G.line,d,80,10,1);
+    rect(c,'#E23B2E88',0,86,W,1);                       /* pit-lane limit line */
+    /* box numbers painted on the lane */
+    for(var b2=0;b2<N;b2++){ var nx=Math.round(pad+b2*bw)+8;
+      for(var s2=0;s2<3;s2++) rect(c,'#F4F1EC33',nx+s2*4,73,2,4); }
+
+    /* ── our stop, on the apron in front of the middle box ── */
+    var kx=Math.round(pad+mid*bw)+Math.round(bw/2)-30, ky=54;
+    hose(kx-16,68,26); hose(kx+58,68,22);
+    kartSide(c,kx,ky,BERRY,'#8E2A1C','#F5A08E');
+    rect(c,'#2A1F16',kx-4,ky+12,7,6); rect(c,'#2A1F16',kx+54,ky+12,7,6);
+    rect(c,'#171220',kx-14,ky+8,9,4); rect(c,'#2E2540',kx-12,ky+9,5,2);   /* spare wheel */
+    var jog = RM ? 0 : ((t/10|0)%2);
+    crew(kx-26, 50,     '#C8412C','#F07A63',1);
+    crew(kx-14, 50+jog, '#FFD200','#FFE680',3);
+    crew(kx-5,  50,     '#F07A63','#FBD3C6',3);
+    crew(kx+58, 50,     '#8FD3FF','#CDEBFF',2);
+    crew(kx+68, 50+jog, '#6B4028','#9C6A48',2);
+    crew(kx+84, 50,     '#F4F1EC','#FFFFFF',1);
+    if(!RM && ((t/5|0)%3)===0){ rect(c,YLW,kx+2,64,3,2); rect(c,YLW,kx+48,64,3,2); }
+
+    /* ── clutter along the lane ── */
+    cone(at(0.03),88); cone(at(0.965),88);
+    trolley(at(0.20),88); trolley(at(0.80),88);
+    scooter(at(0.135),88); camera(at(0.90),88);
+    for(var cn=0;cn<N;cn++) cone(Math.round(pad+cn*bw)+2,71);
+    /* a mechanic wheeling tyres down the lane, and one crossing it */
+    var wx = at(0.06) + ((RM?0:(t*0.35)) % (W*0.86));
+    trolley(Math.round(wx),84); tyreStack(Math.round(wx)+2,82,2);
+    bgFig(Math.round(wx)-9,72,'#6B4028');
+    bgFig(at(0.455),74,'#5E5372');
+    rect(c,'#4A3E60',at(0.455)+5,78,6,1);   // carrying a board
+
+    /* ── the pit wall, in front of everything ── */
+    rect(c,P.wall,0,88,W,H-88);
+    rect(c,P.wallHi,0,88,W,2);
+    for(var ss=0;ss<W;ss+=22) rect(c,BERRY,ss,91,11,3);
+    for(var ss2=11;ss2<W;ss2+=22) rect(c,'#4A3E60',ss2,91,11,3);
+    var eng=[0.28,0.38,0.62,0.72];
+    for(var e=0;e<eng.length;e++){
+      var ex=at(eng[e]);
+      rect(c,'#171220',ex-1,79,9,10);
+      rect(c,'#2E2540',ex,83,7,6);
+      rect(c,'#8B7EA0',ex+1,79,5,4);                       /* head, seen from behind */
+      rect(c,'#171220',ex+5,80,2,2);                       /* headset */
+      monitor(ex+9,88,t+e*9);
+    }
+  }
+  var t=0;
+  if(RM){ paint(0); return; }
+  (function loop(){ paint(t++); requestAnimationFrame(loop); })();
+}
+
+/* ══ 02 · THE ROAD AHEAD ════════════════════════════════════════════════
+   Pole Position's view. Kerbs and centre line scroll toward the viewer. */
+function road(cv, key){
+  var W=208,H=98,c=px(cv,W,H);
+  var G=GROUNDS[key]||GROUNDS.mid;
+  var HZ=42, VX=104, DEPTH=H-HZ;
+  function widthAt(p){ return 2 + Math.pow(p,1.75) * 66; }   /* not a full triangle */
+  function paint(t){
+    /* sky */
+    rect(c,G.sky[0],0,0,W,16);
+    rect(c,G.sky[1],0,16,W,14);
+    rect(c,G.sky[2],0,30,W,HZ-30);
+    dither(c,G.sky[1],0,W,13,4);
+    dither(c,G.sky[2],0,W,27,4);
+    for(var s=0;s<W;s+=7) if((s*13)%11<3) rect(c,'#FFFFFF2E',s,(s*7)%14,1,1);
+    /* hills on the horizon */
+    for(var hx=0;hx<W;hx+=11) rect(c,G.far,hx,HZ-4-((hx*5)%5),11,7);
+    rect(c,G.far,0,HZ-2,W,2);
+    /* ground */
+    rect(c,G.grass,0,HZ,W,DEPTH);
+    for(var gx=0;gx<W;gx+=4) for(var gy=HZ+2;gy<H;gy+=4)
+      if(((gx*7+gy*3)%9)<3) rect(c,G.grass2,gx,gy+((gx*3)%3),2,2);
+    /* the road */
+    for(var y=HZ;y<H;y++){
+      var p=(y-HZ)/DEPTH, w=widthAt(p);
+      rect(c,G.road,VX-w,y,w*2,1);
+      var ph=(Math.pow(p,1.75)*24 + t*0.085)|0;
+      var kc=(ph%2)?KERB_R:KERB_W, kw=1+p*4;
+      rect(c,kc,VX-w-kw,y,kw,1); rect(c,kc,VX+w,y,kw,1);
+      if(((Math.pow(p,1.75)*28 + t*0.085)|0)%2===0)
+        rect(c,G.line,VX-(0.5+p*1.8),y,1+p*3.4,1);
+    }
+    /* marker boards down both sides, scaling with distance */
+    for(var i=0;i<6;i++){
+      var pp=(i/6 + (t*0.0024)) % 1;
+      var yy=HZ+Math.pow(pp,1.75)*DEPTH;
+      if(yy<HZ+2||yy>H-1) continue;
+      var ww=widthAt(pp), hh=Math.max(2, Math.pow(pp,1.75)*20), bw=Math.max(1,hh*0.4);
+      var lx=VX-ww-5-bw, rx=VX+ww+5;
+      rect(c,'#171220',lx,yy-hh,bw,hh); rect(c,G.obj,lx,yy-hh,bw,hh*0.62);
+      rect(c,'#171220',rx,yy-hh,bw,hh); rect(c,G.obj,rx,yy-hh,bw,hh*0.62);
+      if(hh>7){ rect(c,YLW,lx,yy-hh,bw,Math.max(1,hh*0.2));
+                rect(c,YLW,rx,yy-hh,bw,Math.max(1,hh*0.2)); }
+    }
+    kartRear(c,VX-21,H-21,BERRY,'#8E2A1C','#F5A08E');
+  }
+  var t=0;
+  if(RM){ paint(0); return; }
+  (function loop(){ t+=1.7; paint(t); requestAnimationFrame(loop); })();
+}
+
+/* ══ 03 · THE GRID ══════════════════════════════════════════════════════
+   Head on, five lights going out one at a time. */
+function grid(cv){
+  var W=208,H=84,c=px(cv,W,H);
+  var G=GROUNDS.mid;
+  function kart(x,y,s,col,hi){
+    var w=Math.round(16*s), h=Math.round(11*s);
+    rect(c,'#171220',x-w/2-1,y-h,w+2,h+2);
+    rect(c,col,x-w/2,y-h+1,w,h-1);
+    rect(c,hi,x-w/2+w*0.28,y-h+2,w*0.44,h*0.4);
+    rect(c,'#171220',x-w/2-2,y-h*0.42,3,h*0.42);
+    rect(c,'#171220',x+w/2-1,y-h*0.42,3,h*0.42);
+  }
+  function paint(t){
+    rect(c,G.sky[0],0,0,W,18);
+    rect(c,G.sky[1],0,18,W,8);
+    /* grandstand */
+    rect(c,'#241D31',0,22,W,14); rect(c,'#4E4262',0,22,W,2);
+    for(var r=0;r<3;r++) for(var sx=3;sx<W;sx+=6)
+      rect(c,((sx*7+r*13)%9)===0?BERRY:((sx*5+r*3)%11)===0?YLW:((sx*3+r*7)%13)===0?'#F4F1EC':'#6B5F80',
+           sx,26+r*4,3,3);
+    /* tarmac */
+    rect(c,G.road,0,36,W,H-36);
+    for(var y=36;y<H;y++){ var p=(y-36)/(H-36);
+      if(((p*p*14)|0)%2===0) rect(c,G.hi,0,y,W,1); }
+    /* painted grid boxes, widening toward the viewer */
+    for(var b=0;b<3;b++){
+      var yy=46+b*13, ww=22+b*11, hh=9+b*3;
+      rect(c,'#F4F1EC44',56-ww/2,yy,ww,1); rect(c,'#F4F1EC44',56-ww/2,yy+hh,ww,1);
+      rect(c,'#F4F1EC44',56-ww/2,yy,1,hh);
+      rect(c,'#F4F1EC44',152-ww/2,yy,ww,1); rect(c,'#F4F1EC44',152-ww/2,yy+hh,ww,1);
+      rect(c,'#F4F1EC44',152+ww/2,yy,1,hh);
+    }
+    /* gantry, drawn last so its legs stand in front of the stand */
+    rect(c,'#5B5170',14,4,5,36); rect(c,'#3B3350',12,38,9,4);
+    rect(c,'#5B5170',189,4,5,36); rect(c,'#3B3350',187,38,9,4);
+    rect(c,'#3B3350',14,4,180,10);
+    rect(c,'#5B5170',14,4,180,2);
+    var lit=5-((t/34|0)%7); if(lit<0) lit=0; if(lit>5) lit=5;
+    for(var l=0;l<5;l++){
+      rect(c,'#171220',56+l*20,5,15,8);
+      rect(c, l<lit ? KERB_R : '#33202A', 57+l*20, 6, 13, 6);
+    }
+    /* the field, staggered, nearer ones bigger */
+    kart(56, 52, 0.55, '#F4F1EC', '#C4B4A8');
+    kart(152,52, 0.55, '#6B4028', '#9C6A48');
+    kart(64, 63, 0.78, '#8FD3FF', '#CDEBFF');
+    kart(146,63, 0.78, '#F07A63', '#FBD3C6');
+    kart(72, 78, 1.05, BERRY, '#F5A08E');
+    kart(140,78, 1.05, YLW, '#FFE680');
+    /* start-finish paint across the front */
+    for(var cx=0;cx<W;cx+=6) rect(c,((cx/6)%2)?'#F4F1EC':'#171220',cx,H-3,6,3);
+  }
+  var t=0;
+  if(RM){ paint(0); return; }
+  (function loop(){ paint(t++); requestAnimationFrame(loop); })();
+}
+
+/* ══ 04 · THE MAP · what is built today ═════════════════════════════════ */
+var TRACK=[[26,62,224,9],[241,22,9,49],[152,22,98,9],[152,22,9,24],
+           [120,37,41,9],[120,22,9,24],[26,22,103,9],[26,22,9,49]];
+var PIT=[[64,76,148,6],[58,66,8,12],[206,66,8,12]];
+var LINE=[[90,66],[150,66],[210,66],[236,66],[245,58],[245,40],[245,30],[236,26],
+ [200,26],[170,26],[157,32],[157,40],[145,41],[132,41],[124,34],[124,26],
+ [100,26],[60,26],[36,26],[30,34],[30,50],[30,60],[40,66],[60,66]];
+function trackMap(cv){
+  var c=px(cv,276,114);
+  var SEG=[],TOT=0;
+  for(var i=0;i<LINE.length;i++){var a=LINE[i],b=LINE[(i+1)%LINE.length];
+    var d=Math.hypot(b[0]-a[0],b[1]-a[1]); SEG.push(d); TOT+=d;}
+  function ptAt(t){ t=((t%1)+1)%1; var want=t*TOT,acc=0;
+    for(var i=0;i<SEG.length;i++){ if(acc+SEG[i]>=want){
+      var f=SEG[i]?(want-acc)/SEG[i]:0,a=LINE[i],b=LINE[(i+1)%LINE.length];
+      return [Math.round(a[0]+(b[0]-a[0])*f),Math.round(a[1]+(b[1]-a[1])*f)];} acc+=SEG[i];}
+    return LINE[0]; }
+  function kerb(list,th){ for(var i=0;i<list.length;i++){var t=list[i],
+    x0=t[0]-th,y0=t[1]-th,w=t[2]+th*2,h=t[3]+th*2;
+    rect(c,KERB_W,x0,y0,w,h);
+    if(t[2]>=t[3]) for(var k=0;k<w;k+=12) rect(c,KERB_R,x0+k,y0,4,h);
+    else for(var m=0;m<h;m+=12) rect(c,KERB_R,x0,y0+m,w,4); } }
+  function paint(cars){
+    rect(c,'#14101C',0,0,276,114);
+    for(var t=4;t<268;t+=13){ rect(c,'#2A1F16',t+3,12,2,3);
+      rect(c,'#22351C',t,6,8,7); rect(c,'#182615',t+1,7,6,4); }
+    rect(c,'#1E2A1C',35,31,206,31);
+    for(var g=36;g<240;g+=3) for(var gy=32;gy<61;gy+=3)
+      if(((g*7+gy*5)%11)<3) rect(c,'#27391F',g,gy,2,2);
+    for(var rx=252;rx<264;rx++) for(var ry=26;ry<68;ry++)
+      if(((rx*5+ry*3)%9)<3) rect(c,'#2E2839',rx,ry,1,1);
+    kerb(PIT,1); for(var p=0;p<PIT.length;p++){var q=PIT[p]; rect(c,'#33283F',q[0],q[1],q[2],q[3]);}
+    kerb(TRACK,2); for(var s2=0;s2<TRACK.length;s2++){var u=TRACK[s2]; rect(c,'#403050',u[0],u[1],u[2],u[3]);}
+    rect(c,'#14101C',132,17,18,14);
+    for(var nx=132;nx<150;nx++) for(var ny=17;ny<31;ny++)
+      if(((nx*5+ny*3)%11)<3) rect(c,'#221C2E',nx,ny,1,1);
+    for(var d2=30;d2<246;d2+=9){ rect(c,'#4E3D62',d2,66,5,1); rect(c,'#4E3D62',d2,26,5,1); }
+    rect(c,'#4A4257',64,82,148,1);
+    var cols=[BERRY,YLW,'#E8836F','#D8402F','#6B4028','#F4F1EC'];
+    for(var b=0;b<6;b++){ var bx=68+b*24;
+      rect(c,'#2A2337',bx,83,20,8); rect(c,'#3B3449',bx,83,20,1); rect(c,cols[b],bx+3,86,7,3); }
+    rect(c,'#241D31',60,94,160,16); rect(c,'#4E4262',60,94,160,2);
+    for(var r=0;r<3;r++) for(var sx=4;sx<156;sx+=6)
+      rect(c,((sx*7+r*13)%9)===0?BERRY:((sx*5+r*3)%11)===0?YLW:
+           ((sx*3+r*7)%13)===0?'#F4F1EC':'#6B5F80',62+sx,98+r*4,3,3);
+    rect(c,YLW,205,22,1,9); rect(c,YLW,26,46,9,1);
+    for(var cy=0;cy<9;cy+=3) for(var cx=0;cx<15;cx+=3)
+      rect(c,((cx/3+cy/3)%2?'#F4F1EC':'#171220'),146+cx,62+cy,3,3);
+    for(var i2=0;i2<cars.length;i2++){
+      var pt=ptAt(cars[i2].t),a2=ptAt(cars[i2].t+0.004);
+      var hz=Math.abs(a2[0]-pt[0])>=Math.abs(a2[1]-pt[1]);
+      var w=hz?9:6,h=hz?6:9;
+      rect(c,'#171220',pt[0]-(w>>1)-1,pt[1]-(h>>1)-1,w+2,h+2);
+      rect(c,cars[i2].col,pt[0]-(w>>1),pt[1]-(h>>1),w,h);
+      rect(c,cars[i2].hi,pt[0]-(w>>1)+2,pt[1]-(h>>1)+2,w-4,h-4);
+    }
+  }
+  var cars=[{t:0,v:.0006,col:BERRY,hi:'#F5A08E'},
+            {t:.13,v:.00052,col:YLW,hi:'#FFE680'},
+            {t:.31,v:.00047,col:'#F4F1EC',hi:'#FFFFFF'}];
+  if(RM){ paint(cars); return; }
+  (function loop(){ for(var i=0;i<cars.length;i++) cars[i].t+=cars[i].v; paint(cars);
+    requestAnimationFrame(loop); })();
+}
+
+function boot(){
+  var list=document.querySelectorAll('[data-scene]');
+  for(var i=0;i<list.length;i++){
+    var cv=list[i], k=cv.getAttribute('data-scene');
+    if(k==='pit') pitStop(cv);
+    else if(k==='road') road(cv, cv.getAttribute('data-ground'));
+    else if(k==='grid') grid(cv);
+    else if(k==='map') trackMap(cv);
+  }
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
+})();
+</script>

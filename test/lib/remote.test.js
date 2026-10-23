@@ -189,3 +189,82 @@ describe('tunnel request proxy', () => {
     expect(sent[0].status).toBe(403);
   });
 });
+
+describe('tunnel notify (BOB-130)', () => {
+  // The relay must be able to hand something to Apple/Google while staying
+  // unable to read the E2E frames, so notify is the ONE plaintext payload the
+  // host sends besides `attach`. These tests assert on the serialized bytes,
+  // because the bytes are the contract — and the leak budget.
+  function tunnelWithStubbedSocket(readyState = 1 /* OPEN */) {
+    const { key } = newPairing();
+    const raw = [];
+    const tunnel = new RemoteTunnel({
+      relayUrl: 'ws://unused.invalid', channel: 'test', key, localPort: 1,
+    });
+    tunnel.ws = { readyState, send: (s) => raw.push(s) };
+    return { tunnel, raw };
+  }
+
+  // TC-A
+  it('puts exactly {type,kind} on the wire and nothing else', () => {
+    const { tunnel, raw } = tunnelWithStubbedSocket();
+
+    tunnel.sendNotify('needs_you');
+
+    expect(raw).toHaveLength(1);
+    const parsed = JSON.parse(raw[0]);
+    // No workspace id, ticket id, stage, agent, branch or error string. Ever.
+    expect(Object.keys(parsed).sort()).toEqual(['kind', 'type']);
+    expect(parsed.type).toBe('notify');
+    expect(parsed.kind).toBe('needs_you');
+  });
+
+  it('sends the failed kind too', () => {
+    const { tunnel, raw } = tunnelWithStubbedSocket();
+
+    tunnel.sendNotify('failed');
+
+    expect(JSON.parse(raw[0])).toEqual({ type: 'notify', kind: 'failed' });
+  });
+
+  // TC-B — a frame-wrapped notify would be ciphertext the relay cannot read,
+  // so it would be dropped forever: this bug wearing a different hat.
+  it('never routes through the encrypting sendFrame path', () => {
+    const { tunnel, raw } = tunnelWithStubbedSocket();
+    tunnel.sendFrame = () => { throw new Error('sendNotify must not encrypt'); };
+
+    expect(() => tunnel.sendNotify('needs_you')).not.toThrow();
+    expect(raw[0]).toContain('notify');
+    expect(JSON.parse(raw[0]).data).toBeUndefined();
+  });
+
+  // TC-C
+  it('sends nothing when the socket is not OPEN', () => {
+    const connecting = tunnelWithStubbedSocket(0 /* CONNECTING */);
+    connecting.tunnel.sendNotify('needs_you');
+    expect(connecting.raw).toEqual([]);
+
+    const closed = tunnelWithStubbedSocket(3 /* CLOSED */);
+    closed.tunnel.sendNotify('needs_you');
+    expect(closed.raw).toEqual([]);
+
+    const gone = tunnelWithStubbedSocket();
+    gone.tunnel.ws = null;
+    expect(() => gone.tunnel.sendNotify('needs_you')).not.toThrow();
+    expect(gone.raw).toEqual([]);
+  });
+
+  // TC-D — `done` is deliberately unsupported by the host (see plan, Out of
+  // scope): the only status that would map to it is `merged`, which is always
+  // human-initiated.
+  it('sends nothing for a kind outside needs_you | failed', () => {
+    const { tunnel, raw } = tunnelWithStubbedSocket();
+
+    tunnel.sendNotify('done');
+    tunnel.sendNotify('pwned; DROP');
+    tunnel.sendNotify(undefined);
+    tunnel.sendNotify({ kind: 'needs_you' });
+
+    expect(raw).toEqual([]);
+  });
+});

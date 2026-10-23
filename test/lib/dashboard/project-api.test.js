@@ -115,7 +115,15 @@ describe('studio project routes (TKT-022)', () => {
     await withServer(server, async (api) => {
       const { status, body } = await api('GET', '/api/projects');
       expect(status).toBe(200);
-      expect(body).toEqual({ projects: ['alpha', 'beta', 'gamma'], active: 'alpha' });
+      // Rows, not bare names (BOB-067): the App's picker promises an open count
+      // and a liveness flag per project, so the route serves them.
+      expect(body.active).toBe('alpha');
+      expect(body.projects.map((p) => p.name)).toEqual(['alpha', 'beta', 'gamma']);
+      const alpha = body.projects[0];
+      expect(alpha.open).toBe(1);            // the one ticket makeStudio seeds
+      expect(alpha.running).toBe(false);     // no live agent in this fixture
+      const gamma = body.projects[2];
+      expect(gamma.open).toBe(0);            // a readable, empty board is 0 — not null
     });
   });
 

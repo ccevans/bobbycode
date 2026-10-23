@@ -57,7 +57,13 @@ function makeStudio(tmp, { studio = {}, alpha = {}, beta = {} } = {}) {
   // Deep-merge `dashboard` so a studio-level override (e.g. auto_approve_stages)
   // does not clobber `worktree_root`, which createWorkspace needs on disk.
   const studioCfg = { studio: 'teststudio', ...studio };
-  studioCfg.dashboard = { worktree_root: 'wt', ...(studio.dashboard || {}) };
+  // ABSOLUTE, not the bare 'wt' this used to be. worktree_root is resolved
+  // against the REPO root, and this fixture drives BOTH a studio-as-repo case and
+  // a repos/<name> case — a bare 'wt' means <studio>/wt for the first and
+  // <studio>/repos/<name>/wt for the second, i.e. inside a code repo, which the
+  // BOB-152 guard now rejects. An absolute studio path is what the tests
+  // actually meant, and it means the same thing from every repo root.
+  studioCfg.dashboard = { worktree_root: path.join(root, 'wt'), ...(studio.dashboard || {}) };
   fs.writeFileSync(path.join(root, '.bobbyrc.yml'), YAML.stringify(studioCfg));
   const perProject = { alpha, beta };
   for (const name of ['alpha', 'beta']) {

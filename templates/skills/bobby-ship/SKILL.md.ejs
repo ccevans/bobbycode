@@ -1,28 +1,25 @@
 ---
 name: ship-pr
-description: "Ship Skill: Creates PRs from feature branches and waits for CI. Does NOT auto-merge — user merges manually. MANDATORY TRIGGERS: ship, deploy, release, merge, create PR, push, go live, launch."
+description: "Ship Skill: Creates PRs from feature branches, waits for CI, merges, and deploys using whatever mechanism the repo actually uses. MANDATORY TRIGGERS: ship, deploy, release, merge, create PR, push, go live, launch."
 argument-hint: "<ticket IDs to ship>"
 ---
 
 # Bobby Ship Skill
 
-> Creates PRs from feature branches and waits for CI. Does **not** auto-merge — the user merges PRs manually.
+> Creates PRs, waits for CI, merges, and deploys — end to end, with no separate opt-in phrase required. Deploy detection is repo-specific (see [Deploy](#deploy) below): some repos need nothing beyond the merge, others need a promotion PR, a CLI command, or a publish step. Hard stops remain for what is genuinely risky — destructive or data migrations, unmet merge-order dependencies, no full-suite evidence for the exact commit — and those pause and ask a human rather than guessing.
+>
+> **Want PR-only, no merge?** If the user says "just open the PR", "ship but don't merge", or similar, skip straight to [After PR Creation](#after-pr-creation) and stop there — don't merge or deploy.
 
 ## Before Starting
 
 1. **Check learnings** — Read `<%= paths.skills %>/bobby-ship/learnings.md` + `<%= paths.skills %>/bobby-ship/learnings.local.md`
-2. **Check the queue** — Run `bobby ticket list shipping` to see what's ready
+2. **Know what you are shipping** — Ship the tickets your task prompt names, and only those. Approval to ship one ticket is not approval to ship whatever else is sitting in `shipping`. If no tickets are named, list `bobby ticket list shipping` and report it rather than shipping the lot.
 
 ## Pre-Flight Checks
 
-### 1. Shipping Count Sanity Check
+### 1. Already shipped?
 
-Run `bobby ticket list shipping` and count the tickets.
-
-**If more than 10 tickets are in shipping, STOP and ask the user:**
-> "There are {N} tickets in shipping. Is this a batch release or were these bulk-migrated? Should I proceed with all of them?"
-
-Do NOT proceed until the user confirms. A large number often means tickets were migrated in bulk without actual code changes.
+For each named ticket, check whether its work is already on origin/main (`gh pr list --state merged --head <branch>`, or the branch has no commits ahead of origin/main). If it is merged and deployed, record it (`bobby ticket comment {ID} --by bobby-ship "Already merged in #{pr}; deploy verified: {how}"`), move it to `done`, and go on. Tickets left in `shipping` after their PR merged make the queue lie.
 
 ### 2. Uncommitted Changes Gate
 
@@ -52,6 +49,16 @@ Tell the user:
 
 Verify you're on a feature branch (not main/master). If on main, STOP — there's nothing to PR.
 
+### 4a. Resolve Ticket Worktree (if used)
+
+If the ticket was built in an isolated worktree, its frontmatter has `worktree_path`. Before running tests/lint/push, `cd` into that worktree so concurrent sessions can't flip the branch:
+
+```
+cd "$(bobby worktree path {ID})"
+```
+
+If `bobby worktree path` errors with "No worktree for {ID}", the ticket wasn't built in a worktree — continue in the current checkout. After a successful ship + merge, run `bobby worktree remove {ID} --delete-branch` to clean up.
+
 ### 5. Rebase onto Main
 
 Before pushing, rebase each repo's feature branch onto the latest main — so the PR contains only the feature's changes and CI tests against the latest code:
@@ -61,7 +68,7 @@ git fetch origin
 git rebase origin/main
 ```
 
-If there are conflicts, resolve them before continuing. PRs must be up-to-date with main to avoid merge conflicts.
+Resolve conflicts that are mechanical (imports, lockfiles, adjacent lines). If both sides changed the same logic, don't guess at a merge you can't test: `git rebase --abort`, then `bobby ticket move {ID} reject "Rebase onto origin/main conflicts in <files>: <what changed on main>"` and continue with the other tickets. A ticket parked in `shipping` on a conflict waits forever; one sent back to building gets fixed.
 
 <% if (typeof repos !== 'undefined' && repos && repos.length > 0) { %>
 ## Repositories
@@ -71,28 +78,32 @@ This is a multi-repo project. Ship each repo separately:
 <% repos.forEach(function(repo) { %>
 ### <%= repo.name %> (`<%= repo.path %>`)
 
-1. `cd <%= repo.path %>`
+1. `cd` into the ticket's worktree for this repo (its `worktree_path`, or `bobby worktree path {ID}`); only if it has none, `cd <%= repo.path %>`. The shared checkout is often on an old branch.
 2. Check branch: `git branch --show-current` — must NOT be main/master
 3. Check commits ahead: `git log --oneline origin/main..HEAD | wc -l`
 4. If 0 commits ahead, skip this repo (nothing to ship)
-5. Rebase: `git fetch origin && git rebase origin/main` — resolve any conflicts
-6. Run tests: `<%= commands.test || 'your test command' %>`
-7. Run lint: `<%= commands.lint || 'your lint command' %>`
-8. Push: `git push -u origin HEAD`
-9. Create PR: `gh pr create --title "..." --body "..."`
-10. Wait for CI to pass
+5. Rebase: `git fetch origin && git rebase origin/main` — see Rebase onto Main for conflicts
+6. The ONE full-suite run per ticket (build and review ran impacted specs only): `<%= (repo.commands && repo.commands.test) || commands.test || 'your test command' %>`. **If the repo's pre-push hook already runs the full suite** (look at `.git/hooks/pre-push`, `.husky/pre-push`), skip this step: the push in step 8 is the full run. Either way, send the output to a log (`... > <log> 2>&1; echo "EXITCODE=$?" >> <log>`) and keep the path: it is the CI evidence for the Merge gates.
+7. Run lint: `<%= (repo.commands && repo.commands.lint) || commands.lint || 'your lint command' %>`
+8. Push: `git push -u origin HEAD` (to a log, as above, when the hook runs the suite)
+9. Create PR: `gh pr create --title "..." --body "..."` with the PR Body Template below
+10. Wait for CI if the repo has any (`gh pr checks`); see Merge gate 3 if it has none
+11. Run the [Merge](#merge) gates and, if they pass, merge
+12. Run [Deploy](#deploy) detection for this repo's path and execute what it finds
 
 <% }); %>
 
-**Important:** Create PRs for ALL repos. Do NOT merge — the user will merge PRs manually after reviewing.
+**Important:** Create PRs for ALL repos before merging any of them. Merge and deploy each repo in the order its `Merge order:` field implies (e.g. API before UI) — if any repo's Deploy Notes name a dependency on another repo's PR, merge that one first and confirm its deploy succeeded before moving to the next. A gate failure on one repo does not block the others unless the dependency says so.
 
 <% } else { %>
 ## Ship Process
 
 ### Run Tests & Lint
 
+This is the **one full-suite run per ticket**. Build and review ran only the impacted specs; ship is where the whole suite runs, once, before the PR. Run it in the foreground, send the output to a log with its exit code, and show the summary line. If the repo's pre-push hook already runs the full suite, the push is that run: don't run it twice.
+
 <% if (typeof services !== 'undefined' && services && Object.keys(services).length > 0) { %>
-Run tests and lint for each service that has changes on this branch:
+Run the full suite and lint for each service that has changes on this branch:
 
 <% Object.entries(services).forEach(function([name, svc]) { %>
 - **<%= name %>**: `cd <%= svc.path %> && <%= svc.commands.test %>` / `cd <%= svc.path %> && <%= svc.commands.lint %>`
@@ -108,33 +119,100 @@ Run tests and lint for each service that has changes on this branch:
 2. Push the branch: `git push -u origin HEAD`
 3. Create PR: `gh pr create --title "..." --body "..."`
    - Title: concise summary of what's shipping
-   - Body: list the tickets being shipped with brief descriptions
+   - Body: use the PR Body Template below
 4. Wait for CI to pass
-5. **Do NOT merge.** Report the PR URL to the user.
+5. Run the [Merge](#merge) gates and, if they pass, merge
+6. Run [Deploy](#deploy) detection and execute what it finds
+7. Report the PR URL and deploy result to the user
 
 <% } %>
+
+### PR Body Template
+
+```markdown
+## Tickets
+- {ID}: {one-line description}
+
+## Deploy Notes
+<!-- Omit any section that doesn't apply. Only include what's load-bearing for the merge. -->
+
+**Migrations:** {none | list migration files, which DB, reversible? y/n}
+**Merge order:** {standalone | depends on PR #N (API before UI, etc.)}
+**Feature flags:** {none | flag name + default state}
+**Post-merge verification:** {none | what to check, where — e.g. "hit /health on prod, confirm new column exists"}
+**Rollback plan:** {revert is safe | requires data migration reversal | other}
+```
+
+Leave sections out when they don't apply — a PR with no migrations and no ordering dependency should just show `## Tickets`. The template exists to make ordering/migration constraints **explicit when they exist**, not to bloat every PR.
 
 ## After PR Creation
 
 For each ticket in `shipping` stage:
-1. `bobby ticket comment {ID} --by bobby-ship "PR created: #{url}. Awaiting manual merge."`
+1. `bobby ticket comment {ID} --by bobby-ship "PR created: #{url}."`
 
-Report all PR URLs to the user so they can review and merge manually.
+If the user asked for PR-only (see the note at the top of this skill), stop here and report the PR URL — do not merge or deploy.
 
-**Do NOT run `gh pr merge` or any merge command.** The user decides when to merge.
+## Merge
+
+Ship's default is to merge once CI is green — no special phrase needed. This is not a blank check: the gates below exist so anything genuinely risky still stops and asks a human instead of getting merged on momentum.
+
+### Gates (all must pass before merging)
+
+1. **No unmet Deploy Notes ordering constraint** — if the PR body's `Merge order:` field names a dependency (`depends on PR #N`) and that PR hasn't merged yet, STOP. Ordered merges require a human to sequence them.
+2. **Risky migrations get a human nod** — STOP and ask before merging if any migration drops, renames or changes the type of a table or column, rewrites or backfills existing data, or ships with a deploy that sends email or moves money. An additive migration (new table, new nullable column, new index) proceeds once you have checked: its version is unique against origin/main's migrations, the schema/structure file includes it, and it is reversible. Say which case applied in the ticket comment.
+3. **The full suite passed on this exact commit** — `gh pr checks {url}` shows completed, passing checks, OR the repo has no CI configured and you have the full-suite log from this commit (step 6/8, or the pre-push hook's run): cite its path, summary line and `EXITCODE=0`. For RSpec, also compare the example count with `bundle exec rspec --dry-run` so an early exit can't pass as green. STOP only when neither exists.
+4. **No blocking review requirement you can't satisfy** — if branch protection requires approvals (`gh api repos/{owner}/{repo}/branches/main/protection`) and none exist, the merge command will fail; don't try to bypass it. Report that a human review is required.
+
+### Command
+
+```
+gh pr merge {url} --squash --delete-branch
+```
+
+(Use `--merge` or `--rebase` instead of `--squash` if the repo convention differs — check recently merged PRs with `gh pr list --state merged --limit 5`.)
+
+If a gate fails, STOP for that ticket: comment with which gate failed and what would clear it, and ask the user how to proceed. Do not deploy a PR that didn't merge.
+
+## Deploy
+
+Run once per repo, right after a successful merge. The point is to do what *this* repo actually needs, not to assume every repo deploys the same way — a Next.js app on Vercel, a Rails app on Heroku, and an npm CLI all ship differently.
+
+### 1. Detect the mechanism
+
+Check in this order and act on the first match:
+
+1. **`.bobbyrc.yml` `deploy:` block**, if the project defines one — use its `method`/`command`/`branch` verbatim. This always wins over auto-detection below.
+2. **Vercel** — `vercel.json`, `.vercel/project.json`, or a Next.js project with a Vercel git integration → merging to main deploys automatically. Nothing to run; verify by polling the deployment for the merge commit (Vercel MCP tools if connected, else `vercel ls`) until it's `READY`, not just queued.
+3. **A separate production/deploy branch** (Heroku pipeline or similar) — `git branch -r` shows something like `production`, `env/production`, `release`, or `deploy` that isn't `main`. Check how recent promotions merged into it (`git log <branch> -5`) — match that convention (usually a merge commit, not squash) — and open a promotion PR from `main` into it.
+4. **Heroku (or similar) auto-deploying straight from main** — no separate branch, but a pipeline is configured to deploy on push to main. Nothing to run; verify with `heroku releases -a <app>` if the Heroku CLI is available, otherwise note that verification wasn't possible.
+5. **A GitHub Actions deploy workflow** — `.github/workflows/*deploy*` (or similarly named) → merging triggers it. Watch it: `gh run list --branch main --limit 1` then `gh run watch <id>`.
+6. **A published npm package** — no deploy workflow, but `package.json` has `publishConfig` or is clearly a published CLI/library. Deploying means `npm publish`, but never auto-publish an unbumped version: if the merged PR didn't change `version` in `package.json`, STOP and ask the user whether this should ship as a new version now.
+7. **Nothing matches** — say so plainly: "No deploy mechanism detected for this repo; the merge is the last automated step." Don't invent a deploy command.
+
+### 2. Verify, don't assume
+
+- **Merge-is-the-deploy cases** (Vercel, Heroku-from-main, GitHub Actions): poll until the deploy for **the exact merged commit sha** reports success or failure. A release or deployment for an earlier commit is not yours, however recent: match the sha (`heroku releases` description or `heroku releases:info`, the Vercel deployment's commit). A merged PR isn't a shipped ticket until the deploy it triggered actually finished.
+- **Promotion-PR cases**: the promotion PR itself must merge (and pass its own CI, if any) before the ticket counts as shipped.
+- **Publish cases**: confirm the version is live (`npm view <pkg> version`) before reporting done.
+- **If deploy fails**: don't retry blindly. Report the failure, leave the ticket in `shipping` (not `done`), and document what happened per [If Something Goes Wrong](#if-something-goes-wrong).
 
 ## Completing Ship
 
-Once all PRs are created and CI is passing:
+Once each repo's PR has merged and its deploy (if any) is verified:
 
 1. For each ticket in `shipping` stage:
+   - `bobby ticket comment {ID} --by bobby-ship "Merged #{url}. {deploy result, e.g. 'Vercel deploy READY' / 'promoted via #{promotion PR}' / 'no deploy mechanism detected'}."`
    - `bobby ticket move {ID} done`
    - Output `<bobby:done ticket="{ID}" stage="done" />`
-2. Report all PR URLs to the user so they can review and merge at their discretion
+2. Report all PR URLs and deploy outcomes to the user
 
-**Important:** Moving to `done` means the code is PR'd and CI-green. The user merges PRs on their own schedule.
+**Important:** Moving to `done` means the code is merged **and** deployed (or confirmed to need no deploy step). A ticket whose PR is only open, or whose deploy is still unverified, stays in `shipping` — see the PR-only note at the top of this skill and the gates in [Merge](#merge) for the cases where ship stops short of `done`.
 
 3. Run `bobby sync` to commit ticket state changes to the umbrella repo
+
+## Checkpointing
+
+Compaction can happen at any moment, so keep `progress.md` in the ticket folder (the directory holding `ticket.md`) current as you go, not when you are warned. After a compaction a hook hands this file back to you, so write it for a reader who remembers nothing: ticket id, branch, per repo: pull request URL, CI result, merged or not, deployed or not, and the exact next action. Write each pull request URL the moment `gh pr create` returns, and mark a repo merged the moment `gh pr merge` succeeds. Before merging, read the file: after a compaction, merging twice or skipping a deploy are the mistakes to avoid. Delete the file once the ticket is `done`.
 
 ## If Something Goes Wrong
 

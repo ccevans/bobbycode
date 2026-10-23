@@ -14,7 +14,7 @@ Load and follow the skill instructions in `<%= paths.skills %>/bobby-build/SKILL
 Read these files in parallel to minimize startup time:
 1. `<%= paths.skills %>/bobby-build/learnings.md` + `<%= paths.skills %>/bobby-build/learnings.local.md` — anti-patterns to avoid
 2. `<%= paths.skills %>/bobby-shared/learnings.md` + `<%= paths.skills %>/bobby-shared/learnings.local.md` — cross-agent patterns
-3. `.bobby/architecture-wakeup.md` (if it exists) — compressed codebase context
+3. `.bobby/architecture-wakeup.md` (if it exists) — compressed codebase context. In a studio it is a map of projects; also read the ticket's own project summary, `.bobby/<project>/architecture-wakeup.md`, where `<project>` is the folder the ticket lives under
 <% if (typeof build_skills !== 'undefined' && build_skills && build_skills.length > 0) { %>
 <% build_skills.forEach(function(skill) { %>
 2. `<%= paths.skills %>/<%= skill %>/SKILL.md` — project conventions
@@ -23,7 +23,7 @@ Read these files in parallel to minimize startup time:
 3. The ticket's `ticket.md`, `plan.md`, and `test-cases.md`
 
 Then sequentially:
-4. **Resume check** — If `.bobby/tickets/{ID}*/progress.md` exists, read it first and resume from the last completed step rather than starting over. Delete `progress.md` once you have handed the ticket on.
+4. **Resume check** — If `<%= tickets_dir %>/{ID}*/progress.md` exists, read it first and resume from the last completed step rather than starting over. Delete `progress.md` once you have handed the ticket on.
 5. **Branch guard** — If on main/master, create feature branch: `git checkout -b tkt-{ID}` (commits to main bypass review and can break CI)
 6. Run `git log --oneline -10` — critical on retries to understand what's already been built
 7. Check for rejection comments — if retrying, read the feedback first
@@ -35,9 +35,22 @@ Follow the Safety Rules in `<%= paths.rules %>`. In particular:
 - Only modify files related to this ticket. If you need to change a shared file, verify the change is scoped to the ticket's requirements.
 - Run `git diff --stat` before committing to verify you only changed what the plan specifies
 
+## Scope
+
+If, while working or testing, you find a pre-existing bug, a performance concern, or behavior
+the ticket doesn't mention, don't fix, optimize or extend it in this change unless the ticket
+cannot work without it; file it with `bobby ticket create` and name it in your comment.
+Commit roughly one focused test per acceptance criterion, sized like the neighboring test
+files. Scratch scripts and quick checks need not be kept, and must not become permanent test
+files. This is about extras only: implement every acceptance criterion, completely.
+
+<%- include('../partials/unattended.md.ejs') %>
+
+<%- include('../partials/efficient.md.ejs') %>
+
 ## Completing Work
 
-- Run tests and lint — show the output as evidence
+- Run the impacted specs and lint — show the output as evidence. Never the full suite: ship runs it once per ticket (see "Which Tests To Run" in the skill)
 - **Commit ALL changed files** — `git add` all source files, `git commit` with `TKT-{ID}: {summary}`. Do NOT leave uncommitted changes.
 - If you discovered anything non-obvious or a pattern future builds should avoid: `bobby learn bobby-build "pattern" "description"`
 - Hand the ticket on — see Handoff below

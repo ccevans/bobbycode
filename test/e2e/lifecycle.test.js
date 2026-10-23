@@ -67,6 +67,34 @@ describe('E2E: full ticket lifecycle', () => {
     expect(output).toContain('TKT-001');
   });
 
+  test('shipping a ticket reclaims its worktree', () => {
+    run('ticket create -t "Add login page" --area auth');
+    // `worktree create` forks a branch off main, so the scaffolded repo (git
+    // init only — no commit) needs one first commit for `main` to resolve.
+    execSync('git add -A && git commit -q -m "initial"', { cwd: tmpDir });
+    run('worktree create TKT-001');
+
+    const created = run('worktree path TKT-001').trim();
+    expect(fs.existsSync(created)).toBe(true);
+
+    run('ticket move TKT-001 plan');
+    run('ticket move TKT-001 build');
+    run('ticket move TKT-001 review');
+    run('ticket move TKT-001 test');
+    run('ticket move TKT-001 ship');
+    const output = run('ticket move TKT-001 done');
+
+    expect(output).toContain('worktree reclaimed');
+    expect(fs.existsSync(created)).toBe(false);
+
+    const ticketsDir = path.join(tmpDir, '.bobby', 'tickets');
+    const entries = fs.readdirSync(ticketsDir).filter(e => e.startsWith('TKT-001'));
+    const ticketFile = path.join(ticketsDir, entries[0], 'ticket.md');
+    const { data } = matter(fs.readFileSync(ticketFile, 'utf8'));
+    expect(data.worktree_path).toBeUndefined();
+    expect(data.worktree_branch).toBeUndefined();
+  });
+
   test('block and unblock', () => {
     run('ticket create -t "Blocked ticket" --type feature');
     run('ticket move TKT-001 build');

@@ -147,7 +147,7 @@ describe('config', () => {
       ticket_prefix: 'TKT',
       health_checks: [{ name: 'app', url: 'http://localhost:3000', description: 'Dev' }],
       areas: ['auth', 'api'],
-      commands: { dev: 'npm run dev', test: 'npm test', lint: 'npm run lint', build: 'npm run build' },
+      commands: { dev: 'npm run dev', test: 'npm test', test_impacted: 'npm test -- {files}', lint: 'npm run lint', build: 'npm run build' },
       testing_tools: ['playwright', 'curl'],
       max_retries: 3,
     };
@@ -159,6 +159,7 @@ describe('config', () => {
     expect(parsed.health_checks).toEqual([{ name: 'app', url: 'http://localhost:3000', description: 'Dev' }]);
     expect(parsed.testing_tools).toEqual(['playwright', 'curl']);
     expect(parsed.commands.test).toBe('npm test');
+    expect(parsed.commands.test_impacted).toBe('npm test -- {files}');
   });
 
   test('writeConfigCommented includes optional sections as comments', () => {

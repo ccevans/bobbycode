@@ -15,7 +15,7 @@
 import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
-import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir, resolveIdeasFile } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir, resolveIdeasFile, listStudioProjects } from '../lib/config.js';
 import { getTarget } from '../lib/targets/index.js';
 import { WorkspaceStore } from '../lib/dashboard/state.js';
 import { SSEHub } from '../lib/dashboard/sse.js';
@@ -94,8 +94,18 @@ export function registerApp(program) {
           console.log(`  ${dim(`Install it, or set dashboard.executor in .bobbyrc.yml (${EXECUTOR_NAMES.join(' | ')}).`)}`);
         }
 
-        const ticketsDir = resolveTicketsDir(root, config);
-        const sessionsDir = resolveSessionsDir(root, config);
+        // A studio with ZERO projects has no board to resolve — and must still
+        // boot: the app's onboarding (BOB-024) is how the first project gets
+        // made, so exiting here ("No projects yet") would lock a new user out
+        // of the exact flow that exists for them. Null board dirs are safe: the
+        // orchestrator and every route read through ProjectContext per request,
+        // listTickets/buildBrief answer empty on a null dir, and POST
+        // /api/onboard switches the context to the first project it creates.
+        // A studio WITH projects but no selection still fails fast below — that
+        // is a real "pick one" state, not an empty one.
+        const emptyStudio = !!config.studio && listStudioProjects(root).length === 0;
+        const ticketsDir = emptyStudio ? null : resolveTicketsDir(root, config);
+        const sessionsDir = emptyStudio ? null : resolveSessionsDir(root, config);
         const sprintsDir = path.join(root, config.sprints_dir || '.bobby/sprints');
         const pipeline = resolveWorkflow(config, opts.workflow || 'default');
 

@@ -288,6 +288,60 @@ describe('registerInit (interactive flow)', () => {
     if (promptSpy) promptSpy.mockRestore();
   });
 
+  /* BOB-123 — drive the COMMAND, not the option.
+   *
+   * The first version of these tests called scaffoldProject(..., {writeConfig:
+   * false}) directly, which proves the option works and proves nothing about the
+   * bug: the defect was at the CALL SITE. Reverting only that line left the whole
+   * suite green. These run `bobby init --refresh` end to end, so a refactor that
+   * drops the options object turns them red.
+   */
+  const CUSTOM_CFG = `# Bobby Configuration
+project: keepme
+stack: generic
+target: claude-code
+tickets_dir: .bobby/tickets
+ticket_prefix: TKT
+
+# Load-bearing: the built-in default ends at a live-app stage a CLI cannot satisfy.
+workflows:
+  default: [plan, build, review]
+
+dashboard:
+  worktree_root: ../../worktrees
+`;
+
+  test('BOB-123: `init --refresh` leaves .bobbyrc.yml byte-identical', async () => {
+    const program = mockProgram();
+    registerInit(program);
+    // A real install to refresh FROM.
+    await program.getAction()({ yes: true, stack: 'generic' });
+
+    const cfgPath = path.join(tmpDir, '.bobbyrc.yml');
+    fs.writeFileSync(cfgPath, CUSTOM_CFG);
+    execSync('git add -A && git commit -q -m base', { cwd: tmpDir, stdio: 'pipe' });
+
+    await program.getAction()({ refresh: true });
+
+    expect(fs.readFileSync(cfgPath, 'utf8')).toBe(CUSTOM_CFG);
+  });
+
+  test('BOB-123: `init --refresh` still delivers the shipped files', async () => {
+    const program = mockProgram();
+    registerInit(program);
+    await program.getAction()({ yes: true, stack: 'generic' });
+
+    const skill = path.join(tmpDir, '.claude/skills/bobby-build/SKILL.md');
+    fs.writeFileSync(skill, 'stale');
+    execSync('git add -A && git commit -q -m base', { cwd: tmpDir, stdio: 'pipe' });
+
+    await program.getAction()({ refresh: true });
+
+    // The control: a refresh that preserved config but stopped refreshing would
+    // pass the test above and be useless.
+    expect(fs.readFileSync(skill, 'utf8')).not.toBe('stale');
+  });
+
   function mockProgram() {
     let actionFn;
     const cmd = {
@@ -705,3 +759,94 @@ describe('define pipeline scaffolding', () => {
     expect(rules).toContain('bobby run define');
   });
 });
+
+/* BOB-123 — a refresh must not eat the user's config.
+ *
+ * .bobbyrc.yml is YOURS, not shipped. writeConfigCommented() rebuilds it from
+ * the template using only the keys the generator models, so re-scaffolding an
+ * existing install silently dropped everything else. The real loss that found
+ * this: a `workflows: default: [plan, build, review]` override — without which
+ * a CLI project's tickets strand in `testing` forever — and a `dashboard:`
+ * block, neither mentioned in the command's own output.
+ */
+describe('scaffoldProject config preservation (BOB-123)', () => {
+  let tmpDir;
+  const CUSTOM = `# Bobby Configuration
+project: keepme
+stack: generic
+target: claude-code
+tickets_dir: .bobby/tickets
+ticket_prefix: TKT
+
+# This override is load-bearing: the built-in default ends at a live-app test
+# stage, which a CLI library can never satisfy.
+workflows:
+  default: [plan, build, review]
+  secure: [plan, build, security, review]
+
+dashboard:
+  worktree_root: ../../worktrees
+  worktree_permission_mode: bypassPermissions
+
+areas:
+  - cli          # bin/, command registration
+`;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-cfg-'));
+  });
+  afterEach(() => { fs.rmSync(tmpDir, { recursive: true }); });
+
+  const base = {
+    project: 'keepme', stack: 'generic', target: 'claude-code',
+    tickets_dir: '.bobby/tickets', ticket_prefix: 'TKT',
+    health_checks: [], areas: [], commands: {},
+  };
+
+  test('a re-scaffold leaves .bobbyrc.yml byte-for-byte untouched', () => {
+    scaffoldProject(tmpDir, { ...base });
+    const cfgPath = path.join(tmpDir, '.bobbyrc.yml');
+    fs.writeFileSync(cfgPath, CUSTOM);
+
+    scaffoldProject(tmpDir, { ...base }, { writeConfig: false });
+
+    expect(fs.readFileSync(cfgPath, 'utf8')).toBe(CUSTOM);
+  });
+
+  test('the keys the template cannot model survive — the ones that were lost', () => {
+    scaffoldProject(tmpDir, { ...base });
+    const cfgPath = path.join(tmpDir, '.bobbyrc.yml');
+    fs.writeFileSync(cfgPath, CUSTOM);
+
+    scaffoldProject(tmpDir, { ...base }, { writeConfig: false });
+    const after = fs.readFileSync(cfgPath, 'utf8');
+
+    // Anchored: the regenerated template emits a COMMENTED `# workflows:` in its
+    // optional-config block, so an unanchored match passes against the bug.
+    expect(after).toMatch(/^workflows:/m);
+    expect(after).toMatch(/default: \[plan, build, review\]/);
+    expect(after).toMatch(/^  worktree_root: \.\.\/\.\.\/worktrees$/m);
+    expect(after).toMatch(/^  worktree_permission_mode: bypassPermissions$/m);
+    // Comments carry the WHY. Regenerating dropped them silently, which is how
+    // a deliberate override reads as an accident to the next person.
+    expect(after).toMatch(/# This override is load-bearing/);
+    expect(after).toMatch(/# bin\/, command registration/);
+  });
+
+  test('a re-scaffold still refreshes the shipped files it is for', () => {
+    scaffoldProject(tmpDir, { ...base });
+    const skill = path.join(tmpDir, '.claude/skills/bobby-build/SKILL.md');
+    fs.writeFileSync(skill, 'stale');
+
+    scaffoldProject(tmpDir, { ...base }, { writeConfig: false });
+
+    expect(fs.readFileSync(skill, 'utf8')).not.toBe('stale');
+  });
+
+  test('first-time init still writes the config — the default is unchanged', () => {
+    scaffoldProject(tmpDir, { ...base });
+    expect(fs.existsSync(path.join(tmpDir, '.bobbyrc.yml'))).toBe(true);
+    expect(fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8')).toMatch(/project: keepme/);
+  });
+});
+

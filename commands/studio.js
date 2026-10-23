@@ -8,6 +8,25 @@ import {
   promoteV1ToStudio,
 } from '../lib/studio.js';
 import { success, error, bold, dim, warn } from '../lib/colors.js';
+import { backsGlobalCli, inspectGlobalLink, repairCommand } from '../lib/self-link.js';
+import { writeWorkspace } from '../lib/studio-workspace.js';
+
+// Shared by `studio workspace` and `studio init --workspace`.
+function reportWorkspace(root, { dryRun }) {
+  const r = writeWorkspace(root, { dryRun });
+  console.log('');
+  console.log(`  ${bold(dryRun ? 'Would write' : 'Wrote')}`);
+  for (const f of r.files) console.log(`    ${f}`);
+  console.log('');
+  console.log(`  ${bold('Projects')} ${dim(`(${r.index.projects.length})`)}`);
+  for (const p of r.index.projects) {
+    const star = p.active ? bold('*') : ' ';
+    console.log(`  ${star} ${bold(p.name.padEnd(16))} ${String(p.tickets).padStart(4)} tickets   ${dim(`[${p.prefix || '—'}]  repos: ${p.repos.join(', ') || '(none)'}`)}`);
+  }
+  console.log('');
+  console.log(`  ${dim(`Open the studio folder in VS Code (not a .code-workspace): code ${JSON.stringify(root)}`)}`);
+  console.log('');
+}
 
 // Read-only / management commands: require a studio that already exists.
 function studioRoot() {
@@ -31,7 +50,8 @@ export function registerStudio(program) {
   const studio = program.command('studio').description('Manage the studio (a group of repos, many projects)');
   studio.command('init')
     .description('Turn the current directory into a studio (adds repos/ and project support)')
-    .action(() => {
+    .option('--workspace', 'Also write the editor workspace (.vscode/ + STUDIO.md)')
+    .action((opts) => {
       try {
         // A studio is created in the current directory — bootstrap from an empty
         // dir, or promote an existing single-board project (preserving its board).
@@ -42,6 +62,16 @@ export function registerStudio(program) {
         else initStudio(root);                             // empty dir → fresh studio
         success(`Studio '${readStudioConfig(root).studio}' ready`);
         console.log(`  ${dim('repos/ created · add repos with `bobby repo add`, then `bobby project new`')}`);
+        if (opts.workspace) reportWorkspace(root, { dryRun: false });
+      } catch (e) { error(e.message); process.exit(1); }
+    });
+
+  studio.command('workspace')
+    .description('Write the editor workspace for this studio: .vscode/ settings + extensions, and STUDIO.md listing every project and repo')
+    .option('--dry-run', 'Show what would be written without writing it')
+    .action((opts) => {
+      try {
+        reportWorkspace(studioRoot(), { dryRun: !!opts.dryRun });
       } catch (e) { error(e.message); process.exit(1); }
     });
 
@@ -113,6 +143,15 @@ export function registerStudio(program) {
         const root = growStudioRoot();
         const entry = addRepo(root, name, target, { stack: opts.stack, test: opts.test });
         success(`Repo '${name}' added → ${entry.path}`);
+        // BOB-154: adding the checkout that serves the global `bobby` puts it
+        // under the studio's management, and a later move of it breaks the
+        // command itself. Say so once, here, where the coupling is created.
+        const link = inspectGlobalLink();
+        if (backsGlobalCli(path.resolve(root, entry.path), link)) {
+          warn(`'${name}' is the checkout backing your global \`bobby\` command (npm link).`);
+          console.log(`  ${dim('Moving or renaming it breaks the command. To repair afterwards:')}`);
+          console.log(`  ${dim(repairCommand(link.entry, '<new path>'))}`);
+        }
       } catch (e) { error(e.message); process.exit(1); }
     });
   repo.command('list')

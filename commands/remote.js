@@ -19,6 +19,7 @@ import { WorkspaceStore } from '../lib/dashboard/state.js';
 import { SSEHub } from '../lib/dashboard/sse.js';
 import { Orchestrator } from '../lib/dashboard/orchestrator.js';
 import { ProjectContext } from '../lib/dashboard/project-context.js';
+import { listStudioProjects } from '../lib/config.js';
 import { ChatManager } from '../lib/dashboard/chat.js';
 import { buildServer } from '../lib/dashboard/server.js';
 import { resolveExecutor, commandExists, EXECUTOR_NAMES } from '../lib/dashboard/executor.js';
@@ -26,12 +27,22 @@ import { loadDashboardPlugins } from '../lib/dashboard/plugins.js';
 import { isGitRepo } from '../lib/dashboard/worktree.js';
 import { resolveWorkflow } from './run.js';
 import { RemoteTunnel } from '../lib/remote/tunnel.js';
+import { createNotifier } from '../lib/remote/notifier.js';
 import { encodePairingCode } from '../lib/remote/crypto.js';
+import { pairingBlocker } from '../lib/remote/reachability.js';
+import { verifyRoundTrip, verifyMessage } from '../lib/remote/verify.js';
 import { loadOrCreatePairing } from '../lib/remote/pairing-store.js';
 import { bold, dim, success, error, warn } from '../lib/colors.js';
 
-const DEFAULT_RELAY = process.env.BOBBY_RELAY_URL || 'ws://127.0.0.1:8790';
-const DEFAULT_APP = process.env.BOBBY_APP_URL || 'http://127.0.0.1:8791';
+// The shipped defaults are the hosted relay (BOB-091): TLS at Fly's edge, one
+// origin serving both the app and the wss:// channel (hq/fly.toml in the pro
+// repo). Local dev keeps every override: BOBBY_RELAY_URL / BOBBY_APP_URL env,
+// `remote.relay` / `remote.app` in .bobbyrc.yml, or --relay/--app flags —
+// loopback ws:// stays legal because browsers grant it a secure context.
+// Exported so the secure-default promise is testable (an insecure default can
+// never ship again — test/commands/remote-defaults.test.js).
+export const DEFAULT_RELAY = process.env.BOBBY_RELAY_URL || 'wss://bobby-relay.fly.dev';
+export const DEFAULT_APP = process.env.BOBBY_APP_URL || 'https://bobby-relay.fly.dev';
 
 export function registerRemote(program) {
   program
@@ -98,7 +109,9 @@ export function registerRemote(program) {
         });
 
         // Ephemeral port, loopback only. The tunnel is the only way in.
-        server.listen(0, '127.0.0.1', () => {
+        // async: the reachability verdict is now earned by an awaited round trip
+        // rather than printed immediately (BOB-064).
+        server.listen(0, '127.0.0.1', async () => {
           const { port } = server.address();
           const relay = opts.relay || config?.remote?.relay || DEFAULT_RELAY;
           const appUrl = opts.app || config?.remote?.app || DEFAULT_APP;
@@ -114,9 +127,27 @@ export function registerRemote(program) {
             key: pairing.key,
             localPort: port,
             project: config.project || path.basename(root),
+            // The roster for the phone's project picker (BOB-067): one pairing
+            // reaches every project this studio serves. Off-studio the list is
+            // just this project, which the tunnel renders as "no picker".
+            projects: (config.studio ? listStudioProjects(root) : null) || undefined,
             version: program.version() || '',
             log: (m) => console.log(`  ${dim(m)}`),
           });
+          // Refuse a link no phone can use, before a QR is printed under it
+          // (BOB-064). Both URLs are in hand here, so this is decidable now
+          // rather than discovered on a phone forty minutes later.
+          const blocker = pairingBlocker({ appUrl: link, relayUrl: relay });
+          if (blocker) {
+            console.log('');
+            error(`  ${blocker}`);
+            console.log('');
+            await orchestrator.stopAll().catch(() => {});
+            server.close(() => process.exit(1));
+            setTimeout(() => process.exit(1), 3000).unref();
+            return;
+          }
+
           tunnel.connect();
 
           console.log('');
@@ -125,6 +156,41 @@ export function registerRemote(program) {
           console.log(`  ${dim(`Local:    127.0.0.1:${port} (loopback only)`)}`);
           console.log(`  ${dim(`Pairing:  ${pairing.file}${opts.newCode ? '  (rotated — old phones are out)' : ''}`)}`);
           console.log('');
+          // Prove the path rather than asserting it (BOB-064). connect() does not
+          // block, so the old unconditional success printed BEFORE the relay was
+          // connected — its own log had the verdict two lines above "relay
+          // connected", and it printed just the same when the relay was down.
+          console.log(`  ${dim('Connecting…')}`);
+          const verified = await verifyRoundTrip({ relayUrl: relay, channel: pairing.channel, key: pairing.key });
+          if (!verified.ok) {
+            console.log('');
+            error(`  ${verifyMessage(verified)}`);
+            console.log('');
+            tunnel.close();
+            await orchestrator.stopAll().catch(() => {});
+            server.close(() => process.exit(1));
+            setTimeout(() => process.exit(1), 3000).unref();
+            return;
+          }
+          // Push has a producer now (BOB-130). Wired only after verifyRoundTrip
+          // succeeds, for the same reason the QR is (BOB-064): a session that is
+          // about to exit must not put frames on a relay it could not reach.
+          // Its own subscriber, deliberately separate from the SSE fan-out
+          // above — merging them would put relay-protocol knowledge into the
+          // SSE path.
+          const stopNotifier = createNotifier({
+            store,
+            send: (kind) => tunnel.sendNotify(kind),
+          });
+
+          success('  Team is reachable — verified by an encrypted round trip. Press Ctrl+C to stop.');
+          console.log('');
+          // The QR, link, and pairing code print only now, AFTER the verdict is
+          // earned (BOB-064 rejection round). The verifier attaches to the relay
+          // as its own client, so nothing needs the QR on screen first — and a
+          // QR that sits scannable for the whole verify timeout while the relay
+          // is down is an invitation to the exact forty minutes this ticket is
+          // about. Failure paths above exit without ever printing one.
           if (opts.qr !== false) {
             qrcode.generate(link, { small: true }, (q) => {
               console.log(q.replace(/^/gm, '  '));
@@ -136,12 +202,11 @@ export function registerRemote(program) {
           console.log(`  ${dim('Pairing code (paste into the app if you prefer):')}`);
           console.log(`  ${code}`);
           console.log('');
-          success('  Team is reachable. Press Ctrl+C to stop.');
-          console.log('');
 
           const shutdown = async () => {
             console.log('');
             console.log(`  ${dim('Shutting down — stopping agents...')}`);
+            stopNotifier();
             tunnel.close();
             await orchestrator.stopAll();
             server.close(() => process.exit(0));

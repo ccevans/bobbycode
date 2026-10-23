@@ -17,6 +17,7 @@
   "commands": {
     "dev": "go run .",
     "test": "go test ./...",
+    "test_impacted": "go test {files}",
     "lint": "golangci-lint run",
     "build": "go build ./..."
   },
