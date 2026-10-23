@@ -165,7 +165,9 @@ Write `review.md` in the ticket directory with this structure:
 
 ### What blocks a ticket
 
-A finding is a **blocker** when it is one of: a user-visible error or crash; data loss, a data leak or a security hole; an acceptance criterion not met; a new fallback, default or swallowed error the project has not approved; a contradiction of `.bobby/decisions.yaml`; a data shape that doesn't match the `## Contract` or the real producer key for key; a test that would pass without the change. Everything else is a note.
+Before judging the code, judge the plan: if the ticket has a design spec, check `plan.md`'s Spec trace against it. A requirement the plan dropped without the human's OK is a blocker even when the code matches the plan, and "matches the spec" is not a pass for anything the spec still lists as unconfirmed.
+
+A finding is a **blocker** when it is one of: a user-visible error or crash; data loss, a data leak or a security hole; an acceptance criterion not met; a new fallback, default or swallowed error the project has not approved; a contradiction of `.bobby/decisions.yaml`; a data shape that doesn't match the `## Contract` or the real producer key for key; a test that would pass without the change; behavior the spec requires that the plan dropped without approval; a new value mirrored by hand in two places (across repos, or a route list against a reserved list) with no test that fails when they drift. Everything else is a note.
 
 A note you would expect someone to have to fix later is not a note: either it meets the bar above (block on it) or file it now with `bobby ticket create` and link it in `review.md`. Don't leave "should fix" items as notes.
 

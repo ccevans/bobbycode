@@ -5,6 +5,7 @@ import { moveTicket, findTicket, readTicket, writeTicket } from '../lib/tickets.
 import { resolveTransition, stageColor } from '../lib/stages.js';
 import { success, bold, dim, error } from '../lib/colors.js';
 import { tryLogEntry } from '../lib/session.js';
+import { assertWalkedBeforeDone } from '../lib/walk.js';
 import { computeWorktreePlacement, removeWorktree } from '../lib/dashboard/worktree.js';
 
 // Auto-reclaim a ticket's worktree once it ships. Ship has already pushed the
@@ -43,6 +44,7 @@ export function registerMove(program) {
     .argument('[reason]', 'Reason (for reject/block)')
     .description('Move ticket to a stage. Aliases: plan, build, review, test, ship, done, reject, block, unblock')
     .option('--by <who>', 'Who is moving it', 'system')
+    .option('--skip-walk <reason>', 'Close an epic without a passing acceptance walk, saying why (recorded on the ticket)')
     .action((id, alias, reason, opts) => {
       try {
         const root = findProjectRoot();
@@ -90,7 +92,10 @@ export function registerMove(program) {
           process.exit(1);
         }
 
-        const comment = reason || '';
+        // An epic is done only after its acceptance walk passes (lib/walk.js).
+        if (targetStage === 'done') assertWalkedBeforeDone(before, opts.skipWalk || null);
+
+        const comment = opts.skipWalk ? `Closed without a passing acceptance walk: ${opts.skipWalk}` : (reason || '');
         moveTicket(ticketsDir, id, targetStage, opts.by, comment);
         const colorFn = stageColor(targetStage);
         success(`${bold(id)} → ${colorFn(targetStage)}`);

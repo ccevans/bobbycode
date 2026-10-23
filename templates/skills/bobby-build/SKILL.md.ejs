@@ -86,6 +86,7 @@ Before writing any code:
 - When fixing a bug, reproduce it first and read the relevant code path end-to-end
 - Read multiple related files in parallel when possible to minimize round-trips
 - If you are unsure how an existing module works, read it rather than guessing
+- **Reuse means behavior.** When the plan or spec says to use "the template's own" field or "the live page's" component, import and use that component. Copying its markup without its behavior (autocomplete, validation, the scripts it loads) passes a markup check and fails the first real user.
 - **Build against the real data shape.** When your code reads or writes data another repo or ticket produces, take the shape from the `## Contract` in `plan.md`, or from the producer's code on origin/main (`git show origin/main:<path>`) or a real response. Build fixtures from that shape and name where it came from in your comment. Never from a stub you wrote yourself: code that passes against an invented payload and fails against the real one is the most common reason builds get rejected. If the producer doesn't exist yet, use the shape the plan assigns to its owner, and say so.
 </investigation_rules>
 

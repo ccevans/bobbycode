@@ -367,7 +367,7 @@ Every agent declares a **tier** — the kind of model its work wants:
 | Tier | The work | Agents |
 |---|---|---|
 | `opus` | Judgment — deciding what to build, drawing the v1 line, finding what a diff hides, critiquing a design | `plan`, `review`, `workflow`, `feature`, `next`, `security`, `freewill`, `debug`, `ux`, `design-mockup`, `design-build`, `design-check`, `define-brief`, `define-features`, `pm`, `vet`, `strategy`, `arch` |
-| `sonnet` | Execution — writing the code the plan specified, driving a browser, transcribing decisions | `build`, `test`, `ship`, `design-research`, `design-analyze`, `design-spec`, `define-personas`, `define-journeys`, `define-blueprint`, `qe`, `intake`, `docs`, `lighthouse` |
+| `sonnet` | Execution — writing the code the plan specified, driving a browser, transcribing decisions | `build`, `test`, `ship`, `design-research`, `design-analyze`, `design-spec`, `define-personas`, `define-journeys`, `define-blueprint`, `qe`, `intake`, `docs`, `lighthouse`, `walk` |
 | `haiku` | Bookkeeping — recording a load time, checking a deploy returned 200 | `performance`, `watchdog` |
 
 `workflow`, `feature` and `next` chain several stages inside one process, so

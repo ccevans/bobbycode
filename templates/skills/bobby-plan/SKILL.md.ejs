@@ -48,6 +48,15 @@ After investigating and before planning, size the ticket and record it: `bobby t
 
 A plan longer than its ticket needs costs every later stage that reads it. Size honestly: when unsure between two sizes, take the larger.
 
+## Spec trace (any ticket with a design spec or a parent spec)
+
+When the ticket or its epic has a design spec (`design-spec.md`, `spec.md`, a design folder), the plan answers to it, not just to the ticket:
+
+- Add a `## Spec trace` section: each spec requirement this ticket covers, and the plan step that implements it.
+- Anything the spec asks for that the plan leaves out or changes goes under `## Deviations from spec`, with why. A deviation that removes behavior the spec names (the template's own field, a control, a state) needs the human's OK: `bobby ticket move {ID} block "Spec deviation: <what and why>"`. "Never uses Google Places" against a spec that says "the template's own field" is exactly this.
+- **Open items block.** If the spec marks something this ticket depends on as unconfirmed ("to confirm", "open item", "TBD"), don't plan around it: block with the decision needed. A value nobody confirmed gets built, tested and passed as if it were decided.
+- "The template's own X" or "the live page's X" means reuse that component and its behavior, not copy its markup.
+
 ## Contract (any ticket that crosses API and UI, or uses another ticket's output)
 
 The largest single cause of rejected builds is code written against an assumed or stubbed data shape. When the work reads or writes data across a boundary, add a `## Contract` section to `plan.md`:
@@ -56,6 +65,8 @@ The largest single cause of rejected builds is code written against an assumed o
 - for a shape that does not exist yet, the shape this ticket or its sibling will produce, named as such, and the ticket that owns it.
 
 `test-cases.md` and the build's fixtures use this shape. In an epic, copy it into `feature-plan.md` so sibling tickets build against the same thing.
+
+**Lists kept in sync by hand.** If the work adds to, or depends on, a value mirrored by hand in two places (a registry twinned across repos, route names that must stay off a reserved list, an enum in the API and the UI), name the pair in the plan and add a test that fails when they drift apart. Handles colliding with site pages happened because two such lists had no test.
 
 ---
 
@@ -224,6 +235,8 @@ Update `test-cases.md`:
 - **Read path** — Does the correct data/UI appear? (navigate, observe)
 - **Write path** — Does changing a value persist and reflect? (change, save, verify)
 - **Error path** — What happens on invalid input, auth failure, missing data?
+- **Real-world path** — Run it the way a real user would: pick from autocomplete suggestions rather than typing, use a real identity (including the owner's own handle or email), and run the same flow a second time with the same identity, since limits, duplicates and "already done" states only show up then
+- **Every size and input** — For UI: each control used at 390 by touch and at 1440 with a mouse and keyboard, not just screenshotted
 
 **Anti-pattern to avoid:** Do NOT write test cases that only verify structure (e.g., "CSS variable exists", "element is on page"). Every test case must include a user action and an observable outcome. If an AC says "X updates when Y changes," the test case MUST change Y and verify X — not just verify X exists in its default state.
 
@@ -337,6 +350,8 @@ Update `test-cases.md`:
 - **Read path** — Does the correct data/UI appear? (navigate, observe)
 - **Write path** — Does changing a value persist and reflect? (change, save, verify)
 - **Error path** — What happens on invalid input, auth failure, missing data?
+- **Real-world path** — Run it the way a real user would: pick from autocomplete suggestions rather than typing, use a real identity (including the owner's own handle or email), and run the same flow a second time with the same identity, since limits, duplicates and "already done" states only show up then
+- **Every size and input** — For UI: each control used at 390 by touch and at 1440 with a mouse and keyboard, not just screenshotted
 
 **Anti-pattern to avoid:** Do NOT write test cases that only verify structure (e.g., "CSS variable exists", "element is on page"). Every test case must include a user action and an observable outcome. If an AC says "X updates when Y changes," the test case MUST change Y and verify X — not just verify X exists in its default state.
 
