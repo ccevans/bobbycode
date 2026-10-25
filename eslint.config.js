@@ -46,6 +46,6 @@ export default [
     },
   },
   {
-    ignores: ['node_modules/', 'coverage/', 'templates/**', 'stacks/**'],
+    ignores: ['node_modules/', 'coverage/', 'templates/**', 'stacks/**', '.claude/workflows/**'],
   },
 ];

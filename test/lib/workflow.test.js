@@ -6,7 +6,7 @@ import {
   buildPerformancePrompt, buildWatchdogPrompt, buildVetPrompt, buildStrategyPrompt,
   buildSprintPrompt,
   resolveNextAgent, DEFAULT_WORKFLOW, resolveWorkflow, listWorkflows,
-  BUILT_IN_WORKFLOWS, STAGE_MAP, nextStageForAgent,
+  BUILT_IN_WORKFLOWS, STAGE_MAP, nextStageForAgent, buildPromptFor, featureBranchName, resolveWorkflowName,
 } from '../../lib/workflow.js';
 import { createTicket, moveTicket, findTicket, writeTicket } from '../../lib/tickets.js';
 import { isValidStage } from '../../lib/stages.js';
@@ -1112,5 +1112,67 @@ describe('ticket-path resolution (PRO-029)', () => {
     expect(() => { prompt = buildSingleAgentPrompt('bobby-plan', 'TKT-999', tmpDir); }).not.toThrow();
     expect(prompt).toContain('TKT-999*');
     expect(prompt).toContain('bobby ticket assign TKT-999 bobby-plan');
+  });
+});
+
+describe('continue the original builder on rejection (TKT-073)', () => {
+  const sprint = { id: 'SPR-001', name: 'S', goal: '', branch: 'feature/spr-001-s' };
+  const tickets = [{ id: 'TKT-001', title: 'T', stage: 'backlog', priority: 'high' }];
+  const orch = (opts) => buildOrchestrationPrompt(['TKT-1'], DEFAULT_WORKFLOW, 3, '.bobby/tickets', 20, '.claude/agents', false, {}, opts);
+  const TODAY = 'Loop back and launch a bobby-build subagent again';
+
+  test.each([
+    ['orchestration prompt', () => orch({ continueBuilder: true })],
+    ['sprint prompt', () => buildSprintPrompt(sprint, tickets, DEFAULT_WORKFLOW, { continueBuilder: true })],
+  ])('%s continues the builder through SendMessage and logs a fresh launch explicitly', (_n, make) => {
+    const p = make();
+    for (const needle of [
+      'SendMessage', 'Note the agent id', 'Continue the original bobby-build subagent',
+      'bobby ticket move {TICKET_ID} reviewing', 'say so in your final report', 'fresh bobby-build subagent',
+      '.claude/agents/bobby-debug.md', '2nd retry failure',
+    ]) {
+      expect(p).toContain(needle);
+    }
+    expect(p).not.toContain(TODAY);
+  });
+
+  test('without the option the text is today\'s', () => {
+    for (const p of [orch(undefined), buildSprintPrompt(sprint, tickets, DEFAULT_WORKFLOW)]) {
+      expect(p).toContain(TODAY);
+      expect(p).not.toContain('SendMessage');
+    }
+  });
+
+  test('a workflow with no building stage keeps today\'s retry clause', () => {
+    const define = resolveWorkflow({}, 'define');
+    const p = buildOrchestrationPrompt(['EP-1'], define, 3, '.bobby/tickets', 20, '.claude/agents', false, {}, { continueBuilder: true });
+    expect(p).toContain(TODAY);
+    expect(p).not.toContain('SendMessage');
+  });
+
+  describe('buildPromptFor gates it on the target', () => {
+    let dir;
+    beforeEach(() => {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-cb-'));
+      createTicket(dir, { prefix: 'TKT', title: 'X', author: 'dev', area: '' });
+    });
+    afterEach(() => { fs.rmSync(dir, { recursive: true }); });
+    const prompt = (target) => buildPromptFor('workflow', ['TKT-001'], {
+      config: { target }, ticketsDir: dir, ticketsPath: dir, agentsPath: '.agents', workflow: DEFAULT_WORKFLOW,
+    }).prompt;
+
+    test('claude-code continues the builder; cursor keeps the fresh-launch loop', () => {
+      expect(prompt('claude-code')).toContain('SendMessage');
+      expect(prompt('cursor')).not.toContain('SendMessage');
+      expect(prompt('cursor')).toContain(TODAY);
+    });
+  });
+
+  test('name helpers keep their old behaviour', () => {
+    expect(resolveWorkflowName('default', null)).toBe('default');
+    expect(resolveWorkflowName('default', 'secure')).toBe('secure');
+    expect(resolveWorkflowName('quick', 'secure')).toBe('quick');
+    expect(featureBranchName('EP-1', 'My Big Feature!', {})).toBe('feature/ep-1-my-big-feature');
+    expect(featureBranchName('EP-1', 'X', { feature_branch_prefix: 'f' })).toBe('f/ep-1-x');
   });
 });
