@@ -8,7 +8,7 @@ type: feature
 priority: high
 area: null
 author: CC
-assigned: bobby-build
+assigned: bobby-review
 services: null
 repos: null
 workflow: null
@@ -48,4 +48,5 @@ Must not: change behaviour for projects' `.local` files; add a fallback; touch T
 - [ ] Full test suite and lint pass; existing prompt snapshots change only where intended
 
 ## Comments
+- [2026-10-25] bobby-review: Approved with notes: all 6 ACs met; 1317 tests pass, lint 0 errors; scope check verified on a scratch project for every plan shape plus fresh repo/studio root. Notes: scope-check whole-file substring matching passes files a plan names only as out-of-scope (filed TKT-075); design-check now parks its own conformance failures as awaiting product review; triage counts agent-filed epics, brief does not. Global bobby is symlinked to /Users/ccevans/Repos/bobbycode, a different checkout, which is why it printed no scope check. Filed: TKT-075.
 - [2026-10-25] bobby-build: Built: --found-in on ticket create; brief/triage show agent-filed tickets (never auto-picked); lib/scope-check.js + warn-only check in ticket move; rule in CLAUDE.md template, bobby-shared and 9 stage files; CHANGELOG. Deviation: Files heading regex also accepts numbered headings (## 3. Files to modify) so planner-style plans are recognised. No existing test expectations changed. Filed: none.
