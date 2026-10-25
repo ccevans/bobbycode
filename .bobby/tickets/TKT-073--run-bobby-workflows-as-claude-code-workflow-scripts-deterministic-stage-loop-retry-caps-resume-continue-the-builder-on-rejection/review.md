@@ -1,4 +1,61 @@
-## Review — TKT-073
+## Review — TKT-073 (round 2)
+
+### Verdict: Approved with Notes
+
+Round 2 reviews the delta `7e49223..8a1d34c` (`b610456` fixes, `8a1d34c` move). Every round-1 finding is fixed and tested. Round 1 is kept below for history.
+
+### Files Reviewed (delta)
+- `templates/workflows/runtime.js:180-190`: the integration step now decides by the stage after the call.
+  - The ticket stays in `TERMINAL` and the verdict is not `passed`: one call, then a log line and `stalled`.
+  - The ticket moved: it takes the `afterResult` path that stage agents use.
+  - I re-ran my round-1 probes. Case A (failed, ticket not moved): **1 call**, `stalled`, finalize skipped with a log (it was 16 calls and `iteration-cap`). Case B (verdict `rejected`, stage `building`): it took the retry path and called `bobby-build`.
+  - Other moves (to `done`, or to a mid-workflow stage) go through the normal dispatch. Any repeat cycle is bounded by `maxRetries`.
+- `test/lib/workflow-script.test.js`: two new harness tests. They assert behaviour, not helpers:
+  - C1 makes exactly 1 call and C2 still completes.
+  - Exactly 1 rebuild, with `rejections: 1`.
+  - Both would fail against the round-1 runtime.
+- `lib/workflow.js:592,615`: `buildPromptFor` takes an optional `continueBuilder`.
+  - `continueBuilder ?? (target === 'claude-code')` parses as intended, because `===` binds tighter than `??`.
+  - When nobody passes it, the behaviour is unchanged.
+- `lib/dashboard/orchestrator.js:719-724`: `_promptContext` passes `continueBuilder: false` when the executor resolves to `cursor-agent`.
+  - It reads `config` from `_configFor(ws)`, so it is run-scoped. That complies with `run-scoped-reads-pin-to-the-workspaces-project`.
+  - `resolveExecutor` is already imported (line 68). An unknown explicit executor uses the claude buildArgs, so leaving the continuation on for it is consistent.
+- `test/lib/dashboard/orchestrator-continue-builder.test.js`: asserts the consumer, which is the built prompt.
+  - The cursor-agent-on-claude-code case would fail if the executor clause were reverted.
+- `lib/config.js:316,348`: an empty `workflows: {}` now gets the commented hint. Covered in `test/lib/config.test.js`.
+- `README.md:824,828`: the Claude-Code-only wording is added, and so is `claude --resume <session-id>`. `formatWorkflowInvocation` also names it, and a test asserts that.
+- `.bobby/decisions.yaml`: the new entry `one-prompt-door-two-doors` has `supersedes: one-prompt-door`, and the old entry has `invalidated: "2026-10-25"`. See Decision check.
+
+### Code Concerns
+- None blocking.
+- Note: the live e2e was not re-run after the fix. The changed branch exists only in feature/sprint mode, and the round-1 e2e used tickets mode, so the harness tests are the only evidence for it.
+- Note: the round-1 observation still stands. A claude-code `workflow`/`sprint` prompt with the flag off differs from main by design (AC4). I re-ran the byte comparison:
+  - The 36 direct prompt-builder cases are identical with `continueBuilder` off.
+  - Of the 256 `buildPromptFor` cases, only claude-code/unset-target `workflow` differs.
+
+### Decision Violations
+- None.
+- `decisions-log-has-one-writer` vs the hand-set `invalidated`: this is consistent with the tooling.
+  - The new entry has CLI round-trip shape, and `addDecision` validates that the `supersedes` target exists.
+  - The CLI has no invalidate verb. `bobby decision add --supersedes` prints "set that entry's invalidated date if it is now retired" (`commands/decision.js:37`), so the hand edit is the sanctioned step.
+  - TKT-022 retired `orchestrator-reads-tickets-from-the-shared-board` and others the same way.
+  - `bobby decision list` filters `!d.invalidated` (`commands/decision.js:54`). It now shows `one-prompt-door-two-doors` and hides `one-prompt-door`, and the YAML parses.
+
+### AC Verification
+- [x] AC1: unchanged from round 1. Met.
+- [x] AC2: the integration branch now has a no-progress guard and is stage-driven. All caps are enforced in code, and two new tests cover it.
+- [x] AC3: unchanged from round 1. Flag on, flag off, and the error paths are covered by tests.
+- [x] AC4: SendMessage continuation. Target-gated, and now also executor-gated on the dashboard.
+- [x] AC5: unchanged from round 1. Met.
+- [x] AC6: the live run with kill and same-session resume is unchanged and still valid for tickets mode.
+
+### Test/Lint Output
+- Tests: `npm test`: 73 suites passed (1 skipped), **1317 passed**, 46 skipped, exit 0.
+- Lint: `npm run lint`: 0 errors, 37 warnings (the same count as round 1), exit 0.
+
+---
+
+## Review — TKT-073 (round 1)
 
 ### Verdict: Rejected
 

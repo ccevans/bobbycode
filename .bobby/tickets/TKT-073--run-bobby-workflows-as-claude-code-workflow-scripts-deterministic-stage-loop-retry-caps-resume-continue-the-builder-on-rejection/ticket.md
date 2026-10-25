@@ -8,7 +8,7 @@ type: feature
 priority: high
 area: null
 author: CC
-assigned: bobby-build
+assigned: bobby-review
 services: null
 repos: null
 workflow: null
