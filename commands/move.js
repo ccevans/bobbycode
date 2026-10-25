@@ -1,10 +1,14 @@
 // commands/move.js
 import path from 'path';
 import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
-import { moveTicket, findTicket } from '../lib/tickets.js';
+import { moveTicket, findTicket, addComment } from '../lib/tickets.js';
 import { resolveTransition, stageColor } from '../lib/stages.js';
-import { success, bold, error } from '../lib/colors.js';
+import { success, warn, bold, error } from '../lib/colors.js';
 import { tryLogEntry } from '../lib/session.js';
+import { runScopeCheck, formatScopeCheck } from '../lib/scope-check.js';
+
+// Leaving building for any of these runs the scope check (reject/block/unblock never do).
+const SCOPE_CHECK_TARGETS = ['security', 'reviewing', 'testing', 'shipping', 'done'];
 
 export function registerMove(program) {
   program
@@ -64,9 +68,33 @@ export function registerMove(program) {
         const colorFn = stageColor(targetStage);
         success(`${bold(id)} → ${colorFn(targetStage)}`);
         tryLogEntry(root, config, { type: 'move', ticket: id, from: fromStage, to: targetStage, detail: comment });
+
+        if (fromStage === 'building' && SCOPE_CHECK_TARGETS.includes(targetStage)) {
+          scopeCheck({ ticketsDir, before, id, root, config });
+        }
       } catch (e) {
         error(e.message);
         process.exit(1);
       }
     });
+}
+
+// Warn-only: the move has already happened, so nothing in here may fail it.
+function scopeCheck({ ticketsDir, before, id, root, config }) {
+  try {
+    const result = runScopeCheck({
+      cwd: process.cwd(),
+      ticketPath: before.path,
+      studioRoot: config.studio ? root : null,
+    });
+    const { lines, comment } = formatScopeCheck(result, id);
+    const clean = result.status === 'clean' || result.status === 'empty';
+    lines.forEach((line, i) => {
+      if (i === 0) (clean ? success : warn)(line);
+      else console.log(`   ${line}`);
+    });
+    if (comment) addComment(ticketsDir, id, 'scope-check', comment);
+  } catch (e) {
+    warn(`Scope check failed: ${e.message}`);
+  }
 }
