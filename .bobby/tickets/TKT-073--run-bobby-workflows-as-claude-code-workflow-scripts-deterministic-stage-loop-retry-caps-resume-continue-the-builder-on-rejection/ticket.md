@@ -3,12 +3,12 @@ id: TKT-073
 title: >-
   Run Bobby workflows as Claude Code Workflow scripts (deterministic stage loop,
   retry caps, resume) + continue the builder on rejection
-stage: reviewing
+stage: building
 type: feature
 priority: high
 area: null
 author: CC
-assigned: bobby-build
+assigned: bobby-review
 services: null
 repos: null
 workflow: null
@@ -49,5 +49,6 @@ Out of scope: dashboard `claude -p` executor (separate), remote/cloud isolation,
 - [ ] One real end-to-end run on a throwaway ticket, including a kill + `resumeFromRunId`, with evidence in test-evidence/
 
 ## Comments
+- [2026-10-25] system: REJECTED: runtime.js:172-189 integration-check branch has no no-progress guard: in feature/sprint mode an integration agent returning verdict 'failed' without moving the ticket (stage still shipping) makes afterResult return null, stage stays TERMINAL, and the loop re-runs the integration agent until maxIterations (reproduced: 16 calls, iteration-cap, later tickets not-started). Also classify by STAGE not verdict: an integration agent that rejects but returns verdict 'rejected' (stage building) is marked stalled instead of taking the retry path. Fix: if ir.stage === TERMINAL -> complete on passed, else log + stalled; if the stage moved -> afterResult(ir, stage) and continue. Add two harness tests (failed+unmoved -> stalled after 1 call; rejected+building -> rebuild counted as a rejection). Minor, same pass: README.md:828 should say the SendMessage continuation is claude-code target only. Full detail in review.md.
 - [2026-10-25] bobby-build: Built: workflow-script generator + shared runtime, orchestration flag, run/feature/sprint print path, continue-the-builder prompts, README. 1311 tests pass (baseline 1275), lint 0 errors. Live e2e done headless with kill + same-session resume (build served from cache); cross-session resume does NOT cache - see test-evidence/README.md.
 - [2026-10-25] bobby-plan: Planned. Size L (Complex). Recommended workflow: default. Approach A (generator + one shared runtime template) scored 32, vs 25 for a nested core and 24 for EJS. Deviation: tickets run sequentially, not through pipeline(), because they share one branch. Risk R1: init --refresh drops orchestration/workflows from .bobbyrc.yml on main (BOB-123 is unmerged), and Step 1 fixes it.
