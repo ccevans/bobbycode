@@ -300,6 +300,7 @@ describe('invocation helpers', () => {
     expect(out).toContain('**bobby-default**');
     expect(out).toContain('"mode": "tickets"');
     expect(out).toContain('resumeFromRunId');
+    expect(out).toContain('same Claude Code session');
     expect(out).toContain('.claude/workflows/bobby-default.js');
   });
 });

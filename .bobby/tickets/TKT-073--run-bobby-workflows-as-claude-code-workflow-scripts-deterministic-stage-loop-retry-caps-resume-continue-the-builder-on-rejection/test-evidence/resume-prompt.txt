@@ -1,0 +1,25 @@
+Resume an interrupted saved Claude Code workflow. Call the Workflow tool with scriptPath `.claude/workflows/bobby-e2e.js`, resumeFromRunId `wf_d7c67f47-8ed`, and exactly these args (the SAME args as the first run):
+```json
+{
+  "mode": "tickets",
+  "tickets": [
+    {
+      "id": "TKT-002",
+      "stage": "building",
+      "blocked": false,
+      "blockedReason": null
+    }
+  ],
+  "maxRetries": 3,
+  "maxIterations": 20,
+  "readFirst": [],
+  "planReadFirst": [],
+  "finalize": null,
+  "commands": {
+    "test": null,
+    "lint": null
+  },
+  "hasServices": false
+}
+```
+Completed agents return from cache. When it returns, report each ticket's status from the result.
