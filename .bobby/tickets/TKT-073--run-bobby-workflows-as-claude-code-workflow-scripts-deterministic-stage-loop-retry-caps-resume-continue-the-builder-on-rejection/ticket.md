@@ -3,7 +3,7 @@ id: TKT-073
 title: >-
   Run Bobby workflows as Claude Code Workflow scripts (deterministic stage loop,
   retry caps, resume) + continue the builder on rejection
-stage: building
+stage: reviewing
 type: feature
 priority: high
 area: null
