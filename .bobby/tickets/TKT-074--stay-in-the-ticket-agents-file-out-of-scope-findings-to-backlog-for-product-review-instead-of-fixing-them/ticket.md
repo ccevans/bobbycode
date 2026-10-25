@@ -3,12 +3,12 @@ id: TKT-074
 title: >-
   Stay in the ticket: agents file out-of-scope findings to backlog for product
   review instead of fixing them
-stage: building
+stage: reviewing
 type: feature
 priority: high
 area: null
 author: CC
-assigned: bobby-plan
+assigned: bobby-build
 services: null
 repos: null
 workflow: null
@@ -48,3 +48,4 @@ Must not: change behaviour for projects' `.local` files; add a fallback; touch T
 - [ ] Full test suite and lint pass; existing prompt snapshots change only where intended
 
 ## Comments
+- [2026-10-25] bobby-build: Built: --found-in on ticket create; brief/triage show agent-filed tickets (never auto-picked); lib/scope-check.js + warn-only check in ticket move; rule in CLAUDE.md template, bobby-shared and 9 stage files; CHANGELOG. Deviation: Files heading regex also accepts numbered headings (## 3. Files to modify) so planner-style plans are recognised. No existing test expectations changed. Filed: none.
