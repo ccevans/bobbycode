@@ -266,6 +266,31 @@ describe('runtime: stage loop in code (AC2)', () => {
     expect(stuck.logs.some(l => l.includes('Finalize skipped'))).toBe(true);
   });
 
+  test('integration check that fails but leaves the ticket in shipping stops as stalled, not a loop', async () => {
+    const args = base({
+      mode: 'sprint', finalize: { kind: 'sprint', id: 'SPR-1' }, maxIterations: 16,
+      tickets: [{ id: 'C1', stage: 'shipping' }, { id: 'C2', stage: 'shipping' }],
+    });
+    const { result, calls } = await runScript(def, args, async (p, o) =>
+      (idOf(o) === 'C1' ? res('C1', 'shipping', 'failed', 'suite red') : res(idOf(o), 'shipping', 'passed')));
+    expect(calls.filter(c => idOf(c.opts) === 'C1')).toHaveLength(1);
+    expect(result.tickets[0]).toMatchObject({ status: 'stalled', stage: 'shipping' });
+    expect(result.tickets[1].status).toBe('complete');
+  });
+
+  test('an integration agent that moved the ticket back to building is a retry whatever verdict it reports', async () => {
+    const args = base({
+      mode: 'sprint', finalize: { kind: 'sprint', id: 'SPR-1' }, tickets: [{ id: 'C1', stage: 'shipping' }],
+    });
+    let integrations = 0;
+    const { result, calls } = await runScript(def, args, sim((id, agent) => {
+      if (agent !== 'extra') return undefined;
+      return ++integrations === 1 ? res(id, 'building', 'rejected', 'suite red') : res(id, 'shipping', 'passed');
+    }));
+    expect(calls.filter(c => c.opts.agentType === 'bobby-build')).toHaveLength(1);
+    expect(result.tickets[0]).toMatchObject({ status: 'complete', rejections: 1 });
+  });
+
   test('sprint finalize closes the sprint; define ends at planning without a plan agent', async () => {
     const sprint = await runScript(def, base({
       mode: 'sprint', finalize: { kind: 'sprint', id: 'SPR-1' }, tickets: [{ id: 'A', stage: 'testing' }],
@@ -301,6 +326,7 @@ describe('invocation helpers', () => {
     expect(out).toContain('"mode": "tickets"');
     expect(out).toContain('resumeFromRunId');
     expect(out).toContain('same Claude Code session');
+    expect(out).toContain('claude --resume <session-id>');
     expect(out).toContain('.claude/workflows/bobby-default.js');
   });
 });

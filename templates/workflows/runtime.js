@@ -177,12 +177,13 @@ async function runTicket(t, steps, phaseTitle, { stopOutside = false, readFirst 
         log(`${t.id}: integration agent produced no result, stopped`);
         return finish('agent-failed', stage, 'integration agent produced no result');
       }
-      if (ir.verdict === 'passed') return finish('complete', TERMINAL, ir.reason);
-      if (ir.verdict !== 'failed') {
-        log(`${t.id}: integration agent returned "${ir.verdict}", stopped`);
-        return finish('stalled', ir.stage, ir.reason);
+      // Decide by where the ticket is now, not by the verdict the agent chose.
+      if (ir.stage === TERMINAL) {
+        if (ir.verdict === 'passed') return finish('complete', TERMINAL, ir.reason);
+        log(`${t.id}: integration returned "${ir.verdict}" but left the ticket in "${TERMINAL}", stopped`);
+        return finish('stalled', TERMINAL, ir.reason);
       }
-      // The integration check moved the ticket back; handled as a rejection below.
+      // The ticket moved (normally back to building): same path as a stage agent.
       const out = await afterResult(ir, stage);
       if (out) return out;
       stage = ir.stage;

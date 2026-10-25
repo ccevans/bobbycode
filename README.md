@@ -821,11 +821,11 @@ orchestration: workflow   # default: prompt
 
 Then `bobby init --refresh` (which `bobby upgrade` runs) writes one saved Claude Code Workflow script per built-in and `workflows:` entry to `.claude/workflows/bobby-<name>.js`. Each stage runs as its own `bobby-*` agent with its own model, returns a typed `{ticket, stage, verdict, reason}`, and the script enforces the retry cap, the `bobby-debug` escalation on the 2nd rejection, and the max-iterations cap. Tickets are still moved by the stage agents with `bobby ticket move`; the script never edits ticket files.
 
-With the flag on, those commands print the Workflow call (name and args) instead of the prose prompt. Hand it to Claude Code as is. If the run is interrupted, resume it **in the same Claude Code session** with `scriptPath`, `resumeFromRunId` and the same args: finished agents return from cache. A new session cannot see the cache and re-runs every agent.
+With the flag on, those commands print the Workflow call (name and args) instead of the prose prompt. Hand it to Claude Code as is. If the run is interrupted, resume it **in the same Claude Code session** with `scriptPath`, `resumeFromRunId` and the same args: finished agents return from cache. A new session cannot see the cache and re-runs every agent. If the original process died, `claude --resume <session-id>` gets you back into that session.
 
 A missing or stale script, an unknown `orchestration` value, or a non-Claude-Code target is an error, not a silent fallback. Cursor and Cline always keep the prompt. Tickets within one run are worked one at a time on one branch.
 
-On the prompt path (flag off), a rejection sends the original builder a `SendMessage` instead of launching a fresh build agent, so it keeps its context. If that builder is gone the orchestrator says so in its report and starts a fresh one as an explicit step.
+On the prompt path (flag off) on the Claude Code target, a rejection sends the original builder a `SendMessage` instead of launching a fresh build agent, so it keeps its context. If that builder is gone the orchestrator says so in its report and starts a fresh one as an explicit step. Cursor and Cline have no `SendMessage` and start a fresh builder.
 
 ## Sprints
 
