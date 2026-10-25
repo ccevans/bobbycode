@@ -3,12 +3,12 @@ id: TKT-074
 title: >-
   Stay in the ticket: agents file out-of-scope findings to backlog for product
   review instead of fixing them
-stage: planning
+stage: building
 type: feature
 priority: high
 area: null
 author: CC
-assigned: null
+assigned: bobby-plan
 services: null
 repos: null
 workflow: null
