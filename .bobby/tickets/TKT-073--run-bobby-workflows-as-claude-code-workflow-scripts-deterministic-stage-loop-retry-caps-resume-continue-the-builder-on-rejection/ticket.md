@@ -3,7 +3,7 @@ id: TKT-073
 title: >-
   Run Bobby workflows as Claude Code Workflow scripts (deterministic stage loop,
   retry caps, resume) + continue the builder on rejection
-stage: reviewing
+stage: shipping
 type: feature
 priority: high
 area: null
@@ -49,6 +49,7 @@ Out of scope: dashboard `claude -p` executor (separate), remote/cloud isolation,
 - [ ] One real end-to-end run on a throwaway ticket, including a kill + `resumeFromRunId`, with evidence in test-evidence/
 
 ## Comments
+- [2026-10-25] bobby-review: Approved with notes: round-1 findings fixed and tested (integration step stage-driven with no-progress guard; dashboard continue-builder gated on executor; README/config hint). Notes: live e2e not re-run for feature/sprint integration path (harness-tested only); claude-code workflow/sprint prompts differ from main by design (AC4).
 - [2026-10-25] bobby-build: Review fixes: integration check now decided by ticket stage (unmoved failed -> stalled; moved to building -> retry); dashboard prompt confirmed (claude -p init lists Task+SendMessage) and pinned, gated off for cursor-agent executor; README, empty-workflows hint, decision one-prompt-door-two-doors. 1317 tests pass, lint 0 errors.
 - [2026-10-25] system: REJECTED: runtime.js:172-189 integration-check branch has no no-progress guard: in feature/sprint mode an integration agent returning verdict 'failed' without moving the ticket (stage still shipping) makes afterResult return null, stage stays TERMINAL, and the loop re-runs the integration agent until maxIterations (reproduced: 16 calls, iteration-cap, later tickets not-started). Also classify by STAGE not verdict: an integration agent that rejects but returns verdict 'rejected' (stage building) is marked stalled instead of taking the retry path. Fix: if ir.stage === TERMINAL -> complete on passed, else log + stalled; if the stage moved -> afterResult(ir, stage) and continue. Add two harness tests (failed+unmoved -> stalled after 1 call; rejected+building -> rebuild counted as a rejection). Minor, same pass: README.md:828 should say the SendMessage continuation is claude-code target only. Full detail in review.md.
 - [2026-10-25] bobby-build: Built: workflow-script generator + shared runtime, orchestration flag, run/feature/sprint print path, continue-the-builder prompts, README. 1311 tests pass (baseline 1275), lint 0 errors. Live e2e done headless with kill + same-session resume (build served from cache); cross-session resume does NOT cache - see test-evidence/README.md.
