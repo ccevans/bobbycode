@@ -49,4 +49,5 @@ Out of scope: dashboard `claude -p` executor (separate), remote/cloud isolation,
 - [ ] One real end-to-end run on a throwaway ticket, including a kill + `resumeFromRunId`, with evidence in test-evidence/
 
 ## Comments
+- [2026-10-25] bobby-build: Built: workflow-script generator + shared runtime, orchestration flag, run/feature/sprint print path, continue-the-builder prompts, README. 1311 tests pass (baseline 1275), lint 0 errors. Live e2e done headless with kill + same-session resume (build served from cache); cross-session resume does NOT cache - see test-evidence/README.md.
 - [2026-10-25] bobby-plan: Planned. Size L (Complex). Recommended workflow: default. Approach A (generator + one shared runtime template) scored 32, vs 25 for a nested core and 24 for EJS. Deviation: tickets run sequentially, not through pipeline(), because they share one branch. Risk R1: init --refresh drops orchestration/workflows from .bobbyrc.yml on main (BOB-123 is unmerged), and Step 1 fixes it.
