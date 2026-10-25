@@ -3,7 +3,7 @@ id: TKT-074
 title: >-
   Stay in the ticket: agents file out-of-scope findings to backlog for product
   review instead of fixing them
-stage: reviewing
+stage: shipping
 type: feature
 priority: high
 area: null
