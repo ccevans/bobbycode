@@ -4,6 +4,21 @@ All Bobby agents load this file in addition to their own learnings.md.
 
 ---
 
+## RULE — Every Agent
+
+### stay-in-the-ticket
+**Pattern:** Agents drift off their ticket: they reword copy nobody asked about, fix security bugs they run into, and refactor along the way. That work skips product review, bloats diffs and reviews, and the human loses track of what changed and why.
+**Fix:**
+- Change only what the ticket needs. Before committing, run `git diff --stat`: every file in it must tie to the ticket in one sentence. Regressions your change caused and tests it broke are in scope; nothing else is.
+- Anything else you notice (a bug, a security hole, copy that reads badly, a refactor, a missing feature, a flaky test): do not fix it. Check for a duplicate (`bobby ticket list`), then file it:
+  `bobby ticket create -t "<what is wrong>" --type bug|improvement -p <priority> -a <your agent name> --found-in <current ticket ID>`
+  then `bobby ticket comment <new ID> --by <your agent name> "<what you saw, where (file:line or URL), how to reproduce, why it matters>"`.
+  Omit `--found-in` only when there is no current ticket. The new ticket waits in backlog for product review. Never plan, move, or start a ticket you filed.
+- A security finding that is exploitable in production now: file it with `-p critical`, do not fix it in this ticket, and lead your report with **Decision needed** so the user chooses whether to stop current work.
+- An out-of-scope problem that blocks this ticket: file it, run `bobby ticket move <ID> block "needs <new ID>"`, and stop. Don't work around it.
+- End your report with one `Filed: <ID> — <title>` line per ticket you filed.
+- When a ticket leaves building, `bobby ticket move` prints a scope check: changed files that `plan.md` does not name. Review rejects out-of-plan changes the ticket does not need. The fix is to revert the change and file it, not to keep it.
+
 ## PROBLEM — Recurring Bugs & Gotchas
 
 ### vacuous-truth-all-empty-array

@@ -24,6 +24,7 @@ Before creating any plan:
 - If you are unsure about the scope of an AC, improve the AC text rather than guessing
 - Explore the codebase to understand existing patterns before proposing new ones
 - **Large file discipline:** For files over 500 lines (CSS, large components, mockups), do NOT read the entire file. Instead, grep for the relevant section name or keyword to find the line range, then read only that range. Record useful line ranges in the plan's `## Files to modify` section so downstream agents (build, review) can do targeted reads too.
+- Problems you find that the ACs don't need: file them, don't widen the ACs or the plan to absorb them: `bobby ticket create -t "<what is wrong>" --type bug -p <priority> -a bobby-plan --found-in {ID}`, then `bobby ticket comment <new ID> --by bobby-plan "<what you saw, where, why it matters>"`. Report `Filed: <ID> — <title>` lines.
 </investigation_rules>
 
 ## Mode Detection
@@ -180,7 +181,7 @@ Create `plan.md` in the ticket folder:
 
 1. **Approaches considered** — Brief description + scores for each
 2. **Selected approach** — Which one and why it won
-3. **Files to modify** — List every file that needs changes
+3. **Files to modify** — List every file that needs changes, including tests, fixtures and docs. When the ticket leaves building, `bobby ticket move` flags any changed file this list doesn't name.
 4. **Step-by-step plan** — Ordered steps with checkboxes
 5. **Risk areas** — What could go wrong
 6. **Dependencies** — What needs to exist first
@@ -301,7 +302,7 @@ Create `plan.md` in the ticket folder:
 
 1. **Approaches considered** — Brief description + scores for each
 2. **Selected approach** — Which one and why it won
-3. **Files to modify** — List every file that needs changes
+3. **Files to modify** — List every file that needs changes, including tests, fixtures and docs. When the ticket leaves building, `bobby ticket move` flags any changed file this list doesn't name.
 4. **Step-by-step plan** — Ordered steps with checkboxes
 5. **Risk areas** — What could go wrong
 6. **Dependencies** — What needs to exist first
