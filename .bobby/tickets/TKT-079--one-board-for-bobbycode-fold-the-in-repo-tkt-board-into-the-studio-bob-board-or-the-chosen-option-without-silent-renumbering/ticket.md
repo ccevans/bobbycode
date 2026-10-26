@@ -34,4 +34,5 @@ updated: '2026-10-26'
 - [ ] [Third criterion]
 
 ## Comments
+- [2026-10-26] user: CC decision 2026-10-25: 'Bob is fine' — fold the TKT board into BOB (option 1 in TKT-076 plan): TKT-073+ become BOB-173+ with a formerly: field and a TKT→BOB table; merge main's decisions into the BOB decisions file; then retire the repo's own .bobbyrc.yml board. Needs repo→project lookup first so bobbycode commands don't write to the robinflow board.
 - [2026-10-26] bobby-plan: Split out of TKT-076, waiting on CC's board decision. Options, facts and the recommendation are in TKT-076 plan.md, section 'Board decision (CC)'. Do not start until CC picks; TKT-076 keeps the board exactly as main has it today.
