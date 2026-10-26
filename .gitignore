@@ -10,3 +10,8 @@ coverage/
 .bobby/workspaces.json
 .bobby/.counter.lock
 .bobby/main-checkout.lock
+# A LIVE claim on a ticket (BOB-120), not a fact about it. Committed, it would
+# travel to other machines carrying a pid and host that mean nothing there —
+# and isStale refuses to judge a foreign host, so the 6h ceiling would be the
+# only thing freeing that ticket on every clone.
+.bobby/tickets/*/run.lock

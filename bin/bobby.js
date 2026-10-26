@@ -30,6 +30,7 @@ import { registerWorkflow } from '../commands/workflow.js';
 import { registerSprint } from '../commands/sprint.js';
 import { registerIdea } from '../commands/idea.js';
 import { registerBrief } from '../commands/brief.js';
+import { registerUsage } from '../commands/usage.js';
 import { registerProjects } from '../commands/projects.js';
 import { registerGo } from '../commands/go.js';
 import { registerNew } from '../commands/new.js';
@@ -43,6 +44,7 @@ import { registerSkill } from '../commands/skill.js';
 import { registerRemote } from '../commands/remote.js';
 import { registerStudio } from '../commands/studio.js';
 import { registerDecision } from '../commands/decision.js';
+import { registerWorktree } from '../commands/worktree.js';
 import { touchProject } from '../lib/registry.js';
 
 const initCmd = registerInit(program);
@@ -57,6 +59,7 @@ registerBlueprint(program);
 registerPack(program);
 registerPro(program);
 registerBrief(program);
+registerUsage(program);
 registerIdea(program);
 registerTicket(program);
 registerSprint(program);
@@ -73,6 +76,7 @@ registerApp(program); // also answers to `bobby dashboard`
 registerRemote(program);
 registerExport(program);
 registerUpgrade(program);
+registerWorktree(program);
 
 // Progressive help: the default help shows the founder-facing core; power/agent
 // plumbing stays fully functional but appears via `bobby help <cmd>` or the

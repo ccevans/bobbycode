@@ -15,6 +15,7 @@
   "commands": {
     "dev": "npm run dev",
     "test": "node --test",
+    "test_impacted": "node --test {files}",
     "lint": "",
     "build": "node build.js"
   },

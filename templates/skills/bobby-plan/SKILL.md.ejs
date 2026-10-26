@@ -23,6 +23,7 @@ Before creating any plan:
 - Read any existing `feature-plan.md` to understand cross-cutting decisions already made
 - If you are unsure about the scope of an AC, improve the AC text rather than guessing
 - Explore the codebase to understand existing patterns before proposing new ones
+- **Read the code as it is on origin/main, not the checkout.** `git fetch origin` first, then read with `git show origin/main:<path>` or a worktree on origin/main. Local checkouts in a studio sit on old branches, and a plan built on them states wrong facts (10 of 24 build deviations traced back to this). Put the SHA you planned against at the top of `plan.md`.
 - **Large file discipline:** For files over 500 lines (CSS, large components, mockups), do NOT read the entire file. Instead, grep for the relevant section name or keyword to find the line range, then read only that range. Record useful line ranges in the plan's `## Files to modify` section so downstream agents (build, review) can do targeted reads too.
 - Problems you find that the ACs don't need: file them, don't widen the ACs or the plan to absorb them: `bobby ticket create -t "<what is wrong>" --type bug -p <priority> -a bobby-plan --found-in {ID}`, then `bobby ticket comment <new ID> --by bobby-plan "<what you saw, where, why it matters>"`. Report `Filed: <ID> — <title>` lines.
 </investigation_rules>
@@ -33,6 +34,40 @@ Before creating any plan:
 - If the ticket has `type: epic` → **Epic Mode** (break down into child tickets)
 - If the ticket is in `planning` stage AND has a `parent` field (belongs to an epic) → **Feature-Aware Refine Mode** (plan with sibling context)
 - If the ticket is in `planning` stage with no `parent` → **Refine Mode** (create plan + test cases)
+
+## Size the ticket
+
+After investigating and before planning, size the ticket and record it: `bobby ticket update {ID} --size <xs|s|m|l|xl>`. The size picks the pipeline (xs runs plan → build → test with no separate review; s to l run the full workflow; a security-sensitive ticket stays on `secure` whatever its size) and how much plan to write.
+
+| Size | Looks like | Plan to write |
+|---|---|---|
+| xs | Copy, config or a one-file change with no new behavior path | Goal, files, test cases. No approach scoring. |
+| s | One repo, a few files, one behavior | Approach in two lines, files, steps, test cases |
+| m | Several files or both repos, a new behavior | Full plan; a `## Contract` section if it crosses API and UI |
+| l | Cross-cutting: several new paths, migrations, both repos | Full plan, `## Contract`, rollout and risks, a checkpoint per acceptance criterion |
+| xl | More than one shippable thing, or more than about six acceptance criteria | Do not plan it as one ticket. Switch to Epic Mode: create the child tickets, make this the epic. |
+
+A plan longer than its ticket needs costs every later stage that reads it. Size honestly: when unsure between two sizes, take the larger.
+
+## Spec trace (any ticket with a design spec or a parent spec)
+
+When the ticket or its epic has a design spec (`design-spec.md`, `spec.md`, a design folder), the plan answers to it, not just to the ticket:
+
+- Add a `## Spec trace` section: each spec requirement this ticket covers, and the plan step that implements it.
+- Anything the spec asks for that the plan leaves out or changes goes under `## Deviations from spec`, with why. A deviation that removes behavior the spec names (the template's own field, a control, a state) needs the human's OK: `bobby ticket move {ID} block "Spec deviation: <what and why>"`. "Never uses Google Places" against a spec that says "the template's own field" is exactly this.
+- **Open items block.** If the spec marks something this ticket depends on as unconfirmed ("to confirm", "open item", "TBD"), don't plan around it: block with the decision needed. A value nobody confirmed gets built, tested and passed as if it were decided.
+- "The template's own X" or "the live page's X" means reuse that component and its behavior, not copy its markup.
+
+## Contract (any ticket that crosses API and UI, or uses another ticket's output)
+
+The largest single cause of rejected builds is code written against an assumed or stubbed data shape. When the work reads or writes data across a boundary, add a `## Contract` section to `plan.md`:
+
+- the exact request and response (JSON with real field names and types), copied from the serializer, controller or fixture on origin/main, with the file and line it came from;
+- for a shape that does not exist yet, the shape this ticket or its sibling will produce, named as such, and the ticket that owns it.
+
+`test-cases.md` and the build's fixtures use this shape. In an epic, copy it into `feature-plan.md` so sibling tickets build against the same thing.
+
+**Lists kept in sync by hand.** If the work adds to, or depends on, a value mirrored by hand in two places (a registry twinned across repos, route names that must stay off a reserved list, an enum in the API and the UI), name the pair in the plan and add a test that fails when they drift apart. Handles colliding with site pages happened because two such lists had no test.
 
 ---
 
@@ -150,7 +185,7 @@ Before planning this ticket, build a picture of the whole feature:
 
 1. **Read the parent epic** — Read `<%= tickets_dir %>/{parent}*/ticket.md` and `<%= tickets_dir %>/{parent}*/plan.md` to understand the overall feature goal
 2. **Read the feature plan** — Read `<%= tickets_dir %>/{parent}*/feature-plan.md` if it exists. This captures cross-cutting decisions from previously planned sibling tickets.
-3. **Read sibling plans** — Run `bobby ticket list --epic {parent}` to discover sibling tickets. For each sibling, read `<%= tickets_dir %>/{sibling}*/plan.md` if it exists.
+3. **Read the siblings that matter** — Run `bobby ticket list --epic {parent}`, then read the plan (its `## Contract` and `## Feature Context` first) of each sibling this ticket depends on or provides for. Not every sibling: an epic can have dozens.
 4. **Summarize context** — Before generating approaches, note:
    - What shared utilities or components already exist or are planned
    - Naming conventions and patterns established by siblings
@@ -166,7 +201,7 @@ Before planning this ticket, build a picture of the whole feature:
 
 ### Step 2: Create Implementation Plan
 
-Generate 2-3 possible approaches. Score each on these dimensions (1-5 scale):
+If there is only one sensible approach, state it and why in two lines and move on. Score approaches only when two or more are genuinely viable (sizes m and up, usually). Then score each on these dimensions (1-5 scale):
 
 | Dimension | Weight | Description |
 |-----------|--------|-------------|
@@ -179,10 +214,10 @@ Generate 2-3 possible approaches. Score each on these dimensions (1-5 scale):
 
 Create `plan.md` in the ticket folder:
 
-1. **Approaches considered** — Brief description + scores for each
-2. **Selected approach** — Which one and why it won
-3. **Files to modify** — List every file that needs changes, including tests, fixtures and docs. When the ticket leaves building, `bobby ticket move` flags any changed file this list doesn't name.
-4. **Step-by-step plan** — Ordered steps with checkboxes
+1. **Approach** — the chosen approach and why (with the scores, when you scored)
+2. **Files to modify** — List every file that needs changes, including tests, fixtures and docs, with line ranges for large files. When the ticket leaves building, `bobby ticket move` flags any changed file this list doesn't name.
+3. **Step-by-step plan** — Ordered steps with checkboxes
+4. **Contract** — see Contract above, when the ticket crosses API and UI or uses a sibling's output
 5. **Risk areas** — What could go wrong
 6. **Dependencies** — What needs to exist first
 7. **Feature Context** — Add this section to capture cross-ticket relationships:
@@ -201,6 +236,8 @@ Update `test-cases.md`:
 - **Read path** — Does the correct data/UI appear? (navigate, observe)
 - **Write path** — Does changing a value persist and reflect? (change, save, verify)
 - **Error path** — What happens on invalid input, auth failure, missing data?
+- **Real-world path** — Run it the way a real user would: pick from autocomplete suggestions rather than typing, use a real identity (including the owner's own handle or email), and run the same flow a second time with the same identity, since limits, duplicates and "already done" states only show up then
+- **Every size and input** — For UI: each control used at 390 by touch and at 1440 with a mouse and keyboard, not just screenshotted
 
 **Anti-pattern to avoid:** Do NOT write test cases that only verify structure (e.g., "CSS variable exists", "element is on page"). Every test case must include a user action and an observable outcome. If an AC says "X updates when Y changes," the test case MUST change Y and verify X — not just verify X exists in its default state.
 
@@ -245,6 +282,9 @@ Maintain the epic-level `feature-plan.md` at `<%= tickets_dir %>/{parent}*/featu
   ## Architecture Decisions
   - [Cross-cutting technical decisions discovered so far]
 
+  ## Contracts
+  [Request/response shapes shared across tickets, copied from origin/main or owned by a named ticket]
+
   ## Shared Utilities & Components
   | Utility/Component | Created By | Used By | Location |
 
@@ -260,20 +300,13 @@ Maintain the epic-level `feature-plan.md` at `<%= tickets_dir %>/{parent}*/featu
 
 - **If `feature-plan.md` already exists**, update it: add any new shared decisions, utilities, or conventions discovered while planning this ticket. Do not remove existing entries — append and refine.
 
-### Step 5: Estimate Complexity
-
-Add to ticket frontmatter or comment:
-- **Simple:** Single file change, clear path
-- **Medium:** Multiple files, some decisions
-- **Complex:** Cross-cutting, architectural
-
 ### Completing Feature-Aware Refine Mode
 
 1. Verify `plan.md` exists, is complete, and includes `## Feature Context`
 2. Verify `test-cases.md` has coverage
 3. Verify `feature-plan.md` was created or updated
 4. If you discovered anything non-obvious or a pattern future planning should avoid: `bobby learn bobby-plan "pattern" "description"`
-5. Move ticket: `bobby ticket move {ID} build`
+5. Confirm the size is recorded (`bobby ticket view {ID}`), then hand the ticket on to the stage your task prompt names
 
 ---
 
@@ -287,7 +320,7 @@ Add to ticket frontmatter or comment:
 
 ### Step 2: Create Implementation Plan
 
-Generate 2-3 possible approaches. Score each on these dimensions (1-5 scale):
+If there is only one sensible approach, state it and why in two lines and move on. Score approaches only when two or more are genuinely viable (sizes m and up, usually). Then score each on these dimensions (1-5 scale):
 
 | Dimension | Weight | Description |
 |-----------|--------|-------------|
@@ -300,10 +333,10 @@ Generate 2-3 possible approaches. Score each on these dimensions (1-5 scale):
 
 Create `plan.md` in the ticket folder:
 
-1. **Approaches considered** — Brief description + scores for each
-2. **Selected approach** — Which one and why it won
-3. **Files to modify** — List every file that needs changes, including tests, fixtures and docs. When the ticket leaves building, `bobby ticket move` flags any changed file this list doesn't name.
-4. **Step-by-step plan** — Ordered steps with checkboxes
+1. **Approach** — the chosen approach and why (with the scores, when you scored)
+2. **Files to modify** — List every file that needs changes, including tests, fixtures and docs, with line ranges for large files. When the ticket leaves building, `bobby ticket move` flags any changed file this list doesn't name.
+3. **Step-by-step plan** — Ordered steps with checkboxes
+4. **Contract** — see Contract above, when the ticket crosses API and UI or uses another ticket's output
 5. **Risk areas** — What could go wrong
 6. **Dependencies** — What needs to exist first
 
@@ -318,6 +351,8 @@ Update `test-cases.md`:
 - **Read path** — Does the correct data/UI appear? (navigate, observe)
 - **Write path** — Does changing a value persist and reflect? (change, save, verify)
 - **Error path** — What happens on invalid input, auth failure, missing data?
+- **Real-world path** — Run it the way a real user would: pick from autocomplete suggestions rather than typing, use a real identity (including the owner's own handle or email), and run the same flow a second time with the same identity, since limits, duplicates and "already done" states only show up then
+- **Every size and input** — For UI: each control used at 390 by touch and at 1440 with a mouse and keyboard, not just screenshotted
 
 **Anti-pattern to avoid:** Do NOT write test cases that only verify structure (e.g., "CSS variable exists", "element is on page"). Every test case must include a user action and an observable outcome. If an AC says "X updates when Y changes," the test case MUST change Y and verify X — not just verify X exists in its default state.
 
@@ -351,19 +386,12 @@ Update `test-cases.md`:
 </example>
 </examples>
 
-### Step 4: Estimate Complexity
-
-Add to ticket frontmatter or comment:
-- **Simple:** Single file change, clear path
-- **Medium:** Multiple files, some decisions
-- **Complex:** Cross-cutting, architectural
-
 ### Completing Refine Mode
 
 1. Verify `plan.md` exists and is complete
 2. Verify `test-cases.md` has coverage
 3. If you discovered anything non-obvious or a pattern future planning should avoid: `bobby learn bobby-plan "pattern" "description"`
-4. Move ticket: `bobby ticket move {ID} build`
+4. Confirm the size is recorded (`bobby ticket view {ID}`), then hand the ticket on to the stage your task prompt names
 
 ## Feature Areas
 

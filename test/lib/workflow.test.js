@@ -160,9 +160,11 @@ describe('workflow', () => {
       expect(prompt).toContain('- TKT-002');
     });
 
-    test('includes branch guard', () => {
+    test('includes worktree isolation and branch guard fallback', () => {
       const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
-      expect(prompt).toContain('Branch guard');
+      expect(prompt).toContain('Worktree isolation');
+      expect(prompt).toContain('bobby worktree create {TICKET_ID}');
+      expect(prompt).toContain('bobby worktree path {TICKET_ID}');
       expect(prompt).toContain('git branch --show-current');
       expect(prompt).toContain('tkt-TKT-001');
     });
@@ -512,6 +514,14 @@ describe('workflow', () => {
       const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('Between tickets');
       expect(prompt).toContain('integration issues');
+    });
+
+    test('runs impacted specs between tickets, the full suite only once at the end', () => {
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
+      const between = prompt.slice(prompt.indexOf('Between tickets'), prompt.indexOf('## After All Tickets'));
+      expect(between).toContain('commands.test_impacted');
+      expect(between).toContain('Not the full suite');
+      expect(prompt.match(/full test suite/g)).toHaveLength(1);
     });
 
     test('respects maxRetries and maxIterations', () => {

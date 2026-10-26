@@ -45,4 +45,21 @@ describe('dashboard workflow prompt (TKT-073)', () => {
   test('cursor target keeps the fresh-launch loop', () => {
     expect(promptFor({ target: 'cursor' })).not.toContain('SendMessage');
   });
+
+  // SendMessage exists only in the `claude` host. An allow-list: every other
+  // executor (codex, opencode, a custom binary) gets the fresh-launch loop.
+  test.each(['codex', 'opencode'])('%s host on a claude-code target keeps the fresh-launch loop', (executor) => {
+    const p = promptFor({ target: 'claude-code', dashboard: { executor } });
+    expect(p).not.toContain('SendMessage');
+    expect(p).toContain('Loop back and launch a bobby-build subagent again');
+  });
+
+  test('a custom claude binary path keeps the fresh-launch loop', () => {
+    const p = promptFor({ target: 'claude-code', dashboard: { executor: '/opt/bin/claude' } });
+    expect(p).not.toContain('SendMessage');
+  });
+
+  test.each(['codex', 'opencode', 'copilot', 'agents-md'])('%s target keeps the fresh-launch loop', (target) => {
+    expect(promptFor({ target })).not.toContain('SendMessage');
+  });
 });

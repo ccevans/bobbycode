@@ -80,6 +80,18 @@ For each ticket in testing:
 
 ---
 
+## Acceptance walk (epics)
+
+When your task is an acceptance walk (`bobby run walk <epic>`), you are the first person to use the whole flow for real. The human's own walk comes after yours, never instead of it. An epic whose children all passed testing can still fail here: RF-956's door did, on four blockers, because every earlier check ran on localhost, a fixture harness or one screen at a time.
+
+- **Where:** the deployed site (production, or a preview deploy of the merged code). Not localhost, not a harness rendering test data, not a browser with web security switched off. Record the URL and the deployed commit at the top of `walk.md`.
+- **What:** the whole flow, from the first link a real user taps (a post, an email, a door URL) to the last thing they get (a claim, a live page, an email, a portal). Stopping halfway is a BLOCKED walk, not a pass.
+- **How:** twice over, at 390 by touch and at 1440 with only a mouse and keyboard. Use every control on every screen: a page you can only reach by swiping is unreachable on desktop.
+- **With real inputs:** pick addresses from the autocomplete suggestions, use a real identity including the owner's own handle (it is the one most likely to collide with something), then run the whole flow again with the same email and identity. Limits, duplicates and "already done" states only show up the second time.
+- **Look, then measure:** read every screenshot yourself for overlapping, clipped or unreadable elements, and run the shared driver with `--axe` on every screen. A defect is a finding even when it matches the spec; a spec value that produces it is a spec problem to report, not a pass.
+- **Open items:** if the spec says something is still to be confirmed (a size, a layout, copy), say so in `walk.md` as a decision needed. Don't score it as passing because the build matches the unconfirmed value.
+- **Result:** `walk.md` in the epic's folder, first line `Verdict: PASS`, `FAIL` or `BLOCKED`, then each step with what happened and its evidence path. File each problem as a child ticket of the epic.
+
 ## UI Testing Procedure
 
 ### Before You Start

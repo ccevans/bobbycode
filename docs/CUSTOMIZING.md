@@ -121,7 +121,7 @@ shipping, and its instructions are deliberately thin.
 bobby run freewill TKT-001        # or: --workflow freewill
 ```
 
-It exists because Opus 5 and Fable 5 work better from a goal and its invariants than from a
+It exists because frontier models work better from a goal and its invariants than from a
 four-stage script — a long procedure spends their attention on compliance and caps the work
 at whatever the procedure's author imagined. `.claude/skills/bobby-freewill/SKILL.md` is short
 on purpose; corrections belong in `bobby learn bobby-freewill`, not in new steps.
@@ -235,6 +235,16 @@ areas:
 Use areas when creating tickets: `bobby ticket create -t "Fix login" --area auth`
 
 This means when building a ticket with `area: api`, the build agent will also read `.claude/skills/dev/backend/SKILL.md`.
+
+## Adding a New Editor Target
+
+Which editors Bobby supports, at what tier, and how each claim was verified
+lives in the [README support matrix](../README.md#support-matrix). To
+contribute a new target, follow
+[Adding a new target](../README.md#adding-a-new-target-contributors):
+`lib/targets/cursor.js` is the template, and the target matrix suite
+(`test/lib/target-matrix.test.js`) plus the support-matrix consistency test
+(`test/docs/support-matrix.test.js`) are the acceptance bar.
 
 ## Configuration Reference
 

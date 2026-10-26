@@ -4,12 +4,13 @@ import path from 'path';
 import inquirer from 'inquirer';
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir, resolveProductDir } from '../lib/config.js';
 import { getFeatureTickets, listEpics } from '../lib/tickets.js';
-import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, resolveWorkflowName, featureBranchName, listWorkflows } from '../lib/workflow.js';
+import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, resolveWorkflowName, featureBranchName, listWorkflows, assertTicketFree, workflowNameForTicket, freewillRefusal } from '../lib/workflow.js';
 import {
   resolveOrchestration, assertWorkflowScriptCurrent, ticketSnapshot, buildWorkflowArgs, formatWorkflowInvocation,
 } from '../lib/workflow-script.js';
 import { findTicket } from '../lib/tickets.js';
 import { VALID_AGENTS } from '../lib/agent-registry.js';
+import { resolveModel, resolveEffort } from '../lib/models.js';
 import { bold, dim, error } from '../lib/colors.js';
 import { getTarget } from '../lib/targets/index.js';
 import { overlayPromptClause, repoTargetingClause } from '../lib/skills.js';
@@ -44,7 +45,7 @@ Modes:
   Strategy:   bobby run strategy [id]    — strategic validation gate
   Security:   bobby run security <id>    — OWASP + STRIDE audit
   Debug:      bobby run debug <id>       — root-cause investigation
-  Freewill:   bobby run freewill <id>    — one agent, whole ticket, few instructions (Opus 5 / Fable 5)
+  Freewill:   bobby run freewill <id>    — one agent, whole ticket, few instructions (runs on Opus)
   Freeform:   bobby run docs|performance|watchdog — no ticket required
   Workflow:   bobby run <workflow-name> <id> — run a named workflow (default, secure, quick, or your own)`)
     .option('--max-retries <n>', 'Max retry loops on rejection per ticket', '3')
@@ -108,16 +109,21 @@ Modes:
         const sessionsDir = resolveSessionsDir(root, config);
         const sessionId = initSession(sessionsDir, { ticketIds: ticketIds, agent, pipeline: opts.workflow || 'default' });
 
-        // Resolve ticket-level workflow override (if ticket has a `workflow` field in frontmatter)
+        // Ticket-level workflow: its own `workflow` field, else the one its size
+        // maps to (see workflowNameForTicket), else the run's default.
         let ticketPipeline = null;
         if (ticketIds.length > 0) {
           const ticket = findTicket(ticketsDir, ticketIds[0]);
-          if (ticket && (ticket.data.workflow || ticket.data.pipeline)) {
-            ticketPipeline = ticket.data.workflow || ticket.data.pipeline;
+          if (ticket) ticketPipeline = workflowNameForTicket(config, ticket.data);
+          // Freewill refuses the tickets that need the full pipeline, whether it
+          // was asked for as the agent or as the named workflow.
+          if (ticket && (agent === 'freewill' || opts.workflow === 'freewill' || ticketPipeline === 'freewill')) {
+            const why = freewillRefusal(ticket.data);
+            if (why) throw new Error(`${ticketIds[0]} can't run on freewill: ${why}.`);
           }
         }
 
-        // Resolve workflow: explicit flag > ticket frontmatter > default
+        // Resolve workflow: explicit flag > ticket workflow or size > default
         const pipeline = resolveWorkflow(config, opts.workflow || 'default', ticketPipeline);
 
         // Feature mode: if no epic id provided, let user pick interactively.
@@ -149,6 +155,25 @@ Modes:
           }
           epicData = { epicId, epic, children };
         }
+
+        // One live run per ticket (BOB-120), guarding EVERY prompt-building
+        // path below — not just the standard-agent one.
+        //
+        // Placed here, not inside buildPromptFor, because the ORCHESTRATOR calls
+        // that builder in-process for its own agents and already holds the
+        // claim. This is the CLI: a genuinely separate operator. An agent
+        // launched BY the app carries its claim token in the environment, so its
+        // own `bobby run <stage> <ticket>` passes.
+        //
+        // EVERY id, not ids[0]. The earlier rationale — "the builders act on
+        // ids[0]" — is false for the one builder that consumes them all:
+        // `bobby run workflow A B` orchestrates both, so checking only the first
+        // meant `bobby run workflow <free> <claimed>` handed out a prompt
+        // driving the claimed ticket. Order-dependent bugs are still bugs.
+        for (const id of ticketIds) assertTicketFree(ticketsDir, id);
+        // A feature run drives its CHILDREN, so the epic's claim says nothing
+        // about whether the work is free.
+        if (epicData) for (const child of epicData.children) assertTicketFree(ticketsDir, child.id);
 
         // Opt-in (.bobbyrc.yml orchestration: workflow): print the saved Claude Code
         // Workflow call instead of the prose orchestration prompt. A bad value, a
@@ -252,8 +277,19 @@ Modes:
           console.log(`  ${dim(built.subtitle)}`);
         }
         console.log(`  ${dim(hint)}`);
+        // Which model this stage will actually run on. Worth printing because
+        // it is NOT the model of the session reading this line: the agent file
+        // the harness launches carries its own, so a plan run and a build run
+        // started from the same session land on different models. Only shown
+        // where that file is really read — see target.supportsAgentModel().
+        if (!customAgent && target.supportsAgentModel && target.supportsAgentModel()) {
+          const model = resolveModel(agent, config);
+          const effort = resolveEffort(agent, config);
+          const parts = [model && `Model: ${model}`, effort && `Effort: ${effort}`].filter(Boolean);
+          if (parts.length) console.log(`  ${dim(parts.join(' · '))}`);
+        }
         if (agent === 'feature') {
-          console.log(`  ${dim('Launch with: isolation: "worktree" (keeps main clean)')}`);
+          console.log(`  ${dim(`Feature worktree will be created: bobby worktree create ${ticketIds[0] || '{EPIC_ID}'} --feature`)}`);
         }
         console.log('');
         console.log(withSession(built.prompt, sessionId));

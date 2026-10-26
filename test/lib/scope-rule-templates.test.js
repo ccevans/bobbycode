@@ -71,6 +71,7 @@ describe('Stay in the ticket — rendered templates', () => {
 
   test('bobby-freewill keeps its file contract: the rule is a paragraph, not a new section', () => {
     const text = read('.claude', 'skills', 'bobby-freewill', 'SKILL.md');
-    expect(text.match(/^## /gm)).toHaveLength(7);
+    expect(text.match(/^## /gm)).toHaveLength(8);
+    expect(text).not.toMatch(/^## Stay in the/im);
   });
 });

@@ -17,7 +17,8 @@ argument-hint: "<ticket ID to review>"
    - The ticket's `ticket.md` — acceptance criteria
    - The ticket's `plan.md` — intended approach
    - The ticket's `test-cases.md` — expected test coverage
-5. **Understand what was built** — `git log --oneline main..HEAD` to see all branch commits
+5. **Understand what was built** — `git fetch origin`, then `git log --oneline origin/main..HEAD` to see all branch commits. Compare against origin/main throughout: the local `main` in a studio checkout is often weeks old.
+6. **Which round is this?** Check the ticket's comments for earlier rejections. Round 1 gets the full review below. On a later round, review the fix: read the diff since your last review (`git diff <last reviewed sha>..HEAD`), confirm each earlier finding is fixed everywhere it applied, and check the fix didn't break what round 1 passed. Anything new you notice that is below the blocker bar is a follow-up ticket, not another rejection.
 
 ## Investigation First
 
@@ -35,8 +36,8 @@ This is the core of your job. Don't skim diffs — investigate the code like you
 
 ### 1. Trace the change boundaries
 
-- Run `git diff main...HEAD --stat` — get an overview of every file touched
-- For each changed file, **read the full file** (not just the diff hunk) to understand context
+- Run `git diff origin/main...HEAD --stat` — get an overview of every file touched
+- For each changed hunk, read the whole enclosing function or component and its callers, not just the hunk. For a short file that means the whole file; for a 4,000-line one it does not — search for the symbol and read the ranges that matter.
 - Cross-reference against `plan.md`:
   - Files in the plan that were NOT changed — were they supposed to be?
   - Changed files NOT in the plan: each needs a one-sentence tie to an AC (look for the builder's `Outside plan:` comment and the `Scope check:` comment `bobby ticket move` wrote when the ticket left building). No tie → **reject**.
@@ -105,18 +106,26 @@ After the deep review, verify the minimum bar:
 
 ## Run Tests and Lint
 
-Run these independently to verify the build agent's work in a fresh context:
+Run these independently to verify the build agent's work in a fresh context. Run the **impacted specs only** — the specs covering the diff (`git diff --name-only origin/main...HEAD`: every changed spec file plus the spec of every changed source file). The full suite runs once per ticket, at ship; a full run here, multiplied by every ticket in review at once, is what runs the machine out of memory.
 
 <% if (typeof services !== 'undefined' && services && Object.keys(services).length > 0) { %>
-Read the ticket's `services` frontmatter to determine which service(s) were touched. For each affected service, run its test and lint commands from the service directory:
+Read the ticket's `services` frontmatter to determine which service(s) were touched. For each affected service, run its impacted-spec and lint commands from the service directory:
 
 <% Object.entries(services).forEach(function([name, svc]) { %>
-- **<%= name %>**: `cd <%= svc.path %> && <%= svc.commands.test %>` / `cd <%= svc.path %> && <%= svc.commands.lint %>`
+- **<%= name %>**: `cd <%= svc.path %> && <%= svc.commands.test_impacted || svc.commands.test + ' <impacted spec files>' %>` / `cd <%= svc.path %> && <%= svc.commands.lint %>`
+<% }); %>
+<% } else if (typeof repos !== 'undefined' && repos && repos.length > 0 && repos.some(function(r) { return r.commands && r.commands.test_impacted; })) { %>
+Read the ticket's `repos` frontmatter to determine which repo(s) were touched. For each, run from inside that repo:
+
+<% repos.forEach(function(repo) { if (!repo.commands || !repo.commands.test_impacted) return; %>
+- **<%= repo.name %>** (`<%= repo.path %>`): `<%= repo.commands.test_impacted %>` / lint `<%= repo.commands.lint || 'not configured' %>`
 <% }); %>
 <% } else { %>
-1. Tests: `<%= commands.test || 'your test command' %>`
+1. Impacted specs: `<%= commands.test_impacted || ((commands.test || 'your test command') + ' <impacted spec files>') %>`
 2. Lint: `<%= commands.lint || 'your lint command' %>`
 <% } %>
+
+`{files}` is whatever the runner addresses: spec files for rspec / pytest / node, the changed source files for jest `--findRelatedTests`, package dirs for go. Name the files you ran in `review.md`.
 
 Show the output as evidence. If tests can't run (missing deps, broken environment), this is a BLOCK, not an approval.
 
@@ -165,23 +174,35 @@ Review the diff, not the neighborhood. Pre-existing problems you spot in nearby 
 
 ## Decision
 
+### What blocks a ticket
+
+Before judging the code, judge the plan: if the ticket has a design spec, check `plan.md`'s Spec trace against it. A requirement the plan dropped without the human's OK is a blocker even when the code matches the plan, and "matches the spec" is not a pass for anything the spec still lists as unconfirmed.
+
+A finding is a **blocker** when it is one of: a user-visible error or crash; data loss, a data leak or a security hole; an acceptance criterion not met; a new fallback, default or swallowed error the project has not approved; a contradiction of `.bobby/decisions.yaml`; a data shape that doesn't match the `## Contract` or the real producer key for key; a test that would pass without the change; behavior the spec requires that the plan dropped without approval; a new value mirrored by hand in two places (across repos, or a route list against a reserved list) with no test that fails when they drift. Everything else is a note.
+
+A note you would expect someone to have to fix later is not a note: either it meets the bar above (block on it) or file it now with `bobby ticket create` and link it in `review.md`. Don't leave "should fix" items as notes.
+
+### Fix forward when the fix is small
+
+When every blocker is contained (a few lines, one file, the fix is obvious and you can prove it with a test), fix it yourself: make the change, add or fix the test, run the impacted specs, commit as `TKT-{ID}: review fixes`, say exactly what you changed in `review.md`, and approve. Testing is still the second check. Bounce the ticket only when the fix needs a decision, touches the design, or is bigger than that. A rejection costs a full build and a full review; a ten-line fix costs neither.
+
 ### Approve
 All checks pass, no concerns:
 1. Write `review.md` in the ticket directory
 2. **Commit any changes** you made (lint fixes, debug cleanup; only in files this ticket already touches): `TKT-{ID}: review fixes`
 3. Add comment: `bobby ticket comment {ID} --by bobby-review "Approved: {summary}"`
 4. If you discovered a pattern future reviews should catch: `bobby learn bobby-review "pattern" "description"`
-5. Move to testing: `bobby ticket move {ID} test`
+5. Hand the ticket on to the stage your task prompt names
 
 ### Approve with Notes
 Code works and ACs are met, but you have observations worth recording — minor style drift, a pattern that could become a problem, a suggestion for future work. These do NOT block the ticket:
 1. Write `review.md` with notes in the "Code Concerns" and "Notes" sections
 2. **Commit any changes** you made (only in files this ticket already touches): `TKT-{ID}: review fixes`
 3. Add comment: `bobby ticket comment {ID} --by bobby-review "Approved with notes: {summary}. Notes: {observations}"`
-4. Move to testing: `bobby ticket move {ID} test`
+4. Hand the ticket on to the stage your task prompt names
 
 ### Reject
-Broken code, missing ACs, or serious quality issues:
+Blockers you can't fix forward (see above):
 1. Write `review.md` documenting every issue found
 2. Move back with specific feedback: `bobby ticket move {ID} reject "Specific issue description"`
 3. Be specific — the build agent needs to know exactly what to fix
@@ -202,6 +223,10 @@ Why this fails: The build agent won't know what specifically to fix or which AC 
 Can't complete review — tests won't run, environment broken, missing context:
 1. Write `review.md` documenting what you were able to check and what blocked you
 2. `bobby ticket move {ID} block "reason"`
+
+## Checkpointing
+
+Write `review.md` as you go rather than at the end: add each finding the moment you confirm it, with file and line. A compaction in the middle of a large diff then costs you nothing but the reading. Never carry the build agent's conversation into review (no `--resume` of its session): a fresh context is what makes this a second pair of eyes.
 
 ## If Something Goes Wrong
 

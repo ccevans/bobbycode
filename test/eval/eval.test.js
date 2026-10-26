@@ -471,16 +471,18 @@ describe('eval: bobby-test skill with playwright', () => {
 
   test('skill renders playwright guidance when configured', () => {
     expect(skillContent).toContain('Playwright (Browser Automation)');
-    expect(skillContent).toContain('mcp__playwright__browser_navigate');
-    expect(skillContent).toContain('mcp__playwright__browser_screenshot');
+    // A shared browser profile locks out every other ticket's test run, so the
+    // skill points at the per-run headless driver, not a shared MCP browser.
+    expect(skillContent).toContain('bobby-test/browse.mjs');
+    expect(skillContent).toContain('Never use a shared browser profile');
   });
 
   test('skill renders curl guidance alongside playwright', () => {
     expect(skillContent).toContain('curl (API Testing)');
   });
 
-  test('UI testing section references Playwright MCP', () => {
-    expect(skillContent).toContain('Playwright MCP for browser testing');
+  test('UI testing section points at the shared driver', () => {
+    expect(skillContent).toContain('Use the shared driver and, for interactions, a headless Playwright script');
   });
 });
 
