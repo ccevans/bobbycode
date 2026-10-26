@@ -3,7 +3,7 @@ id: TKT-076
 title: >-
   Global bobby runs integrate/app-studio (43 commits not on main, 30 behind):
   merge PR #14 and main again so TKT-073/074 reach the CLI every session uses
-stage: shipping
+stage: done
 type: bug
 priority: high
 area: null
