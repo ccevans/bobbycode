@@ -326,7 +326,7 @@ export function scaffoldProject(rootDir, config, { writeConfig = true } = {}) {
   fs.writeFileSync(path.join(rootDir, bobbyDir, '.scaffold-version'), pkgVersion + '\n', 'utf8');
 
   // Target-specific extras (e.g., .clineignore for Cline)
-  target.scaffoldExtras(rootDir);
+  target.scaffoldExtras(rootDir, config);
 
   return { gitInitialized };
 }

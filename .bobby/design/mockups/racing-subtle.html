@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Subscriptions &amp; billing — Feature</title>
+<style>
+  /* ============================================================
+     Bobby · Feature view — SUBTLE RACING register (round 5)
+     Light only, designed on purpose. Every value reference-backed:
+
+       circuit-as-closed-line, sector-coloured segments, SF tick
+         -> "Monte Carlo Formula 1 track map.svg" (Wikipedia/Commons,
+            racing-ref-circuit-monaco-map.png)
+       navy ink on porcelain, one accent, timing register
+         -> Farer "Racing Chronographs" (#021A30 extracted,
+            racing-ref-farer.png)
+       powder blue + marigold, single stripe used once
+         -> Gulf Porsche 917 specimens (pixel-sampled #8EB4CF/#AED0E8,
+            #CF5412; racing-ref-gulf917-search.png)
+       small tracked-caps labels -> Autodromo (14px/3.5px tracking,
+            racing-ref-autodromo.png)
+       chunky mono big figure + pit-wall call voice -> Ferrari pit
+            board specimen (racing-ref-pitboard-search.png)
+       bones (ground bias, tonal chips, card system, amber gate)
+         -> clean-minimal.html lineage (GitHub/GitLab teardowns)
+
+     Slop-checklist exemption log (all reference-backed, named above):
+       - single 3px livery rule at page top  = Gulf centre stripe, used once
+       - big "1 / 4" figure                  = pit-board numerals
+       - one breathing live dot (TKT-004)    = semantic live status,
+         reduced-motion-safe, the only motion on the page
+     ============================================================ */
+
+  :root {
+    /* porcelain ground with a powder (cool-blue) bias — picked, not #FFF, not cream */
+    --page:      #F5F8FA;
+    --surface:   #FFFFFF;
+    --sink:      #FAFCFD;
+
+    /* navy ink family — Farer #021A30, lifted for body comfort */
+    --ink:       #16293A;
+    --ink-2:     #33475A;
+    --mut:       #55677A;
+    --rule:      #E3E9EE;
+    --rule-2:    #D3DCE3;
+
+    /* Gulf livery, desaturated toward premium */
+    --powder:      #8EB4CF;   /* sampled body blue */
+    --powder-soft: #BCD4E2;   /* light passed fill */
+    --powder-deep: #35759B;   /* line/contrast duty */
+    --powder-bg:   #E2EDF4;   /* tonal chip bg */
+    --powder-fg:   #1F5E80;   /* tonal chip text */
+
+    --marigold:      #C05512; /* sampled stripe orange, muted a step */
+    --marigold-fg:   #8F4408; /* text-safe */
+    --marigold-bg:   #F8EDE2; /* tonal chip bg */
+
+    /* navy “settled/done” tonal */
+    --done-bg:  #E5EBF1;  --done-fg:  #2C4A66;
+    --idle-bg:  #EAEEF1;  --idle-fg:  #55636F;
+
+    --ahead:    #D8E1E8;  /* un-run track */
+
+    --accent:       #143550;  /* primary button — Farer navy */
+    --accent-press: #0E2A42;
+    --focus:        #1F6B94;
+
+    --r-card: 12px;
+    --r-btn:  8px;
+    --r-pill: 999px;
+    --shadow-card: 0 1px 2px rgba(14, 30, 45, .05);
+
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, "Cascadia Code", monospace;
+
+    --maxw: 880px;
+    --ease: cubic-bezier(.3, .8, .6, 1);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  a { color: inherit; }
+  :where(a, button, [tabindex]):focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* ---------- the one livery stripe (Gulf, used once) ---------- */
+  .livery { height: 3px; background: var(--powder-soft); position: relative; }
+  .livery .seg {
+    position: absolute; top: 0; height: 3px; width: 64px;
+    left: max(24px, calc(50% - var(--maxw) / 2 + 24px));
+    background: var(--marigold);
+  }
+
+  /* ---------- shell ---------- */
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+  .topbar { border-bottom: 1px solid var(--rule); }
+  .topbar .wrap { display: flex; align-items: center; justify-content: space-between; height: 54px; }
+  .back {
+    display: inline-flex; align-items: center; gap: 8px;
+    text-decoration: none; color: var(--mut);
+    font-size: 14px; font-weight: 500;
+    padding: 6px 8px; margin-left: -8px; border-radius: 6px;
+    transition: color .18s var(--ease), background .18s var(--ease);
+  }
+  .back:hover { color: var(--ink); background: var(--sink); }
+  .back svg { width: 15px; height: 15px; }
+  .lap {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 13px; color: var(--mut); letter-spacing: .02em;
+  }
+
+  main { padding: 38px 0 88px; }
+
+  /* ---------- feature header ---------- */
+  .f-head { margin-bottom: 26px; }
+  .f-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .f-id { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--mut); }
+  .dot-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--rule-2); }
+  .chip-pri {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--done-bg); color: var(--done-fg);
+    font-size: 13px; font-weight: 600; line-height: 1;
+    padding: 5px 10px; border-radius: var(--r-pill);
+  }
+  .chip-pri .tick { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .f-wf { font-size: 13px; color: var(--mut); }
+  .f-title { font-size: 28px; font-weight: 680; letter-spacing: -.02em; line-height: 1.15; margin: 0 0 10px; text-wrap: balance; }
+  .f-desc { font-size: 16px; color: var(--mut); margin: 0; max-width: 62ch; line-height: 1.55; }
+
+  /* ---------- cards ---------- */
+  .card { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r-card); box-shadow: var(--shadow-card); }
+
+  /* ---------- pit wall (gate) card ---------- */
+  .pitwall { padding: 26px 28px 24px; margin-bottom: 32px; }
+  .gate-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  .call { min-width: 0; }
+  .call-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .call-head { font-size: 21px; font-weight: 650; letter-spacing: -.01em; margin: 0; }
+  .chip-gate {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--marigold-bg); color: var(--marigold-fg);
+    font-size: 13px; font-weight: 650; line-height: 1;
+    padding: 6px 11px 6px 9px; border-radius: var(--r-pill);
+  }
+  .chip-gate svg { width: 13px; height: 13px; }
+  .call-sub { font-size: 15px; color: var(--mut); margin: 9px 0 0; max-width: 54ch; line-height: 1.5; }
+  .call-sub .mono { color: var(--ink-2); font-size: 14px; }
+
+  /* pit-board figure */
+  .figure { text-align: right; flex-shrink: 0; }
+  .figure .n {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 36px; font-weight: 700; letter-spacing: -.01em; line-height: 1; color: var(--ink);
+  }
+  .figure .n .den { color: var(--mut); font-weight: 500; }
+  .figure .lab { font-size: 13px; color: var(--mut); margin-top: 6px; }
+
+  /* ---------- the circuit ---------- */
+  .circuit { max-width: 620px; margin: 26px auto 10px; }
+  .circuit svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .trk { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .trk.passed { stroke: var(--powder-deep); stroke-width: 3.5px; }
+  .trk.gate-s { stroke: var(--marigold); stroke-width: 4px; }
+  .trk.ahead  { stroke: var(--ahead); stroke-width: 3px; }
+  .sec-tick { stroke: var(--rule-2); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+  .sec-tick.hot { stroke: var(--marigold); }
+  .car-ring { fill: #FFFFFF; stroke: var(--powder-deep); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+  .car-dot { fill: var(--ink); }
+  .flag-pole { stroke: var(--marigold-fg); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+  .flag-cloth { fill: var(--marigold); }
+  .sf-dark { fill: var(--ink); }
+  .sf-lite { fill: var(--rule-2); }
+
+  /* sector legend — the readout row (Autodromo tracked-caps labels) */
+  .sectors { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 0 2px; }
+  .sector { padding: 10px 2px 2px; border-top: 2px solid var(--rule); }
+  .sector.s-passed { border-top-color: var(--powder-deep); }
+  .sector.s-gate   { border-top-color: var(--marigold); }
+  .s-tag {
+    font-family: var(--mono); font-size: 13px; font-weight: 500;
+    letter-spacing: .08em; color: var(--mut); text-transform: uppercase;
+  }
+  .s-name { font-size: 14px; font-weight: 600; color: var(--ink-2); margin-top: 1px; }
+  .s-state { font-size: 13px; margin-top: 1px; color: var(--mut); }
+  .sector.s-passed .s-state { color: var(--powder-fg); }
+  .sector.s-gate .s-name  { color: var(--marigold-fg); }
+  .sector.s-gate .s-state { color: var(--marigold-fg); font-weight: 650; }
+
+  /* ---------- actions ---------- */
+  .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 22px; margin-top: 20px; border-top: 1px solid var(--rule); }
+  .btn {
+    font: inherit; font-size: 15px; font-weight: 600; line-height: 1;
+    border-radius: var(--r-btn); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 18px; border: 1px solid transparent;
+    transition: background .18s var(--ease), border-color .18s var(--ease), transform .12s var(--ease);
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--accent); color: #FFFFFF; }
+  .btn-primary:hover { background: var(--accent-press); }
+  .btn-primary svg { width: 15px; height: 15px; }
+  .btn-ghost { background: var(--surface); color: var(--ink-2); border-color: var(--rule-2); }
+  .btn-ghost:hover { background: var(--sink); }
+  .morph { margin: 14px 0 0; font-size: 13px; color: var(--mut); line-height: 1.7; display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; }
+  .morph b { color: var(--ink-2); font-weight: 600; margin-right: 2px; }
+  .morph .m-q { color: var(--mut); font-weight: 400; }
+  .morph .m-lab { color: var(--ink-2); font-weight: 550; }
+  .morph .arrow { color: var(--rule-2); }
+
+  /* ---------- tickets ---------- */
+  .sec-label {
+    font-family: var(--mono); font-size: 13px; font-weight: 500;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--mut); margin: 0 0 12px;
+  }
+  .tickets .card { padding: 6px 0; }
+  .t-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; padding: 15px 22px; }
+  .t-row + .t-row { border-top: 1px solid var(--rule); }
+  .t-id { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--mut); white-space: nowrap; }
+  .t-title { font-size: 16px; font-weight: 500; color: var(--ink); min-width: 0; }
+  .t-title .t-note { color: var(--mut); font-weight: 400; }
+  .t-right { display: flex; align-items: center; gap: 14px; justify-self: end; }
+  .t-elapsed { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; color: var(--mut); }
+
+  /* tiny 4-sector strip + finish dot */
+  .strip { display: inline-flex; align-items: center; gap: 3px; }
+  .strip i { display: block; width: 12px; height: 4px; border-radius: 2px; background: var(--ahead); }
+  .strip i.p { background: var(--powder); }
+  .strip i.c { background: var(--powder-deep); }
+  .strip i.g { background: var(--marigold); }
+  .strip .fin { width: 5px; height: 5px; border-radius: 50%; background: transparent; border: 1.5px solid var(--rule-2); margin-left: 2px; }
+  .strip .fin.hit { background: var(--ink); border-color: var(--ink); }
+
+  .chip { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; line-height: 1; padding: 6px 11px; border-radius: var(--r-pill); white-space: nowrap; }
+  .chip .d { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+  .chip.done { background: var(--done-bg); color: var(--done-fg); }
+  .chip.work { background: var(--powder-bg); color: var(--powder-fg); }
+  .chip.gate { background: var(--marigold-bg); color: var(--marigold-fg); }
+  .chip.idle { background: var(--idle-bg); color: var(--idle-fg); }
+  /* the one live marker on the page — semantic, reduced-motion-safe */
+  .chip .d.live { animation: breathe 1.8s ease-in-out infinite; }
+  @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+
+  .t-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding: 0 2px; }
+  .t-foot .k { font-size: 13.5px; color: var(--mut); }
+  .t-foot .k b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 620px) {
+    main { padding: 28px 0 64px; }
+    .wrap { padding: 0 18px; }
+    .livery .seg { left: 18px; }
+    .f-title { font-size: 24px; }
+    .pitwall { padding: 22px 18px 20px; }
+    .gate-top { gap: 14px; }
+    .car-ring { r: 11px; }
+    .car-dot { r: 5.5px; }
+    .flagg { transform: scale(1.5); transform-box: fill-box; transform-origin: left bottom; }
+    .figure { text-align: left; }
+    .figure .n { font-size: 32px; }
+    .sectors { gap: 6px; }
+    .s-name { font-size: 13px; }
+    .actions { gap: 10px; }
+    .btn { flex: 1 1 auto; justify-content: center; }
+    .t-row { grid-template-columns: 1fr auto; row-gap: 9px; padding: 14px 16px; }
+    .t-id { grid-column: 1; grid-row: 1; }
+    .t-right { grid-column: 2; grid-row: 1; }
+    .t-title { grid-column: 1 / -1; grid-row: 2; }
+    .t-elapsed { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+    .chip .d.live { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="livery" aria-hidden="true"><span class="seg"></span></div>
+
+  <header class="topbar">
+    <div class="wrap">
+      <a class="back" href="#board">
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M10 3.5 5.5 8 10 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Board
+      </a>
+      <span class="lap tnum">S3&thinsp;/&thinsp;4 &middot; elapsed 2h&thinsp;14m</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+
+      <!-- Feature header -->
+      <div class="f-head">
+        <div class="f-meta">
+          <span class="f-id">TKT-001</span>
+          <span class="dot-sep" aria-hidden="true"></span>
+          <span class="chip-pri"><span class="tick" aria-hidden="true"></span>High priority</span>
+          <span class="dot-sep" aria-hidden="true"></span>
+          <span class="f-wf">default workflow</span>
+        </div>
+        <h1 class="f-title">Subscriptions &amp; billing</h1>
+        <p class="f-desc">Recurring revenue: plan cards, Stripe checkout, webhook-driven activation, and a customer portal.</p>
+      </div>
+
+      <!-- Pit wall card -->
+      <section class="pitwall card" aria-labelledby="gate-head">
+        <div class="gate-top">
+          <div class="call">
+            <div class="call-row">
+              <h2 class="call-head" id="gate-head">Box this lap &mdash; review is ready</h2>
+              <span class="chip-gate">
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M4 14V2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  <path d="M4 3h8l-1.8 2.5L12 8H4" fill="currentColor"/>
+                </svg>
+                Waiting on you
+              </span>
+            </div>
+            <p class="call-sub"><span class="mono">TKT-003</span> finished building. Approve to send it to test, or send it back to build.</p>
+          </div>
+          <div class="figure">
+            <div class="n">1<span class="den">&thinsp;/&thinsp;4</span></div>
+            <div class="lab">tickets done</div>
+          </div>
+        </div>
+
+        <!-- The circuit: one closed line, four sectors, start/finish tick.
+             Sector-as-coloured-segment per the Monaco track map. -->
+        <figure class="circuit" role="img"
+          aria-label="Circuit diagram of the workflow. Sectors one and two, plan and build, are passed. The feature is held at sector three, review, which needs your call. Sector four, test, is ahead. The start-finish line is merge.">
+          <svg viewBox="0 0 760 208" xmlns="http://www.w3.org/2000/svg">
+            <!-- S1 · Plan (passed): SF -> kink -> bottom straight -> turn 1 up -->
+            <path class="trk passed" d="M330,178 L432,178 L446,178 L453,166 L469,166 L476,178 L520,178 C600,178 660,152 660,108"/>
+            <!-- S2 · Build (passed): right side up, corner, esses on the top straight -->
+            <path class="trk passed" d="M660,108 L660,70 C660,42 634,26 598,26 L500,26 C480,26 476,40 458,40 C440,40 434,26 414,26 L390,26"/>
+            <!-- S3 · Review (the gate): top straight into the left hairpin -->
+            <path class="trk gate-s" d="M390,26 L244,26 C200,26 170,44 170,76 L170,120"/>
+            <!-- S4 · Test (ahead): out of the hairpin, back to the line -->
+            <path class="trk ahead" d="M170,120 C170,152 192,168 228,172 L282,176 C302,178 308,178 330,178"/>
+
+            <!-- sector boundary ticks -->
+            <line class="sec-tick" x1="651" y1="108" x2="669" y2="108"/>
+            <line class="sec-tick" x1="161" y1="120" x2="179" y2="120"/>
+
+            <!-- start/finish: checker tick crossing the bottom straight -->
+            <g aria-hidden="true">
+              <rect class="sf-dark" x="326" y="167" width="4.5" height="4.5"/>
+              <rect class="sf-lite" x="330.5" y="167" width="4.5" height="4.5"/>
+              <rect class="sf-lite" x="326" y="171.5" width="4.5" height="4.5"/>
+              <rect class="sf-dark" x="330.5" y="171.5" width="4.5" height="4.5"/>
+              <rect class="sf-dark" x="326" y="176" width="4.5" height="4.5"/>
+              <rect class="sf-lite" x="330.5" y="176" width="4.5" height="4.5"/>
+              <rect class="sf-lite" x="326" y="180.5" width="4.5" height="4.5"/>
+              <rect class="sf-dark" x="330.5" y="180.5" width="4.5" height="4.5"/>
+              <rect class="sf-dark" x="326" y="185" width="4.5" height="4.5"/>
+              <rect class="sf-lite" x="330.5" y="185" width="4.5" height="4.5"/>
+            </g>
+
+            <!-- marshal flag just inside the gate sector -->
+            <g class="flagg" aria-hidden="true">
+              <line class="flag-pole" x1="360" y1="16" x2="360" y2="0"/>
+              <path class="flag-cloth" d="M360,1 h11 l-2.6,3.5 2.6,3.5 h-11 Z"/>
+            </g>
+
+            <!-- the feature, parked at the gate -->
+            <g aria-hidden="true">
+              <circle class="car-ring" cx="390" cy="26" r="7.5"/>
+              <circle class="car-dot" cx="390" cy="26" r="3.8"/>
+            </g>
+          </svg>
+        </figure>
+
+        <!-- Sector readout -->
+        <div class="sectors" role="list" aria-label="Sectors">
+          <div class="sector s-passed" role="listitem">
+            <span class="s-tag">S1</span>
+            <div class="s-name">Plan</div>
+            <div class="s-state">Passed</div>
+          </div>
+          <div class="sector s-passed" role="listitem">
+            <span class="s-tag">S2</span>
+            <div class="s-name">Build</div>
+            <div class="s-state">Passed</div>
+          </div>
+          <div class="sector s-gate" role="listitem" aria-current="step">
+            <span class="s-tag">S3</span>
+            <div class="s-name">Review</div>
+            <div class="s-state">Your call</div>
+          </div>
+          <div class="sector" role="listitem">
+            <span class="s-tag">S4</span>
+            <div class="s-name">Test</div>
+            <div class="s-state">Ahead</div>
+          </div>
+        </div>
+
+        <!-- The one action at the gate -->
+        <div class="actions">
+          <button class="btn btn-primary" type="button">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.4 6.6 11.5 12.5 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Approve &mdash; send to test
+          </button>
+          <button class="btn btn-ghost" type="button">Send back</button>
+        </div>
+        <p class="morph">
+          <b>This action follows the run:</b>
+          <span class="m-step"><span class="m-lab">Build this feature</span> <span class="m-q">(idle)</span></span>
+          <span class="arrow">&rarr;</span>
+          <span class="m-step"><span class="m-lab">Watch live</span> <span class="m-q">(running)</span></span>
+          <span class="arrow">&rarr;</span>
+          <span class="m-step"><span class="m-lab">Approve</span> <span class="m-q">(now)</span></span>
+          <span class="arrow">&rarr;</span>
+          <span class="m-step"><span class="m-lab">Merge</span> <span class="m-q">(after tests)</span></span>
+        </p>
+      </section>
+
+      <!-- Child tickets -->
+      <section class="tickets" aria-labelledby="t-label">
+        <p class="sec-label" id="t-label">Tickets</p>
+        <div class="card">
+          <div class="t-row">
+            <span class="t-id">TKT-002</span>
+            <span class="t-title">Pricing page with plan cards</span>
+            <span class="t-right">
+              <span class="t-elapsed">merged 2h ago</span>
+              <span class="strip" aria-hidden="true"><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><span class="fin hit"></span></span>
+              <span class="chip done"><span class="d" aria-hidden="true"></span>Done</span>
+            </span>
+          </div>
+          <div class="t-row">
+            <span class="t-id">TKT-003</span>
+            <span class="t-title">Stripe checkout session <span class="t-note">&#183; at the gate</span></span>
+            <span class="t-right">
+              <span class="t-elapsed">in review 6m</span>
+              <span class="strip" aria-hidden="true"><i class="p"></i><i class="p"></i><i class="g"></i><i></i><span class="fin"></span></span>
+              <span class="chip gate"><span class="d" aria-hidden="true"></span>Reviewing</span>
+            </span>
+          </div>
+          <div class="t-row">
+            <span class="t-id">TKT-004</span>
+            <span class="t-title">Webhook: activate subscription</span>
+            <span class="t-right">
+              <span class="t-elapsed">building 3m</span>
+              <span class="strip" aria-hidden="true"><i class="p"></i><i class="c"></i><i></i><i></i><span class="fin"></span></span>
+              <span class="chip work"><span class="d live" aria-hidden="true"></span>Building</span>
+            </span>
+          </div>
+          <div class="t-row">
+            <span class="t-id">TKT-005</span>
+            <span class="t-title">Customer portal link</span>
+            <span class="t-right">
+              <span class="t-elapsed">not started</span>
+              <span class="strip" aria-hidden="true"><i></i><i></i><i></i><i></i><span class="fin"></span></span>
+              <span class="chip idle"><span class="d" aria-hidden="true"></span>Backlog</span>
+            </span>
+          </div>
+        </div>
+        <div class="t-foot">
+          <span class="k"><b>1 of 4</b> tickets done</span>
+          <span class="k">TKT-003 needs your call</span>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+</body>
+</html>

@@ -4,7 +4,10 @@ import path from 'path';
 import inquirer from 'inquirer';
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir, resolveProductDir } from '../lib/config.js';
 import { getFeatureTickets, listEpics } from '../lib/tickets.js';
-import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, listWorkflows, assertTicketFree, workflowNameForTicket, freewillRefusal } from '../lib/workflow.js';
+import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, resolveWorkflowName, featureBranchName, listWorkflows, assertTicketFree, workflowNameForTicket, freewillRefusal } from '../lib/workflow.js';
+import {
+  resolveOrchestration, assertWorkflowScriptCurrent, ticketSnapshot, buildWorkflowArgs, formatWorkflowInvocation,
+} from '../lib/workflow-script.js';
 import { findTicket } from '../lib/tickets.js';
 import { VALID_AGENTS } from '../lib/agent-registry.js';
 import { resolveModel, resolveEffort } from '../lib/models.js';
@@ -171,6 +174,52 @@ Modes:
         // A feature run drives its CHILDREN, so the epic's claim says nothing
         // about whether the work is free.
         if (epicData) for (const child of epicData.children) assertTicketFree(ticketsDir, child.id);
+
+        // Opt-in (.bobbyrc.yml orchestration: workflow): print the saved Claude Code
+        // Workflow call instead of the prose orchestration prompt. A bad value, a
+        // wrong target, or a missing/stale script is an error, never a fallback.
+        const orchestration = (agent === 'workflow' || agent === 'feature') ? resolveOrchestration(config) : 'prompt';
+        if (orchestration === 'workflow') {
+          const wfName = resolveWorkflowName(opts.workflow || 'default', ticketPipeline);
+          assertWorkflowScriptCurrent(root, config, wfName);
+          const gitConv = config.git_conventions || {};
+          const commands = config.commands || {};
+          let label, mode, tickets, readFirst = [], planReadFirst = [], finalize = null, branchGuard;
+          if (agent === 'workflow') {
+            if (ticketIds.length === 0) throw new Error('Workflow mode requires at least one ticket ID');
+            tickets = ticketIds.map(id => {
+              const found = findTicket(ticketsDir, id);
+              if (!found) throw new Error(`Ticket ${id} not found`);
+              return ticketSnapshot(found.data);
+            });
+            mode = 'tickets';
+            label = `Bobby Workflow — ${ticketIds.length} ticket(s)`;
+            branchGuard = `run \`git branch --show-current\`. If on main/master, create a feature branch: \`git checkout -b ${gitConv.ticket_branch_prefix || 'tkt'}-${ticketIds[0]}\` before running any agents. NEVER commit directly to main/master.`;
+          } else {
+            const { epicId, epic, children } = epicData;
+            tickets = children.map(ticketSnapshot);
+            mode = 'feature';
+            readFirst = [path.join(ticketsDir, epic.dirname, 'feature-plan.md')];
+            planReadFirst = children.map(c => path.join(ticketsDir, c.dirname, 'plan.md'));
+            finalize = { kind: 'epic', id: epicId };
+            label = `Bobby Feature — ${epicId}: ${epic.data.title}`;
+            branchGuard = `run \`git branch --show-current\`. If on main/master, create a feature branch: \`git checkout -b ${featureBranchName(epicId, epic.data.title, gitConv)}\`. NEVER commit directly to main/master.`;
+          }
+          const wfArgs = buildWorkflowArgs({
+            mode, tickets, workflow: pipeline, maxRetries, maxIterations, readFirst, planReadFirst, finalize,
+            commands: { test: commands.test, lint: commands.lint }, hasServices,
+          });
+          console.log('');
+          console.log(`  ${bold(label)}  ${dim(`Session: ${sessionId}`)}`);
+          console.log(`  ${dim(`saved workflow · .claude/workflows/bobby-${wfName}.js`)}`);
+          console.log(`  ${dim(hint)}`);
+          if (agent === 'feature') {
+            console.log(`  ${dim('Launch with: isolation: "worktree" (keeps main clean)')}`);
+          }
+          console.log('');
+          console.log(withSession(formatWorkflowInvocation({ name: wfName, args: wfArgs, branchGuard }), sessionId));
+          return;
+        }
 
         // Build the prompt via the unified dispatcher
         let built;

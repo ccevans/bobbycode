@@ -1,7 +1,7 @@
 // commands/create.js
 import path from 'path';
 import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
-import { createTicket, listTickets } from '../lib/tickets.js';
+import { createTicket, findTicket, listTickets } from '../lib/tickets.js';
 import { assertSize } from '../lib/workflow.js';
 import { success, warn, error } from '../lib/colors.js';
 import { tryLogEntry } from '../lib/session.js';
@@ -19,6 +19,7 @@ export function registerCreate(program) {
     .option('--parent <id>', 'Parent epic ticket ID')
     .option('--services <names>', 'Comma-separated service names this ticket touches')
     .option('--repos <names>', 'Comma-separated repos from the project group this ticket touches (v2)')
+    .option('--found-in <id>', 'Ticket this was found while working on (agent-filed findings await product review)')
     .option('--workflow <name>', 'Named workflow to run this ticket through (default, secure, quick, or your own)')
     .option('--feature <id>', 'Feature-map row this ticket implements (e.g. F1.2) — see .bobby/product/feature-map.md')
     .option('--persona <id>', 'Persona this ticket serves (e.g. P1) — see .bobby/product/personas.md')
@@ -43,6 +44,11 @@ export function registerCreate(program) {
           }
         }
 
+        if (opts.foundIn && !findTicket(ticketsDir, opts.foundIn)) {
+          error(`--found-in ${opts.foundIn}: no such ticket`);
+          process.exit(1);
+        }
+
         const result = createTicket(ticketsDir, {
           prefix: config.ticket_prefix,
           title: opts.title.trim(),
@@ -57,10 +63,14 @@ export function registerCreate(program) {
           feature: opts.feature || null,
           persona: opts.persona || null,
           size: opts.size ? assertSize(opts.size) : null,
+          foundIn: opts.foundIn || null,
         });
         success(`Created ${result.id} — ${opts.title}`);
         console.log(`  → ${config.tickets_dir}/${result.dirname}/`);
-        tryLogEntry(root, config, { type: 'create', ticket: result.id, title: opts.title, ticketType: opts.epic ? 'epic' : opts.type, parent: opts.parent || null });
+        if (opts.foundIn) {
+          console.log(`  → Found in ${opts.foundIn} — awaiting product review`);
+        }
+        tryLogEntry(root, config, { type: 'create', ticket: result.id, title: opts.title, ticketType: opts.epic ? 'epic' : opts.type, parent: opts.parent || null, foundIn: opts.foundIn || null });
         if (opts.epic) {
           console.log(`  → Type: epic — run 'bobby run plan ${result.id}' to break it down`);
         }

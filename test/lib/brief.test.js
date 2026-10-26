@@ -107,6 +107,39 @@ describe('buildBrief', () => {
     expect(b.sprints).toHaveLength(1);
     expect(b.sprints[0]).toMatchObject({ id: 'SPR-001', total: 2, done: 0 });
   });
+
+  describe('agent-filed tickets (--found-in)', () => {
+    test('counts agent-filed backlog tickets and shows them in `bobby brief`', () => {
+      run('ticket create -t "Human one"');                                    // TKT-001
+      run('ticket create -t "Found one" --found-in TKT-001');                  // TKT-002
+      run('ticket create -t "Found and planned" --found-in TKT-001');          // TKT-003
+      run('ticket move TKT-003 plan');
+      const b = buildBrief(ticketsDir(), sprintsDir());
+      expect(b.agentFiled.map(t => t.id)).toEqual(['TKT-002']);
+      const out = run('brief');
+      expect(out).toContain('1 filed by agents, awaiting product review');
+      expect(out).toContain('found in TKT-001');
+    });
+
+    test('the next action never starts an agent-filed ticket', () => {
+      run('ticket create -t "Done thing" -p low');                              // TKT-001
+      run('ticket move TKT-001 done');
+      run('ticket create -t "Urgent finding" -p critical --found-in TKT-001'); // TKT-002
+      run('ticket create -t "Human work" -p low');                             // TKT-003
+      const b = buildBrief(ticketsDir(), sprintsDir());
+      expect(b.nextAction.argv).toEqual(['run', 'workflow', 'TKT-003']);
+    });
+
+    test('only agent-filed tickets left: next action is product review, not "Board is empty"', () => {
+      run('ticket create -t "Done thing"');                                    // TKT-001
+      run('ticket move TKT-001 done');
+      run('ticket create -t "A finding" --found-in TKT-001');                  // TKT-002
+      const b = buildBrief(ticketsDir(), sprintsDir());
+      expect(b.nextAction.reason).toContain('filed by agents await product review');
+      expect(b.nextAction.command).toBe('bobby ticket triage');
+      expect(b.nextAction.argv).toBeNull();
+    });
+  });
 });
 
 describe('define-pipeline routing', () => {

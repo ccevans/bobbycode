@@ -1,11 +1,12 @@
 // commands/move.js
 import path from 'path';
 import { readConfig, findProjectRoot, resolveTicketsDir, findMainWorktreeRoot } from '../lib/config.js';
-import { moveTicket, findTicket, readTicket, writeTicket } from '../lib/tickets.js';
+import { moveTicket, findTicket, addComment, readTicket, writeTicket } from '../lib/tickets.js';
 import { resolveTransition, stageColor } from '../lib/stages.js';
-import { success, bold, dim, error } from '../lib/colors.js';
+import { success, warn, bold, dim, error } from '../lib/colors.js';
 import { tryLogEntry } from '../lib/session.js';
 import { assertWalkedBeforeDone } from '../lib/walk.js';
+import { runScopeCheck, formatScopeCheck } from '../lib/scope-check.js';
 import { computeWorktreePlacement, removeWorktree } from '../lib/dashboard/worktree.js';
 
 // Auto-reclaim a ticket's worktree once it ships. Ship has already pushed the
@@ -37,6 +38,9 @@ function autoRemoveShippedWorktree(root, config, ticketsDir, id) {
     return null;
   }
 }
+
+// Leaving building for any of these runs the scope check (reject/block/unblock never do).
+const SCOPE_CHECK_TARGETS = ['security', 'reviewing', 'testing', 'shipping', 'done'];
 
 export function registerMove(program) {
   program
@@ -101,6 +105,10 @@ export function registerMove(program) {
         success(`${bold(id)} → ${colorFn(targetStage)}`);
         tryLogEntry(root, config, { type: 'move', ticket: id, from: fromStage, to: targetStage, detail: comment });
 
+        if (fromStage === 'building' && SCOPE_CHECK_TARGETS.includes(targetStage)) {
+          scopeCheck({ ticketsDir, before, id, root, config });
+        }
+
         if (targetStage === 'done') {
           const cleanup = autoRemoveShippedWorktree(root, config, ticketsDir, id);
           if (cleanup) console.log(dim(`  worktree reclaimed${cleanup.docker?.tornDown ? ' (docker stack torn down)' : ''}`));
@@ -110,4 +118,24 @@ export function registerMove(program) {
         process.exit(1);
       }
     });
+}
+
+// Warn-only: the move has already happened, so nothing in here may fail it.
+function scopeCheck({ ticketsDir, before, id, root, config }) {
+  try {
+    const result = runScopeCheck({
+      cwd: process.cwd(),
+      ticketPath: before.path,
+      studioRoot: config.studio ? root : null,
+    });
+    const { lines, comment } = formatScopeCheck(result, id);
+    const clean = result.status === 'clean' || result.status === 'empty';
+    lines.forEach((line, i) => {
+      if (i === 0) (clean ? success : warn)(line);
+      else console.log(`   ${line}`);
+    });
+    if (comment) addComment(ticketsDir, id, 'scope-check', comment);
+  } catch (e) {
+    warn(`Scope check failed: ${e.message}`);
+  }
 }

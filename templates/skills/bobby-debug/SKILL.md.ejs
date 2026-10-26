@@ -61,9 +61,15 @@ The debug agent has a strict scope:
 - Do NOT refactor surrounding code, even if it's messy
 - Do NOT add features or enhancements
 - Do NOT change unrelated tests
-- If you discover other issues, file them: `bobby ticket create -t "Found during debug: {issue}" --type bug`
 - Maximum 3 fix attempts. If you cannot fix after 3 tries, escalate:
   `bobby ticket move {ID} block "Debug: tried 3 approaches, none resolved the issue. Root cause analysis: {what you found}"`
+
+**Out-of-scope findings.** Anything this ticket does not need (other bugs, messy code next to the fix, unrelated failing tests) is not yours to fix. Check `bobby ticket list` for a duplicate, then file it:
+`bobby ticket create -t "<what is wrong>" --type bug -p <priority> -a bobby-debug --found-in {ID}`
+`bobby ticket comment <new ID> --by bobby-debug "<what you saw, where, how to reproduce, why it matters>"`
+- Exploitable in production now → `-p critical`, don't fix it here, and lead your report with **Decision needed**.
+- It blocks this ticket → file it, `bobby ticket move {ID} block "needs <new ID>"`, and stop.
+- End your report with `Filed: <ID> — <title>` for each one, or `Filed: none`.
 </scope_lock>
 
 ## Attempt Tracking
@@ -96,7 +102,8 @@ If all 3 attempts fail, block the ticket with your analysis.
 3. Run full test suite and lint — show output as evidence
 4. Add comment: `bobby ticket comment {ID} --by bobby-debug "Root cause: {explanation}. Fix: {what was changed}"`
 5. If pattern is worth remembering: `bobby learn bobby-debug "pattern" "description"` and `bobby retro {ID} "pattern"`
-6. Move to review: `bobby ticket move {ID} review`
+6. List anything you filed: `Filed: <ID> — <title>` (or `Filed: none`).
+7. Move to review: `bobby ticket move {ID} review`
 
 ## Self-Check Before Completing
 

@@ -292,6 +292,17 @@ If the ticket or its parent epic references a design mockup (HTML file, screensh
 
 Skip this section if no design reference is found.
 
+## Findings Outside the Ticket
+
+Test what this ticket changed. A bug in a feature this ticket did not change is filed, and is not a reason to reject. A regression this ticket caused **is** a rejection.
+
+**Out-of-scope findings.** Anything this ticket does not need (a bug on a page or feature the ticket did not change, copy, a design nit) is not yours to fix. Check `bobby ticket list` for a duplicate, then file it:
+`bobby ticket create -t "<what is wrong>" --type bug -p <priority> -a bobby-test --found-in {ID}`
+`bobby ticket comment <new ID> --by bobby-test "<what you saw, where, how to reproduce, why it matters>"`
+- Exploitable in production now → `-p critical`, don't fix it here, and lead your report with **Decision needed**.
+- It blocks this ticket → file it, `bobby ticket move {ID} block "needs <new ID>"`, and stop.
+- End your report with `Filed: <ID> — <title>` for each one, or `Filed: none`.
+
 ## Self-Check Before Verdict
 
 <self_check>
@@ -330,7 +341,7 @@ Compaction can happen at any moment, so keep `progress.md` in the ticket folder 
 
 ## Key Principles
 
-- **Test what the ticket says** — Don't scope-creep to unrelated features
+- **Test what the ticket says** — file what you find elsewhere (`bobby ticket create … --found-in {ID}`); don't reject for it
 - **Live app only** — Verify through the browser and API calls, not by reading source code
 - **Evidence over assertion** — Always provide screenshots and response output as proof
 - **Be specific** — "Page looks wrong" is not useful. "Hero section missing CTA button, screenshot attached" is useful

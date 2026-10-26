@@ -23,7 +23,10 @@ export function registerTriage(program) {
         if (opts.area) filters.area = opts.area;
         if (opts.stale) filters.staleDays = parseInt(opts.stale, 10);
 
-        const tickets = listTickets(ticketsDir, filters);
+        const listed = listTickets(ticketsDir, filters);
+        // Agent-filed findings first: product has not seen them yet.
+        const agentFiled = listed.filter(t => t.found_in);
+        const tickets = [...agentFiled, ...listed.filter(t => !t.found_in)];
 
         if (tickets.length === 0) {
           console.log(`  ${dim('No backlog tickets to triage.')}`);
@@ -33,6 +36,9 @@ export function registerTriage(program) {
         console.log('');
         console.log(`  ${bold('BACKLOG TRIAGE')} — ${tickets.length} ticket(s)`);
         console.log('  ═══════════════════════════════════════════════════');
+        if (agentFiled.length > 0) {
+          console.log(`  ${agentFiled.length} filed by agents, awaiting product review (shown first)`);
+        }
         console.log('');
 
         const summary = { kept: 0, prioritized: 0, planned: 0, archived: 0, skipped: 0 };
@@ -45,7 +51,7 @@ export function registerTriage(program) {
             !/\[First criterion\]/.test(ticket.content);
 
           console.log(`  ${bold(t.id)}  ${t.title}`);
-          console.log(`  ${dim(`Priority: ${t.priority} · Area: ${t.area || 'none'} · Age: ${age} days · AC: ${hasAC ? 'yes' : 'missing'}`)}`);
+          console.log(`  ${dim(`Priority: ${t.priority} · Area: ${t.area || 'none'} · Age: ${age} days · AC: ${hasAC ? 'yes' : 'missing'}${t.found_in ? ` · Found in: ${t.found_in} by ${t.author}` : ''}`)}`);
           console.log('');
 
           const { action } = await inquirer.prompt([{

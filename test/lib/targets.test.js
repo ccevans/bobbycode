@@ -1,6 +1,7 @@
 // test/lib/targets.test.js
 import { getTarget, TARGETS } from '../../lib/targets/index.js';
 import { scaffoldProject } from '../../commands/init.js';
+import { getBobbyPaths } from '../../lib/auto-sync.js';
 import { buildSingleAgentPrompt, buildBatchStagePrompt, buildOrchestrationPrompt, DEFAULT_WORKFLOW } from '../../lib/workflow.js';
 import fs from 'fs';
 import path from 'path';
@@ -447,6 +448,43 @@ describe('pipeline prompts with cline target', () => {
     );
     expect(prompt).toContain('.clinerules/agents/bobby-plan.md');
     expect(prompt).not.toContain('.claude/agents/');
+  });
+});
+
+describe('workflow scripts are claude-code only (TKT-073)', () => {
+  let tmpDir;
+  const cfg = (target) => ({
+    project: 'test-app', stack: 'nextjs', target, orchestration: 'workflow',
+    health_checks: [], areas: [], commands: { test: 'npm test' },
+    tickets_dir: '.bobby/tickets', ticket_prefix: 'TKT',
+  });
+  beforeEach(() => { tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-wf-target-')); });
+  afterEach(() => { fs.rmSync(tmpDir, { recursive: true }); });
+
+  test.each(['cursor', 'cline', 'codex', 'opencode', 'copilot', 'agents-md'])('%s scaffold with orchestration: workflow writes no scripts', (target) => {
+    scaffoldProject(tmpDir, cfg(target));
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'workflows'))).toBe(false);
+  });
+
+  test('claude-code scaffold with the flag writes them', () => {
+    scaffoldProject(tmpDir, cfg('claude-code'));
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'workflows', 'bobby-default.js'))).toBe(true);
+  });
+
+  // The target-matrix contract (BOB-078) says every extraPath exists after a
+  // default scaffold, so the workflows dir is an extra path only when the
+  // flag makes scaffoldExtras write it.
+  test('claude-code extraPaths names .claude/workflows only under orchestration: workflow', () => {
+    const t = getTarget('claude-code');
+    expect(t.extraPaths({ orchestration: 'workflow' })).toEqual(['.claude/workflows']);
+    expect(t.extraPaths({})).toEqual([]);
+    expect(t.extraPaths()).toEqual([]);
+  });
+
+  test('getBobbyPaths stages .claude/workflows when the flag is on', () => {
+    fs.writeFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'orchestration: workflow\n');
+    scaffoldProject(tmpDir, cfg('claude-code'));
+    expect(getBobbyPaths(tmpDir)).toContain('.claude/workflows');
   });
 });
 

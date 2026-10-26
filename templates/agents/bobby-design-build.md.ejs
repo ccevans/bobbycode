@@ -28,6 +28,13 @@ Follow **Step 6** of `<%= paths.skills %>/bobby-design/SKILL.md`.
 
 **Render your own build and look at it** at 375 / 768 / 1440, in both themes, with JS off. Then diff every value against the spec — anything in the build that is not in the spec is drift, not a decision.
 
+**Out-of-scope findings.** Anything this ticket does not need (other pages, copy, components outside the spec) is not yours to fix. Check `bobby ticket list` for a duplicate, then file it:
+`bobby ticket create -t "<what is wrong>" --type bug -p <priority> -a bobby-design-build --found-in {ID}`
+`bobby ticket comment <new ID> --by bobby-design-build "<what you saw, where, how to reproduce, why it matters>"`
+- Exploitable in production now → `-p critical`, don't fix it here, and lead your report with **Decision needed**.
+- It blocks this ticket → file it, `bobby ticket move {ID} block "needs <new ID>"`, and stop.
+- End your report with `Filed: <ID> — <title>` for each one, or `Filed: none`.
+
 Do **not** mark this done on your own certification. Hand off to **bobby-design-check**.
 
 ## Project overrides

@@ -210,13 +210,24 @@ Once each repo's PR has merged and its deploy (if any) is verified:
 
 3. Run `bobby sync` to commit ticket state changes to the umbrella repo
 
+## Stay in the Ticket
+
+CI or rebase failures caused by this ticket's change are in scope. Failures in code the ticket did not touch are not yours to fix.
+
+**Out-of-scope findings.** Anything this ticket does not need (a failing test in code the ticket did not touch, a flaky CI job, a config problem) is not yours to fix. Check `bobby ticket list` for a duplicate, then file it:
+`bobby ticket create -t "<what is wrong>" --type bug -p <priority> -a bobby-ship --found-in {ID}`
+`bobby ticket comment <new ID> --by bobby-ship "<what you saw, where, how to reproduce, why it matters>"`
+- Exploitable in production now → `-p critical`, don't fix it here, and lead your report with **Decision needed**.
+- It blocks this ticket → file it, `bobby ticket move {ID} block "needs <new ID>"`, and stop.
+- End your report with `Filed: <ID> — <title>` for each one, or `Filed: none`.
+
 ## Checkpointing
 
 Compaction can happen at any moment, so keep `progress.md` in the ticket folder (the directory holding `ticket.md`) current as you go, not when you are warned. After a compaction a hook hands this file back to you, so write it for a reader who remembers nothing: ticket id, branch, per repo: pull request URL, CI result, merged or not, deployed or not, and the exact next action. Write each pull request URL the moment `gh pr create` returns, and mark a repo merged the moment `gh pr merge` succeeds. Before merging, read the file: after a compaction, merging twice or skipping a deploy are the mistakes to avoid. Delete the file once the ticket is `done`.
 
 ## If Something Goes Wrong
 
-- If CI fails: fix and re-push
+- If CI fails because of this ticket's change: fix and re-push. If it fails on something this ticket didn't touch: file it, block, stop (see Stay in the Ticket).
 - If deployment fails: investigate, don't retry blindly
 - Document issues: `bobby learn bobby-ship "pattern" "description"`
 

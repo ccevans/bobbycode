@@ -1,0 +1,3 @@
+{"type":"started","key":"v2:fdbd995e1a71fd5a2cc3047a8d974733c35c667e1c48a832047b58b8d34bcdaf","agentId":"a60c44e02a50a646e"}
+{"type":"result","key":"v2:fdbd995e1a71fd5a2cc3047a8d974733c35c667e1c48a832047b58b8d34bcdaf","agentId":"a60c44e02a50a646e","result":{"ticket":"TKT-001","stage":"reviewing","verdict":"advanced","reason":"Created hello.txt at repo root containing exactly \"hi\" (verified via od -c), committed 931e90c + d3ec078 on branch tkt-TKT-001; no test/lint commands configured and ticket specifies none, working tree clean of source files."}}
+{"type":"started","key":"v2:5fa14dbfaa0297fcf14c5d07fe5ae14397af4903e650c4f141fb56b6b6360f3b","agentId":"ac1c8913e9951c2c4"}

@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Subscriptions &amp; billing — Feature</title>
+<style>
+  /* ============================================================
+     Bobby · Feature view — CLEAN & MINIMAL register
+     Light-first. Tokens extracted from teardowns:
+       ground/ink/muted  -> GitHub Actions (light, blue-biased)
+       tonal stage system -> GitLab CI pipelines (tint-bg + dark same-hue text)
+       "waiting on you" amber gate -> GitHub Actions "Action required"
+       big-figure progress readout -> Plausible
+       stage-ribbon anatomy -> Buildkite / GitLab
+     ============================================================ */
+
+  :root {
+    /* Neutrals — a PICKED cool ground (blue-biased), never pure white, never cream */
+    --page:        #F6F8FA;   /* GitHub canvas, extracted */
+    --surface:     #FFFFFF;
+    --surface-sink:#FBFCFD;
+    --ink:         #1F2328;   /* GitHub ink, extracted */
+    --ink-2:       #3B424B;
+    --mut:         #59636E;   /* GitHub muted, extracted */
+    --faint:       #8A929C;
+    --rule:        #E5E9ED;
+    --rule-2:      #D8DEE4;
+
+    /* One accent — brand blue. Does primary + focus. Cool, to harmonise with the cool ground. */
+    --accent:      #005FC6;
+    --accent-press:#00519F;
+    --accent-ink:  #FFFFFF;
+    --accent-weak: #E7F0FB;
+    --focus:       #005FC6;
+
+    /* Semantic STAGE colours — separate from the accent.
+       GitLab tonal system, backgrounds softened toward the minimal register,
+       same-hue dark text retained (contrast re-verified >= 4.5:1). */
+    --done-bg:  #E4F1E9;  --done-fg:  #1F6E43;  --done-ring: #57A97C;
+    --work-bg:  #E1EDFB;  --work-fg:  #2F5CA0;  --work-ring: #6DA2DE;
+    --gate-bg:  #FBF0D6;  --gate-fg:  #7A5300;  --gate-ring: #C79127;  /* GitHub "Action required" amber */
+    --idle-bg:  #ECEEF1;  --idle-fg:  #5C6169;  --idle-ring: #C2C8CF;
+
+    --pri-bg:   #EDEFF2;  --pri-fg:   #7A5300;  /* priority = high, warm-neutral chip */
+
+    /* Radii — cards 12, tags full-pill, buttons 8 */
+    --r-card: 12px;
+    --r-btn:  8px;
+    --r-pill: 999px;
+
+    --shadow-card: 0 1px 2px rgba(20,30,45,.04);
+
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, "Cascadia Code", monospace;
+
+    --maxw: 880px;
+    --ease: cubic-bezier(.3, .8, .6, 1); /* GitHub Primer easeOut, extracted */
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page:        #14171B;
+      --surface:     #1B1F25;
+      --surface-sink:#22272E;
+      --ink:         #E7ECF1;
+      --ink-2:       #C3CBD4;
+      --mut:         #8B95A1;
+      --faint:       #6E7883;
+      --rule:        #2A3038;
+      --rule-2:      #353D46;
+
+      --accent:      #6BAEFF;  /* lighter, slightly desaturated for dark */
+      --accent-press:#8CC1FF;
+      --accent-ink:  #08131F;
+      --accent-weak: #172A40;
+      --focus:       #6BAEFF;
+
+      --done-bg:  #16301F;  --done-fg:  #74D69C;  --done-ring: #2F7A50;
+      --work-bg:  #142740;  --work-fg:  #86BAF6;  --work-ring: #2F5CA0;
+      --gate-bg:  #322611;  --gate-fg:  #E8C271;  --gate-ring: #B7861F;
+      --idle-bg:  #262C33;  --idle-fg:  #98A2AD;  --idle-ring: #3A424C;
+
+      --pri-bg:   #2B2C30;  --pri-fg:   #E8C271;
+
+      --shadow-card: none;
+    }
+  }
+  /* Explicit toggle overrides win in both directions */
+  :root[data-theme="light"] {
+    --page:#F6F8FA; --surface:#FFFFFF; --surface-sink:#FBFCFD;
+    --ink:#1F2328; --ink-2:#3B424B; --mut:#59636E; --faint:#8A929C;
+    --rule:#E5E9ED; --rule-2:#D8DEE4;
+    --accent:#005FC6; --accent-press:#00519F; --accent-ink:#FFFFFF; --accent-weak:#E7F0FB; --focus:#005FC6;
+    --done-bg:#E4F1E9; --done-fg:#1F6E43; --done-ring:#57A97C;
+    --work-bg:#E1EDFB; --work-fg:#2F5CA0; --work-ring:#6DA2DE;
+    --gate-bg:#FBF0D6; --gate-fg:#7A5300; --gate-ring:#C79127;
+    --idle-bg:#ECEEF1; --idle-fg:#5C6169; --idle-ring:#C2C8CF;
+    --pri-bg:#EDEFF2; --pri-fg:#7A5300;
+    --shadow-card:0 1px 2px rgba(20,30,45,.04);
+  }
+  :root[data-theme="dark"] {
+    --page:#14171B; --surface:#1B1F25; --surface-sink:#22272E;
+    --ink:#E7ECF1; --ink-2:#C3CBD4; --mut:#8B95A1; --faint:#6E7883;
+    --rule:#2A3038; --rule-2:#353D46;
+    --accent:#6BAEFF; --accent-press:#8CC1FF; --accent-ink:#08131F; --accent-weak:#172A40; --focus:#6BAEFF;
+    --done-bg:#16301F; --done-fg:#74D69C; --done-ring:#2F7A50;
+    --work-bg:#142740; --work-fg:#86BAF6; --work-ring:#2F5CA0;
+    --gate-bg:#322611; --gate-fg:#E8C271; --gate-ring:#B7861F;
+    --idle-bg:#262C33; --idle-fg:#98A2AD; --idle-ring:#3A424C;
+    --pri-bg:#2B2C30; --pri-fg:#E8C271;
+    --shadow-card:none;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .mono { font-family: var(--mono); }
+
+  a { color: inherit; }
+
+  :where(a, button, [tabindex]):focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* ---------- shell ---------- */
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  .topbar {
+    border-bottom: 1px solid var(--rule);
+    background: color-mix(in srgb, var(--page) 88%, transparent);
+  }
+  .topbar .wrap {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 56px;
+  }
+  .back {
+    display: inline-flex; align-items: center; gap: 8px;
+    text-decoration: none; color: var(--mut);
+    font-size: 14px; font-weight: 500;
+    padding: 6px 8px; margin-left: -8px; border-radius: 6px;
+    transition: color .18s var(--ease), background .18s var(--ease);
+  }
+  .back:hover { color: var(--ink); background: var(--surface-sink); }
+  .back svg { width: 15px; height: 15px; }
+
+  .theme-toggle {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: transparent; border: 1px solid var(--rule-2); color: var(--mut);
+    font: inherit; font-size: 13px; font-weight: 500;
+    padding: 6px 11px; border-radius: var(--r-pill); cursor: pointer;
+    transition: color .18s var(--ease), border-color .18s var(--ease);
+  }
+  .theme-toggle:hover { color: var(--ink); border-color: var(--rule-2); }
+  .theme-toggle svg { width: 14px; height: 14px; }
+
+  main { padding: 40px 0 88px; }
+
+  /* ---------- feature header ---------- */
+  .f-head { margin-bottom: 28px; }
+  .f-meta {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .f-id {
+    font-family: var(--mono); font-size: 13px; font-weight: 500;
+    color: var(--mut); letter-spacing: .01em;
+  }
+  .dot-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--rule-2); }
+  .chip-pri {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--pri-bg); color: var(--pri-fg);
+    font-size: 13px; font-weight: 600; line-height: 1;
+    padding: 5px 10px; border-radius: var(--r-pill);
+  }
+  .chip-pri .tick { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .f-wf { font-size: 13px; color: var(--mut); }
+  .f-title {
+    font-size: 28px; font-weight: 680; letter-spacing: -.02em; line-height: 1.15;
+    margin: 0 0 10px; text-wrap: balance;
+  }
+  .f-desc {
+    font-size: 16px; color: var(--mut); margin: 0; max-width: 62ch; line-height: 1.55;
+  }
+
+  /* ---------- section label ---------- */
+  .sec-label {
+    font-family: var(--mono);
+    font-size: 13px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--faint); margin: 0 0 12px;
+  }
+
+  /* ---------- cards ---------- */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* ---------- gate / briefing card ---------- */
+  .gate { padding: 28px 28px 24px; margin-bottom: 32px; }
+  .gate-top {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 24px;
+    flex-wrap: wrap;
+  }
+  .gate-state { min-width: 0; }
+  .state-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .state-head {
+    font-size: 21px; font-weight: 650; letter-spacing: -.01em; margin: 0;
+  }
+  .chip-gate {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--gate-bg); color: var(--gate-fg);
+    font-size: 13px; font-weight: 650; line-height: 1;
+    padding: 6px 11px 6px 9px; border-radius: var(--r-pill);
+  }
+  .chip-gate svg { width: 14px; height: 14px; }
+  .state-sub {
+    font-size: 15px; color: var(--mut); margin: 10px 0 0; max-width: 54ch; line-height: 1.5;
+  }
+  .state-sub .mono { color: var(--ink-2); font-size: 14px; }
+
+  /* big-figure progress (Plausible) */
+  .figure { text-align: right; flex-shrink: 0; }
+  .figure .n {
+    font-size: 34px; font-weight: 720; letter-spacing: -.02em; line-height: 1;
+    color: var(--ink);
+  }
+  .figure .n .den { color: var(--faint); font-weight: 600; }
+  .figure .lab {
+    font-size: 13px; color: var(--mut); margin-top: 6px; letter-spacing: .01em;
+  }
+
+  /* ---------- pipeline ribbon ---------- */
+  .pipeline {
+    margin: 26px 0 14px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    align-items: start;
+  }
+  .stage { position: relative; text-align: center; padding-top: 4px; }
+  /* connector to the NEXT stage */
+  .stage::after {
+    content: ""; position: absolute; top: 17px; left: 50%; width: 100%; height: 2px;
+    background: var(--rule-2); z-index: 0;
+  }
+  .stage:last-child::after { display: none; }
+  .stage.done::after { background: var(--done-ring); }
+
+  .node {
+    position: relative; z-index: 1;
+    width: 30px; height: 30px; border-radius: 50%;
+    margin: 0 auto 10px;
+    display: grid; place-items: center;
+    background: var(--surface);
+    border: 2px solid var(--idle-ring);
+    color: var(--idle-fg);
+  }
+  .node svg { width: 15px; height: 15px; }
+  .stage.done .node {
+    background: var(--done-bg); border-color: var(--done-ring); color: var(--done-fg);
+  }
+  .stage.gate .node {
+    width: 34px; height: 34px; margin-top: -2px;
+    background: var(--gate-bg); border-color: var(--gate-ring); color: var(--gate-fg);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--gate-ring) 22%, transparent);
+  }
+  .stage.gate::after { top: 19px; }
+  .stage.pending .node .num {
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+  }
+  .stage .s-name {
+    font-size: 14px; font-weight: 550; color: var(--ink-2); line-height: 1.25;
+  }
+  .stage.pending .s-name { color: var(--mut); }
+  .stage.gate .s-name { color: var(--gate-fg); }
+  .stage .s-state {
+    display: block; font-size: 13px; color: var(--faint); margin-top: 3px;
+  }
+  .stage.gate .s-state { color: var(--gate-fg); font-weight: 600; }
+  .stage.done .s-state { color: var(--done-fg); }
+
+  /* ---------- actions ---------- */
+  .actions {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding-top: 22px; border-top: 1px solid var(--rule);
+  }
+  .btn {
+    font: inherit; font-size: 15px; font-weight: 600; line-height: 1;
+    border-radius: var(--r-btn); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 18px; border: 1px solid transparent;
+    transition: background .18s var(--ease), border-color .18s var(--ease), transform .12s var(--ease);
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: var(--accent-press); }
+  .btn-primary svg { width: 16px; height: 16px; }
+  .btn-ghost {
+    background: var(--surface); color: var(--ink-2); border-color: var(--rule-2);
+  }
+  .btn-ghost:hover { background: var(--surface-sink); border-color: var(--rule-2); }
+  .morph {
+    margin: 14px 0 0; font-size: 13px; color: var(--mut); line-height: 1.7;
+    display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap;
+  }
+  .morph b { color: var(--ink-2); font-weight: 600; margin-right: 2px; }
+  .morph .m-lab { color: var(--mut); font-weight: 550; }
+  .morph .m-q { color: var(--faint); font-weight: 400; }
+  .morph .arrow { color: var(--rule-2); }
+
+  /* ---------- tickets ---------- */
+  .tickets .card { padding: 6px 0; }
+  .t-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center; gap: 16px;
+    padding: 15px 22px;
+  }
+  .t-row + .t-row { border-top: 1px solid var(--rule); }
+  .t-id {
+    font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--mut);
+    white-space: nowrap;
+  }
+  .t-title { font-size: 16px; font-weight: 500; color: var(--ink); min-width: 0; }
+  .t-title .t-note { color: var(--faint); font-weight: 400; }
+  .t-right { display: flex; align-items: center; gap: 14px; justify-self: end; }
+  .t-elapsed { font-family: var(--mono); font-size: 13px; color: var(--faint); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 13px; font-weight: 600; line-height: 1;
+    padding: 6px 11px; border-radius: var(--r-pill); white-space: nowrap;
+  }
+  .chip .g { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+  .chip.done { background: var(--done-bg); color: var(--done-fg); }
+  .chip.work { background: var(--work-bg); color: var(--work-fg); }
+  .chip.gate { background: var(--gate-bg); color: var(--gate-fg); }
+  .chip.idle { background: var(--idle-bg); color: var(--idle-fg); }
+
+  .t-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 14px; padding: 0 2px;
+  }
+  .t-foot .k { font-size: 13.5px; color: var(--mut); }
+  .t-foot .k b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 620px) {
+    main { padding: 28px 0 64px; }
+    .wrap { padding: 0 18px; }
+    .f-title { font-size: 24px; }
+    .gate { padding: 22px 18px 20px; }
+    .gate-top { gap: 16px; }
+    .figure { text-align: left; }
+    .figure .n { font-size: 30px; }
+    .pipeline { grid-template-columns: repeat(4, 1fr); margin: 22px 0 20px; }
+    .stage .s-name { font-size: 13px; }
+    .stage .s-state { display: none; }
+    .stage.gate .s-state { display: block; }
+    .actions { gap: 10px; }
+    .btn { flex: 1 1 auto; justify-content: center; }
+    .t-row {
+      grid-template-columns: 1fr auto;
+      row-gap: 9px;
+      padding: 14px 16px;
+    }
+    .t-id { grid-column: 1; grid-row: 1; }
+    .t-right { grid-column: 2; grid-row: 1; align-self: center; }
+    .t-title { grid-column: 1 / -1; grid-row: 2; }
+    .t-elapsed { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="wrap">
+      <a class="back" href="#board">
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M10 3.5 5.5 8 10 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Board
+      </a>
+      <button class="theme-toggle" id="themeBtn" type="button" aria-label="Switch theme">
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M13 9.2A5.2 5.2 0 0 1 6.8 3 5.2 5.2 0 1 0 13 9.2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+        </svg>
+        <span id="themeLabel">Theme</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+
+      <!-- Feature header -->
+      <div class="f-head">
+        <div class="f-meta">
+          <span class="f-id">TKT-001</span>
+          <span class="dot-sep" aria-hidden="true"></span>
+          <span class="chip-pri"><span class="tick" aria-hidden="true"></span>High priority</span>
+          <span class="dot-sep" aria-hidden="true"></span>
+          <span class="f-wf">default workflow</span>
+        </div>
+        <h1 class="f-title">Subscriptions &amp; billing</h1>
+        <p class="f-desc">Recurring revenue: plan cards, Stripe checkout, webhook-driven activation, and a customer portal.</p>
+      </div>
+
+      <!-- Gate / briefing card -->
+      <section class="gate card" aria-labelledby="gate-head">
+        <div class="gate-top">
+          <div class="gate-state">
+            <div class="state-row">
+              <h2 class="state-head" id="gate-head">Review needed</h2>
+              <span class="chip-gate">
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M8 1.8 1.5 13h13L8 1.8Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+                  <path d="M8 6.4v3.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  <circle cx="8" cy="11.4" r=".9" fill="currentColor"/>
+                </svg>
+                Waiting on you
+              </span>
+            </div>
+            <p class="state-sub"><span class="mono">TKT-003</span> finished building and is ready for your review. Two stages are done; approve to start the review pass.</p>
+          </div>
+          <div class="figure">
+            <div class="n tnum">1<span class="den">&#8202;/&#8202;4</span></div>
+            <div class="lab">tickets done</div>
+          </div>
+        </div>
+
+        <!-- Pipeline ribbon: plan done · build done · review gate · test pending -->
+        <div class="pipeline" role="list" aria-label="Workflow pipeline">
+          <div class="stage done" role="listitem">
+            <div class="node">
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.4 6.6 11.5 12.5 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="s-name">Plan</div>
+            <span class="s-state">Done</span>
+          </div>
+          <div class="stage done" role="listitem">
+            <div class="node">
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.4 6.6 11.5 12.5 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="s-name">Build</div>
+            <span class="s-state">Done</span>
+          </div>
+          <div class="stage gate" role="listitem" aria-current="step">
+            <div class="node">
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4v4l2.6 1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/></svg>
+            </div>
+            <div class="s-name">Review</div>
+            <span class="s-state">Awaiting you</span>
+          </div>
+          <div class="stage pending" role="listitem">
+            <div class="node"><span class="num">4</span></div>
+            <div class="s-name">Test</div>
+            <span class="s-state">Pending</span>
+          </div>
+        </div>
+
+        <!-- The one morphing action, at the gate -->
+        <div class="actions">
+          <button class="btn btn-primary" type="button">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.4 6.6 11.5 12.5 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Approve &amp; start review
+          </button>
+          <button class="btn btn-ghost" type="button">Send back</button>
+        </div>
+        <p class="morph">
+          <b>This action follows the run:</b>
+          <span class="m-step"><span class="m-lab">Build this feature</span> <span class="m-q">(idle)</span></span>
+          <span class="arrow">&rarr;</span>
+          <span class="m-step"><span class="m-lab">Watch live</span> <span class="m-q">(running)</span></span>
+          <span class="arrow">&rarr;</span>
+          <span class="m-step"><span class="m-lab">Approve</span> <span class="m-q">(now)</span></span>
+          <span class="arrow">&rarr;</span>
+          <span class="m-step"><span class="m-lab">Merge</span> <span class="m-q">(after tests)</span></span>
+        </p>
+      </section>
+
+      <!-- Child tickets -->
+      <section class="tickets" aria-labelledby="t-label">
+        <p class="sec-label" id="t-label">Tickets</p>
+        <div class="card">
+          <div class="t-row">
+            <span class="t-id">TKT-002</span>
+            <span class="t-title">Pricing page with plan cards</span>
+            <span class="t-right">
+              <span class="t-elapsed tnum">merged 2h ago</span>
+              <span class="chip done"><span class="g" aria-hidden="true"></span>Done</span>
+            </span>
+          </div>
+          <div class="t-row">
+            <span class="t-id">TKT-003</span>
+            <span class="t-title">Stripe checkout session <span class="t-note">&#183; at the review gate</span></span>
+            <span class="t-right">
+              <span class="t-elapsed tnum">in review 6m</span>
+              <span class="chip gate"><span class="g" aria-hidden="true"></span>Reviewing</span>
+            </span>
+          </div>
+          <div class="t-row">
+            <span class="t-id">TKT-004</span>
+            <span class="t-title">Webhook: activate subscription</span>
+            <span class="t-right">
+              <span class="t-elapsed tnum">building 3m</span>
+              <span class="chip work"><span class="g" aria-hidden="true"></span>Building</span>
+            </span>
+          </div>
+          <div class="t-row">
+            <span class="t-id">TKT-005</span>
+            <span class="t-title">Customer portal link</span>
+            <span class="t-right">
+              <span class="t-elapsed tnum">not started</span>
+              <span class="chip idle"><span class="g" aria-hidden="true"></span>Backlog</span>
+            </span>
+          </div>
+        </div>
+        <div class="t-foot">
+          <span class="k"><b>1 of 4</b> tickets done</span>
+          <span class="k">TKT-003 needs your review</span>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      var btn = document.getElementById('themeBtn');
+      var label = document.getElementById('themeLabel');
+      function current() {
+        var t = document.documentElement.getAttribute('data-theme');
+        if (t) return t;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      function sync() { label.textContent = current() === 'dark' ? 'Light' : 'Dark'; }
+      btn.addEventListener('click', function () {
+        var next = current() === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        sync();
+      });
+      sync();
+    })();
+  </script>
+
+</body>
+</html>

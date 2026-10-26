@@ -6,6 +6,20 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **Stay in the ticket (TKT-074).** Agents drifted off their ticket (rewording
+  copy, fixing security bugs they ran into, refactoring on the way), which skipped
+  product review and bloated diffs. The rule now ships with Bobby instead of living
+  in one project's notes: a "Stay in the ticket" section in the `CLAUDE.md` template
+  and in `bobby-shared`, plus a scope step in build, debug, test, ship, review,
+  freewill, plan, design-build and design-check. Out-of-scope findings are filed
+  with `bobby ticket create --found-in <id>` (an unknown id is an error) and wait in
+  backlog: `bobby brief` and `bobby ticket triage` show them as filed by agents and
+  awaiting product review, and `bobby go` never starts one. When a ticket leaves
+  building, `bobby ticket move` prints the changed files `plan.md` does not name and
+  records a `scope-check` comment; it warns and never blocks, and `bobby-review`
+  rejects out-of-plan changes the ticket does not need.
+
 ### Fixed
 - **README Executor prose caught up with the registry (BOB-134).** The
   Dashboard section still said the dashboard drives `claude` or `cursor-agent`

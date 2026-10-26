@@ -25,6 +25,7 @@ Before creating any plan:
 - Explore the codebase to understand existing patterns before proposing new ones
 - **Read the code as it is on origin/main, not the checkout.** `git fetch origin` first, then read with `git show origin/main:<path>` or a worktree on origin/main. Local checkouts in a studio sit on old branches, and a plan built on them states wrong facts (10 of 24 build deviations traced back to this). Put the SHA you planned against at the top of `plan.md`.
 - **Large file discipline:** For files over 500 lines (CSS, large components, mockups), do NOT read the entire file. Instead, grep for the relevant section name or keyword to find the line range, then read only that range. Record useful line ranges in the plan's `## Files to modify` section so downstream agents (build, review) can do targeted reads too.
+- Problems you find that the ACs don't need: file them, don't widen the ACs or the plan to absorb them: `bobby ticket create -t "<what is wrong>" --type bug -p <priority> -a bobby-plan --found-in {ID}`, then `bobby ticket comment <new ID> --by bobby-plan "<what you saw, where, why it matters>"`. Report `Filed: <ID> — <title>` lines.
 </investigation_rules>
 
 ## Mode Detection
@@ -214,7 +215,7 @@ If there is only one sensible approach, state it and why in two lines and move o
 Create `plan.md` in the ticket folder:
 
 1. **Approach** — the chosen approach and why (with the scores, when you scored)
-2. **Files to modify** — List every file that needs changes, with line ranges for large files
+2. **Files to modify** — List every file that needs changes, including tests, fixtures and docs, with line ranges for large files. When the ticket leaves building, `bobby ticket move` flags any changed file this list doesn't name.
 3. **Step-by-step plan** — Ordered steps with checkboxes
 4. **Contract** — see Contract above, when the ticket crosses API and UI or uses a sibling's output
 5. **Risk areas** — What could go wrong
@@ -333,7 +334,7 @@ If there is only one sensible approach, state it and why in two lines and move o
 Create `plan.md` in the ticket folder:
 
 1. **Approach** — the chosen approach and why (with the scores, when you scored)
-2. **Files to modify** — List every file that needs changes, with line ranges for large files
+2. **Files to modify** — List every file that needs changes, including tests, fixtures and docs, with line ranges for large files. When the ticket leaves building, `bobby ticket move` flags any changed file this list doesn't name.
 3. **Step-by-step plan** — Ordered steps with checkboxes
 4. **Contract** — see Contract above, when the ticket crosses API and UI or uses another ticket's output
 5. **Risk areas** — What could go wrong

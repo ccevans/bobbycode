@@ -185,6 +185,18 @@ Read the ticket's `repos` frontmatter and run from inside each repo it names:
 - Do not add error handling, fallbacks, or validation for scenarios that can't happen. Only validate at system boundaries (user input, external APIs).
 </avoid_overengineering>
 
+## Stay in the Ticket
+
+Implement the ticket, nothing else. Every file in `git diff --stat` must tie to the ticket in one sentence. Regressions your change caused and tests it broke are in scope.
+
+**Out-of-scope findings.** Anything this ticket does not need (a bug in nearby code, copy you'd word differently, a refactor, a flaky test you didn't cause) is not yours to fix. Check `bobby ticket list` for a duplicate, then file it:
+`bobby ticket create -t "<what is wrong>" --type bug -p <priority> -a bobby-build --found-in {ID}`
+`bobby ticket comment <new ID> --by bobby-build "<what you saw, where, how to reproduce, why it matters>"`
+- Exploitable in production now → `-p critical`, don't fix it here, and lead your report with **Decision needed**.
+- It blocks this ticket → file it, `bobby ticket move {ID} block "needs <new ID>"`, and stop.
+- End your report with `Filed: <ID> — <title>` for each one, or `Filed: none`.
+- A file the AC needs but `plan.md` does not list: keep it, and say why: `bobby ticket comment {ID} --by bobby-build "Outside plan: <file> — <which AC needs it>"`. Review judges it.
+
 ## Completing Work
 
 <% if (typeof services !== 'undefined' && services && Object.keys(services).length > 0) { %>
@@ -197,7 +209,8 @@ Read the ticket's `repos` frontmatter and run from inside each repo it names:
 4. **Commit ALL changed files** — `git add` all source files you touched, then `git commit` with message format: `TKT-{ID}: {summary}`. Do NOT leave uncommitted changes behind.
 5. Add comment: `bobby ticket comment {ID} --by bobby-build "Built: {summary}. Specs run: {files}. Data shape from: {source}."`
 6. If you discovered anything non-obvious or a pattern future builds should avoid: `bobby learn bobby-build "pattern" "description"`
-7. Hand the ticket on to the stage your task prompt names
+7. List anything you filed: `Filed: <ID> — <title>` (or `Filed: none`).
+8. Hand the ticket on to the stage your task prompt names
 
 ## Self-Check Before Completing
 
@@ -206,7 +219,7 @@ Before committing and moving the ticket forward, pause and verify:
 
 1. Re-read each acceptance criterion from `ticket.md`. For each one, identify the specific test that covers it. If any AC lacks a test, write one now.
 2. Confirm every file listed in `plan.md` was addressed. If you skipped a file, explain why in your commit message.
-3. Run `git diff --stat` and review what you changed. Are there files you modified that are not in the plan? Consider whether they are necessary.
+3. Run `git diff --stat`. Every file must tie to the ticket in one sentence. Revert anything that doesn't, and file it (see Stay in the Ticket).
 4. Run the impacted specs and lint — show the output as evidence, naming the spec files you ran. Assertions without proof are not accepted. Do not run the full suite here; ship does, once.
 5. Run the checks review rejects on, before review has to:
    - every acceptance criterion maps to a test that would fail without your change (not one that passes against a mock of the thing it tests);

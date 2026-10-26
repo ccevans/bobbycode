@@ -112,6 +112,20 @@ All agents must follow these rules. Violations are treated as critical failures.
 - **Never suppress errors** in bobby commands (no `2>/dev/null`, no `|| true`). If a command fails, investigate the cause.
 - **The ticket stage is the sole progress tracker.** Do not create separate task/todo lists to track workflow progress — read `ticket.md` frontmatter to know what stage a ticket is in.
 
+## Stay in the ticket
+
+The ticket, or the task the user named, is the scope. This applies to every agent, to freewill, and to the main session.
+
+- Change only what the ticket needs. Before committing, run `git diff --stat`: every file in it must tie to the ticket in one sentence. Regressions your change caused and tests it broke are in scope; nothing else is.
+- Anything else you notice (a bug, a security hole, copy that reads badly, a refactor, a missing feature, a flaky test): do not fix it. Check for a duplicate (`bobby ticket list`), then file it:
+  `bobby ticket create -t "<what is wrong>" --type bug|improvement -p <priority> -a <your agent name> --found-in <current ticket ID>`
+  then `bobby ticket comment <new ID> --by <your agent name> "<what you saw, where (file:line or URL), how to reproduce, why it matters>"`.
+  Omit `--found-in` only when there is no current ticket. The new ticket waits in backlog for product review. Never plan, move, or start a ticket you filed.
+- A security finding that is exploitable in production now: file it with `-p critical`, do not fix it in this ticket, and lead your report with **Decision needed** so the user chooses whether to stop current work.
+- An out-of-scope problem that blocks this ticket: file it, run `bobby ticket move <ID> block "needs <new ID>"`, and stop. Don't work around it.
+- End your report with one `Filed: <ID> — <title>` line per ticket you filed.
+- When a ticket leaves building, `bobby ticket move` prints a scope check: changed files that `plan.md` does not name. Review rejects out-of-plan changes the ticket does not need. The fix is to revert the change and file it, not to keep it.
+
 ## Workflows
 
 A workflow is the ordered set of stages a ticket runs through. Built-in: **default** (plan→build→review→test), **secure** (adds a security stage), **quick** (plan→build→test), **freewill** (one agent does all four on few instructions — runs on Opus).
@@ -284,6 +298,8 @@ Each skill has a `learnings.md` file that accumulates anti-patterns. Always chec
 ```
 bobby ticket create -t "Title" --type bug -p high   # Create ticket
 bobby ticket create -t "Epic" --epic                # Create epic (breaks down)
+bobby ticket create -t "..." -a bobby-build --found-in TKT-001   # File an out-of-scope finding for product review
+bobby ticket triage                                 # Review backlog; agent-filed tickets first
 bobby run define TKT-001                            # Product definition: brief → personas → journeys → features → blueprint
 bobby blueprint                                     # See the whole plan on one page before building
 bobby ticket list                                   # Show board
