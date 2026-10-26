@@ -503,3 +503,24 @@ describe('pipeline prompts with cline target', () => {
     expect(prompt).not.toContain('.claude/agents/');
   });
 });
+
+describe('workflow scripts are claude-code only (TKT-073)', () => {
+  let tmpDir;
+  const cfg = (target) => ({
+    project: 'test-app', stack: 'nextjs', target, orchestration: 'workflow',
+    health_checks: [], areas: [], commands: { test: 'npm test' },
+    tickets_dir: '.bobby/tickets', ticket_prefix: 'TKT',
+  });
+  beforeEach(() => { tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-wf-target-')); });
+  afterEach(() => { fs.rmSync(tmpDir, { recursive: true }); });
+
+  test.each(['cursor', 'cline'])('%s scaffold with orchestration: workflow writes no scripts', (target) => {
+    scaffoldProject(tmpDir, cfg(target));
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'workflows'))).toBe(false);
+  });
+
+  test('claude-code scaffold with the flag writes them', () => {
+    scaffoldProject(tmpDir, cfg('claude-code'));
+    expect(fs.existsSync(path.join(tmpDir, '.claude', 'workflows', 'bobby-default.js'))).toBe(true);
+  });
+});

@@ -117,7 +117,7 @@
   ticket: arch
   why: "The CLI and the local server are two front ends over one engine. When each built its own prompt or its own action mapping they drifted, and a stage meant something different depending on where you started it. One function each means the CLI and the app can disagree about display but never about meaning. Evidence: lib/dashboard/actions.js header."
   supersedes: null
-  invalidated: null
+  invalidated: "2026-10-25"
 
 - id: agents-live-in-the-registry
   fact: "A new agent is an entry in AGENT_REGISTRY with promptHeader + promptSteps; dispatch flags (requiresTicket, cowork, freeform, custom) drive everything else."
@@ -313,4 +313,11 @@
   ticket: TKT-022
   why: "A studio orchestrator spans every project and the UI can switch mid-run. Any run-scoped read left on the live getter — or on a constructor-captured derivative of it — takes a decision from the project the user happened to switch TO: an agent auto-launched that the run's own project forbids, or a workflow stage (e.g. security) silently skipped. This class recurred across six review rounds (B3/C1/C2/D1/D2); the invariant makes 'is this read run-scoped?' the review question."
   supersedes: null
+  invalidated: null
+- id: one-prompt-door-two-doors
+  fact: "buildPromptFor() in lib/workflow.js is the only place a prompt is constructed for the prompt path, and executeGoAction() is the only place a brief nextAction is executed. The one exception is the saved-workflow runtime: templates/workflows/runtime.js (stagePrompt, debugPrompt, integrationPrompt, finalizePrompt) and formatWorkflowInvocation in lib/workflow-script.js build the stage-agent prompts for Claude Code Workflow scripts, because those scripts cannot read files or import buildPromptFor. That runtime is the second, code-side prompt door; it is generated from one template and takes its next-stage handoff from nextStageName, the same helper the prompt path uses, so the two doors cannot disagree about meaning."
+  decided: "2026-10-25"
+  ticket: TKT-073
+  why: "TKT-073: Workflow scripts run in a sandbox with no fs or imports, so the stage loop and its prompts must live inside the generated script. Reviewer flagged the tension with one-prompt-door and asked for the amendment so future reviews do not re-flag it. Same intent as the original: one engine, no drifting copies. Evidence: templates/workflows/runtime.js; test/lib/workflow-script.test.js."
+  supersedes: one-prompt-door
   invalidated: null
