@@ -140,6 +140,23 @@ describe('config', () => {
     expect(content).toContain('# Optional configuration');
   });
 
+  test('writeConfigCommented: an empty workflows map gets the hint, a populated one round-trips (TKT-073)', () => {
+    const base = {
+      project: 'p', stack: 'generic', target: 'claude-code',
+      bobby_dir: '.bobby', tickets_dir: '.bobby/tickets', sessions_dir: '.bobby/sessions', ticket_prefix: 'TKT',
+    };
+    writeConfigCommented(tmpDir, { ...base, workflows: {} });
+    const empty = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
+    expect(empty).toContain('# workflows:');
+    expect(empty).not.toMatch(/^workflows:/m);
+
+    writeConfigCommented(tmpDir, { ...base, workflows: { fast: ['build', 'test'] }, orchestration: 'workflow' });
+    const full = fs.readFileSync(path.join(tmpDir, '.bobbyrc.yml'), 'utf8');
+    expect(full).toMatch(/^workflows:/m);
+    expect(full).toMatch(/^orchestration: workflow$/m);
+    expect(full).not.toContain('# workflows:');
+  });
+
   test('writeConfigCommented output parses correctly via readConfig', () => {
     const config = {
       project: 'roundtrip-test', stack: 'nextjs', target: 'claude-code',
