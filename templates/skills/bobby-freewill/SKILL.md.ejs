@@ -67,7 +67,13 @@ calls for it; no global installs or system config changes.
 
 **Scope lock.** Run `git diff --stat` before you commit. Every file in it should be one you
 can tie to the ticket in a sentence. Fixing an unrelated thing you noticed on the way is
-scope creep — file it with `bobby ticket create` instead.
+scope creep — file it instead: check `bobby ticket list` for a duplicate, run
+`bobby ticket create -t "<what is wrong>" --type bug -p <priority> -a bobby-freewill --found-in {ID}`,
+then `bobby ticket comment <new ID> --by bobby-freewill "<what you saw, where, how to reproduce, why it matters>"`.
+If it is a security hole exploitable in production now, file it `-p critical`, don't fix it here,
+and lead your report with **Decision needed**. If it blocks the ticket, file it,
+`bobby ticket move {ID} block "needs <new ID>"`, and stop. End your report with
+`Filed: <ID> — <title>` for each ticket you filed, or `Filed: none`.
 
 ## The self-review that replaces the review stage
 

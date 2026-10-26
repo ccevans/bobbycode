@@ -39,7 +39,7 @@ This is the core of your job. Don't skim diffs — investigate the code like you
 - For each changed file, **read the full file** (not just the diff hunk) to understand context
 - Cross-reference against `plan.md`:
   - Files in the plan that were NOT changed — were they supposed to be?
-  - Changed files NOT in the plan — why were they touched? Is this scope creep?
+  - Changed files NOT in the plan: each needs a one-sentence tie to an AC (look for the builder's `Outside plan:` comment and the `Scope check:` comment `bobby ticket move` wrote when the ticket left building). No tie → **reject**.
 
 ### 2. Check for breakage in callers and dependents
 
@@ -152,12 +152,23 @@ Write `review.md` in the ticket directory with this structure:
 - {anything the next agent or human should know}
 ```
 
+## Findings Outside the Ticket
+
+Review the diff, not the neighborhood. Pre-existing problems you spot in nearby code are filed, not fixed, and are not a rejection reason.
+
+**Out-of-scope findings.** Anything this ticket does not need (a pre-existing bug, copy, a refactor, a missing feature in code this diff did not change) is not yours to fix. Check `bobby ticket list` for a duplicate, then file it:
+`bobby ticket create -t "<what is wrong>" --type bug -p <priority> -a bobby-review --found-in {ID}`
+`bobby ticket comment <new ID> --by bobby-review "<what you saw, where, how to reproduce, why it matters>"`
+- Exploitable in production now → `-p critical`, don't fix it here, and lead your report with **Decision needed**.
+- It blocks this ticket → file it, `bobby ticket move {ID} block "needs <new ID>"`, and stop.
+- End your report with `Filed: <ID> — <title>` for each one, or `Filed: none`.
+
 ## Decision
 
 ### Approve
 All checks pass, no concerns:
 1. Write `review.md` in the ticket directory
-2. **Commit any changes** you made (lint fixes, debug cleanup): `TKT-{ID}: review fixes`
+2. **Commit any changes** you made (lint fixes, debug cleanup; only in files this ticket already touches): `TKT-{ID}: review fixes`
 3. Add comment: `bobby ticket comment {ID} --by bobby-review "Approved: {summary}"`
 4. If you discovered a pattern future reviews should catch: `bobby learn bobby-review "pattern" "description"`
 5. Move to testing: `bobby ticket move {ID} test`
@@ -165,7 +176,7 @@ All checks pass, no concerns:
 ### Approve with Notes
 Code works and ACs are met, but you have observations worth recording — minor style drift, a pattern that could become a problem, a suggestion for future work. These do NOT block the ticket:
 1. Write `review.md` with notes in the "Code Concerns" and "Notes" sections
-2. **Commit any changes** you made: `TKT-{ID}: review fixes`
+2. **Commit any changes** you made (only in files this ticket already touches): `TKT-{ID}: review fixes`
 3. Add comment: `bobby ticket comment {ID} --by bobby-review "Approved with notes: {summary}. Notes: {observations}"`
 4. Move to testing: `bobby ticket move {ID} test`
 
@@ -174,6 +185,7 @@ Broken code, missing ACs, or serious quality issues:
 1. Write `review.md` documenting every issue found
 2. Move back with specific feedback: `bobby ticket move {ID} reject "Specific issue description"`
 3. Be specific — the build agent needs to know exactly what to fix
+4. Out-of-plan changes the ticket doesn't need are a rejection reason. The fix you ask for is: revert it, and file it with `bobby ticket create … -a bobby-review --found-in {ID}`. Never "keep it, it's an improvement".
 
 <examples>
 <example label="Good rejection (specific and actionable)">

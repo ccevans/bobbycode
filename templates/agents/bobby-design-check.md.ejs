@@ -44,7 +44,9 @@ Any value in the build not in the spec is a **FAIL** — drift, not a decision, 
 Report **Spec Conformance: PASS/FAIL (n)** and **Slop: n patterns** alongside the Design Health Score. A page can look excellent and still fail both — say so.
 
 File conformance and slop failures as bugs:
-`bobby ticket create -t "..." --type bug --area ui`
+`bobby ticket create -t "..." --type bug --area ui -a bobby-design-check --found-in {ID}`
+
+Problems on pages or parts outside this ticket are filed the same way and are not a FAIL for this ticket. Exploitable in production → `-p critical` + **Decision needed**. End with `Filed: <ID> — <title>` lines.
 
 ## Project overrides
 
