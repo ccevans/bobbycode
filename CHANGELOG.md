@@ -6,6 +6,17 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+- **Smaller skills at agent start (token budget).** Every agent step re-sends its
+  whole context, so what an agent loads up front is paid on every step.
+  `bobby-plan` now loads a 7 KB core plus only the mode file it needs
+  (`modes/epic.md`, `product-epic.md`, `feature-refine.md`, `refine.md`) instead
+  of all four modes (22 KB). `bobby-test` moves situational sections (service
+  recovery, testing tools, results.md format, non-UI features, design reference
+  check) into `reference.md`, read when they apply. The `CLAUDE.md` template drops
+  the per-agent list and full CLI listing (about 7 KB) into the tickets
+  `WORKFLOW.md`, keeping the routing table and a pointer.
+
 ### Added
 - **Stay in the ticket (TKT-074).** Agents drifted off their ticket (rewording
   copy, fixing security bugs they ran into, refactoring on the way), which skipped

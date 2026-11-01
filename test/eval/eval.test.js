@@ -275,7 +275,8 @@ describe('eval: bobby-test skill', () => {
       paths: { agents: '.claude/agents', skills: '.claude/skills', commands: '.claude/commands', rules: 'CLAUDE.md' },
     };
     renderSkillTemplates(tmpDir, config);
-    skillContent = fs.readFileSync(path.join(tmpDir, 'bobby-test', 'SKILL.md'), 'utf8');
+    // SKILL.md points into reference.md for situational sections; an agent reads both.
+    skillContent = ['SKILL.md', 'reference.md'].map(f => fs.readFileSync(path.join(tmpDir, 'bobby-test', f), 'utf8')).join('\n');
     agentContent = renderTemplate('agents/bobby-test.md.ejs', config);
   });
 
@@ -464,7 +465,8 @@ describe('eval: bobby-test skill with playwright', () => {
       paths: { agents: '.claude/agents', skills: '.claude/skills', commands: '.claude/commands', rules: 'CLAUDE.md' },
     };
     renderSkillTemplates(tmpDir, config);
-    skillContent = fs.readFileSync(path.join(tmpDir, 'bobby-test', 'SKILL.md'), 'utf8');
+    // SKILL.md points into reference.md for situational sections; an agent reads both.
+    skillContent = ['SKILL.md', 'reference.md'].map(f => fs.readFileSync(path.join(tmpDir, 'bobby-test', f), 'utf8')).join('\n');
   });
 
   afterAll(() => { fs.rmSync(tmpDir, { recursive: true }); });
@@ -503,7 +505,8 @@ describe('eval: bobby-test skill without testing_tools', () => {
       paths: { agents: '.claude/agents', skills: '.claude/skills', commands: '.claude/commands', rules: 'CLAUDE.md' },
     };
     renderSkillTemplates(tmpDir, config);
-    skillContent = fs.readFileSync(path.join(tmpDir, 'bobby-test', 'SKILL.md'), 'utf8');
+    // SKILL.md points into reference.md for situational sections; an agent reads both.
+    skillContent = ['SKILL.md', 'reference.md'].map(f => fs.readFileSync(path.join(tmpDir, 'bobby-test', f), 'utf8')).join('\n');
   });
 
   afterAll(() => { fs.rmSync(tmpDir, { recursive: true }); });

@@ -96,3 +96,131 @@ When a systemic issue is found:
 2. `bobby learn bobby-build "pattern" "description"` — adds to skill learnings
 
 This feedback loop is what makes Bobby get smarter over time.
+
+## Agents
+
+### Product Definer (bobby-define-brief → -personas → -journeys → -features)
+When told to "define the product", "write the brief", "personas", "journeys", or
+"feature map", load `<%= paths.skills %>/bobby-define/SKILL.md`.
+- Brief → personas → journeys → feature map → blueprint, one ⛳ human gate per stage
+- Artifacts locked in `.bobby/product/`; the epic then moves to planning
+- Run the chain with `bobby run define <epicId>` (resumes mid-pipeline)
+
+### Planner (bobby-plan)
+When told to "plan", "refine", or "brainstorm", load `<%= paths.skills %>/bobby-plan/SKILL.md`.
+- **Epic mode**: breaks big ideas into child tickets
+- **Refine mode**: creates plan.md + test-cases.md for a ticket
+
+### Builder (bobby-build)
+When told to "build" or "work tickets", load `<%= paths.skills %>/bobby-build/SKILL.md`.
+- TDD red-green-refactor cycle
+- Commits code to current branch
+
+### Reviewer (bobby-review)
+When told to "review", load `<%= paths.skills %>/bobby-review/SKILL.md`.
+- Reviews git diff + acceptance criteria
+- Separate agent from build for fresh perspective
+
+### Tester (bobby-test)
+When told to "test", load `<%= paths.skills %>/bobby-test/SKILL.md`.
+- Tests through the **live running app** (browser, API calls) — never runs specs (build/review already did that)
+
+### Shipper (bobby-ship)
+When told to "ship", load `<%= paths.skills %>/bobby-ship/SKILL.md`.
+- Creates PR, waits for CI, merges, and deploys using whatever mechanism the repo needs (Vercel, Heroku promotion branch, GitHub Actions, npm publish, or nothing — detected per repo)
+
+### UX Designer (bobby-ux)
+When told to "review design" or "UX audit", load `<%= paths.skills %>/bobby-ux/SKILL.md`.
+- Reviews live app through the browser — never reads source code
+
+### Product Manager (bobby-pm)
+When told to "PM review" or "product review", load `<%= paths.skills %>/bobby-pm/SKILL.md`.
+- Reviews live app, identifies UX gaps and feature opportunities
+
+### Security Auditor (bobby-security)
+When told to "security audit" or "security review", load `<%= paths.skills %>/bobby-security/SKILL.md`.
+- OWASP Top 10 + STRIDE threat modeling on changed code
+- Only flags findings with 8/10+ confidence and concrete exploit scenarios
+
+### Debugger (bobby-debug)
+When told to "debug" or "investigate", load `<%= paths.skills %>/bobby-debug/SKILL.md`.
+- Systematic root-cause debugging: Reproduce → Hypothesize → Trace → Verify → Fix
+- Scope-locked: only fixes the bug, never refactors
+
+### Freewill (bobby-freewill)
+When told to "freewill", "skip the stages", or "just do the whole ticket", load `<%= paths.skills %>/bobby-freewill/SKILL.md`.
+- One agent takes the ticket from start to shipping on deliberately few instructions
+- Runs on Opus by default — a goal plus its invariants, no procedure
+- No fresh-eyes reviewer: security-sensitive, underspecified, and epic-sized tickets go back to `default`/`secure`
+
+### Documentation (bobby-docs)
+When told to "update docs" or "document release", load `<%= paths.skills %>/bobby-docs/SKILL.md`.
+- Updates README, <%= paths.rules %>, CHANGELOG after shipping
+- Only changes documentation that is now stale
+
+### Performance (bobby-performance)
+When told to "benchmark" or "check performance", load `<%= paths.skills %>/bobby-performance/SKILL.md`.
+- Measures page load times, resource sizes, request counts
+
+### Lighthouse Audit (bobby-lighthouse)
+When told "lighthouse audit", "audit the pages", or "which pages need fixing", load `<%= paths.skills %>/bobby-lighthouse/SKILL.md`.
+- Sweeps Performance, Accessibility, Best Practices and SEO across page TEMPLATES, not just the homepage
+- Ranks gaps by live URL count from the sitemap, and proposes tickets only on failing audits with real DOM nodes, never on a score
+- NOT the `bobby audit` command, which scores codebase production readiness instead
+- Compares against baseline, flags regressions
+
+### Watchdog (bobby-watchdog)
+When told to "watchdog check" or "verify deploy", load `<%= paths.skills %>/bobby-watchdog/SKILL.md`.
+- Post-deploy health verification: page loads, console errors, API responses
+- Files critical bugs for any failures
+
+### Architect (bobby-arch)
+When told to "run arch", "discover architecture", or "regenerate wakeup", load `<%= paths.skills %>/bobby-arch/SKILL.md`.
+- Autonomously reads the codebase and writes three files agents use to start work faster
+- `.bobby/architecture.md` — full reference
+- `.bobby/architecture-wakeup.md` — compressed ~300-token summary (loaded by all agents before starting)
+- `.bobby/decisions.yaml` — architectural decisions enforced by bobby-review
+
+### Ticket Intake (bobby-ticket-intake)
+When told to "intake", "convert spec", or "create ticket from PM spec", load `<%= paths.skills %>/bobby-ticket-intake/SKILL.md`.
+- Parses a pasted PM/JIRA spec and creates a fully-populated ticket — no placeholders
+- Leaves ticket in backlog; engineer decides when to advance
+
+## Bobby CLI Commands
+
+```
+bobby ticket create -t "Title" --type bug -p high   # Create ticket
+bobby ticket create -t "Epic" --epic                # Create epic (breaks down)
+bobby ticket create -t "..." -a bobby-build --found-in TKT-001   # File an out-of-scope finding for product review
+bobby ticket triage                                 # Review backlog; agent-filed tickets first
+bobby run define TKT-001                            # Product definition: brief → personas → journeys → features → blueprint
+bobby blueprint                                     # See the whole plan on one page before building
+bobby ticket list                                   # Show board
+bobby ticket list --blocked                         # Show blocked tickets
+bobby ticket view TKT-001                           # View ticket
+bobby ticket view TKT-001 --plan                    # View plan
+bobby ticket move TKT-001 review                   # Move to reviewing
+bobby ticket move TKT-001 reject "reason"          # Reject back to building
+bobby ticket move TKT-001 block "reason"           # Block ticket
+bobby ticket move TKT-001 unblock                  # Unblock ticket
+bobby run next TKT-001                      # Slow mode: next agent for stage
+bobby run workflow TKT-001                  # Fast mode: auto-chain all agents
+bobby run plan                              # Batch: plan all tickets in planning
+bobby run ship                              # Ship all ready tickets
+bobby run arch                              # Discover + document architecture (wakeup + decisions)
+bobby run intake                            # Convert pasted PM spec → ticket
+bobby run ux                                # Freeform UX design review
+bobby run pm                                # Freeform PM product review
+bobby run security TKT-001                  # Security audit (OWASP + STRIDE)
+bobby run debug TKT-001                     # Root-cause debugging
+bobby run docs                              # Update docs after shipping
+bobby run performance                              # Performance benchmarking
+bobby run lighthouse                               # Lighthouse audit of page templates
+bobby run watchdog                            # Post-deploy health check
+bobby retro TKT-001 "pattern"              # Create retrospective
+bobby retro --weekly                        # Weekly retro with metrics
+bobby learn bobby-build "pattern" "desc"    # Add learning
+bobby decision add --id <id> --fact "..." --why "..."   # Record an architectural decision
+bobby decision list                         # Active decisions (bobby-review enforces these)
+bobby upgrade                               # Upgrade Bobby to latest version
+```

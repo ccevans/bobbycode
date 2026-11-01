@@ -279,7 +279,7 @@ describe('cursor scaffold integration', () => {
     scaffoldProject(tmpDir, { ...baseConfig });
     const rules = fs.readFileSync(path.join(tmpDir, 'AGENTS.md'), 'utf8');
     // The omitted <% if %> block must not leave a doubled gap at its seam.
-    expect(rules).toContain('when to advance\n\n## Architecture Wakeup');
+    expect(rules).toContain('agent-filed tickets first.\n\n## Architecture Wakeup');
   });
 
   test('AGENTS.md names Cursor and omits the Claude-Code-only hooks section', () => {

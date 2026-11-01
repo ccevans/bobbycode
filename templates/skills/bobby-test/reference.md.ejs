@@ -1,0 +1,144 @@
+# bobby-test: reference
+
+> Read only the section `SKILL.md` points you to, when that situation applies. Find it with `grep -n '^## ' <this file>` and read that range.
+
+## Service recovery and migrations
+
+If a service isn't running or a health check fails, attempt **one** restart per service:
+<% if (commands && commands.dev) { %>
+- Web: Run `<%= commands.dev %>` in the background
+<% } else { %>
+- Web: start the project's dev server for this worktree on its own port, as the project's `SKILL.local.md` describes; if it describes none, ask in a block rather than guessing a command
+<% } %>
+- Workers: `docker compose up -d sidekiq` or the project's equivalent
+- Wait up to 15 seconds, then re-check
+- If it doesn't come back after one attempt, mark affected tests as **BLOCKED**
+
+### Migrations
+
+If there are pending migrations needed for the feature under test, run them. The build agent may have added migrations that haven't been applied to the dev database yet.
+
+**Boundaries:**
+- One restart attempt per service — if it doesn't come back, it's BLOCKED
+- Never edit application source code or config files
+- Never debug application logs for code issues
+
+## Test data examples
+
+- AC says "notifications fire for scheduled events" but no events exist with the right state → create events via the API or CLI tools, trigger the scheduled job, verify notifications
+- AC says "user sees notification badge after action" but no users exist → create a user through the signup flow or API, perform the action, verify the badge
+- AC says "export handles 1000+ rows" but only 3 rows exist → seed enough rows via API or bulk create script
+
+## results.md format
+
+```markdown
+# Test Evidence — {ID}
+
+**Date:** {YYYY-MM-DD}
+**Verdict:** PASS | FAIL | PARTIAL ({N} of {M} ACs passed)
+
+## Acceptance Criteria
+
+| # | Criterion | Result | Evidence |
+|---|-----------|--------|----------|
+| 1 | {AC text} | PASS/FAIL | screenshot: screenshots/{filename}.png |
+| 2 | {AC text} | PASS/FAIL | API: GET /endpoint → 200 |
+
+## Notes
+{Any observations, blocked items, or issues discovered}
+
+## Regression
+{Quick check of adjacent features — note any issues found or "No regressions observed"}
+```
+
+<example label="Good results.md entry">
+| 2 | Filter persists after refresh | PASS | screenshot: screenshots/filter-persist-after-refresh.png |
+
+Steps taken: Selected "Active" from status dropdown → URL changed to /leads?status=active → Refreshed page → Dropdown still shows "Active" → Lead list shows only active leads.
+</example>
+
+## Testing tools
+
+<% if (typeof testing_tools !== 'undefined' && testing_tools) { %>
+<% if (testing_tools.includes('playwright')) { %>
+### Playwright (Browser Automation)
+
+Each test run gets its own headless browser. Never use a shared browser profile (a shared Chrome or MCP profile is locked by whichever agent opened it first, and blocks every other ticket).
+
+- **Screenshots, console errors, failed requests and axe:** use the shared driver instead of writing a script:
+  `node <%= paths.skills %>/bobby-test/browse.mjs <url> --sizes 390,1440 --out <ticket folder>/test-evidence/screenshots [--axe] [--storage <state.json>] [--disable-web-security]`
+  Run it from the project or worktree folder (it uses the project's Playwright). Exit 0 = pass, 1 = the page failed, 2 = bad flag or setup; console errors, failed requests and horizontal overflow are in its JSON, so read them. `--storage` for logged-in pages, `--disable-web-security` when a localhost UI calls a localhost API.
+- **Clicking through a flow:** write a short Playwright script only for the interactions themselves, launched headless from the project's `node_modules`, with its own context, wrapped in `timeout 300`. Save it in `test-evidence/` so a retest can rerun it rather than rewrite it.
+<% } %>
+<% if (testing_tools.includes('curl')) { %>
+### curl (API Testing)
+
+Use curl for all API endpoint verification:
+- `curl -s -w "\n%{http_code}"` for status checks
+- `curl -X POST -H "Content-Type: application/json" -d '{...}'` for write operations
+- Always capture and include the response body and status code as evidence
+<% } %>
+<% if (testing_tools.includes('cypress')) { %>
+### Cypress
+
+Run Cypress tests for e2e verification: `npx cypress run --spec "cypress/e2e/{relevant-spec}.cy.js"`
+<% } %>
+<% } else { %>
+Use curl for API testing and browser screenshots for UI verification.
+<% } %>
+
+## Non-UI features
+
+Not every ticket has a UI entry point — but almost every feature has a UI surface where its effects are visible. Your job is to trigger the feature AND verify the result end-to-end.
+
+#### Step 1: Trigger the Feature
+
+1. **Background jobs / workers** — Use `rails runner`, `node -e`, or the equivalent to trigger the job directly. Make sure the worker process is running (see Health Check above).
+2. **API-only endpoints** — Use `curl` to call the endpoint. Verify response status, payload, and any side effects.
+3. **CLI tools / scripts** — Run the command and verify its output and side effects.
+4. **Data migrations / seeds** — Verify the data state before and after by querying the database or API.
+
+#### Step 2: Trace to UI
+
+After triggering the backend feature, identify where its effects surface in the UI and verify there too:
+
+- **Background job sends emails** → check the sent folder, notification badge, delivery status page, or admin dashboard in the browser
+- **API creates/updates records** → navigate to the page that displays those records and confirm the change is visible
+- **Cron job recalculates data** → open the dashboard or report that shows the recalculated values
+- **Worker processes a queue** → check the admin panel, job status page, or affected user-facing page
+
+If there truly is no UI surface (pure infrastructure — logging, metrics, internal tooling with no web UI), document why in results.md and verify through the closest observable output (log files, admin API, monitoring endpoint).
+
+**Never stop at "the job chain executed without error."** That proves the code doesn't crash — it doesn't prove the feature works. Follow the data all the way to where a user would see it.
+
+## Design reference check
+
+If the ticket or its parent epic references a design mockup (HTML file, screenshot, or Figma URL):
+
+1. **Locate the reference** — Check the ticket's `ticket.md` description and the parent epic's `feature-plan.md` for a `## Design Reference` or `## File References` section pointing to a mockup file.
+2. **Read the mockup** — If it's an HTML file, read the relevant section (use grep to find the tab/component, not the whole file). Note the expected layout, colors, spacing, and structure.
+3. **Screenshot the live app** — Navigate to the page the ticket affects and take a full-page screenshot at desktop (1440px) and mobile (390px) viewports (the driver does both with `--sizes 390,1440`).
+4. **Compare structure** — Verify the live app matches the mockup in:
+   - Layout (grid columns, card arrangement, section order)
+   - Colors (accent colors, backgrounds, text colors match design tokens)
+   - Typography (font sizes, weights, headings vs body)
+   - Spacing (padding, margins, gaps between elements)
+   - Interactive states (hover effects, active tabs, focus rings)
+5. **Report mismatches** — Add a `## Design Comparison` section to `results.md`:
+   ```
+   ## Design Comparison
+
+   **Reference:** {path to mockup}
+   **Pages checked:** {URLs}
+
+   | Aspect | Match? | Notes |
+   |--------|--------|-------|
+   | Layout | ✅/❌ | {details} |
+   | Colors | ✅/❌ | {details} |
+   | Typography | ✅/❌ | {details} |
+   | Spacing | ✅/❌ | {details} |
+   | Interactions | ✅/❌ | {details} |
+   ```
+6. **Verdict impact** — Design mismatches are informational, not blocking. Minor spacing differences are acceptable. Significant structural or color mismatches should be noted but don't auto-reject — the review agent or user decides if they matter.
+
+Skip this section if no design reference is found.
