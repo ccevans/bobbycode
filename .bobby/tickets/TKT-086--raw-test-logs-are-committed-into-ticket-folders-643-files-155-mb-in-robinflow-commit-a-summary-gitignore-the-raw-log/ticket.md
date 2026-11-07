@@ -3,7 +3,7 @@ id: TKT-086
 title: >-
   Raw test logs are committed into ticket folders (643 files, 155 MB in
   robinflow): commit a summary, gitignore the raw log
-stage: backlog
+stage: building
 type: improvement
 priority: medium
 area: null
@@ -19,7 +19,7 @@ parent: null
 found_in: null
 feature: null
 persona: null
-size: null
+size: m
 created: '2026-11-07'
 updated: '2026-11-07'
 ---

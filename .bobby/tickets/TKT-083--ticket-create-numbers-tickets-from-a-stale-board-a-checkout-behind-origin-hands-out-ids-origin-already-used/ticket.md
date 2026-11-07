@@ -3,7 +3,7 @@ id: TKT-083
 title: >-
   ticket create numbers tickets from a stale board: a checkout behind origin
   hands out IDs origin already used
-stage: backlog
+stage: building
 type: bug
 priority: high
 area: null
@@ -19,7 +19,7 @@ parent: null
 found_in: null
 feature: null
 persona: null
-size: null
+size: m
 created: '2026-11-07'
 updated: '2026-11-07'
 ---
@@ -38,7 +38,7 @@ Plan direction (CC approved 2026-11-07):
 
 ## Acceptance Criteria
 
-- [ ] `bobby ticket create` in a checkout whose upstream is ahead refuses, names the commit count and the upstream branch, and creates nothing (no folder, no counter change)
+- [ ] `bobby ticket create` in a checkout whose upstream is ahead refuses, names the commit count and the upstream branch, and creates nothing (no folder, no counter change). "Ahead" counts upstream commits that touch the board directory; code-only commits don't block (plan.md decision 1)
 - [ ] When upstream holds a higher ticket ID than the local counter or disk, the next ID is above upstream's highest
 - [ ] A fetch failure is an explicit error naming the remote, never a silent local allocation
 - [ ] A repo with no upstream branch keeps today's behaviour

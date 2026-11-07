@@ -3,7 +3,7 @@ id: TKT-084
 title: >-
   Studio project is one shared active-project file: worktrees can't see it and
   parallel sessions clobber it; infer it from the ticket ID and folder
-stage: backlog
+stage: building
 type: bug
 priority: high
 area: null
@@ -19,7 +19,7 @@ parent: null
 found_in: null
 feature: null
 persona: null
-size: null
+size: m
 created: '2026-11-07'
 updated: '2026-11-07'
 ---
@@ -34,7 +34,7 @@ Prefix inference happens once in bin/bobby.js before dispatch. If a prefix match
 
 ## Acceptance Criteria
 
-- [ ] `bobby ticket view RF-1334` resolves robinflow from any directory with no active-project file and no env var
+- [ ] `bobby ticket view RF-1334` resolves robinflow from any directory inside the studio (root, repos/<repo> without its own .bobbyrc.yml, worktrees/...) with no active-project file and no env var
 - [ ] Inside a studio git worktree, commands see the main checkout's active-project
 - [ ] cwd under worktrees/<project>/... selects that project
 - [ ] --project and BOBBY_PROJECT still win over inference

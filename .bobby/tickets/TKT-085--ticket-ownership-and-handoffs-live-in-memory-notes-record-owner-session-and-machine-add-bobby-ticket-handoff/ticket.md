@@ -3,7 +3,7 @@ id: TKT-085
 title: >-
   Ticket ownership and handoffs live in memory notes: record owner session and
   machine, add bobby ticket handoff
-stage: backlog
+stage: building
 type: feature
 priority: medium
 area: null
@@ -19,7 +19,7 @@ parent: null
 found_in: null
 feature: null
 persona: null
-size: null
+size: m
 created: '2026-11-07'
 updated: '2026-11-07'
 ---

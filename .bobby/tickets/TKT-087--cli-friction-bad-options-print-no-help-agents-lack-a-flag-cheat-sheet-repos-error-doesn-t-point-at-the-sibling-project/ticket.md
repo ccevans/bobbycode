@@ -3,7 +3,7 @@ id: TKT-087
 title: >-
   CLI friction: bad options print no help, agents lack a flag cheat sheet,
   --repos error doesn't point at the sibling project
-stage: backlog
+stage: building
 type: improvement
 priority: low
 area: null
@@ -19,7 +19,7 @@ parent: null
 found_in: null
 feature: null
 persona: null
-size: null
+size: s
 created: '2026-11-07'
 updated: '2026-11-07'
 ---
