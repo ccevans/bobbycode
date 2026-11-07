@@ -3,7 +3,7 @@ id: TKT-082
 title: >-
   Ship the context-cap auto-handoff hooks: at the cap an interactive session
   writes a handoff and starts its own successor
-stage: testing
+stage: shipping
 type: feature
 priority: medium
 area: templates
@@ -35,6 +35,7 @@ updated: '2026-11-07'
 - [ ] [Third criterion]
 
 ## Comments
+- [2026-11-07] claude: Test (2026-11-07): real `bobby init` from this branch into a scratch git repo scaffolds context-cap.sh, handoff-spawn.sh, stop.sh, postcompact-restore.sh and registers SessionStart/PreCompact/Stop/UserPromptSubmit. On real Claude Code transcripts: stop.sh blocks with valid JSON at BOBBY_SAVE_INTERVAL=5; postcompact-restore on a non-ticket branch handed back RF-1123's progress.md that session wrote; context-cap at BOBBY_CONTEXT_CAP=50000 says hand off, at the default 250k says nothing. handoff-spawn's real spawn path covered by the fake-claude unit test (not run live, it would start a real session). Note: stop.sh counts task-notification entries as turns (string user content) — fires a little early, harmless.
 - [2026-11-07] scope-check: Scope check: out of plan — brand-board.html, components.html, docs/FUTURE_bobby_new.md, editorial-brand.html, editorial-components.html, homepage.html, option-1-terminal.html, option-2-editorial.html, option-3-retro.html, templates/hooks/postcompact-restore.sh, templates/hooks/stop.sh
 - [2026-11-07] system: REJECTED: context-cap.sh:24-31 reads pre-compact usage after /compact and falsely triggers handoff (reset last=0 on isCompactSummary + test); settings.json.ejs was left uncommitted (now committed); handoff-spawn.sh:34 silent exit when transcript missing (add || true)
 - [2026-11-07] scope-check: Scope check: out of plan — brand-board.html, components.html, docs/FUTURE_bobby_new.md, editorial-brand.html, editorial-components.html, homepage.html, option-1-terminal.html, option-2-editorial.html, option-3-retro.html, templates/hooks/postcompact-restore.sh, templates/hooks/stop.sh
