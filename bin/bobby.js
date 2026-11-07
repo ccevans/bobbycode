@@ -46,6 +46,10 @@ import { registerStudio } from '../commands/studio.js';
 import { registerDecision } from '../commands/decision.js';
 import { registerWorktree } from '../commands/worktree.js';
 import { touchProject } from '../lib/registry.js';
+import { ticketIdsFromCommand, inferProjectFromIds } from '../lib/project-infer.js';
+import { findProjectRoot } from '../lib/config.js';
+import { isStudio } from '../lib/studio.js';
+import { error } from '../lib/colors.js';
 
 const initCmd = registerInit(program);
 registerStudio(program);
@@ -111,13 +115,29 @@ program.hook('preAction', () => {
 // Studio: a global `--project <name>` selects the active project for this one
 // command without changing the studio default. Parsed here so every ticket
 // command picks it up via config resolution (BOBBY_PROJECT), no per-command wiring.
+// It beats an inherited BOBBY_PROJECT, so it always overwrites the env var.
 {
   const i = process.argv.indexOf('--project');
-  if (i !== -1 && process.argv[i + 1] && !process.env.BOBBY_PROJECT) {
-    process.env.BOBBY_PROJECT = process.argv[i + 1];
+  if (i !== -1 && process.argv[i + 1]) {
+    process.env.BOBBY_PROJECT = process.argv[i + 1];   // --project beats an inherited BOBBY_PROJECT
     process.argv.splice(i, 2);
   }
 }
+
+// Studio: a ticket ID names its project (RF-12 → the project whose prefix is RF),
+// so agents don't need `bobby project use` first (TKT-084). Env (incl. --project) wins.
+program.hook('preAction', (_root, actionCommand) => {
+  if (process.env.BOBBY_PROJECT) return;
+  const ids = ticketIdsFromCommand(actionCommand);
+  if (ids.length === 0) return;
+  let root;
+  try { root = findProjectRoot(); } catch { return; } // outside a project: the command itself reports it
+  if (!isStudio(root)) return;
+  try {
+    const p = inferProjectFromIds(root, ids);
+    if (p) process.env.BOBBY_PROJECT = p;
+  } catch (e) { error(e.message); process.exit(1); }
+});
 
 // Natural-language front door: `bobby "add a health endpoint"` (or unquoted words)
 // with a first token that isn't a command/flag is treated as `bobby do <request>`,

@@ -1,6 +1,8 @@
 // test/commands/studio.test.js
 // End-to-end: registry auto-touch, bobby projects, brief --all, global idea inbox.
-import { execSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
+import { initStudio, createProject, setActiveProject } from '../../lib/studio.js';
+import { createTicket } from '../../lib/tickets.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -108,5 +110,116 @@ describe('studio commands', () => {
   test('promote outside a project errors with guidance', () => {
     runIn(outside, 'idea "homeless idea"');
     expect(() => runIn(outside, 'idea promote 1')).toThrow();
+  });
+});
+
+// TKT-084: a ticket ID (or the folder) names the studio project — no `project use` first.
+describe('studio project inference (CLI)', () => {
+  const bobby = path.resolve('bin/bobby.js');
+  let studio;
+  let home;
+
+  const run = (cwd, args, env = {}) => {
+    const e = { ...process.env, HOME: home, ...env };
+    delete e.BOBBY_PROJECT;
+    Object.assign(e, env);
+    const r = spawnSync('node', [bobby, ...args], { cwd, encoding: 'utf8', env: e });
+    return { code: r.status, out: r.stdout, err: r.stderr };
+  };
+  const git = (cwd, cmd) => execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
+
+  beforeEach(() => {
+    home = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-infer-home-'));
+    studio = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-infer-studio-')));
+    initStudio(studio);
+    createProject(studio, 'robinflow', { prefix: 'RF' });
+    createProject(studio, 'bobby', { prefix: 'BOB' });
+    createTicket(path.join(studio, '.bobby', 'robinflow', 'tickets'), { prefix: 'RF', title: 'robin ticket' });
+    createTicket(path.join(studio, '.bobby', 'bobby', 'tickets'), { prefix: 'BOB', title: 'bob ticket' });
+    fs.mkdirSync(path.join(studio, 'repos', 'app'), { recursive: true });
+  });
+  afterEach(() => {
+    fs.rmSync(studio, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
+  });
+
+  test('TC1: a ticket ID picks its project from the studio root', () => {
+    const r = run(studio, ['ticket', 'view', 'RF-001']);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('RF-001--robin-ticket');
+  });
+
+  test('TC2: the same from a subdirectory with no .bobbyrc.yml of its own', () => {
+    const r = run(path.join(studio, 'repos', 'app'), ['ticket', 'view', 'BOB-001']);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('BOB-001--bob-ticket');
+  });
+
+  test('TC3: a write lands on the ID\'s board only', () => {
+    const r = run(studio, ['ticket', 'move', 'RF-001', 'plan']);
+    expect(r.code).toBe(0);
+    const stageOf = (proj) => {
+      const d = fs.readdirSync(path.join(studio, '.bobby', proj, 'tickets')).find(n => /-001--/.test(n));
+      return fs.readFileSync(path.join(studio, '.bobby', proj, 'tickets', d, 'ticket.md'), 'utf8').match(/^stage: (\w+)/m)[1];
+    };
+    expect(stageOf('robinflow')).toBe('planning');
+    expect(stageOf('bobby')).toBe('backlog');
+  });
+
+  test('TC4: --found-in on create infers the project', () => {
+    const r = run(studio, ['ticket', 'create', '-t', 'finding', '--found-in', 'RF-001']);
+    expect(r.code).toBe(0);
+    const dirs = fs.readdirSync(path.join(studio, '.bobby', 'robinflow', 'tickets')).filter(n => n.startsWith('RF-'));
+    expect(dirs.some(n => n.startsWith('RF-002--'))).toBe(true);
+  });
+
+  test('TC5/TC6: a studio git worktree sees (and writes) the main active-project', () => {
+    git(studio, 'init -q');
+    git(studio, '-c user.email=t@t -c user.name=t add -A');
+    git(studio, '-c user.email=t@t -c user.name=t commit -q -m init');
+    git(studio, `worktree add -q ${path.join(studio, 'wt-x')} -b x`);
+    setActiveProject(studio, 'bobby');
+    const wt = path.join(studio, 'wt-x');
+    const list = run(wt, ['ticket', 'list']);
+    expect(list.code).toBe(0);
+    expect(list.out).toContain('BOB-001  bob ticket');
+    const use = run(wt, ['project', 'use', 'robinflow']);
+    expect(use.code).toBe(0);
+    expect(fs.readFileSync(path.join(studio, '.bobby', 'active-project'), 'utf8')).toBe('robinflow');
+    expect(fs.existsSync(path.join(wt, '.bobby', 'active-project'))).toBe(false);
+  });
+
+  test('TC7: cwd under worktrees/<project>/ selects that project over the file', () => {
+    setActiveProject(studio, 'bobby');
+    const cwd = path.join(studio, 'worktrees', 'robinflow', 'RF-001-ui');
+    fs.mkdirSync(cwd, { recursive: true });
+    const r = run(cwd, ['ticket', 'list']);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('RF-001  robin ticket');
+    expect(r.out).not.toContain('BOB-001');
+  });
+
+  test('TC8: --project and BOBBY_PROJECT beat the ID, and --project beats the env', () => {
+    const a = run(studio, ['ticket', 'view', 'RF-001'], { BOBBY_PROJECT: 'bobby' });
+    expect(a.code).toBe(1);
+    expect(a.err + a.out).toMatch(/RF-001.*not found|not found/i);
+    const b = run(studio, ['--project', 'robinflow', 'ticket', 'view', 'RF-001'], { BOBBY_PROJECT: 'bobby' });
+    expect(b.code).toBe(0);
+    expect(b.out).toContain('RF-001--robin-ticket');
+    const c = run(studio, ['--project', 'bobby', 'ticket', 'view', 'RF-001']);
+    expect(c.code).toBe(1);
+  });
+
+  test('TC9: an unknown prefix is an explicit error naming the projects', () => {
+    const r = run(studio, ['ticket', 'view', 'XX-9']);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('no project in this studio uses prefix XX');
+    expect(r.err).toContain('robinflow (RF)');
+    expect(r.err).toContain('bobby (BOB)');
+  });
+
+  test('TC11: free text is never read as an ID', () => {
+    const r = run(studio, ['go', 'fix', 'utf-8', 'parsing']);
+    expect(r.err).not.toContain('no project in this studio uses prefix');
   });
 });
