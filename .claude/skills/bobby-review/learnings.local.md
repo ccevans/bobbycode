@@ -10,6 +10,8 @@ disagree, **this file wins**.
 ## Anti-Patterns
 <!-- bobby learn bobby-review "pattern" "description" to add entries -->
 
+- **copy-then-unlink-needs-same-path-guard**: Any copy-then-delete (--move) path must guard resolved source === destination: copyFileSync onto itself succeeds and the unlink then deletes the only copy, with exit 0. Probe by attaching/moving a file that already sits at its destination. TKT-086 attach --log --move lost a gitignored raw log this way (filed TKT-089).
+
 - **context-hook-stale-usage**: Hooks that read the last assistant usage from a transcript must reset on isCompactSummary, or the first prompt after /compact reads pre-compact size.
 
 - **uncommitted-template-passes-tests**: Check git status for dirty template/source files before trusting green tests; a test can pass only because of an uncommitted working-tree change.
