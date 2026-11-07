@@ -31,7 +31,9 @@ if [ -z "$(find "$HANDOFF" -mmin -30)" ]; then
   exit 1
 fi
 
-TRANSCRIPT="$(ls "$HOME"/.claude/projects/*/"$SID".jsonl 2>/dev/null | head -1)"
+shopt -s nullglob
+TRANSCRIPTS=("$HOME"/.claude/projects/*/"$SID".jsonl)
+TRANSCRIPT="${TRANSCRIPTS[0]:-}"
 if [ -z "$TRANSCRIPT" ]; then
   echo "handoff-spawn: no transcript found for session $SID" >&2
   exit 1

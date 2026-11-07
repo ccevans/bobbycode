@@ -199,6 +199,17 @@ describe('context-cap', () => {
     expect(msg).toContain('already handed off to "Work 2"');
   });
 
+  test('a compaction resets the size: the turns before it do not count', () => {
+    const r = hook('context-cap.sh', { session_id: 's1', transcript_path: transcript([
+      prompt('hi'), assistant(400000),
+      { type: 'system', subtype: 'compact_boundary' },
+      { ...prompt('summary'), isCompactSummary: true },
+      prompt('next'),
+    ]) }, { HOME: home, CLAUDE_CODE_ENTRYPOINT: 'cli' });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+  });
+
   test('BOBBY_CONTEXT_CAP moves the cap', () => {
     expect(cap(120000, { BOBBY_CONTEXT_CAP: '100000' }).stdout).toContain('cap 100k');
   });
@@ -227,6 +238,12 @@ describe('handoff-spawn refuses before starting anything', () => {
   test('with an empty handoff', () => {
     const r = spawn([handoff('')], { CLAUDE_CODE_SESSION_ID: 's1' });
     expect(r.stderr).toContain('missing or empty');
+  });
+
+  test('when the session has no transcript, and says so', () => {
+    const r = spawn([handoff()], { CLAUDE_CODE_SESSION_ID: 'nope' });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('no transcript found for session nope');
   });
 
   test('a second time', () => {

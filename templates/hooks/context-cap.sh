@@ -26,6 +26,10 @@ with open(path, errors="ignore") as f:
             d = json.loads(line)
         except Exception:
             continue
+        # A compaction resets the context; usage before it is no longer the size.
+        if d.get("subtype") == "compact_boundary" or d.get("isCompactSummary"):
+            last = 0
+            continue
         u = (d.get("message") or {}).get("usage") if d.get("type") == "assistant" else None
         if u:
             last = u.get("input_tokens", 0) + u.get("cache_read_input_tokens", 0) + u.get("cache_creation_input_tokens", 0)
