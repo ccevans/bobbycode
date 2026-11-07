@@ -75,9 +75,11 @@ const DRIFT_PATTERNS = [
  * matters — probing each flag once missed codex's `exec resume` refusing the
  * sandbox flag (the F7 class).
  *
- * Unregistered flavors throw rather than probe: resolveExecutor's fallback
- * treats an unknown name as a custom binary with claude-style flags, which is
- * right for `dashboard.executor: /path/to/x` and catastrophic here.
+ * Unregistered flavors throw rather than probe, and the guard below is what
+ * makes that message a useful one. `resolveExecutor` refuses an unplaceable
+ * binary too (BOB-137 deleted the claude-flags fallback), but it refuses in the
+ * vocabulary of a user's `.bobbyrc.yml` — "set dashboard.executor_flavor" — and
+ * the caller here is the canary matrix, not a config.
  */
 export function buildProbeSet(flavor) {
   if (!EXECUTOR_NAMES.includes(flavor)) {

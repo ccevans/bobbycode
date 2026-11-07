@@ -54,8 +54,16 @@ describe('dashboard workflow prompt (TKT-073)', () => {
     expect(p).toContain('Loop back and launch a bobby-build subagent again');
   });
 
-  test('a custom claude binary path keeps the fresh-launch loop', () => {
+  // BOB-137: the flavor is resolved from the binary's own name, so a path whose
+  // basename is claude IS the claude host and may continue the builder. A path
+  // Bobby cannot place is refused, not given the fresh-launch loop.
+  test('an absolute path named claude is the claude host and continues the builder', () => {
     const p = promptFor({ target: 'claude-code', dashboard: { executor: '/opt/bin/claude' } });
+    expect(p).toContain('SendMessage');
+  });
+
+  test('an absolute path declared as another flavor keeps the fresh-launch loop', () => {
+    const p = promptFor({ target: 'claude-code', dashboard: { executor: '/opt/bin/my-agent', executor_flavor: 'opencode' } });
     expect(p).not.toContain('SendMessage');
   });
 

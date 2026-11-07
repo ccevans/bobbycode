@@ -87,11 +87,26 @@ export function registerApp(program) {
         const target = getTarget(config.target || 'claude-code');
         const agentsPath = target.paths().agents;
 
-        const executor = resolveExecutor(config);
-        const executorReady = commandExists(executor.bin);
-        if (!executorReady) {
-          warn(`Executor '${executor.bin}' not found — running agents will fail.`);
-          console.log(`  ${dim(`Install it, or set dashboard.executor in .bobbyrc.yml (${EXECUTOR_NAMES.join(' | ')}).`)}`);
+        // A `dashboard.executor` whose CLI flavor cannot be placed is refused
+        // (BOB-137) — loudly, but NOT fatally. A studio serves many projects,
+        // and one project's bad executor key must not stop the app that is the
+        // only way to fix it (the BOB-024 boot-on-an-empty-studio posture).
+        // Every run then 400s with this same message, so nothing runs silently
+        // on the wrong flags. The twin of this block lives in commands/remote.js,
+        // which has no summary line and so needs no null `executor` — change
+        // the two together.
+        let executor = null;
+        let executorReady = false;
+        try {
+          executor = resolveExecutor(config);
+          executorReady = commandExists(executor.bin);
+          if (!executorReady) {
+            warn(`Executor '${executor.bin}' not found — running agents will fail.`);
+            console.log(`  ${dim(`Install it, or set dashboard.executor in .bobbyrc.yml (${EXECUTOR_NAMES.join(' | ')}).`)}`);
+          }
+        } catch (e) {
+          error(e.message);
+          console.log(`  ${dim('Agent runs will refuse with this message until the config is fixed.')}`);
         }
 
         // A studio with ZERO projects has no board to resolve — and must still
@@ -160,7 +175,9 @@ export function registerApp(program) {
           const url = `http://${host}:${port}`;
           console.log('');
           console.log(`  ${bold('Bobby')} — ${config.project || path.basename(root)}`);
-          console.log(`  ${dim(`Executor: ${executor.bin}${executorReady ? '' : ' — NOT FOUND'}`)}`);
+          console.log(`  ${dim(executor
+            ? `Executor: ${executor.bin}${executorReady ? '' : ' — NOT FOUND'}`
+            : 'Executor: (unresolved — see the error above)')}`);
           console.log(`  ${dim(pluginStatusLine(pluginStatus))}`);
           console.log(`  ${dim(app.note)}`);
           console.log('');
