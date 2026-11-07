@@ -1,5 +1,5 @@
 ---
-description: "Ship a ticket — create PR from feature branch"
+description: "Ship a ticket — create PR, merge, and deploy per repo needs"
 argument-hint: "<ticket ID>"
 ---
 

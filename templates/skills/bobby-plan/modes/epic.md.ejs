@@ -1,0 +1,49 @@
+# Bobby Plan: Epic Mode
+
+> Read by bobby-plan after Mode Detection picks this mode. The rest of `SKILL.md` (investigation, sizing, spec trace, contract) still applies.
+
+## Epic Mode
+
+### Step 1: Generate & Score Approaches
+
+Generate 3 approaches, then score each on these dimensions (1-5 scale) — scoring makes the decision traceable and defensible, not gut-feel:
+
+| Dimension | Weight | Description |
+|-----------|--------|-------------|
+| Minimal effort | 3x | Least code, fewest files, smallest blast radius |
+| Risk | 2x | Less risk = higher score |
+| Maintainability | 2x | Long-term code health, readability |
+| Impact | 1x | User-facing value delivered |
+
+**Weighted score** = (Effort x 3) + (Risk x 2) + (Maintainability x 2) + (Impact x 1)
+
+### Step 2: Auto-Select or Escalate
+
+- **Auto-select**: Pick the highest-scoring approach. Bias toward minimal fix.
+- **Escalate** (`bobby ticket move {ID} block "Approach decision needed"`) ONLY if:
+  - Top two scores are within 5 points of each other, OR
+  - A lower-effort option scores 10+ points below a long-term option on Maintainability alone
+
+Record all approaches and scores in `plan.md` with a `## Decision` section explaining why the selected approach won. When escalating, flag which dimension caused the tie so the reviewer can decide quickly.
+
+### Step 3: Write Spec
+
+Save a spec in the epic ticket's `plan.md`:
+- **Problem statement** — What and why
+- **Proposed solution** — How
+- **User stories** — Who benefits
+- **Technical approach** — Architecture, data model, APIs
+- **Out of scope** — Explicitly NOT doing
+
+### Step 4: Create Child Tickets
+
+Break the spec into tickets:
+- Each ticket is independently deliverable
+- Order by dependency
+- Use: `bobby ticket create -t "Title" --type feature -p medium --parent {EPIC_ID}`
+
+### Completing Epic Mode
+
+- `plan.md` saved in epic ticket folder
+- Child tickets created in backlog with `parent` field set
+- Add comment: `bobby ticket comment {EPIC_ID} --by bobby-plan "Broke down into {N} tickets"`

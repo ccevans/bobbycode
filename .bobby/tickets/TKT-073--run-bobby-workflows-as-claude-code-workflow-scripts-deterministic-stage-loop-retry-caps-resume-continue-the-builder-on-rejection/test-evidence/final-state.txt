@@ -1,0 +1,20 @@
+## bobby ticket view TKT-002 (final)
+
+  Stage: shipping
+  Path:  .bobby/tickets/TKT-002--add-hello2-txt-containing-hi-again/
+
+## git log
+b5e62a1 TKT-002: Record review comment and move to shipping
+504ddaf bobby: auto-sync
+ad801f3 TKT-002: review fixes
+6f26d9c TKT-002: Record build comment and move to reviewing
+fe579de TKT-002: Add hello2.txt containing hi again
+adfe36b TKT-002 in building
+36ea638 attempt 1 done
+6df0d7d bobby: auto-sync
+
+## hello2.txt
+hi again
+
+## git ls-files hello2.txt
+hello2.txt

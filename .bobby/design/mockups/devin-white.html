@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Subscriptions &amp; billing — bobbycode</title>
+<style>
+/* ------------------------------------------------------------------
+   Tokens. Every value sampled from the four app.devin.ai screenshots
+   (iPhone 15 Pro Max, 1290x2796 @3x -> 430 CSS px viewport).
+   ------------------------------------------------------------------ */
+:root{
+  --ground:      #F8F8F8;  /* IMG_5805 page ground behind the list container */
+  --surface:     #FFFFFF;  /* IMG_5805 list container, IMG_5808 composer     */
+  --hairline:    #E2E2E2;  /* IMG_5807 card border + chip border             */
+  --fill-active: #F5F5F5;  /* IMG_5805 selected session row                  */
+  --fill-track:  #EDEDED;  /* IMG_5808 progress track                        */
+  --fill-hover:  #FAFAFA;
+  --ink:         #191919;  /* IMG_5805/5807/5808 primary text                */
+  --ink-2:       #6E6E6E;  /* darkened from sampled #7D7D7D for AA           */
+  --blue:        #467AF6;  /* IMG_5808 check circle + progress + 5805 dots   */
+  --btn:         #363636;  /* IMG_5807 "Create automation" fill              */
+  --dot-muted:   #8F8F8F;  /* IMG_5808 neutral grey, lifted to >=3:1         */
+  --r-container: 12px;
+  --r-row:        8px;
+  --r-btn:        8px;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:15px;
+  line-height:1.35;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+.app{
+  max-width:440px;
+  margin:0 auto;
+  padding:0 16px calc(48px + env(safe-area-inset-bottom,0px));
+}
+
+/* ---------- top bar ---------------------------------------------- */
+.topbar{
+  height:52px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.iconbtn{
+  width:36px;height:36px;
+  margin-left:-8px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:0;background:none;padding:0;
+  color:var(--ink);
+  border-radius:8px;
+  cursor:pointer;
+}
+.iconbtn:hover{background:var(--fill-active)}
+.pill{
+  display:inline-flex;align-items:center;
+  height:28px;padding:0 12px;
+  border:1px solid var(--hairline);
+  border-radius:999px;
+  background:var(--surface);
+  color:var(--ink);
+  font-size:13px;
+  text-decoration:none;
+}
+.pill:hover{background:var(--fill-active)}
+
+/* ---------- page head -------------------------------------------- */
+h1{
+  margin:12px 0 0;
+  font-size:22px;
+  font-weight:600;
+  letter-spacing:-0.012em;
+  line-height:1.22;
+}
+.sub{
+  margin:6px 0 0;
+  font-size:13px;
+  color:var(--ink-2);
+  font-variant-numeric:tabular-nums;
+}
+.status{
+  margin:14px 0 0;
+  display:flex;align-items:center;gap:8px;
+  font-size:15px;
+}
+.status span{color:var(--ink-2)}
+.status b{font-weight:600;color:var(--ink)}
+.dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--blue);
+  flex:none;
+}
+
+/* ---------- section headers -------------------------------------- */
+.sechead{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;
+}
+.sechead h2{
+  margin:0;font-size:14px;font-weight:600;
+}
+.count{
+  font-size:13px;color:var(--ink-2);
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+.progress-wrap{display:flex;align-items:center;gap:8px}
+.bar{
+  width:72px;height:6px;
+  border-radius:999px;
+  background:var(--fill-track);
+  overflow:hidden;
+}
+.bar i{display:block;height:100%;background:var(--blue);border-radius:999px}
+
+/* ---------- pipeline (no card — bare on the ground, as IMG_5808) -- */
+.pipeline{margin-top:28px}
+.steps{list-style:none;margin:14px 0 0;padding:0}
+.steps li{
+  display:flex;align-items:center;gap:12px;
+  min-height:34px;
+}
+.mark{width:18px;height:18px;flex:none;display:block}
+.mark circle.ring{fill:none;stroke:var(--dot-muted);stroke-width:1.5}
+.mark circle.now{fill:var(--surface);stroke:var(--blue);stroke-width:2}
+.mark circle.here{fill:var(--blue)}
+.mark circle.done{fill:var(--blue)}
+.mark path{fill:none;stroke:#FFFFFF;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.steps .label{font-size:14px}
+.steps .todo .label{color:var(--ink-2)}
+.steps .now .label{font-weight:600}
+.steps .now .note{font-size:13px;color:var(--ink-2)}
+
+/* ---------- decision --------------------------------------------- */
+.decision{margin-top:20px}
+.saidby{
+  margin:0;
+  font-size:13px;
+  line-height:1.45;
+  color:var(--ink-2);
+  font-variant-numeric:tabular-nums;
+}
+.actions{margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  height:36px;padding:0 14px;
+  border-radius:var(--r-btn);
+  font-size:14px;font-weight:500;
+  text-decoration:none;
+  cursor:pointer;
+  border:1px solid transparent;
+}
+.btn-primary{background:var(--btn);color:#FFFFFF}
+.btn-primary:hover{background:#2B2B2B}
+.btn-primary:active{background:#1F1F1F}
+.btn-quiet{background:var(--surface);color:var(--ink);border-color:var(--hairline)}
+.btn-quiet:hover{background:var(--fill-active)}
+.btn-quiet:active{background:var(--fill-track)}
+
+/* ---------- tickets: ONE white container, rows inside ------------- */
+.tickets{margin-top:32px}
+.list{
+  margin-top:12px;
+  background:var(--surface);
+  border:1px solid var(--hairline);
+  border-radius:var(--r-container);
+  padding:6px;
+}
+.row{
+  display:flex;align-items:center;gap:12px;
+  padding:9px 12px;
+  border-radius:var(--r-row);
+  text-decoration:none;
+  color:inherit;
+  transition:background-color .12s linear;
+}
+.row + .row{margin-top:2px}
+.row:hover{background:var(--fill-hover)}
+.row:active{background:var(--fill-track)}
+.row.is-active{background:var(--fill-active)}
+.row.is-active:hover{background:#F0F0F0}
+.row .txt{min-width:0;flex:1;display:block}
+.row .t{display:block;font-size:14px;color:var(--ink);line-height:1.3}
+.row .s{
+  display:block;
+  margin-top:3px;font-size:13px;color:var(--ink-2);line-height:1.35;
+  font-variant-numeric:tabular-nums;
+}
+.rdot{width:8px;height:8px;flex:none;border-radius:50%}
+.rdot.live{background:var(--blue)}
+.rdot.settled{background:var(--dot-muted)}
+.rdot.idle{background:transparent;box-shadow:inset 0 0 0 1.5px var(--dot-muted)}
+
+/* ---------- focus ------------------------------------------------- */
+a:focus-visible,button:focus-visible{
+  outline:2px solid var(--blue);
+  outline-offset:2px;
+}
+.row:focus-visible{outline-offset:-1px}
+
+@media (min-width:768px){
+  .app{padding-top:24px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important;animation:none !important}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <button class="iconbtn" type="button" aria-label="Open navigation">
+      <svg width="18" height="16" viewBox="0 0 18 16" aria-hidden="true">
+        <rect x=".65" y=".65" width="16.7" height="14.7" rx="3.4" fill="none" stroke="currentColor" stroke-width="1.3"/>
+        <line x1="6.6" y1=".65" x2="6.6" y2="15.35" stroke="currentColor" stroke-width="1.3"/>
+      </svg>
+    </button>
+    <a class="pill" href="#">bobbycode</a>
+  </header>
+
+  <h1>Subscriptions &amp; billing</h1>
+  <p class="sub">ccevans/bobbycode · TKT-001</p>
+
+  <p class="status"><span class="dot" aria-hidden="true"></span><span><b>Waiting on you</b> · 6m</span></p>
+
+  <section class="pipeline" aria-labelledby="ph">
+    <div class="sechead">
+      <h2 id="ph">Pipeline</h2>
+      <div class="progress-wrap">
+        <span class="count">2 of 5</span>
+        <span class="bar" role="img" aria-label="2 of 5 stages complete"><i style="width:40%"></i></span>
+      </div>
+    </div>
+    <ul class="steps">
+      <li class="done">
+        <svg class="mark" viewBox="0 0 18 18" aria-hidden="true">
+          <circle class="done" cx="9" cy="9" r="9"/>
+          <path d="M5.1 9.1 L7.7 11.7 L12.9 6.4"/>
+        </svg>
+        <span class="label">Plan</span>
+      </li>
+      <li class="done">
+        <svg class="mark" viewBox="0 0 18 18" aria-hidden="true">
+          <circle class="done" cx="9" cy="9" r="9"/>
+          <path d="M5.1 9.1 L7.7 11.7 L12.9 6.4"/>
+        </svg>
+        <span class="label">Build</span>
+      </li>
+      <li class="now">
+        <svg class="mark" viewBox="0 0 18 18" aria-hidden="true">
+          <circle class="now" cx="9" cy="9" r="8"/>
+          <circle class="here" cx="9" cy="9" r="3.4"/>
+        </svg>
+        <span class="label">Review</span>
+      </li>
+      <li class="todo">
+        <svg class="mark" viewBox="0 0 18 18" aria-hidden="true">
+          <circle class="ring" cx="9" cy="9" r="8.25"/>
+        </svg>
+        <span class="label">Test</span>
+      </li>
+      <li class="todo">
+        <svg class="mark" viewBox="0 0 18 18" aria-hidden="true">
+          <circle class="ring" cx="9" cy="9" r="8.25"/>
+        </svg>
+        <span class="label">Merge</span>
+      </li>
+    </ul>
+  </section>
+
+  <section class="decision">
+    <p class="saidby">Stripe checkout session finished building and is ready for your review.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="#">Approve — send to test</a>
+      <a class="btn btn-quiet" href="#">Send back</a>
+    </div>
+  </section>
+
+  <section class="tickets" aria-labelledby="th">
+    <div class="sechead">
+      <h2 id="th">Tickets</h2>
+      <span class="count">1 of 4 done</span>
+    </div>
+    <div class="list">
+      <a class="row" href="#">
+        <span class="txt">
+          <span class="t">Pricing page with plan cards</span>
+          <span class="s">Done · merged 2h ago</span>
+        </span>
+        <span class="rdot settled" aria-hidden="true"></span>
+      </a>
+      <a class="row is-active" href="#" aria-current="true">
+        <span class="txt">
+          <span class="t">Stripe checkout session</span>
+          <span class="s">Reviewing · waiting 6m</span>
+        </span>
+        <span class="rdot live" aria-hidden="true"></span>
+      </a>
+      <a class="row" href="#">
+        <span class="txt">
+          <span class="t">Webhook: activate subscription</span>
+          <span class="s">Building · running 3m</span>
+        </span>
+        <span class="rdot live" aria-hidden="true"></span>
+      </a>
+      <a class="row" href="#">
+        <span class="txt">
+          <span class="t">Customer portal link</span>
+          <span class="s">Backlog · not started</span>
+        </span>
+        <span class="rdot idle" aria-hidden="true"></span>
+      </a>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

@@ -69,4 +69,42 @@ describe('bobby ticket create', () => {
       execSync(`node ${bobby} ticket create`, { cwd: tmpDir, stdio: 'pipe' });
     }).toThrow();
   });
+
+  describe('--found-in', () => {
+    const ticketsPath = () => path.join(tmpDir, '.bobby', 'tickets');
+    const readData = (prefix) => {
+      const dir = fs.readdirSync(ticketsPath()).find(e => e.startsWith(prefix));
+      return matter(fs.readFileSync(path.join(ticketsPath(), dir, 'ticket.md'), 'utf8')).data;
+    };
+
+    test('records the ticket the finding came from', () => {
+      execSync(`node ${bobby} ticket create -t "Origin"`, { cwd: tmpDir });
+      const out = execSync(
+        `node ${bobby} ticket create -t "Login 500s on empty email" --type bug -p high -a bobby-build --found-in TKT-001`,
+        { cwd: tmpDir, encoding: 'utf8' },
+      );
+      expect(out).toContain('Found in TKT-001');
+      const data = readData('TKT-002');
+      expect(data.found_in).toBe('TKT-001');
+      expect(data.author).toBe('bobby-build');
+      expect(data.stage).toBe('backlog');
+    });
+
+    test('an unknown origin is an explicit error and writes nothing', () => {
+      let err;
+      try {
+        execSync(`node ${bobby} ticket create -t "X" --found-in TKT-999`, { cwd: tmpDir, stdio: 'pipe' });
+      } catch (e) { err = e; }
+      expect(err).toBeDefined();
+      expect(err.status).toBe(1);
+      expect(err.stderr.toString()).toMatch(/TKT-999.*no such ticket/);
+      expect(fs.readdirSync(ticketsPath()).filter(e => e.startsWith('TKT-'))).toHaveLength(0);
+      expect(fs.readFileSync(path.join(ticketsPath(), '.counter'), 'utf8').trim()).toBe('0');
+    });
+
+    test('without the flag found_in is null', () => {
+      execSync(`node ${bobby} ticket create -t "Plain"`, { cwd: tmpDir });
+      expect(readData('TKT-001').found_in).toBeNull();
+    });
+  });
 });

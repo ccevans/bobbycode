@@ -1,0 +1,11 @@
+## Working efficiently
+
+Everything you read stays in your context and is sent again on every later turn, and each
+round trip re-sends all of it. So:
+
+- Search first, then read only the lines you need: Grep with a pattern, Read with an offset and
+  limit. Don't dump whole files through `cat`, `sed -n` or `head` in Bash.
+- Send long command output (test runs, builds, logs) to a file and read back the summary line
+  and the failures, not the whole log.
+- First privately list what you need next; then request every item that doesn't depend on
+  another's result in this one response.

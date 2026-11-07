@@ -20,6 +20,10 @@ Then:
 4. Run `git log --oneline -10` to see what changed
 5. Run `git diff` to see the actual code changes
 
+<%- include('../partials/unattended.md.ejs') %>
+
+<%- include('../partials/efficient.md.ejs') %>
+
 ## Completing Work
 
 - If approved: `bobby ticket comment {ID} --by bobby-security "Security review passed: {summary}"` then output `<bobby:done ticket="{ID}" stage="approved" />`

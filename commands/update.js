@@ -2,6 +2,7 @@
 import path from 'path';
 import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
 import { updateTicket } from '../lib/tickets.js';
+import { assertSize, TICKET_SIZES } from '../lib/workflow.js';
 import { success, error } from '../lib/colors.js';
 
 export function registerUpdate(program) {
@@ -16,6 +17,8 @@ export function registerUpdate(program) {
     .option('--type <type>', 'Set ticket type')
     .option('--feature <id>', 'Set feature-map ref (e.g. F1.2)')
     .option('--persona <id>', 'Set persona ref (e.g. P1)')
+    .option('--size <size>', `Set size (${TICKET_SIZES.join(', ')}) — picks the pipeline when the ticket names no workflow`)
+    .option('--workflow <name>', 'Set the named workflow this ticket runs through')
     .action((id, opts) => {
       try {
         const root = findProjectRoot();
@@ -31,9 +34,11 @@ export function registerUpdate(program) {
         if (opts.type) updates.type = opts.type;
         if (opts.feature !== undefined) updates.feature = opts.feature || null;
         if (opts.persona !== undefined) updates.persona = opts.persona || null;
+        if (opts.size !== undefined) updates.size = assertSize(opts.size);
+        if (opts.workflow !== undefined) updates.workflow = opts.workflow || null;
 
         if (Object.keys(updates).length === 0) {
-          error('No updates specified. Use --parent, --priority, --assigned, --title, --area, or --type.');
+          error('No updates specified. Use --parent, --priority, --assigned, --title, --area, --type, --size or --workflow.');
           process.exit(1);
         }
 

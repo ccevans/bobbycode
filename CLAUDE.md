@@ -84,13 +84,13 @@ All agents must follow these rules. Violations are treated as critical failures.
 
 ## Workflows
 
-A workflow is the ordered set of stages a ticket runs through. Built-in: **default** (plan→build→review→test), **secure** (adds a security stage), **quick** (plan→build→test), **freewill** (one agent does all four on few instructions — Opus 5 / Fable 5 only).
+A workflow is the ordered set of stages a ticket runs through. Built-in: **default** (plan→build→review→test), **secure** (adds a security stage), **quick** (plan→build→test), **freewill** (one agent does all four on few instructions — runs on Fable).
 
 - **Run one:** `bobby run workflow TKT-001` — auto-chains the default workflow
 - **Named workflow:** `bobby run secure TKT-001` (or `--workflow secure`) — built-in or your own
 - **Slow mode:** `bobby run next TKT-001` — runs next agent for current stage
 - **Batch mode:** `bobby run plan` (no ticket ID) — runs agent on all tickets in stage
-- **Ship:** `bobby run ship` — creates PR, merges, moves to done
+- **Ship:** `bobby run ship` — creates PR, merges, deploys per repo needs, moves to done
 
 ### Custom Workflows
 
@@ -168,7 +168,7 @@ When told to "test", load `.claude/skills/bobby-test/SKILL.md`.
 
 ### Shipper (bobby-ship)
 When told to "ship", load `.claude/skills/bobby-ship/SKILL.md`.
-- Creates PR, waits for CI, merges
+- Creates PR, waits for CI, merges, and deploys using whatever mechanism the repo needs (Vercel, Heroku promotion branch, GitHub Actions, npm publish, or nothing — detected per repo)
 
 ### UX Designer (bobby-ux)
 When told to "review design" or "UX audit", load `.claude/skills/bobby-ux/SKILL.md`.
@@ -191,7 +191,7 @@ When told to "debug" or "investigate", load `.claude/skills/bobby-debug/SKILL.md
 ### Freewill (bobby-freewill)
 When told to "freewill", "skip the stages", or "just do the whole ticket", load `.claude/skills/bobby-freewill/SKILL.md`.
 - One agent takes the ticket from start to shipping on deliberately few instructions
-- Built for Opus 5 / Fable 5 — a goal plus its invariants, no procedure
+- Runs on Fable by default — a goal plus its invariants, no procedure
 - No fresh-eyes reviewer: security-sensitive, underspecified, and epic-sized tickets go back to `default`/`secure`
 
 ### Documentation (bobby-docs)

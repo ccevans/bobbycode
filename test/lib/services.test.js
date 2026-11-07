@@ -39,6 +39,30 @@ describe('services', () => {
       expect(detected).toHaveLength(1);
       expect(detected[0].language).toBe('ruby');
       expect(detected[0].commands.test).toBe('bundle exec rspec');
+      expect(detected[0].commands.test_impacted).toBe('bundle exec rspec {files}');
+    });
+
+    test('every language marker carries an impacted-specs command', () => {
+      const markers = [
+        ['dotnet', ['app.csproj', '<Project />']],
+        ['ruby', ['Gemfile', '']],
+        ['python', ['requirements.txt', '']],
+        ['javascript', ['package.json', '{}']],
+        ['go', ['go.mod', 'module x']],
+        ['rust', ['Cargo.toml', '']],
+        ['java', ['pom.xml', '']],
+      ];
+      for (const [language, [file, body]] of markers) {
+        const svcDir = path.join(tmpDir, `svc-${language}`);
+        fs.mkdirSync(svcDir);
+        fs.writeFileSync(path.join(svcDir, file), body);
+      }
+      const detected = detectServices(tmpDir);
+      expect(detected.map(s => s.language).sort()).toEqual(markers.map(m => m[0]).sort());
+      for (const svc of detected) {
+        expect(typeof svc.commands.test_impacted).toBe('string');
+        expect(svc.commands.test_impacted.length).toBeGreaterThan(0);
+      }
     });
 
     test('detects python project by requirements.txt', () => {

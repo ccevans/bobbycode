@@ -6,7 +6,67 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+- **Smaller skills at agent start (token budget).** Every agent step re-sends its
+  whole context, so what an agent loads up front is paid on every step.
+  `bobby-plan` now loads a 7 KB core plus only the mode file it needs
+  (`modes/epic.md`, `product-epic.md`, `feature-refine.md`, `refine.md`) instead
+  of all four modes (22 KB). `bobby-test` moves situational sections (service
+  recovery, testing tools, results.md format, non-UI features, design reference
+  check) into `reference.md`, read when they apply. The `CLAUDE.md` template drops
+  the per-agent list and full CLI listing (about 7 KB) into the tickets
+  `WORKFLOW.md`, keeping the routing table and a pointer.
+
+### Added
+- **`library` and `library-secure` built-in workflows, and a `default_workflow`
+  config key (BOB-090, also TKT-013).** CLI tools, libraries and npm packages have
+  no live app, so the test stage stranded every ticket (bobby-test never runs specs).
+  `library` is `plan → build → review` (review runs the suite); `library-secure`
+  adds security. `bobby init` and `bobby new` write `default_workflow: library`,
+  with a comment, when a project has no health checks and no dev command. Order
+  of precedence: `--workflow` flag, ticket `workflow:`, size via `sizing:`, your
+  `workflows.default`, `default_workflow`, built-in `default`. Setting
+  `default_workflow` turns off the built-in `xs` → `quick` rule. An unknown or
+  invalid `default_workflow` is an error, never a silent fallback. Any prompt that
+  would launch bobby-test with no health checks now blocks the ticket with
+  "no live app to test — use the library workflow". `bobby workflow list` shows
+  effective stages and the project default.
+- **Automatic session handoff at the context cap.** New `hooks/context-cap.sh`
+  (UserPromptSubmit) reads the session's context size from its transcript. Past
+  `BOBBY_CONTEXT_CAP` tokens (default 250000), an interactive session writes a
+  handoff (`progress.md`, or `.bobby/handoffs/<date>-<topic>.md`) and runs
+  `hooks/handoff-spawn.sh`, which starts `claude --bg --remote-control "<name> 2"`
+  with the same model and effort. Each session hands off once; headless runs only
+  stop. A compaction resets the count. `bobby init` and upgrades register it.
+- **Stay in the ticket (TKT-074).** Agents drifted off their ticket (rewording
+  copy, fixing security bugs they ran into, refactoring on the way), which skipped
+  product review and bloated diffs. The rule now ships with Bobby instead of living
+  in one project's notes: a "Stay in the ticket" section in the `CLAUDE.md` template
+  and in `bobby-shared`, plus a scope step in build, debug, test, ship, review,
+  freewill, plan, design-build and design-check. Out-of-scope findings are filed
+  with `bobby ticket create --found-in <id>` (an unknown id is an error) and wait in
+  backlog: `bobby brief` and `bobby ticket triage` show them as filed by agents and
+  awaiting product review, and `bobby go` never starts one. When a ticket leaves
+  building, `bobby ticket move` prints the changed files `plan.md` does not name and
+  records a `scope-check` comment; it warns and never blocks, and `bobby-review`
+  rejects out-of-plan changes the ticket does not need.
+
 ### Fixed
+- **`hooks/stop.sh` never fired.** It counted transcript entries of type `human`
+  (Claude Code writes `user`), and its block message broke its own JSON on the
+  apostrophe in "doesn't". It now counts real prompts and is replaced on upgrade.
+- **Post-compaction restore off a ticket branch.** When the branch names no
+  ticket, `hooks/postcompact-restore.sh` now hands back the last `progress.md` or
+  `.bobby/handoffs/*.md` the session itself wrote, read from its transcript.
+- **README Executor prose caught up with the registry (BOB-134).** The
+  Dashboard section still said the dashboard drives `claude` or `cursor-agent`
+  only — three flavors stale after codex (BOB-080) and opencode (BOB-085)
+  shipped, and wrong about the default rule, which derives from `target`, not
+  "claude unless cursor". The prose, the YAML example's `executor:` comment,
+  and the permission-posture paragraph now match `lib/dashboard/executor.js`,
+  and a new `test/docs/executor-prose.test.js` anchors all three against
+  `EXECUTOR_NAMES` the way BOB-082's suite guards the support-matrix table —
+  the next flavor added cannot leave them stale silently.
 - **`.bobby/decisions.yaml` finally has a writer (TKT-063).** Nothing in the
   codebase ever appended to the architectural decision log — `bobby init` seeded
   it, `bobby-review` read it in prose, and every entry was put there by an agent
@@ -26,15 +86,106 @@ All notable changes to Bobby are documented here. The format is based on
 
 ### Added
 
+- **A model per stage, not one for the whole board (BOB-135).** Bobby ran every
+  agent on whatever single model `dashboard.model` named — or, from the CLI, on
+  whatever model the operator's session happened to be on — so reviewing a diff
+  and recording a page's load time cost the same. Each agent now declares a
+  **tier** in `lib/agent-registry.js`: `opus` for judgment (plan, review,
+  security, debug, arch, vet, strategy, the design critiques), `sonnet` for
+  execution (build, test, qe, ship, docs), `haiku` for bookkeeping (performance,
+  watchdog). `lib/models.js` resolves a tier plus the project's config into the
+  model an agent actually gets, and BOTH paths honour it: the orchestrator
+  passes it to the executor as `--model`, and `bobby init`/`bobby upgrade` stamp
+  it into each scaffolded `.claude/agents/bobby-*.md` frontmatter so a stage
+  launched from your own session lands on the right model too. `bobby run`
+  prints the resolved model in its header.
+
+  Override any of it with a `models:` block in `.bobbyrc.yml` — `models.<stage>`
+  beats `models.default` beats `dashboard.model` beats the shipped tier, and
+  `inherit` at any level means "pass no model at all". Two deliberate
+  restraints: an existing `dashboard.model` still governs every stage, so a
+  project that already pinned one model keeps meaning that and never quietly
+  acquires per-stage defaults; and because `opus`/`sonnet`/`haiku` are aliases
+  only the `claude` CLI and Claude Code frontmatter accept, the shipped tiers
+  are withheld from `cursor-agent`, `codex` and `opencode`, which take full
+  model names — passing one an alias it does not have kills the run rather than
+  degrading it. Those projects behave exactly as before until they name models
+  themselves. `test/docs/model-tiers-prose.test.js` anchors the README's tier
+  table against the registry so it cannot drift.
+
+- **Push notifications actually fire (BOB-130).** The relay could already turn a
+  `{type:'notify'}` frame into a Web Push, but nothing in the host ever sent one
+  — so the Needs-you queue gained tickets in silence. `bobby remote` now carries
+  a notifier that watches the workspace store and sends on the *edge* into a
+  push-worthy state: `needs_you` when a run stops for you, `failed` when one
+  ends badly. It fires once per transition, not once per store write, and its
+  seed is taken before subscribing so a restart with work already parked stays
+  quiet. `bobby app` is unaffected — no tunnel, no notifier. The frame stays
+  cleartext by design and carries only `{type, kind}` with `kind` drawn from a
+  two-value set, so a push reveals that something wants you and nothing about
+  what: no ticket, title, stage, or project.
+
 - **Codex CLI target + executor** (`target: codex`): scaffolds `AGENTS.md`,
   `.codex/skills/`, and prompt-referenced agents; the dashboard drives
   `codex exec --json` headlessly. Every convention verified against the
   shipped codex-cli 0.146.0 binary — including two the docs implied wrongly
   (no project agent registry; no command surface).
 - **Generic `agents-md` target**: rules + skills for any AGENTS.md-reading
-  tool. Claims-limited by design.
+  tool. Claims-limited by design. Windsurf (now Devin Desktop, renamed June
+  2026) is declared covered by this tier — its docs first-party-document root
+  `AGENTS.md` as an always-on rule and `.agents/skills/` as a cross-agent
+  skill root (docs.devin.ai, fetched 2026-08-23; citations in
+  `lib/targets/agents-md.js`) — so no dedicated Windsurf adapter ships. Zed is
+  likewise declared covered, on shipped-code evidence: its released source
+  (v1.16.1) lists `AGENTS.md` in its rules-file array and scans
+  `.agents/skills/` as its project skills root (SHA-pinned permalinks in the
+  same adapter header) — so no dedicated Zed adapter ships either, and a
+  `.rules` adapter would be a same-list filename swap that loses the AGENTS.md
+  ecosystem. Antigravity CLI (`agy`, Gemini CLI's successor — the consumer
+  Gemini CLI was retired June 2026) is likewise declared covered: its own CLI
+  docs name a root `AGENTS.md` as a rules file parsed on startup and
+  `.agents/skills/` as its project skills root (antigravity.google/docs/cli,
+  fetched 2026-08-23; citations in the same adapter header) — so no dedicated
+  adapter ships, and a future `agy` dashboard executor is deferred behind a
+  recorded re-open condition rather than claimed from docs alone.
+- **Dedicated GitHub Copilot target** (`target: copilot`): scaffolds
+  `AGENTS.md`, `.github/skills/`, slash-invocable prompt files at
+  `.github/prompts/*.prompt.md` (frontmatter kept — the shipped keys are the
+  documented prompt-file dialect), and prompt-referenced agents in
+  `.github/bobby/agents/` (deliberately not the native `.github/agents/`
+  registry). Convention tier: every path cited to official GitHub/VS Code
+  docs (fetched 2026-08-23) in the adapter header; no dashboard executor.
+  `.github/copilot-instructions.md` is detected but never written — the CLI
+  combines instruction files, so duplicating rules there would drift.
+- **Dedicated OpenCode target** (`target: opencode`): scaffolds `AGENTS.md`,
+  slash-invocable commands at `.opencode/commands/` (frontmatter reduced to
+  the documented `description` key — the shipped loader throws on schema
+  failure, so only schema-named keys ship), native skills at
+  `.opencode/skills/`, and prompt-referenced agents in
+  `.opencode/bobby/agents/` (deliberately not the real `.opencode/agent(s)/`
+  registry — its dialect is unverified for Bobby's files). Every convention
+  cited to SHA-pinned source permalinks (sst/opencode@03bba46) in the adapter
+  header and confirmed by real opencode 1.18.21 probes against the actual
+  scaffold.
+- **OpenCode dashboard executor** (derived from `target: opencode`): the
+  dashboard drives `opencode run --format json` headlessly, with chat resume
+  via `--session <id>` (opencode's camelCase `sessionID` captured off its
+  stream events) and permission modes mapped to run-mode's own posture
+  (`--auto` for bypass, the built-in `plan` agent for plan mode, no flag for
+  acceptEdits/default — which IS run-mode's default posture). Every flag
+  verified against the real opencode 1.18.21 binary as cross-products, prompt
+  passed positionally (`-p` is opencode's basic-auth password flag), and the
+  flavor registered in the weekly flag-drift canary with a dedicated
+  usage-dump drift pattern (opencode rejects unknown flags with a bare help
+  dump, no error text).
 - **Target-matrix invariant suite**: every registered target runs the same
   contract tests; new targets land pre-verified with zero test edits.
+- **README harness support matrix** with a per-target verification-status
+  column (`real-CLI` / `shipped-code` / `convention` — every verified cell
+  names its evidence) and canary coverage, plus a contributor guide for new
+  targets. Enforced by `test/docs/support-matrix.test.js`: a target without an
+  honest row, an executor without a flag-canary leg, or an overclaimed
+  generic tier is a red PR.
 - **`bobby-freewill` — one agent, the whole ticket, deliberately few
   instructions.** `bobby run freewill <id>` (or `--workflow freewill`) collapses
   plan → build → review → test into a single agent that gets the goal and the

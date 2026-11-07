@@ -6,8 +6,8 @@ import {
   buildPerformancePrompt, buildWatchdogPrompt, buildVetPrompt, buildStrategyPrompt,
   buildSprintPrompt,
   resolveNextAgent, DEFAULT_WORKFLOW, resolveWorkflow, listWorkflows,
-  BUILT_IN_WORKFLOWS, STAGE_MAP, nextStageForAgent,
-  deriveDefaultWorkflow, buildPromptFor,
+  BUILT_IN_WORKFLOWS, STAGE_MAP, nextStageForAgent, buildPromptFor, featureBranchName, resolveWorkflowName,
+  deriveDefaultWorkflow, workflowNameForTicket, assertDefaultWorkflowKey,
 } from '../../lib/workflow.js';
 import { createTicket, moveTicket, findTicket, writeTicket } from '../../lib/tickets.js';
 import { isValidStage } from '../../lib/stages.js';
@@ -161,9 +161,11 @@ describe('workflow', () => {
       expect(prompt).toContain('- TKT-002');
     });
 
-    test('includes branch guard', () => {
+    test('includes worktree isolation and branch guard fallback', () => {
       const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW);
-      expect(prompt).toContain('Branch guard');
+      expect(prompt).toContain('Worktree isolation');
+      expect(prompt).toContain('bobby worktree create {TICKET_ID}');
+      expect(prompt).toContain('bobby worktree path {TICKET_ID}');
       expect(prompt).toContain('git branch --show-current');
       expect(prompt).toContain('tkt-TKT-001');
     });
@@ -513,6 +515,14 @@ describe('workflow', () => {
       const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
       expect(prompt).toContain('Between tickets');
       expect(prompt).toContain('integration issues');
+    });
+
+    test('runs impacted specs between tickets, the full suite only once at the end', () => {
+      const prompt = buildFeaturePrompt('TKT-001', 'User Auth', children, DEFAULT_WORKFLOW);
+      const between = prompt.slice(prompt.indexOf('Between tickets'), prompt.indexOf('## After All Tickets'));
+      expect(between).toContain('commands.test_impacted');
+      expect(between).toContain('Not the full suite');
+      expect(prompt.match(/full test suite/g)).toHaveLength(1);
     });
 
     test('respects maxRetries and maxIterations', () => {
@@ -1207,7 +1217,7 @@ describe('library workflow and no-live-app gates (BOB-090)', () => {
 
   describe('orchestration prompt testing gate', () => {
     test('hasHealthChecks false replaces the pre-gate with a block instruction', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW, 3, '.bobby/tickets', 20, '.claude/agents', false, {}, false);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW, 3, '.bobby/tickets', 20, '.claude/agents', false, {}, { hasHealthChecks: false });
       expect(prompt).toContain(`bobby ticket move {TICKET_ID} block "${REASON}"`);
       expect(prompt).toContain('default_workflow: library');
       expect(prompt).not.toContain('Pre-gate');
@@ -1216,7 +1226,7 @@ describe('library workflow and no-live-app gates (BOB-090)', () => {
     });
 
     test('hasHealthChecks true (explicit) keeps the existing pre-gate wording', () => {
-      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW, 3, '.bobby/tickets', 20, '.claude/agents', false, {}, true);
+      const prompt = buildOrchestrationPrompt('TKT-001', DEFAULT_WORKFLOW, 3, '.bobby/tickets', 20, '.claude/agents', false, {}, { hasHealthChecks: true });
       expect(prompt).toContain('Pre-gate');
       expect(prompt).toContain('health check');
       expect(prompt).toContain('live app, not run specs');
@@ -1310,6 +1320,162 @@ describe('library workflow and no-live-app gates (BOB-090)', () => {
       moveTicket(tmpDir, 'TKT-001', 'testing', 'dev');
       const { prompt } = buildPromptFor('next', ['TKT-001'], ctxFor({ health_checks: [] }));
       expect(prompt).toContain(REASON);
+    });
+  });
+});
+
+describe('continue the original builder on rejection (TKT-073)', () => {
+  const sprint = { id: 'SPR-001', name: 'S', goal: '', branch: 'feature/spr-001-s' };
+  const tickets = [{ id: 'TKT-001', title: 'T', stage: 'backlog', priority: 'high' }];
+  const orch = (opts) => buildOrchestrationPrompt(['TKT-1'], DEFAULT_WORKFLOW, 3, '.bobby/tickets', 20, '.claude/agents', false, {}, opts);
+  const TODAY = 'Loop back and launch a bobby-build subagent again';
+
+  test.each([
+    ['orchestration prompt', () => orch({ continueBuilder: true })],
+    ['sprint prompt', () => buildSprintPrompt(sprint, tickets, DEFAULT_WORKFLOW, { continueBuilder: true })],
+  ])('%s continues the builder through SendMessage and logs a fresh launch explicitly', (_n, make) => {
+    const p = make();
+    for (const needle of [
+      'SendMessage', 'Note the agent id', 'Continue the original bobby-build subagent',
+      'bobby ticket move {TICKET_ID} reviewing', 'say so in your final report', 'fresh bobby-build subagent',
+      '.claude/agents/bobby-debug.md', '2nd retry failure',
+    ]) {
+      expect(p).toContain(needle);
+    }
+    expect(p).not.toContain(TODAY);
+  });
+
+  test('without the option the text is today\'s', () => {
+    for (const p of [orch(undefined), buildSprintPrompt(sprint, tickets, DEFAULT_WORKFLOW)]) {
+      expect(p).toContain(TODAY);
+      expect(p).not.toContain('SendMessage');
+    }
+  });
+
+  test('a workflow with no building stage keeps today\'s retry clause', () => {
+    const define = resolveWorkflow({}, 'define');
+    const p = buildOrchestrationPrompt(['EP-1'], define, 3, '.bobby/tickets', 20, '.claude/agents', false, {}, { continueBuilder: true });
+    expect(p).toContain(TODAY);
+    expect(p).not.toContain('SendMessage');
+  });
+
+  describe('buildPromptFor gates it on the target', () => {
+    let dir;
+    beforeEach(() => {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-cb-'));
+      createTicket(dir, { prefix: 'TKT', title: 'X', author: 'dev', area: '' });
+    });
+    afterEach(() => { fs.rmSync(dir, { recursive: true }); });
+    const prompt = (target) => buildPromptFor('workflow', ['TKT-001'], {
+      config: { target }, ticketsDir: dir, ticketsPath: dir, agentsPath: '.agents', workflow: DEFAULT_WORKFLOW,
+    }).prompt;
+
+    test('claude-code continues the builder; cursor keeps the fresh-launch loop', () => {
+      expect(prompt('claude-code')).toContain('SendMessage');
+      expect(prompt('cursor')).not.toContain('SendMessage');
+      expect(prompt('cursor')).toContain(TODAY);
+    });
+  });
+
+  test('name helpers keep their old behaviour', () => {
+    expect(resolveWorkflowName('default', null)).toBe('default');
+    expect(resolveWorkflowName('default', 'secure')).toBe('secure');
+    expect(resolveWorkflowName('quick', 'secure')).toBe('quick');
+    expect(featureBranchName('EP-1', 'My Big Feature!', {})).toBe('feature/ep-1-my-big-feature');
+    expect(featureBranchName('EP-1', 'X', { feature_branch_prefix: 'f' })).toBe('f/ep-1-x');
+  });
+});
+
+// BOB-090 x sizing. The order is: --workflow flag > ticket `workflow:` > the
+// workflow its size maps to (`sizing:`) > user `workflows.default` >
+// `default_workflow` > built-in default. The ticket's own `workflow:` wins.
+describe('default_workflow precedence against ticket workflow and size (BOB-090)', () => {
+  const stagesOf = (config, ticket, flag = 'default') =>
+    resolveWorkflow(config, flag, workflowNameForTicket(config, ticket)).map(s => s.stage);
+  const LIB = ['planning', 'building', 'reviewing'];
+  const QUICK = ['planning', 'building', 'testing'];
+  const SECURE = ['planning', 'building', 'security', 'reviewing', 'testing'];
+  const DEFAULT = ['planning', 'building', 'reviewing', 'testing'];
+  const lib = { default_workflow: 'library' };
+
+  test('key absent: the existing behaviour, xs still goes to quick', () => {
+    expect(stagesOf({}, {})).toEqual(DEFAULT);
+    expect(stagesOf({}, { size: 'xs' })).toEqual(QUICK);
+  });
+
+  test('key set, nothing else: unsized and sized tickets run the default_workflow', () => {
+    expect(stagesOf(lib, {})).toEqual(LIB);
+    expect(stagesOf(lib, { size: 'm' })).toEqual(LIB);
+  });
+
+  test('key set turns off the built-in xs rule so xs cannot strand at testing', () => {
+    expect(workflowNameForTicket(lib, { size: 'xs' })).toBeNull();
+    expect(stagesOf(lib, { size: 'xs' })).toEqual(LIB);
+  });
+
+  test('a ticket\'s own workflow beats default_workflow, with or without a size', () => {
+    expect(stagesOf(lib, { workflow: 'secure' })).toEqual(SECURE);
+    expect(stagesOf(lib, { workflow: 'secure', size: 'xs' })).toEqual(SECURE);
+    expect(stagesOf(lib, { workflow: 'default' })).toEqual(LIB); // 'default' is the placeholder name
+    expect(stagesOf(lib, { workflow: 'quick' })).toEqual(QUICK);
+  });
+
+  test('an explicit sizing: rule beats default_workflow, a ticket workflow beats that', () => {
+    const cfg = { default_workflow: 'library', sizing: { xs: 'quick', l: 'secure' } };
+    expect(stagesOf(cfg, { size: 'xs' })).toEqual(QUICK);
+    expect(stagesOf(cfg, { size: 'l' })).toEqual(SECURE);
+    expect(stagesOf(cfg, { size: 'm' })).toEqual(LIB);
+    expect(stagesOf(cfg, { size: 'xs', workflow: 'library-secure' }))
+      .toEqual(['planning', 'building', 'security', 'reviewing']);
+  });
+
+  test('the --workflow flag beats everything', () => {
+    expect(stagesOf(lib, { workflow: 'secure', size: 'xs' }, 'quick')).toEqual(QUICK);
+    expect(stagesOf(lib, {}, 'secure')).toEqual(SECURE);
+  });
+
+  test('a user-defined workflows.default beats default_workflow', () => {
+    const cfg = { default_workflow: 'library', workflows: { default: ['plan', 'build', 'test'] } };
+    expect(stagesOf(cfg, {})).toEqual(QUICK);
+  });
+
+  test('default_workflow may name a user-defined workflow', () => {
+    const cfg = { default_workflow: 'mine', workflows: { mine: ['plan', 'build'] } };
+    expect(stagesOf(cfg, {})).toEqual(['planning', 'building']);
+  });
+
+  test('resolveWorkflowName applies the same order', () => {
+    expect(resolveWorkflowName('default', null, lib)).toBe('library');
+    expect(resolveWorkflowName('default', 'secure', lib)).toBe('secure');
+    expect(resolveWorkflowName('quick', 'secure', lib)).toBe('quick');
+    expect(resolveWorkflowName('default', null, {})).toBe('default');
+  });
+
+  describe('a bad default_workflow is an explicit error, never a fallback', () => {
+    test.each([
+      ['unknown name', 'nope', /Unknown workflow 'nope'[\s\S]*default_workflow[\s\S]*\.bobbyrc\.yml/],
+      ['empty string', '', /Invalid[\s\S]*default_workflow/],
+      ['blank yaml value (null)', null, /Invalid[\s\S]*default_workflow/],
+      ['non-string', 7, /Invalid[\s\S]*default_workflow/],
+      ['list', ['library'], /Invalid[\s\S]*default_workflow/],
+    ])('%s throws on resolve', (_n, value, re) => {
+      expect(() => resolveWorkflow({ default_workflow: value }, 'default')).toThrow(re);
+    });
+
+    test('it throws even when a ticket workflow or the flag would have won', () => {
+      const bad = { default_workflow: 'nope' };
+      expect(() => resolveWorkflow(bad, 'default', 'secure')).toThrow(/Unknown workflow 'nope'/);
+      expect(() => resolveWorkflow(bad, 'quick')).toThrow(/Unknown workflow 'nope'/);
+    });
+
+    test('a name bound to a non-list definition throws', () => {
+      const cfg = { default_workflow: 'mine', workflows: { mine: 'plan build' } };
+      expect(() => resolveWorkflow(cfg, 'default')).toThrow(/not a list of steps/);
+      expect(() => assertDefaultWorkflowKey(cfg)).toThrow(/not a list of steps/);
+    });
+
+    test('absent key is fine', () => {
+      expect(() => assertDefaultWorkflowKey({})).not.toThrow();
     });
   });
 });

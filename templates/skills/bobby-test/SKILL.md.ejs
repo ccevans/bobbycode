@@ -40,7 +40,7 @@ Verify the dev environment is running before testing:
 - `curl -s -o /dev/null -w "%{http_code}" <%= check.url %>` (<%= check.description || check.name %>)
 <% }); %>
 <% } else { %>
-- `curl -s -o /dev/null -w "%{http_code}" <your dev server URL>` (app — configure `health_checks` in .bobbyrc.yml)
+- No health checks are configured for this project. Use the dev server URL for this ticket's worktree (its port is in the project's `SKILL.local.md` recipes or `progress.md`); if none is running, start one (Service Recovery) before testing.
 <% } %>
 
 ### Required Services
@@ -53,24 +53,7 @@ The web server is not enough. Read `plan.md` to identify ALL services the featur
 
 ### Service Recovery
 
-If a service isn't running or a health check fails, attempt **one** restart per service:
-<% if (commands && commands.dev) { %>
-- Web: Run `<%= commands.dev %>` in the background
-<% } else { %>
-- Web: Run `npm run dev` in the background
-<% } %>
-- Workers: `docker compose up -d sidekiq` or the project's equivalent
-- Wait up to 15 seconds, then re-check
-- If it doesn't come back after one attempt, mark affected tests as **BLOCKED**
-
-### Migrations
-
-If there are pending migrations needed for the feature under test, run them. The build agent may have added migrations that haven't been applied to the dev database yet.
-
-**Boundaries:**
-- One restart attempt per service — if it doesn't come back, it's BLOCKED
-- Never edit application source code or config files
-- Never debug application logs for code issues
+Read `<%= paths.skills %>/bobby-test/reference.md` § Service recovery and migrations when a required service is down or a migration is pending.
 
 ## Test Data Setup
 
@@ -86,9 +69,7 @@ If there are pending migrations needed for the feature under test, run them. The
 
 ### Examples
 
-- AC says "notifications fire for scheduled events" but no events exist with the right state → create events via the API or CLI tools, trigger the scheduled job, verify notifications
-- AC says "user sees notification badge after action" but no users exist → create a user through the signup flow or API, perform the action, verify the badge
-- AC says "export handles 1000+ rows" but only 3 rows exist → seed enough rows via API or bulk create script
+Read `<%= paths.skills %>/bobby-test/reference.md` § Test data examples when you are unsure how much data to seed.
 
 ### When You Truly Cannot Create Data
 
@@ -109,62 +90,21 @@ Create `test-evidence/` and `test-evidence/screenshots/` at the start of testing
 
 ### results.md Format
 
-```markdown
-# Test Evidence — {ID}
-
-**Date:** {YYYY-MM-DD}
-**Verdict:** PASS | FAIL | PARTIAL ({N} of {M} ACs passed)
-
-## Acceptance Criteria
-
-| # | Criterion | Result | Evidence |
-|---|-----------|--------|----------|
-| 1 | {AC text} | PASS/FAIL | screenshot: screenshots/{filename}.png |
-| 2 | {AC text} | PASS/FAIL | API: GET /endpoint → 200 |
-
-## Notes
-{Any observations, blocked items, or issues discovered}
-
-## Regression
-{Quick check of adjacent features — note any issues found or "No regressions observed"}
-```
-
-<example label="Good results.md entry">
-| 2 | Filter persists after refresh | PASS | screenshot: screenshots/filter-persist-after-refresh.png |
-
-Steps taken: Selected "Active" from status dropdown → URL changed to /leads?status=active → Refreshed page → Dropdown still shows "Active" → Lead list shows only active leads.
-</example>
+Read `<%= paths.skills %>/bobby-test/reference.md` § results.md format when you write results.md.
 
 ## Preferred Testing Tools
 
-<% if (typeof testing_tools !== 'undefined' && testing_tools) { %>
-<% if (testing_tools.includes('playwright')) { %>
-### Playwright (Browser Automation)
+Read `<%= paths.skills %>/bobby-test/reference.md` § Testing tools for the Playwright, curl or Cypress commands this project uses.
 
-Use Playwright MCP for all UI testing when available. Prefer real browser interaction over screenshots-only:
-- `mcp__playwright__browser_navigate` to load pages
-- `mcp__playwright__browser_click` / `mcp__playwright__browser_type` for interactions
-- `mcp__playwright__browser_screenshot` for evidence capture
-- `mcp__playwright__browser_snapshot` to read the accessibility tree
+## What counts as evidence
 
-Fall back to curl + screenshots only if Playwright MCP is not connected.
-<% } %>
-<% if (testing_tools.includes('curl')) { %>
-### curl (API Testing)
+Several flows passed every ticket's testing and failed their first real use. The rules below are what was missing.
 
-Use curl for all API endpoint verification:
-- `curl -s -w "\n%{http_code}"` for status checks
-- `curl -X POST -H "Content-Type: application/json" -d '{...}'` for write operations
-- Always capture and include the response body and status code as evidence
-<% } %>
-<% if (testing_tools.includes('cypress')) { %>
-### Cypress
-
-Run Cypress tests for e2e verification: `npx cypress run --spec "cypress/e2e/{relevant-spec}.cy.js"`
-<% } %>
-<% } else { %>
-Use curl for API testing and browser screenshots for UI verification.
-<% } %>
+- **Say where it ran.** Each test case records the URL, the route and the commit or deploy it ran against. A run on a local dev server is fine for a ticket, against the real API and real data; a harness rendering test fixtures is not evidence for a UI acceptance criterion, and neither is evidence from a different flow or an older version of this one.
+- **Use it, don't just look at it.** At 1440 use each control with a mouse and keyboard; at 390 by touch. A screenshot proves a page rendered, not that it works.
+- **Real inputs.** Pick from autocomplete suggestions instead of typing; run the flow a second time with the same identity; use the owner's real handle and email where the flow takes them.
+- **Every screenshot gets looked at.** Check it for overlapping, clipped or unreadable elements, and run the shared driver with `--axe` on every UI case. A defect visible in your own evidence is a failure even when it matches a spec value; report the spec value as the cause.
+- **Unchecked means not passed.** An acceptance criterion you could not verify (the deploy isn't up, the flow stops before it) is BLOCKED with the reason. The ticket doesn't pass with one left open, and you don't hand a "please walk it yourself" to a human as a substitute for your own run.
 
 ## Testing Process
 
@@ -178,7 +118,7 @@ Use curl for API testing and browser screenshots for UI verification.
 ### UI Testing
 
 <% if (typeof testing_tools !== 'undefined' && testing_tools && testing_tools.includes('playwright')) { %>
-Use Playwright MCP for browser testing. For each AC with a UI surface:
+Use the shared driver and, for interactions, a headless Playwright script (see Preferred Testing Tools). For each AC with a UI surface:
 <% } else { %>
 For each AC with a UI surface:
 <% } %>
@@ -227,27 +167,7 @@ Don't just verify the happy path — actively try to break things:
 
 ### Non-UI Features (Background Jobs, Workers, API-only, CLI)
 
-Not every ticket has a UI entry point — but almost every feature has a UI surface where its effects are visible. Your job is to trigger the feature AND verify the result end-to-end.
-
-#### Step 1: Trigger the Feature
-
-1. **Background jobs / workers** — Use `rails runner`, `node -e`, or the equivalent to trigger the job directly. Make sure the worker process is running (see Health Check above).
-2. **API-only endpoints** — Use `curl` to call the endpoint. Verify response status, payload, and any side effects.
-3. **CLI tools / scripts** — Run the command and verify its output and side effects.
-4. **Data migrations / seeds** — Verify the data state before and after by querying the database or API.
-
-#### Step 2: Trace to UI
-
-After triggering the backend feature, identify where its effects surface in the UI and verify there too:
-
-- **Background job sends emails** → check the sent folder, notification badge, delivery status page, or admin dashboard in the browser
-- **API creates/updates records** → navigate to the page that displays those records and confirm the change is visible
-- **Cron job recalculates data** → open the dashboard or report that shows the recalculated values
-- **Worker processes a queue** → check the admin panel, job status page, or affected user-facing page
-
-If there truly is no UI surface (pure infrastructure — logging, metrics, internal tooling with no web UI), document why in results.md and verify through the closest observable output (log files, admin API, monitoring endpoint).
-
-**Never stop at "the job chain executed without error."** That proves the code doesn't crash — it doesn't prove the feature works. Follow the data all the way to where a user would see it.
+Read `<%= paths.skills %>/bobby-test/reference.md` § Non-UI features when the ticket is a background job, worker, API-only or CLI change.
 
 ### Regression Check
 
@@ -261,35 +181,18 @@ This is not a full regression suite — just a 2-minute sanity check. Document a
 
 ### Design Reference Check
 
-If the ticket or its parent epic references a design mockup (HTML file, screenshot, or Figma URL):
+Read `<%= paths.skills %>/bobby-test/reference.md` § Design reference check when the ticket has a design spec, mockup or design reference.
 
-1. **Locate the reference** — Check the ticket's `ticket.md` description and the parent epic's `feature-plan.md` for a `## Design Reference` or `## File References` section pointing to a mockup file.
-2. **Read the mockup** — If it's an HTML file, read the relevant section (use grep to find the tab/component, not the whole file). Note the expected layout, colors, spacing, and structure.
-3. **Screenshot the live app** — Navigate to the page the ticket affects and take a full-page screenshot at desktop (1440px) and mobile (375px) viewports.
-4. **Compare structure** — Verify the live app matches the mockup in:
-   - Layout (grid columns, card arrangement, section order)
-   - Colors (accent colors, backgrounds, text colors match design tokens)
-   - Typography (font sizes, weights, headings vs body)
-   - Spacing (padding, margins, gaps between elements)
-   - Interactive states (hover effects, active tabs, focus rings)
-5. **Report mismatches** — Add a `## Design Comparison` section to `results.md`:
-   ```
-   ## Design Comparison
+## Findings Outside the Ticket
 
-   **Reference:** {path to mockup}
-   **Pages checked:** {URLs}
+Test what this ticket changed. A bug in a feature this ticket did not change is filed, and is not a reason to reject. A regression this ticket caused **is** a rejection.
 
-   | Aspect | Match? | Notes |
-   |--------|--------|-------|
-   | Layout | ✅/❌ | {details} |
-   | Colors | ✅/❌ | {details} |
-   | Typography | ✅/❌ | {details} |
-   | Spacing | ✅/❌ | {details} |
-   | Interactions | ✅/❌ | {details} |
-   ```
-6. **Verdict impact** — Design mismatches are informational, not blocking. Minor spacing differences are acceptable. Significant structural or color mismatches should be noted but don't auto-reject — the review agent or user decides if they matter.
-
-Skip this section if no design reference is found.
+**Out-of-scope findings.** Anything this ticket does not need (a bug on a page or feature the ticket did not change, copy, a design nit) is not yours to fix. Check `bobby ticket list` for a duplicate, then file it:
+`bobby ticket create -t "<what is wrong>" --type bug -p <priority> -a bobby-test --found-in {ID}`
+`bobby ticket comment <new ID> --by bobby-test "<what you saw, where, how to reproduce, why it matters>"`
+- Exploitable in production now → `-p critical`, don't fix it here, and lead your report with **Decision needed**.
+- It blocks this ticket → file it, `bobby ticket move {ID} block "needs <new ID>"`, and stop.
+- End your report with `Filed: <ID> — <title>` for each one, or `Filed: none`.
 
 ## Self-Check Before Verdict
 
@@ -315,7 +218,7 @@ If all acceptance criteria are verified through the live app:
 1. Write `test-evidence/results.md` with all AC results and evidence references
 2. Add comment: `bobby ticket comment {ID} --by bobby-test "Passed: all AC verified through live app — evidence in test-evidence/"`
 3. If you discovered anything non-obvious or a pattern future testing should catch: `bobby learn bobby-test "pattern" "description"`
-4. Move to shipping: `bobby ticket move {ID} ship`
+4. Hand the ticket on to the stage your task prompt names
 
 ### Reject
 If any acceptance criteria fail in the live app:
@@ -323,9 +226,13 @@ If any acceptance criteria fail in the live app:
 2. Move back with specific feedback: `bobby ticket move {ID} reject "Live test failure: {specific description} — evidence in test-evidence/"`
 3. Be specific — describe what you saw vs. what was expected, reference screenshots by filename
 
+## Checkpointing
+
+Compaction can happen at any moment, so keep `progress.md` in the ticket folder (the directory holding `ticket.md`) current as you go, not when you are warned. After a compaction a hook hands this file back to you, so write it for a reader who remembers nothing: ticket id, branch, each test case done with its verdict and evidence path, and the ones still to run, and the exact next action. Record a case's verdict and its evidence file as soon as you have it, before starting the next case; a compaction should cost you at most one case. Delete the file once the verdict is moved.
+
 ## Key Principles
 
-- **Test what the ticket says** — Don't scope-creep to unrelated features
+- **Test what the ticket says** — file what you find elsewhere (`bobby ticket create … --found-in {ID}`); don't reject for it
 - **Live app only** — Verify through the browser and API calls, not by reading source code
 - **Evidence over assertion** — Always provide screenshots and response output as proof
 - **Be specific** — "Page looks wrong" is not useful. "Hero section missing CTA button, screenshot attached" is useful

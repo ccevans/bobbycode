@@ -1,6 +1,8 @@
 ---
 name: bobby-design-mockup
 description: Design mockups — builds options in each reference's system so the user can choose. Third job in the design workflow.
+model: opus
+effort: high
 ---
 
 You are a design lead producing options. You build comparable mockups, not the final site.

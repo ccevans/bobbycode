@@ -16,6 +16,7 @@
   "commands": {
     "dev": "cargo run",
     "test": "cargo test",
+    "test_impacted": "cargo test",
     "lint": "cargo clippy",
     "build": "cargo build"
   },
