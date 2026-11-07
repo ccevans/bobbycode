@@ -4,6 +4,7 @@ import { buildBrief } from '../lib/brief.js';
 import { listProjects } from '../lib/registry.js';
 import { stageColor } from '../lib/stages.js';
 import { bold, dim, error } from '../lib/colors.js';
+import { boardFreshness } from '../lib/board-upstream.js';
 
 function studioBrief() {
   const projects = listProjects();
@@ -60,6 +61,7 @@ export function registerBrief(program) {
         const ticketsDir = resolveTicketsDir(root, config);
         const sprintsDir = resolveSprintsDir(root, config);
         const b = buildBrief(ticketsDir, sprintsDir, { productDir: resolveProductDir(root, config) });
+        printFreshness(boardFreshness(ticketsDir));
 
         console.log('');
         console.log(`  ${bold(`${config.project || 'Bobby'} — where you left off`)}`);
@@ -122,4 +124,14 @@ export function registerBrief(program) {
         process.exit(1);
       }
     });
+}
+
+function printFreshness(f) {
+  if (f.state === 'behind') {
+    console.log('');
+    console.log(`  ${bold('⚠')} Board is ${f.count} commit${f.count === 1 ? '' : 's'} behind ${f.label} — pull before creating tickets`);
+  } else if (f.state === 'unknown') {
+    console.log('');
+    console.log(`  ${bold('⚠')} Board freshness unknown: ${f.reason}`);
+  }
 }
