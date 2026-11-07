@@ -114,7 +114,7 @@ describe('bobby ticket create', () => {
       const d = path.join(studio, '.bobby', project, 'tickets');
       return fs.readdirSync(d).filter(e => /^[A-Z]+-\d+/.test(e));
     };
-    const create = (project, args) => spawnSync('node', [bobby, '--project', project, 'ticket', 'create', ...args], { cwd: studio, encoding: 'utf8' });
+    const create = (project, args) => spawnSync('node', [bobby, '--project', project, 'ticket', 'create', ...args], { cwd: studio, encoding: 'utf8', env: { ...process.env, BOBBY_PROJECT: '' } });
 
     beforeEach(() => {
       studio = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-studio-repos-'));
