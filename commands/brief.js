@@ -1,6 +1,6 @@
 // commands/brief.js
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSprintsDir, resolveProductDir } from '../lib/config.js';
-import { buildBrief } from '../lib/brief.js';
+import { buildBrief, groupInFlightByOwner } from '../lib/brief.js';
 import { listProjects } from '../lib/registry.js';
 import { stageColor } from '../lib/stages.js';
 import { bold, dim, error } from '../lib/colors.js';
@@ -40,6 +40,10 @@ function studioBrief() {
   }
 }
 
+function ticketLine(t) {
+  return `${stageColor(t.stage)(`[${t.stage.toUpperCase()}]`)}  ${bold(t.id)}  ${t.title}  ${dim(t.priority)}`;
+}
+
 export function registerBrief(program) {
   program
     .command('brief')
@@ -70,8 +74,21 @@ export function registerBrief(program) {
         if (b.inFlight.length === 0) {
           console.log(`    ${dim('Nothing started.')}`);
         } else {
-          for (const t of b.inFlight) {
-            console.log(`    ${stageColor(t.stage)(`[${t.stage.toUpperCase()}]`)}  ${bold(t.id)}  ${t.title}  ${dim(t.priority)}`);
+          const groups = groupInFlightByOwner(b.inFlight);
+          if (!groups) {
+            for (const t of b.inFlight) console.log(`    ${ticketLine(t)}`);
+          } else {
+            for (const m of groups.machines) {
+              console.log(`    ${bold(m.machine ?? 'machine not recorded')}`);
+              for (const s of m.sessions) {
+                console.log(`      ${s.session}`);
+                for (const t of s.tickets) console.log(`        ${ticketLine(t)}`);
+              }
+            }
+            if (groups.unowned.length > 0) {
+              console.log(`    ${bold('No owner')}`);
+              for (const t of groups.unowned) console.log(`        ${ticketLine(t)}`);
+            }
           }
         }
         console.log('');
