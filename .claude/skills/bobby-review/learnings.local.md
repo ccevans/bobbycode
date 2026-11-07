@@ -10,6 +10,8 @@ disagree, **this file wins**.
 ## Anti-Patterns
 <!-- bobby learn bobby-review "pattern" "description" to add entries -->
 
+- **context-hook-stale-usage**: Hooks that read the last assistant usage from a transcript must reset on isCompactSummary, or the first prompt after /compact reads pre-compact size.
+
 - **uncommitted-template-passes-tests**: Check git status for dirty template/source files before trusting green tests; a test can pass only because of an uncommitted working-tree change.
 
 - **merge-review-reconstruct-the-automerge**: Reviewing a merge commit on git < 2.36 (no --remerge-diff): re-run 'git merge --no-commit <P2>' on P1 in a scratch worktree, 'git add -A', then 'git diff --cached -R <merge>' — that shows ONLY the hand-made lines (conflict resolutions plus any evil-merge edits), each mappable to a plan resolution. Then check one-sided files mechanically: every file changed on only one side since the merge-base must be byte-identical to that side in the merge, except the planned edits. TKT-076 found its 242 silently auto-deleted board files this way, and proved no unplanned edits hid in 180 files. Also mutation-check semantic fixes (revert the fix, see the new tests fail) rather than trusting a builder's red/green claim.
