@@ -4,10 +4,13 @@ import path from 'path';
 import inquirer from 'inquirer';
 import { readConfig, findProjectRoot, resolveTicketsDir, resolveSessionsDir, resolveProductDir } from '../lib/config.js';
 import { getFeatureTickets, listEpics } from '../lib/tickets.js';
-import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, listWorkflows, assertTicketFree } from '../lib/workflow.js';
+import { DEFAULT_WORKFLOW, buildPromptFor, resolveWorkflow, resolveWorkflowName, featureBranchName, listWorkflows, assertTicketFree, workflowNameForTicket, freewillRefusal } from '../lib/workflow.js';
+import {
+  resolveOrchestration, assertWorkflowScriptCurrent, ticketSnapshot, buildWorkflowArgs, formatWorkflowInvocation,
+} from '../lib/workflow-script.js';
 import { findTicket } from '../lib/tickets.js';
 import { VALID_AGENTS } from '../lib/agent-registry.js';
-import { resolveModel } from '../lib/models.js';
+import { resolveModel, resolveEffort } from '../lib/models.js';
 import { bold, dim, error } from '../lib/colors.js';
 import { getTarget } from '../lib/targets/index.js';
 import { overlayPromptClause, repoTargetingClause } from '../lib/skills.js';
@@ -42,7 +45,7 @@ Modes:
   Strategy:   bobby run strategy [id]    — strategic validation gate
   Security:   bobby run security <id>    — OWASP + STRIDE audit
   Debug:      bobby run debug <id>       — root-cause investigation
-  Freewill:   bobby run freewill <id>    — one agent, whole ticket, few instructions (Opus 5 / Fable 5)
+  Freewill:   bobby run freewill <id>    — one agent, whole ticket, few instructions (runs on Opus)
   Freeform:   bobby run docs|performance|watchdog — no ticket required
   Workflow:   bobby run <workflow-name> <id> — run a named workflow (default, secure, quick, or your own)`)
     .option('--max-retries <n>', 'Max retry loops on rejection per ticket', '3')
@@ -106,16 +109,21 @@ Modes:
         const sessionsDir = resolveSessionsDir(root, config);
         const sessionId = initSession(sessionsDir, { ticketIds: ticketIds, agent, pipeline: opts.workflow || 'default' });
 
-        // Resolve ticket-level workflow override (if ticket has a `workflow` field in frontmatter)
+        // Ticket-level workflow: its own `workflow` field, else the one its size
+        // maps to (see workflowNameForTicket), else the run's default.
         let ticketPipeline = null;
         if (ticketIds.length > 0) {
           const ticket = findTicket(ticketsDir, ticketIds[0]);
-          if (ticket && (ticket.data.workflow || ticket.data.pipeline)) {
-            ticketPipeline = ticket.data.workflow || ticket.data.pipeline;
+          if (ticket) ticketPipeline = workflowNameForTicket(config, ticket.data);
+          // Freewill refuses the tickets that need the full pipeline, whether it
+          // was asked for as the agent or as the named workflow.
+          if (ticket && (agent === 'freewill' || opts.workflow === 'freewill' || ticketPipeline === 'freewill')) {
+            const why = freewillRefusal(ticket.data);
+            if (why) throw new Error(`${ticketIds[0]} can't run on freewill: ${why}.`);
           }
         }
 
-        // Resolve workflow: explicit flag > ticket frontmatter > default
+        // Resolve workflow: explicit flag > ticket workflow or size > default
         const pipeline = resolveWorkflow(config, opts.workflow || 'default', ticketPipeline);
 
         // Feature mode: if no epic id provided, let user pick interactively.
@@ -166,6 +174,52 @@ Modes:
         // A feature run drives its CHILDREN, so the epic's claim says nothing
         // about whether the work is free.
         if (epicData) for (const child of epicData.children) assertTicketFree(ticketsDir, child.id);
+
+        // Opt-in (.bobbyrc.yml orchestration: workflow): print the saved Claude Code
+        // Workflow call instead of the prose orchestration prompt. A bad value, a
+        // wrong target, or a missing/stale script is an error, never a fallback.
+        const orchestration = (agent === 'workflow' || agent === 'feature') ? resolveOrchestration(config) : 'prompt';
+        if (orchestration === 'workflow') {
+          const wfName = resolveWorkflowName(opts.workflow || 'default', ticketPipeline);
+          assertWorkflowScriptCurrent(root, config, wfName);
+          const gitConv = config.git_conventions || {};
+          const commands = config.commands || {};
+          let label, mode, tickets, readFirst = [], planReadFirst = [], finalize = null, branchGuard;
+          if (agent === 'workflow') {
+            if (ticketIds.length === 0) throw new Error('Workflow mode requires at least one ticket ID');
+            tickets = ticketIds.map(id => {
+              const found = findTicket(ticketsDir, id);
+              if (!found) throw new Error(`Ticket ${id} not found`);
+              return ticketSnapshot(found.data);
+            });
+            mode = 'tickets';
+            label = `Bobby Workflow — ${ticketIds.length} ticket(s)`;
+            branchGuard = `run \`git branch --show-current\`. If on main/master, create a feature branch: \`git checkout -b ${gitConv.ticket_branch_prefix || 'tkt'}-${ticketIds[0]}\` before running any agents. NEVER commit directly to main/master.`;
+          } else {
+            const { epicId, epic, children } = epicData;
+            tickets = children.map(ticketSnapshot);
+            mode = 'feature';
+            readFirst = [path.join(ticketsDir, epic.dirname, 'feature-plan.md')];
+            planReadFirst = children.map(c => path.join(ticketsDir, c.dirname, 'plan.md'));
+            finalize = { kind: 'epic', id: epicId };
+            label = `Bobby Feature — ${epicId}: ${epic.data.title}`;
+            branchGuard = `run \`git branch --show-current\`. If on main/master, create a feature branch: \`git checkout -b ${featureBranchName(epicId, epic.data.title, gitConv)}\`. NEVER commit directly to main/master.`;
+          }
+          const wfArgs = buildWorkflowArgs({
+            mode, tickets, workflow: pipeline, maxRetries, maxIterations, readFirst, planReadFirst, finalize,
+            commands: { test: commands.test, lint: commands.lint }, hasServices,
+          });
+          console.log('');
+          console.log(`  ${bold(label)}  ${dim(`Session: ${sessionId}`)}`);
+          console.log(`  ${dim(`saved workflow · .claude/workflows/bobby-${wfName}.js`)}`);
+          console.log(`  ${dim(hint)}`);
+          if (agent === 'feature') {
+            console.log(`  ${dim('Launch with: isolation: "worktree" (keeps main clean)')}`);
+          }
+          console.log('');
+          console.log(withSession(formatWorkflowInvocation({ name: wfName, args: wfArgs, branchGuard }), sessionId));
+          return;
+        }
 
         // Build the prompt via the unified dispatcher
         let built;
@@ -230,10 +284,12 @@ Modes:
         // where that file is really read — see target.supportsAgentModel().
         if (!customAgent && target.supportsAgentModel && target.supportsAgentModel()) {
           const model = resolveModel(agent, config);
-          if (model) console.log(`  ${dim(`Model: ${model}`)}`);
+          const effort = resolveEffort(agent, config);
+          const parts = [model && `Model: ${model}`, effort && `Effort: ${effort}`].filter(Boolean);
+          if (parts.length) console.log(`  ${dim(parts.join(' · '))}`);
         }
         if (agent === 'feature') {
-          console.log(`  ${dim('Launch with: isolation: "worktree" (keeps main clean)')}`);
+          console.log(`  ${dim(`Feature worktree will be created: bobby worktree create ${ticketIds[0] || '{EPIC_ID}'} --feature`)}`);
         }
         console.log('');
         console.log(withSession(built.prompt, sessionId));

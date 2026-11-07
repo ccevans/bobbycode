@@ -105,12 +105,14 @@ After the deep review, verify the minimum bar:
 
 ## Run Tests and Lint
 
-Run these independently to verify the build agent's work in a fresh context:
+Run these independently to verify the build agent's work in a fresh context. Run the **impacted specs only** — the specs covering the diff (`git diff --name-only origin/main...HEAD`: every changed spec file plus the spec of every changed source file). The full suite runs once per ticket, at ship; a full run here, multiplied by every ticket in review at once, is what runs the machine out of memory.
 
 
-1. Tests: `npm test`
+1. Impacted specs: `NODE_OPTIONS=--experimental-vm-modules npx jest {files}`
 2. Lint: `npm run lint`
 
+
+`{files}` is whatever the runner addresses: spec files for rspec / pytest / node, the changed source files for jest `--findRelatedTests`, package dirs for go. Name the files you ran in `review.md`.
 
 Show the output as evidence. If tests can't run (missing deps, broken environment), this is a BLOCK, not an approval.
 
@@ -184,6 +186,10 @@ Why this fails: The build agent won't know what specifically to fix or which AC 
 Can't complete review — tests won't run, environment broken, missing context:
 1. Write `review.md` documenting what you were able to check and what blocked you
 2. `bobby ticket move {ID} block "reason"`
+
+## Checkpointing
+
+Write `review.md` as you go rather than at the end: add each finding the moment you confirm it, with file and line. A compaction in the middle of a large diff then costs you nothing but the reading. Never carry the build agent's conversation into review (no `--resume` of its session): a fresh context is what makes this a second pair of eyes.
 
 ## If Something Goes Wrong
 

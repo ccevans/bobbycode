@@ -6,6 +6,9 @@ import {
 import { findTicket } from '../lib/tickets.js';
 import { resolveWorkflow, listWorkflows, buildSprintPrompt } from '../lib/workflow.js';
 import {
+  resolveOrchestration, assertWorkflowScriptCurrent, ticketSnapshot, buildWorkflowArgs, formatWorkflowInvocation,
+} from '../lib/workflow-script.js';
+import {
   createSprint, findSprint, listSprints, addTicketsToSprint,
   removeTicketsFromSprint, setSprintStatus, SPRINT_STATUSES,
 } from '../lib/sprint.js';
@@ -252,6 +255,33 @@ export function registerSprint(program) {
         // A sprint runs in an isolated worktree forked from main, so a plan
         // created on a feature branch is not there under a relative path.
         const sprintPlanPath = path.join(sprintsDir, path.basename(sprint.path), 'sprint-plan.md');
+
+        // Opt-in (.bobbyrc.yml orchestration: workflow): print the saved Workflow
+        // call instead of the prose prompt. Errors, never a fallback.
+        if (resolveOrchestration(config) === 'workflow') {
+          const wfName = (d.workflow || d.pipeline) || 'default';
+          assertWorkflowScriptCurrent(root, config, wfName);
+          const commands = config.commands || {};
+          const wfArgs = buildWorkflowArgs({
+            mode: 'sprint', tickets: sprintTickets.map(t => ({ ...t, ...ticketSnapshot(findTicket(ticketsDir, t.id).data) })),
+            workflow: pipeline, maxRetries, maxIterations, readFirst: [sprintPlanPath],
+            finalize: { kind: 'sprint', id: d.id }, commands: { test: commands.test, lint: commands.lint }, hasServices,
+          });
+          const branchGuard = `run \`git branch --show-current\`. If not on \`${d.branch}\`, create and switch to it: \`git checkout -b ${d.branch}\`. Every ticket in this sprint commits onto this one branch. NEVER commit directly to main/master.`;
+          console.log('');
+          console.log(`  ${bold(`Bobby Sprint — ${d.id}: ${d.name}`)}  ${dim(`Session: ${sessionId}`)}`);
+          console.log(`  ${dim(`${sprintTickets.length} ticket(s) → ${d.branch}`)}`);
+          console.log(`  ${dim(`saved workflow · .claude/workflows/bobby-${wfName}.js`)}`);
+          console.log(`  ${dim(target.promptHint())}`);
+          console.log(`  ${dim('Launch with: isolation: "worktree" (keeps main clean)')}`);
+          console.log('');
+          console.log(
+            `**Session tracking:** Before running any bobby commands, set the session env var:\n` +
+            `\`export BOBBY_SESSION_ID=${sessionId}\`\n\n${formatWorkflowInvocation({ name: wfName, args: wfArgs, branchGuard })}`
+          );
+          return;
+        }
+
         const prompt = buildSprintPrompt(d, sprintTickets, pipeline, {
           maxRetries,
           // Absolute, main-rooted: a sprint runs in an isolated worktree, which
@@ -261,6 +291,7 @@ export function registerSprint(program) {
           agentsPath,
           hasServices,
           sprintPlanPath,
+          continueBuilder: (config.target || 'claude-code') === 'claude-code',
         });
 
         console.log('');

@@ -18,6 +18,7 @@
   "commands": {
     "dev": "npm run dev",
     "test": "npm test",
+    "test_impacted": "npm test -- {files}",
     "lint": "npm run lint",
     "build": "npm run build"
   },

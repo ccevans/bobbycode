@@ -17,6 +17,7 @@
   "commands": {
     "dev": "python manage.py runserver",
     "test": "python manage.py test",
+    "test_impacted": "python manage.py test {files}",
     "lint": "ruff check .",
     "build": ""
   },

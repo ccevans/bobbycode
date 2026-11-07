@@ -367,7 +367,7 @@ Every agent declares a **tier** — the kind of model its work wants:
 | Tier | The work | Agents |
 |---|---|---|
 | `opus` | Judgment — deciding what to build, drawing the v1 line, finding what a diff hides, critiquing a design | `plan`, `review`, `workflow`, `feature`, `next`, `security`, `freewill`, `debug`, `ux`, `design-mockup`, `design-build`, `design-check`, `define-brief`, `define-features`, `pm`, `vet`, `strategy`, `arch` |
-| `sonnet` | Execution — writing the code the plan specified, driving a browser, transcribing decisions | `build`, `test`, `ship`, `design-research`, `design-analyze`, `design-spec`, `define-personas`, `define-journeys`, `define-blueprint`, `qe`, `intake`, `docs`, `lighthouse` |
+| `sonnet` | Execution — writing the code the plan specified, driving a browser, transcribing decisions | `build`, `test`, `ship`, `design-research`, `design-analyze`, `design-spec`, `define-personas`, `define-journeys`, `define-blueprint`, `qe`, `intake`, `docs`, `lighthouse`, `walk` |
 | `haiku` | Bookkeeping — recording a load time, checking a deploy returned 200 | `performance`, `watchdog` |
 
 `workflow`, `feature` and `next` chain several stages inside one process, so
@@ -382,6 +382,26 @@ You get this with no configuration. Both paths honour it:
   the resolved model in its header.
 - **From the dashboard and the app** — the orchestrator resolves the model per
   agent and passes it to the executor as `--model`.
+
+### Effort
+
+Every agent also declares an **effort**: `high` for judgment and for writing
+code, `medium` for driving a browser or turning decisions into a document, `low`
+for bookkeeping (ship, docs, intake, performance, watchdog). It reaches the same
+two places as the model, as `effort:` in the agent file and `--effort` on the
+claude executor. Without it, Claude Code runs Opus 5.5, Sonnet 5.5 and Haiku 5.5
+at `medium` whatever the stage is for.
+
+```yaml
+efforts:
+  default: high       # every stage, unless named
+  review: xhigh       # this stage
+  watchdog: inherit   # pass no effort; use the harness default
+```
+
+Levels are `low`, `medium`, `high`, `xhigh`, `max`; anything else is an error.
+`CLAUDE_CODE_EFFORT_LEVEL` in your environment outranks all of it. Cursor, Codex
+and OpenCode get no effort flag.
 
 ### Overriding it
 
@@ -1021,6 +1041,22 @@ bobby run security TKT-001            # OWASP + STRIDE audit
 bobby run debug TKT-001               # Root-cause investigation
 ```
 
+### Run as a Claude Code Workflow (opt-in)
+
+By default `bobby run workflow|feature|<name>` and `bobby sprint run` print a prose prompt, and the model that reads it counts retries and decides when to call `bobby-debug`. On Claude Code you can move that loop into code. Set this in `.bobbyrc.yml`:
+
+```yaml
+orchestration: workflow   # default: prompt
+```
+
+Then `bobby init --refresh` (which `bobby upgrade` runs) writes one saved Claude Code Workflow script per built-in and `workflows:` entry to `.claude/workflows/bobby-<name>.js`. Each stage runs as its own `bobby-*` agent with its own model, returns a typed `{ticket, stage, verdict, reason}`, and the script enforces the retry cap, the `bobby-debug` escalation on the 2nd rejection, and the max-iterations cap. Tickets are still moved by the stage agents with `bobby ticket move`; the script never edits ticket files.
+
+With the flag on, those commands print the Workflow call (name and args) instead of the prose prompt. Hand it to Claude Code as is. If the run is interrupted, resume it **in the same Claude Code session** with `scriptPath`, `resumeFromRunId` and the same args: finished agents return from cache. A new session cannot see the cache and re-runs every agent. If the original process died, `claude --resume <session-id>` gets you back into that session.
+
+A missing or stale script, an unknown `orchestration` value, or a non-Claude-Code target is an error, not a silent fallback. Cursor and Cline always keep the prompt. Tickets within one run are worked one at a time on one branch.
+
+On the prompt path (flag off) on the Claude Code target, a rejection sends the original builder a `SendMessage` instead of launching a fresh build agent, so it keeps its context. If that builder is gone the orchestrator says so in its report and starts a fresh one as an explicit step. Cursor and Cline have no `SendMessage` and start a fresh builder.
+
 ## Sprints
 
 A sprint is a **batch of related tickets riding one branch** — how a solo builder tackles work bigger than one ticket without dirtying `main` while it comes together. No scrum, no velocity, no ceremony: just an ordered list of tickets, a shared feature branch, and one runner that works through them.
@@ -1152,7 +1188,7 @@ Focused agents for specific concerns:
 | **bobby-watchdog** | Post-deploy verification — smoke tests, uptime, console errors |
 | **bobby-arch** | Architecture discovery — documents codebase structure and decisions |
 | **bobby-ticket-intake** | Converts PM specs into structured Bobby tickets |
-| **bobby-freewill** | One agent, whole ticket, deliberately few instructions — for Opus 5 / Fable 5 |
+| **bobby-freewill** | One agent, whole ticket, deliberately few instructions — runs on Opus |
 
 ## Skills (24)
 

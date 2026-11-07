@@ -17,6 +17,7 @@
   "commands": {
     "dev": "flask run",
     "test": "pytest",
+    "test_impacted": "pytest {files}",
     "lint": "ruff check .",
     "build": ""
   },

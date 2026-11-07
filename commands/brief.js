@@ -25,6 +25,7 @@ function studioBrief() {
       if (b.inFlight.length > 0) parts.push(`${b.inFlight.length} in flight`);
       if (b.blocked.length > 0) parts.push(`${b.blocked.length} blocked`);
       parts.push(`${b.backlogCount} backlog`);
+      if (b.agentFiled.length > 0) parts.push(`${b.agentFiled.length} awaiting product review`);
       line = dim(parts.join(' · '));
       next = b.nextAction;
     } catch {
@@ -100,11 +101,15 @@ export function registerBrief(program) {
           console.log(`    ${dim('Empty.')}`);
         } else {
           for (const t of b.backlogTop) {
-            console.log(`    ${dim('·')} ${bold(t.id)}  ${t.title}  ${dim(t.priority)}`);
+            const origin = t.found_in ? `  ${dim(`found in ${t.found_in}`)}` : '';
+            console.log(`    ${dim('·')} ${bold(t.id)}  ${t.title}  ${dim(t.priority)}${origin}`);
           }
           if (b.backlogCount > b.backlogTop.length) {
             console.log(`    ${dim(`… and ${b.backlogCount - b.backlogTop.length} more — bobby ticket list backlog`)}`);
           }
+        }
+        if (b.agentFiled.length > 0) {
+          console.log(`    ${b.agentFiled.length} filed by agents, awaiting product review — bobby ticket triage`);
         }
         console.log('');
 

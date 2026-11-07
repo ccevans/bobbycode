@@ -136,6 +136,47 @@ describe('worktree manager', () => {
       expect(err.message).toMatch(/shadows the studio/);
     });
 
+    test('refuses a worktree_root that lands INSIDE a code repo (BOB-152)', () => {
+      // The gap the two checks above leave open. A repo in the group normally has
+      // NO .bobbyrc.yml of its own — the healthy studio shape — so a root inside
+      // it walks past the repo up to the studio and sameRoot passes. Note this
+      // fixture deliberately does NOT write a config into codeRepo, which is what
+      // separates it from the shadowing test.
+      const config = { studio: 'acme', dashboard: { worktree_root: 'worktrees' } };
+
+      let err;
+      try { resolveWorktreeRoot(codeRepo, config, studioRoot); } catch (e) { err = e; }
+
+      expect(err).toBeInstanceOf(Error);
+      expect(err.message).toContain(path.join(codeRepo, 'worktrees'));
+      expect(err.message).toContain(codeRepo);
+      expect(err.message).toMatch(/INSIDE a code repo/);
+      // and it names the value that actually works
+      expect(err.message).toContain('../../worktrees');
+    });
+
+    test('refuses a worktree_root inside ANOTHER repo in the group (BOB-152)', () => {
+      const other = path.join(studioRoot, 'repos', 'other');
+      fs.mkdirSync(other, { recursive: true });
+      const config = {
+        studio: 'acme',
+        repos: { app: { path: 'repos/app' }, other: { path: 'repos/other' } },
+        dashboard: { worktree_root: path.join(other, 'wt') },
+      };
+
+      let err;
+      try { resolveWorktreeRoot(codeRepo, config, studioRoot); } catch (e) { err = e; }
+
+      expect(err).toBeInstanceOf(Error);
+      expect(err.message).toContain(other);
+    });
+
+    test('still accepts the correct studio value from a repo under repos/ (BOB-152)', () => {
+      const config = { studio: 'acme', dashboard: { worktree_root: '../../worktrees' } };
+      expect(resolveWorktreeRoot(codeRepo, config, studioRoot))
+        .toBe(path.join(studioRoot, 'worktrees'));
+    });
+
     test('board resolution from inside an accepted worktree reaches the studio — AC2', () => {
       // The assertion AC2 literally asks for, and the one nobody had written:
       // drive findProjectRoot from a worktree PATH, not just the resolver.
@@ -183,6 +224,74 @@ describe('worktree manager', () => {
     expect(fs.existsSync(wtPath)).toBe(false);
     const branches = git(repoDir, 'branch --list');
     expect(branches).not.toContain('bobby/rm');
+  });
+
+  // Docker teardown before deletion: a fake `docker` on PATH stands in for the
+  // real CLI so these stay fast and hermetic (no image pulls, no daemon
+  // dependency) while still proving the invocation and its ordering.
+  describe('removeWorktree docker teardown', () => {
+    let originalPath;
+
+    beforeEach(() => { originalPath = process.env.PATH; });
+    afterEach(() => { process.env.PATH = originalPath; });
+
+    function fakeDockerBin(dir) {
+      const binDir = path.join(dir, 'fakebin');
+      fs.mkdirSync(binDir, { recursive: true });
+      const script = path.join(binDir, 'docker');
+      fs.writeFileSync(script, `#!/bin/sh\necho "$@" >> "${path.join(binDir, 'calls.log')}"\n`);
+      fs.chmodSync(script, 0o755);
+      return binDir;
+    }
+
+    test('tears down a docker-compose stack before deleting the worktree', () => {
+      const binDir = fakeDockerBin(tmpDir);
+      process.env.PATH = `${binDir}:${originalPath}`;
+
+      const wtPath = path.join(tmpDir, 'wt-docker');
+      createWorktree(repoDir, { worktreePath: wtPath, branch: 'bobby/docker' });
+      fs.writeFileSync(path.join(wtPath, 'docker-compose.yml'), 'services:\n  db:\n    image: postgres\n');
+      git(wtPath, 'add -A');
+      git(wtPath, 'commit -q -m "add compose"');
+
+      const result = removeWorktree(repoDir, wtPath, { branch: 'bobby/docker' });
+
+      expect(result.removed).toBe(true);
+      expect(result.docker).toEqual({ attempted: true, tornDown: true });
+      expect(fs.existsSync(wtPath)).toBe(false);
+      const log = fs.readFileSync(path.join(binDir, 'calls.log'), 'utf8');
+      expect(log).toContain('compose down');
+    });
+
+    test('skips docker entirely when the worktree has no compose file', () => {
+      const binDir = fakeDockerBin(tmpDir);
+      process.env.PATH = `${binDir}:${originalPath}`;
+
+      const wtPath = path.join(tmpDir, 'wt-no-docker');
+      createWorktree(repoDir, { worktreePath: wtPath, branch: 'bobby/no-docker' });
+
+      const result = removeWorktree(repoDir, wtPath, { branch: 'bobby/no-docker' });
+
+      expect(result.removed).toBe(true);
+      expect(result.docker).toEqual({ attempted: false });
+      expect(fs.existsSync(path.join(binDir, 'calls.log'))).toBe(false);
+    });
+
+    test('refuses a dirty worktree WITHOUT tearing down docker first', () => {
+      const binDir = fakeDockerBin(tmpDir);
+      process.env.PATH = `${binDir}:${originalPath}`;
+
+      const wtPath = path.join(tmpDir, 'wt-dirty');
+      createWorktree(repoDir, { worktreePath: wtPath, branch: 'bobby/dirty' });
+      fs.writeFileSync(path.join(wtPath, 'docker-compose.yml'), 'services:\n  db:\n    image: postgres\n');
+      git(wtPath, 'add -A');
+      git(wtPath, 'commit -q -m "add compose"');
+      fs.writeFileSync(path.join(wtPath, 'stray.txt'), 'uncommitted work');
+
+      expect(() => removeWorktree(repoDir, wtPath, { branch: 'bobby/dirty' })).toThrow(/uncommitted changes/);
+      expect(fs.existsSync(path.join(binDir, 'calls.log'))).toBe(false);
+      expect(fs.existsSync(wtPath)).toBe(true);
+    });
   });
 
   test('commitCheckpoint returns null when nothing to commit', () => {

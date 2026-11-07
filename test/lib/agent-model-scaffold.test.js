@@ -89,3 +89,45 @@ describe('scaffolded agent files carry their stage model', () => {
     }
   });
 });
+
+describe('scaffolded agent files carry their stage effort', () => {
+  test('every shipped agent file names the effort its registry entry asks for', () => {
+    for (const [file, front] of Object.entries(scaffoldAgents())) {
+      expect(`${file}: ${front.effort}`).toBe(`${file}: ${AGENT_REGISTRY[agentKeyForFile(file)].effort}`);
+    }
+  });
+
+  test('a project that names its own efforts gets those', () => {
+    const agents = scaffoldAgents({ efforts: { review: 'xhigh', default: 'low' } });
+    expect(agents['bobby-review'].effort).toBe('xhigh');
+    expect(agents['bobby-build'].effort).toBe('low');
+  });
+
+  test('inherit writes no effort line at all', () => {
+    for (const front of Object.values(scaffoldAgents({ efforts: { default: 'inherit' } }))) {
+      expect(front.effort).toBeUndefined();
+    }
+  });
+});
+
+describe('pipeline agents are told they run unattended', () => {
+  const body = name => fs.readFileSync(path.join(tmpDir, '.claude', 'agents', `${name}.md`), 'utf8');
+
+  test('the six pipeline agents carry the block, rendered from the partial', () => {
+    scaffoldProject(tmpDir, baseConfig);
+    for (const name of ['bobby-build', 'bobby-review', 'bobby-test', 'bobby-freewill', 'bobby-debug', 'bobby-security']) {
+      expect(`${name}: ${body(name).includes('## Working unattended')}`).toBe(`${name}: true`);
+      expect(body(name)).not.toContain('include(');
+    }
+  });
+});
+
+describe('pipeline agents are told how to keep context small', () => {
+  test('all eight carry the efficiency block', () => {
+    scaffoldProject(tmpDir, baseConfig);
+    for (const name of ['plan', 'build', 'review', 'test', 'freewill', 'debug', 'security', 'ship']) {
+      const body = fs.readFileSync(path.join(tmpDir, '.claude', 'agents', `bobby-${name}.md`), 'utf8');
+      expect(`${name}: ${body.includes('## Working efficiently')}`).toBe(`${name}: true`);
+    }
+  });
+});

@@ -7,6 +7,15 @@ All notable changes to Bobby are documented here. The format is based on
 ## [Unreleased]
 
 ### Changed
+- **Smaller skills at agent start (token budget).** Every agent step re-sends its
+  whole context, so what an agent loads up front is paid on every step.
+  `bobby-plan` now loads a 7 KB core plus only the mode file it needs
+  (`modes/epic.md`, `product-epic.md`, `feature-refine.md`, `refine.md`) instead
+  of all four modes (22 KB). `bobby-test` moves situational sections (service
+  recovery, testing tools, results.md format, non-UI features, design reference
+  check) into `reference.md`, read when they apply. The `CLAUDE.md` template drops
+  the per-agent list and full CLI listing (about 7 KB) into the tickets
+  `WORKFLOW.md`, keeping the routing table and a pointer.
 - **`dashboard.executor` names the binary; `dashboard.executor_flavor` names the
   CLI it speaks (BOB-137).** An absolute path used to fall through to claude's
   argv builder, and against a real non-claude binary that is not merely
@@ -37,7 +46,34 @@ All notable changes to Bobby are documented here. The format is based on
   tells you the only thing it accepts — a bare flavor name — instead of blaming
   `dashboard.executor` and sending you to an absolute path that key never takes.
 
+### Added
+- **Automatic session handoff at the context cap.** New `hooks/context-cap.sh`
+  (UserPromptSubmit) reads the session's context size from its transcript. Past
+  `BOBBY_CONTEXT_CAP` tokens (default 250000), an interactive session writes a
+  handoff (`progress.md`, or `.bobby/handoffs/<date>-<topic>.md`) and runs
+  `hooks/handoff-spawn.sh`, which starts `claude --bg --remote-control "<name> 2"`
+  with the same model and effort. Each session hands off once; headless runs only
+  stop. A compaction resets the count. `bobby init` and upgrades register it.
+- **Stay in the ticket (TKT-074).** Agents drifted off their ticket (rewording
+  copy, fixing security bugs they ran into, refactoring on the way), which skipped
+  product review and bloated diffs. The rule now ships with Bobby instead of living
+  in one project's notes: a "Stay in the ticket" section in the `CLAUDE.md` template
+  and in `bobby-shared`, plus a scope step in build, debug, test, ship, review,
+  freewill, plan, design-build and design-check. Out-of-scope findings are filed
+  with `bobby ticket create --found-in <id>` (an unknown id is an error) and wait in
+  backlog: `bobby brief` and `bobby ticket triage` show them as filed by agents and
+  awaiting product review, and `bobby go` never starts one. When a ticket leaves
+  building, `bobby ticket move` prints the changed files `plan.md` does not name and
+  records a `scope-check` comment; it warns and never blocks, and `bobby-review`
+  rejects out-of-plan changes the ticket does not need.
+
 ### Fixed
+- **`hooks/stop.sh` never fired.** It counted transcript entries of type `human`
+  (Claude Code writes `user`), and its block message broke its own JSON on the
+  apostrophe in "doesn't". It now counts real prompts and is replaced on upgrade.
+- **Post-compaction restore off a ticket branch.** When the branch names no
+  ticket, `hooks/postcompact-restore.sh` now hands back the last `progress.md` or
+  `.bobby/handoffs/*.md` the session itself wrote, read from its transcript.
 - **A failed run now names the executor that actually ran (BOB-136).** Every
   non-zero exit reported `claude exited with code N` regardless of which CLI the
   dashboard had launched, so a failed opencode, codex or cursor-agent run sent

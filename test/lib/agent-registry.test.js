@@ -40,9 +40,9 @@ describe('agent registry', () => {
       expect(prompt).toContain('bobby ticket move TKT-001 block');
     });
 
-    test('keeps the self-review that stands in for the review stage', () => {
+    test('asks for a fresh-context reviewer, not a self-review', () => {
       const prompt = buildGenericPrompt(entry, { ticketId: 'TKT-001' });
-      expect(prompt).toMatch(/self-review/i);
+      expect(prompt).toContain('fresh `bobby-review` sub-agent');
     });
   });
 });

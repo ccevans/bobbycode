@@ -171,6 +171,45 @@ describe('bobby init (scaffolding)', () => {
     expect(claudeMd).not.toContain('# Old Bobby');
   });
 
+  test('re-scaffold (upgrade) adds the Stay in the ticket rule and keeps the user\'s part', () => {
+    const mixed = '# Mine\n\n<!-- bobby:start -->\n# Old Bobby\n<!-- bobby:end -->\n\n## My rules\nkeep me';
+    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), mixed, 'utf8');
+
+    scaffoldProject(tmpDir, {
+      project: 'p', stack: 'nextjs', health_checks: [], areas: [],
+      commands: { dev: 'npm run dev', test: 'npm test', lint: 'npm run lint' },
+      tickets_dir: '.bobby/tickets', ticket_prefix: 'TKT',
+    });
+
+    const md = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
+    const start = md.indexOf('<!-- bobby:start -->');
+    const rule = md.indexOf('## Stay in the ticket');
+    const end = md.indexOf('<!-- bobby:end -->');
+    expect(rule).toBeGreaterThan(start);
+    expect(rule).toBeLessThan(end);
+    expect(md).toContain('# Mine');
+    expect(md).toContain('## My rules\nkeep me');
+    expect(md).not.toContain('# Old Bobby');
+  });
+
+  test('re-scaffold leaves .local files untouched', () => {
+    const cfg = {
+      project: 'p', stack: 'nextjs', health_checks: [], areas: [],
+      commands: { dev: 'npm run dev', test: 'npm test', lint: 'npm run lint' },
+      tickets_dir: '.bobby/tickets', ticket_prefix: 'TKT',
+    };
+    scaffoldProject(tmpDir, cfg);
+    const locals = {
+      '.claude/skills/bobby-shared/learnings.local.md': 'MY SHARED LEARNING\n',
+      '.claude/skills/bobby-build/SKILL.local.md': 'MY BUILD OVERRIDE\n',
+    };
+    for (const [rel, text] of Object.entries(locals)) fs.writeFileSync(path.join(tmpDir, rel), text);
+    scaffoldProject(tmpDir, cfg);
+    for (const [rel, text] of Object.entries(locals)) {
+      expect(fs.readFileSync(path.join(tmpDir, rel), 'utf8')).toBe(text);
+    }
+  });
+
   test('scaffoldProject overwrites fully Bobby-generated CLAUDE.md', () => {
     const bobbyOnly = '<!-- bobby:start -->\n# Old Project — Bobby Workflow\n<!-- bobby:end -->\n';
     fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), bobbyOnly, 'utf8');

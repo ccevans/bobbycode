@@ -158,6 +158,33 @@ describe('studio', () => {
     }
   });
 
+  // REGRESSION (BOB-151): a path-added repo that HAS an origin must record it.
+  // Only two cases were covered before — cloned-from-url, and a dir with no git at
+  // all — and both passed while `url` was silently null for every path-added repo,
+  // because execSync returned a Buffer and .trim() threw into a bare catch.
+  test('a local repo WITH an origin records its url, and studio setup restores it', () => {
+    const remote = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-remote-')) + '.git';
+    const seed = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-seed-'));
+    const local = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-withorigin-'));
+    try {
+      execSync('git init -q', { cwd: seed });
+      execSync('git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init', { cwd: seed });
+      execSync(`git clone -q --bare ${JSON.stringify(seed)} ${JSON.stringify(remote)}`);
+      // A real working checkout with an origin, added BY PATH (not by url).
+      execSync(`git clone -q ${JSON.stringify(remote)} ${JSON.stringify(local)}`);
+
+      addRepo(root, 'withorigin', local);
+      expect(readStudioConfig(root).repos.withorigin.url).toBe(remote);
+
+      // and because the url is recorded, a fresh checkout can restore it
+      fs.rmSync(local, { recursive: true, force: true });
+      const r = setupRepos(root).find(x => x.name === 'withorigin');
+      expect(r.status).toBe('cloned');
+    } finally {
+      for (const d of [remote, seed, local]) fs.rmSync(d, { recursive: true, force: true });
+    }
+  });
+
   test('resolveRepoPath resolves relative under the studio, passes absolute through', () => {
     const cfg = readConfig(root);
     expect(resolveRepoPath(root, cfg, 'app')).toBe(path.join(root, 'repos', 'app'));

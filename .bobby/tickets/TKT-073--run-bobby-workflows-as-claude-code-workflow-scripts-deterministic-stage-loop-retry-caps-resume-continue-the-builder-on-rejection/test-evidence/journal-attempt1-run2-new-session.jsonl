@@ -1,0 +1,4 @@
+{"type":"started","key":"v2:fdbd995e1a71fd5a2cc3047a8d974733c35c667e1c48a832047b58b8d34bcdaf","agentId":"a662b6a267921f452"}
+{"type":"result","key":"v2:fdbd995e1a71fd5a2cc3047a8d974733c35c667e1c48a832047b58b8d34bcdaf","agentId":"a662b6a267921f452","result":{"ticket":"TKT-001","stage":"reviewing","verdict":"mismatch","reason":"Stage was already \"reviewing\" (not \"building\") — a prior bobby-build run completed the work in commits 931e90c/d3ec078, so I changed nothing."}}
+{"type":"started","key":"v2:5fa14dbfaa0297fcf14c5d07fe5ae14397af4903e650c4f141fb56b6b6360f3b","agentId":"aea89575f7418472f"}
+{"type":"result","key":"v2:5fa14dbfaa0297fcf14c5d07fe5ae14397af4903e650c4f141fb56b6b6360f3b","agentId":"aea89575f7418472f","result":{"ticket":"TKT-001","stage":"shipping","verdict":"advanced","reason":"Approved with notes: hello.txt verified byte-for-byte at repo root (h i \\n), AC met, diff in scope, no decision violations; tests/lint unconfigured by design, not a block."}}

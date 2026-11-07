@@ -1,6 +1,6 @@
 ---
 name: bobby-freewill
-description: "Freewill Skill: one agent takes a ticket from start to shipping on deliberately few instructions — built for Opus 5 and Fable 5, which work better from a goal and constraints than from a script. MANDATORY TRIGGERS: freewill, free will, freewill mode, one agent, single agent, minimal instructions, skip the ceremony, no ceremony, just do the ticket, run it end to end."
+description: "Freewill Skill: one agent takes a ticket from start to shipping on deliberately few instructions — built for frontier models (Fable by default), which work better from a goal and constraints than from a script. MANDATORY TRIGGERS: freewill, free will, freewill mode, one agent, single agent, minimal instructions, skip the ceremony, no ceremony, just do the ticket, run it end to end."
 argument-hint: "<ticket ID>"
 ---
 
@@ -12,7 +12,7 @@ argument-hint: "<ticket ID>"
 ## Why this file is short
 
 Bobby's other build skills are long on purpose — they were written for models that drift
-without a script. Opus 5 and Fable 5 do not need the script, and on them a long one costs
+without a script. Fable and Opus do not need the script, and on them a long one costs
 you something real: attention spent on compliance, and an agent that finishes the checklist
 instead of the ticket. Prescribed procedure also caps the work at whatever the procedure's
 author imagined; your own read of this codebase is usually better.
@@ -74,10 +74,18 @@ scope creep — file it with `bobby ticket create` instead.
 You removed the reviewer, so you do the reviewer's job deliberately, not as an afterthought.
 Before moving to shipping, re-read your own diff as though someone else wrote it and you are
 looking for the reason it is wrong: the caller you did not update, the case the test does not
-cover, the assumption that holds only for the input you happened to try. Then run the tests.
+cover, the assumption that holds only for the input you happened to try. Then run the impacted
+specs — the ones covering your diff (`NODE_OPTIONS=--experimental-vm-modules npx jest {files}`, `{files}` = the specs for
+`git diff --name-only origin/main...HEAD`) — not the full suite. Ship runs the full suite once
+per ticket; a full run here, times every ticket building at once, is what runs the machine out
+of memory.
 
 If that pass finds nothing, say what you checked. "Self-review found nothing" tells the next
 person nothing.
+
+## Checkpointing
+
+Compaction can happen at any moment, so keep `progress.md` in the ticket folder (the directory holding `ticket.md`) current as you go, not when you are warned. After a compaction a hook hands this file back to you, so write it for a reader who remembers nothing: ticket id, branch, the phase you are in (understood, built, self-reviewed, shipping), what is committed, and what you decided and why, and the exact next action. Freewill holds a whole ticket in one context, so it is the agent most likely to be compacted mid-flight. Update the file at each phase change and after each commit. Delete it when the ticket reaches shipping.
 
 ## Stopping
 

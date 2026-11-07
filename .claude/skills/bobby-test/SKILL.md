@@ -287,6 +287,10 @@ If any acceptance criteria fail in the live app:
 2. Move back with specific feedback: `bobby ticket move {ID} reject "Live test failure: {specific description} — evidence in test-evidence/"`
 3. Be specific — describe what you saw vs. what was expected, reference screenshots by filename
 
+## Checkpointing
+
+Compaction can happen at any moment, so keep `progress.md` in the ticket folder (the directory holding `ticket.md`) current as you go, not when you are warned. After a compaction a hook hands this file back to you, so write it for a reader who remembers nothing: ticket id, branch, each test case done with its verdict and evidence path, and the ones still to run, and the exact next action. Record a case's verdict and its evidence file as soon as you have it, before starting the next case; a compaction should cost you at most one case. Delete the file once the verdict is moved.
+
 ## Key Principles
 
 - **Test what the ticket says** — Don't scope-creep to unrelated features

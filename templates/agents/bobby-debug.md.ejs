@@ -31,6 +31,10 @@ Only modify files directly related to the bug. Do not:
 If you discover issues outside scope, file them as new tickets: `bobby ticket create -t "Found: {issue}" --type bug`
 </scope_lock>
 
+<%- include('../partials/unattended.md.ejs') %>
+
+<%- include('../partials/efficient.md.ejs') %>
+
 ## Completing Work
 
 - Commit the fix: `git add` changed files, `git commit` with `TKT-{ID}: debug fix — {root cause summary}`
