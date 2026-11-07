@@ -33,3 +33,14 @@
 
 ### Notes
 - TKT-081 is approved separately; this rejection is independent of it.
+
+---
+
+## Re-review — commit 1ad1fbf
+
+### Verdict: Approved
+
+- `context-cap.sh`: usage is reset to 0 on `subtype == "compact_boundary"` or `isCompactSummary`. My earlier repro (400k assistant turn, compact summary, new prompt) now prints nothing and exits 0. A post-compaction assistant turn still sets the size normally.
+- `handoff-spawn.sh`: nullglob array replaces `ls | head`; an unknown session id now exits 1 with "no transcript found for session <id>". Multiple matches take the first, as before.
+- Tests: two new tests cover both fixes. `npm test -- test/lib/compaction-hooks.test.js`: 31 passed (1 suite).
+- The earlier non-blocking notes (traceback on a bad `BOBBY_CONTEXT_CAP`, whole-transcript read) are unchanged and still non-blocking. No scope creep in the commit.
