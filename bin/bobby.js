@@ -12,6 +12,10 @@ program
   .name('bobby')
   .description('Bobby — a full SDLC workflow for a solo developer: a whole team of agents, headcount of one.')
   .enablePositionalOptions()
+  // Before any subcommand is registered: commander copies this setting into
+  // every .command() child at creation, so a bad option on ANY subcommand
+  // prints that subcommand's help after the error (TKT-087).
+  .showHelpAfterError()
   .version(pkg.version);
 
 // Commands

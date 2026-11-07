@@ -1,6 +1,6 @@
 // commands/create.js
 import path from 'path';
-import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
+import { readConfig, findProjectRoot, resolveTicketsDir, listStudioProjects } from '../lib/config.js';
 import { createTicket, findTicket, listTickets } from '../lib/tickets.js';
 import { assertSize } from '../lib/workflow.js';
 import { success, warn, error } from '../lib/colors.js';
@@ -40,7 +40,15 @@ export function registerCreate(program) {
           repos = opts.repos ? opts.repos.split(',').map(s => s.trim()).filter(Boolean) : allowed;
           const bad = repos.filter(r => !allowed.includes(r));
           if (bad.length) {
-            error(`Ticket repos not in project '${config._project}' (${allowed.join(', ') || 'none'}): ${bad.join(', ')}`);
+            const projects = listStudioProjects(root);
+            const siblings = bad.filter(r => projects.includes(r));
+            const unknown = bad.filter(r => !projects.includes(r));
+            for (const s of siblings) {
+              error(`${s} is its own project: file it with --project ${s} (and drop it from --repos)`);
+            }
+            if (unknown.length) {
+              error(`Ticket repos not in project '${config._project}' (${allowed.join(', ') || 'none'}): ${unknown.join(', ')}`);
+            }
             process.exit(1);
           }
         }

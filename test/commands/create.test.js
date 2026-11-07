@@ -1,5 +1,6 @@
 // test/commands/create.test.js
-import { execSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
+import { initStudio, addRepo, createProject } from '../../lib/studio.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -105,6 +106,61 @@ describe('bobby ticket create', () => {
     test('without the flag found_in is null', () => {
       execSync(`node ${bobby} ticket create -t "Plain"`, { cwd: tmpDir });
       expect(readData('TKT-001').found_in).toBeNull();
+    });
+  });
+  describe('studio --repos', () => {
+    let studio;
+    const ticketDirs = (project) => {
+      const d = path.join(studio, '.bobby', project, 'tickets');
+      return fs.readdirSync(d).filter(e => /^[A-Z]+-\d+/.test(e));
+    };
+    const create = (project, args) => spawnSync('node', [bobby, '--project', project, 'ticket', 'create', ...args], { cwd: studio, encoding: 'utf8' });
+
+    beforeEach(() => {
+      studio = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-studio-repos-'));
+      initStudio(studio);
+      fs.mkdirSync(path.join(studio, 'repos', 'app'), { recursive: true });
+      addRepo(studio, 'app', path.join(studio, 'repos', 'app'), { stack: 'node' });
+      createProject(studio, 'robinflow', { prefix: 'RF', repos: ['app'] });
+      createProject(studio, 'robin-ops', { prefix: 'RO' });
+    });
+    afterEach(() => { fs.rmSync(studio, { recursive: true }); });
+
+    test('a sibling project named in --repos gets the --project hint', () => {
+      const r = create('robinflow', ['-t', 'ops job', '--repos', 'robin-ops']);
+      expect(r.status).toBe(1);
+      expect(r.stderr).toContain('robin-ops is its own project: file it with --project robin-ops');
+      expect(r.stderr).not.toContain('Ticket repos not in project');
+      expect(ticketDirs('robinflow')).toHaveLength(0);
+    });
+
+    test('following the hint files the ticket in the sibling project', () => {
+      const r = create('robin-ops', ['-t', 'ops job']);
+      expect(r.status).toBe(0);
+      expect(ticketDirs('robin-ops')).toEqual(['RO-001--ops-job']);
+    });
+
+    test('a truly unknown repo keeps the current error', () => {
+      const r = create('robinflow', ['-t', 'x', '--repos', 'nope']);
+      expect(r.status).toBe(1);
+      expect(r.stderr).toContain("Ticket repos not in project 'robinflow' (app): nope");
+      expect(r.stderr).not.toContain('--project');
+    });
+
+    test('a sibling plus an unknown repo prints both lines, unknown listing only itself', () => {
+      const r = create('robinflow', ['-t', 'x', '--repos', 'robin-ops,nope']);
+      expect(r.status).toBe(1);
+      expect(r.stderr).toContain('robin-ops is its own project: file it with --project robin-ops');
+      expect(r.stderr).toContain("Ticket repos not in project 'robinflow' (app): nope");
+      expect(r.stderr).not.toMatch(/\(app\): .*robin-ops/);
+    });
+
+    test('a valid repo still files', () => {
+      const r = create('robinflow', ['-t', 'ok', '--repos', 'app']);
+      expect(r.status).toBe(0);
+      const dir = ticketDirs('robinflow')[0];
+      const { data } = matter(fs.readFileSync(path.join(studio, '.bobby', 'robinflow', 'tickets', dir, 'ticket.md'), 'utf8'));
+      expect(data.repos).toEqual(['app']);
     });
   });
 });
