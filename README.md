@@ -300,7 +300,7 @@ max_retries: 3
 <summary>Optional configuration (commented out in generated file)</summary>
 
 ```yaml
-# Custom + override workflows (built-in: default, secure, quick, freewill, design, define)
+# Custom + override workflows (built-in: default, secure, quick, library, library-secure, freewill, design, define)
 workflows:
   default: [plan, build, review, test]
   secure: [plan, build, security, review, test]
@@ -1234,7 +1234,7 @@ Bobby scaffolds Claude Code slash commands in `.claude/commands/` so you can inv
 
 ## Custom Workflows
 
-Bobby ships built-in workflows — `default`, `secure`, `quick`, `freewill`, plus the `design` and `define` pipelines. Define your own (or override a built-in) in `.bobbyrc.yml`:
+Bobby ships built-in workflows — `default`, `secure`, `quick`, `library`, `library-secure`, `freewill`, plus the `design` and `define` pipelines. Define your own (or override a built-in) in `.bobbyrc.yml`:
 
 ```yaml
 workflows:
@@ -1246,6 +1246,40 @@ Run a named workflow:
 ```bash
 bobby run workflow TKT-001 --workflow secure
 ```
+
+### The library workflow
+
+CLI tools, libraries, and npm packages have no live app, and the test stage is a
+live-app stage — bobby-test verifies through a running server, never by running
+specs. The `library` workflow ends at review instead: `plan → build → review`
+(review runs the test suite independently, the correct verification for a
+library). `library-secure` adds a security stage: `plan → build → security → review`.
+
+Bobby picks `library` automatically: when `bobby init` (or `bobby new`) detects
+no dev server and no health checks, it writes `default_workflow: library` into
+`.bobbyrc.yml` with a comment explaining why. Delete that line to return to the
+standard default, or add `health_checks` when the project grows a live app.
+Note that `default_workflow` redirects the *name* `default` — on a library
+project, run the four-stage flow by defining it under another name
+(e.g. `workflows: { live: [plan, build, review, test] }`).
+
+**Which workflow a ticket runs** (first match wins):
+
+1. the `--workflow` flag (`default` is the placeholder, not a choice)
+2. the ticket's own `workflow:`
+3. the workflow its size maps to via `sizing:`
+4. your own `workflows.default`
+5. `default_workflow:`
+6. the built-in `default`
+
+A ticket's own `workflow:` always wins over its size and over `default_workflow`.
+Setting `default_workflow` switches off the built-in `xs` → `quick` rule, because
+`quick` ends at the test stage a library cannot run; a `sizing:` you write
+yourself still applies (and so does its risk: `sizing: { xs: quick }` on a
+library project sends xs tickets to the test stage). An unknown or invalid
+`default_workflow` is an error on every run, even when a ticket's own workflow
+would have won; it never falls back to `default`. Leave the key out for the
+existing behaviour.
 
 ## Contributing
 

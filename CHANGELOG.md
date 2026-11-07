@@ -18,6 +18,19 @@ All notable changes to Bobby are documented here. The format is based on
   `WORKFLOW.md`, keeping the routing table and a pointer.
 
 ### Added
+- **`library` and `library-secure` built-in workflows, and a `default_workflow`
+  config key (BOB-090, also TKT-013).** CLI tools, libraries and npm packages have
+  no live app, so the test stage stranded every ticket (bobby-test never runs specs).
+  `library` is `plan → build → review` (review runs the suite); `library-secure`
+  adds security. `bobby init` and `bobby new` write `default_workflow: library`,
+  with a comment, when a project has no health checks and no dev command. Order
+  of precedence: `--workflow` flag, ticket `workflow:`, size via `sizing:`, your
+  `workflows.default`, `default_workflow`, built-in `default`. Setting
+  `default_workflow` turns off the built-in `xs` → `quick` rule. An unknown or
+  invalid `default_workflow` is an error, never a silent fallback. Any prompt that
+  would launch bobby-test with no health checks now blocks the ticket with
+  "no live app to test — use the library workflow". `bobby workflow list` shows
+  effective stages and the project default.
 - **Automatic session handoff at the context cap.** New `hooks/context-cap.sh`
   (UserPromptSubmit) reads the session's context size from its transcript. Past
   `BOBBY_CONTEXT_CAP` tokens (default 250000), an interactive session writes a
