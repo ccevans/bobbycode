@@ -6,7 +6,7 @@
 # discovered any new patterns worth recording before the session ends.
 #
 # Configured in .claude/settings.json:
-#   "Stop": [{"matcher": "", "hooks": [{"type": "command", "command": "hooks/stop.sh"}]}]
+#   "Stop": [{"matcher": "", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/stop.sh"}]}]
 
 SAVE_INTERVAL="${BOBBY_SAVE_INTERVAL:-20}"
 STATE_DIR="${HOME}/.bobby/hook-state"
@@ -54,23 +54,28 @@ if [ -z "$transcript_path" ] || [ ! -f "$transcript_path" ]; then
     exit 0
 fi
 
-# Count human turns in the transcript
-human_count=$(python3 -c "
-import json
+# Count human turns in the transcript. Claude Code writes them as type "user";
+# tool results are "user" entries too, so skip any whose content holds one.
+human_count=$(TRANSCRIPT="$transcript_path" python3 -c "
+import json, os
 count = 0
 try:
-    with open('$transcript_path') as f:
+    with open(os.environ['TRANSCRIPT']) as f:
         for line in f:
             try:
                 d = json.loads(line.strip())
-                if d.get('type') == 'human':
-                    count += 1
             except Exception:
-                pass
+                continue
+            if d.get('type') != 'user' or d.get('isMeta'):
+                continue
+            content = (d.get('message') or {}).get('content')
+            if isinstance(content, str) or (isinstance(content, list) and not any(
+                    isinstance(b, dict) and b.get('type') == 'tool_result' for b in content)):
+                count += 1
 except Exception:
     pass
 print(count)
-" 2>/dev/null)
+")
 
 # Read last save count for this session
 state_file="$STATE_DIR/${session_id}.last_save"
@@ -94,7 +99,7 @@ Check that the slug doesn't already exist in the learnings file before adding.
 
 If nothing noteworthy happened this session, you may stop."
 
-    python3 -c "import json; print(json.dumps({'decision': 'block', 'reason': '$reason'}))"
+    REASON="$reason" python3 -c "import json, os; print(json.dumps({'decision': 'block', 'reason': os.environ['REASON']}))"
 else
     echo "{}"
 fi

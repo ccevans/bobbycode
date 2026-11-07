@@ -192,9 +192,11 @@ Stage agents (bobby-plan, bobby-build, bobby-review, bobby-test, bobby-ship) eac
 
 ## Hooks
 
-Bobby scaffolds two Claude Code hooks that protect against context loss and missing learnings:
+Bobby scaffolds Claude Code hooks that protect against context loss and missing learnings:
 
-- **PreCompact** (`hooks/precompact.sh`) — fires before Claude compresses context. Prompts you to write a `progress.md` checkpoint in the ticket folder so work can resume after compaction without losing your place.
+- **PreCompact** (`hooks/precompact.sh`) — a no-op; compaction is safe at any moment because the skills checkpoint `progress.md` at milestones.
+- **SessionStart, after compaction** (`hooks/postcompact-restore.sh`) — hands back the checkpoint: the `progress.md` of the ticket named in the git branch, else the last `progress.md` or `.bobby/handoffs/*.md` this session wrote.
+- **UserPromptSubmit** (`hooks/context-cap.sh`) — past `BOBBY_CONTEXT_CAP` tokens (default 250000), an interactive session writes a handoff and runs `hooks/handoff-spawn.sh`, which starts its successor (`claude --bg --remote-control "<name> 2"`, same model and effort) once per session. Headless runs only stop and write the handoff.
 - **Stop** (`hooks/stop.sh`) — fires every `BOBBY_SAVE_INTERVAL` turns (default 20) before stopping. Prompts you to record any new anti-patterns or validated approaches via `bobby learn` before the session ends.
 
 Set `BOBBY_SAVE_INTERVAL` in your shell environment to change the frequency.
