@@ -111,7 +111,7 @@ describe('bobby ticket create', () => {
 
 describe('bobby ticket create: stale board guard (TKT-083)', () => {
   const bobby = path.resolve('bin/bobby.js');
-  let root, A, B;
+  let root, origin, A, B;
 
   // TKT-083 fixture: local bare repo as origin plus two clones of a Bobby project. No network.
   const g = (cwd, args) => execSync(`git ${args}`, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
@@ -150,7 +150,7 @@ describe('bobby ticket create: stale board guard (TKT-083)', () => {
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-stale-'));
-    ({ A, B } = makeBoardRepos(root));
+    ({ origin, A, B } = makeBoardRepos(root));
   });
   afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); });
 
@@ -212,6 +212,21 @@ describe('bobby ticket create: stale board guard (TKT-083)', () => {
     g(A, 'config branch.feat.merge refs/heads/feat');
     expect(bobbyIn(A, 'ticket create -t "w"').code).toBe(0);
     expect(folders(A)).toEqual(['TKT-001--w']);
+  });
+
+  test('an upstream branch deleted on the remote refuses, names the way out, and keeps the tracking ref', () => {
+    g(A, 'checkout -q -b feat');
+    execSync(`node ${bobby} ticket create -t "On feat"`, { cwd: A });
+    g(A, 'add -A'); g(A, 'commit -qm feat'); g(A, 'push -q -u origin feat');
+    // delete on the remote itself: A's own `push --delete` would also drop A's tracking ref
+    g(origin, 'branch -D feat');
+    const r = bobbyIn(A, 'ticket create -t "After delete"');
+    expect(r.code).toBe(1);
+    expect(r.out).toMatch(/origin\/feat no longer exists on origin/);
+    expect(r.out).toMatch(/git branch -u origin\/feat/);
+    expect(r.out).toMatch(/--unset-upstream/);
+    expect(folders(A)).toEqual(['TKT-001--on-feat']);
+    expect(g(A, 'rev-parse --verify refs/remotes/origin/feat').trim()).toBeTruthy();
   });
 
   test('studio board: its own board moving blocks; another project board moving does not', () => {

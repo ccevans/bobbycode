@@ -38,11 +38,11 @@ function pushTicket(B, name) {
 }
 
 describe('board-upstream', () => {
-  let root, A, B, ticketsA;
+  let root, origin, A, B, ticketsA;
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-bu-'));
-    ({ A, B } = makeBoardRepos(root));
+    ({ origin, A, B } = makeBoardRepos(root));
     ticketsA = path.join(A, '.bobby', 'tickets');
   });
   afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); });
@@ -101,6 +101,22 @@ describe('board-upstream', () => {
     expect(() => assertBoardCurrent(ticketsA)).not.toThrow();
     expect(upstreamHighestId(ticketsA, 'TKT')).toBe(0);
     expect(boardFreshness(ticketsA)).toEqual({ state: 'current' });
+  });
+
+  test('an upstream branch deleted on the remote is an explicit error and keeps the tracking ref', () => {
+    g(A, 'checkout', '-q', '-b', 'feat');
+    fs.mkdirSync(path.join(ticketsA, 'TKT-005--x'));
+    fs.writeFileSync(path.join(ticketsA, 'TKT-005--x', 'ticket.md'), '---\nid: x\n---\n');
+    g(A, 'add', '-A'); g(A, 'commit', '-qm', 'ticket');
+    g(A, 'push', '-q', '-u', 'origin', 'feat');
+    // delete on the remote itself: A's own `push --delete` would also drop A's tracking ref
+    g(origin, 'branch', '-D', 'feat');
+    expect(g(A, 'rev-parse', '--verify', 'refs/remotes/origin/feat').trim()).toBeTruthy();
+    expect(() => assertBoardCurrent(ticketsA)).toThrow(/origin\/feat no longer exists on origin.*git branch -u origin\/feat.*--unset-upstream/s);
+    const f = boardFreshness(ticketsA);
+    expect(f.state).toBe('unknown');
+    expect(f.reason).toMatch(/no longer exists on origin/);
+    expect(g(A, 'rev-parse', '--verify', 'refs/remotes/origin/feat').trim()).toBeTruthy();
   });
 
   test('a local upstream branch (remote ".") is compared without a fetch', () => {
