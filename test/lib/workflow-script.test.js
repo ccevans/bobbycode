@@ -128,7 +128,7 @@ describe('writeWorkflowScripts', () => {
     const cfg = YAML.parse(fs.readFileSync(cfgPath, 'utf8'));
     fs.writeFileSync(cfgPath, YAML.stringify({ ...cfg, orchestration: 'workflow', workflows: { fast: ['build', 'test'] } }));
     execSync(`node ${path.resolve('bin/bobby.js')} init --refresh`, { cwd: dir, encoding: 'utf8' });
-    expect(listing()).toEqual(['bobby-default.js', 'bobby-define.js', 'bobby-design.js', 'bobby-fast.js', 'bobby-freewill.js', 'bobby-quick.js', 'bobby-secure.js']);
+    expect(listing()).toEqual(['bobby-default.js', 'bobby-define.js', 'bobby-design.js', 'bobby-fast.js', 'bobby-freewill.js', 'bobby-library-secure.js', 'bobby-library.js', 'bobby-quick.js', 'bobby-secure.js']);
     const after = YAML.parse(fs.readFileSync(cfgPath, 'utf8'));
     expect(after.orchestration).toBe('workflow');
     expect(after.workflows).toEqual({ fast: ['build', 'test'] });

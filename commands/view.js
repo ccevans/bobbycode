@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
 import { findTicket } from '../lib/tickets.js';
-import { workflowNameForTicket } from '../lib/workflow.js';
+import { workflowNameForTicket, resolveWorkflowName } from '../lib/workflow.js';
 import { stageColor } from '../lib/stages.js';
 import { bold, dim, error } from '../lib/colors.js';
 
@@ -56,7 +56,7 @@ export function registerView(program) {
           console.log(`  ${dim('Parent:')} ${found.data.parent}`);
         }
         if (found.data.size || found.data.workflow) {
-          const wf = workflowNameForTicket(config, found.data) || 'default';
+          const wf = resolveWorkflowName('default', workflowNameForTicket(config, found.data), config);
           console.log(`  ${dim('Size:')} ${found.data.size || '—'}  ${dim('Workflow:')} ${wf}`);
         }
         if (found.data.feature) {
