@@ -92,11 +92,10 @@ describe('bobby ticket assign --session / handoff', () => {
     expect(fm().owner).toEqual(ownerBefore);
   });
 
-  test('TC6 filled handoff sets owner, adds the handed-off line, commits the ticket only', () => {
+  test('TC6 filled handoff sets owner, adds the handed-off line, commits via its own step', () => {
     run('assign', 'TKT-001', 'bobby-build', '--session', 'studio-27');
     run('handoff', 'TKT-001', '--to', 'intel-2', '--machine', 'Intel MBP');
     fs.writeFileSync(progressFile(), fillAll(fs.readFileSync(progressFile(), 'utf8')));
-    fs.writeFileSync(path.join(tmpDir, 'unrelated.txt'), 'x');
     const r = run('handoff', 'TKT-001', '--to', 'intel-2', '--machine', 'Intel MBP');
     expect(r.status).toBe(0);
     const d = fm();
@@ -106,7 +105,7 @@ describe('bobby ticket assign --session / handoff', () => {
     expect(d.assigned).toBe('bobby-build');
     const text = fs.readFileSync(progressFile(), 'utf8');
     expect(text).toMatch(new RegExp(`^# Handoff.*\\n\\n> Handed off \\S+ from studio-27 on ${machineName()} to intel-2 on Intel MBP`));
-    expect(execSync('git log -1 --format=%s', { cwd: tmpDir, encoding: 'utf8' }).trim()).toBe('bobby: auto-sync');
+    expect(execSync('git log -1 --format=%s', { cwd: tmpDir, encoding: 'utf8' }).trim()).toBe('TKT-001: handoff to intel-2');
     const files = execSync('git log -1 --name-only --format=', { cwd: tmpDir, encoding: 'utf8' }).trim().split('\n');
     expect(files.sort()).toEqual([
       '.bobby/tickets/TKT-001--fix-login/progress.md',
@@ -115,6 +114,54 @@ describe('bobby ticket assign --session / handoff', () => {
     // a second handoff replaces the line instead of stacking it
     run('handoff', 'TKT-001', '--to', 'studio-30');
     expect(fs.readFileSync(progressFile(), 'utf8').match(/> Handed off/g)).toHaveLength(1);
+  });
+
+  test('TC6b handoff commit leaves unrelated staged files staged and out of the commit', () => {
+    run('handoff', 'TKT-001', '--to', 'intel-2');
+    fs.writeFileSync(progressFile(), fillAll(fs.readFileSync(progressFile(), 'utf8')));
+    fs.writeFileSync(path.join(tmpDir, 'unrelated.txt'), 'v1');
+    execSync('git add unrelated.txt && git commit -qm "add unrelated"', { cwd: tmpDir, env: GIT_ENV });
+    fs.writeFileSync(path.join(tmpDir, 'unrelated.txt'), 'v2');
+    fs.writeFileSync(path.join(tmpDir, 'newfile.txt'), 'n');
+    execSync('git add unrelated.txt newfile.txt', { cwd: tmpDir, env: GIT_ENV });
+    const r = run('handoff', 'TKT-001', '--to', 'intel-2');
+    expect(r.status).toBe(0);
+    const files = execSync('git log -1 --name-only --format=', { cwd: tmpDir, encoding: 'utf8' }).trim().split('\n');
+    expect(files).not.toContain('unrelated.txt');
+    expect(files).not.toContain('newfile.txt');
+    expect(files).toContain('.bobby/tickets/TKT-001--fix-login/ticket.md');
+    const staged = execSync('git diff --cached --name-only', { cwd: tmpDir, encoding: 'utf8' }).trim().split('\n').sort();
+    expect(staged).toEqual(['newfile.txt', 'unrelated.txt']);
+  });
+
+  test('TC6c failed commit (index.lock) exits non-zero and says it was not committed', () => {
+    run('handoff', 'TKT-001', '--to', 'intel-2');
+    fs.writeFileSync(progressFile(), fillAll(fs.readFileSync(progressFile(), 'utf8')));
+    const head = execSync('git rev-parse HEAD', { cwd: tmpDir, encoding: 'utf8' });
+    fs.writeFileSync(path.join(tmpDir, '.git', 'index.lock'), '');
+    const r = run('handoff', 'TKT-001', '--to', 'intel-2');
+    fs.rmSync(path.join(tmpDir, '.git', 'index.lock'));
+    expect(r.status).toBe(1);
+    expect(r.stdout).not.toContain('handed off to');
+    expect(r.stderr).toContain('NOT committed');
+    expect(r.stderr).toContain('index.lock');
+    expect(r.stderr).toContain('progress.md');
+    expect(execSync('git rev-parse HEAD', { cwd: tmpDir, encoding: 'utf8' })).toBe(head);
+    expect(fm().owner.session).toBe('intel-2');
+  });
+
+  test('TC6d empty --machine is an error and changes nothing', () => {
+    run('handoff', 'TKT-001', '--to', 'intel-2');
+    const text = fillAll(fs.readFileSync(progressFile(), 'utf8'));
+    fs.writeFileSync(progressFile(), text);
+    const before = fs.readFileSync(ticketFile(), 'utf8');
+    for (const m of ['', '   ']) {
+      const r = run('handoff', 'TKT-001', '--to', 'intel-2', '--machine', m);
+      expect(r.status).toBe(1);
+      expect(r.stderr).toContain('--machine needs a computer name');
+    }
+    expect(fs.readFileSync(ticketFile(), 'utf8')).toBe(before);
+    expect(fs.readFileSync(progressFile(), 'utf8')).toBe(text);
   });
 
   test('TC7 handoff without --machine leaves machine null', () => {

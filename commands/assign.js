@@ -1,14 +1,13 @@
 // commands/assign.js
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import { readConfig, findProjectRoot, resolveTicketsDir } from '../lib/config.js';
 import { findTicket, writeTicket } from '../lib/tickets.js';
 import { success, error, dim } from '../lib/colors.js';
 import chalk from 'chalk';
 import { tryLogEntry } from '../lib/session.js';
 import { machineName, unfilledSections, renderHandoffTemplate, parseHandoff } from '../lib/owner.js';
-import { autoSync } from '../lib/auto-sync.js';
 
 /** Put a `> Handed off ...` line directly under the title, replacing an earlier one. */
 function withHandoffLine(text, line) {
@@ -71,6 +70,7 @@ export function registerAssign(program) {
 
         const to = opts.to.trim();
         if (!to) { error('--to needs a session name'); process.exit(1); }
+        if (opts.machine !== undefined && !opts.machine.trim()) { error('--machine needs a computer name'); process.exit(1); }
 
         const progressPath = path.join(found.path, 'progress.md');
         const rel = path.relative(process.cwd(), progressPath) || progressPath;
@@ -89,7 +89,7 @@ export function registerAssign(program) {
 
         const prev = found.data.owner;
         const since = new Date().toISOString();
-        const machine = opts.machine && opts.machine.trim() ? opts.machine.trim() : null;
+        const machine = opts.machine !== undefined ? opts.machine.trim() : null;
         const line = `> Handed off ${since} from ${prev?.session ?? 'no recorded owner'}${prev?.machine ? ` on ${prev.machine}` : ''} to ${to}${machine ? ` on ${machine}` : ''}`;
 
         const data = { ...found.data, owner: { session: to, machine, since } };
@@ -101,8 +101,18 @@ export function registerAssign(program) {
         try {
           top = execSync('git rev-parse --show-toplevel', { cwd: found.path, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
         } catch { /* not a git repo */ }
-        if (top) autoSync(top, [path.relative(top, found.path)]);
-        else console.log(`  ${dim('not a git repo — not committed')}`);
+        if (top) {
+          const rel = path.relative(top, found.path);
+          try {
+            // Own commit step: --only with a pathspec commits just the ticket folder and leaves other staged files staged.
+            execFileSync('git', ['add', '--', rel], { cwd: top, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+            execFileSync('git', ['commit', '--only', '-m', `${id}: handoff to ${to}`, '--', rel], { cwd: top, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+          } catch (e) {
+            const detail = String(e.stderr || e.message).trim();
+            error(`${id}: owner and progress.md were written in ${rel} but NOT committed: ${detail}\n  Rerun the same command once git is free, or commit the ticket folder yourself.`);
+            process.exit(1);
+          }
+        } else console.log(`  ${dim('not a git repo — not committed')}`);
 
         success(`${id} handed off to ${chalk.cyan(to)}`);
         tryLogEntry(root, config, { type: 'handoff', ticket: id, to });
