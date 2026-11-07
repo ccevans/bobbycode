@@ -31,11 +31,12 @@ const COMMAND_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'commands'
  * project that lists no repos gets the whole group. A name the group does not
  * know is an error, not a blank line — a blank line is exactly what hid this.
  */
-const SHIPPED_HOOKS = new Set(['precompact.sh', 'postcompact-restore.sh']);
+const SHIPPED_HOOKS = new Set(['precompact.sh', 'postcompact-restore.sh', 'stop.sh', 'context-cap.sh', 'handoff-spawn.sh']);
 
 /**
  * Bring an existing .claude/settings.json's Bobby hooks up to date without
- * touching anything else in it: add the post-compaction restore, and anchor
+ * touching anything else in it: add the post-compaction restore and the
+ * context cap, and anchor
  * Bobby's own `hooks/x.sh` commands to $CLAUDE_PROJECT_DIR. A bare relative
  * path resolves against the session's cwd, which inside a ticket worktree is
  * not the project root, so the hook silently never ran there.
@@ -54,15 +55,15 @@ export function migrateHookSettings(settingsPath) {
     }
   }
 
-  const restore = '"$CLAUDE_PROJECT_DIR"/hooks/postcompact-restore.sh';
-  const has = (settings.hooks.SessionStart || []).some(g => (g.hooks || []).some(h => h.command === restore));
-  if (!has) {
-    settings.hooks.SessionStart = [
-      ...(settings.hooks.SessionStart || []),
-      { matcher: 'compact', hooks: [{ type: 'command', command: restore }] },
-    ];
+  const ensure = (event, matcher, script) => {
+    const command = `"$CLAUDE_PROJECT_DIR"/hooks/${script}`;
+    const has = (settings.hooks[event] || []).some(g => (g.hooks || []).some(h => h.command === command));
+    if (has) return;
+    settings.hooks[event] = [...(settings.hooks[event] || []), { matcher, hooks: [{ type: 'command', command }] }];
     changed = true;
-  }
+  };
+  ensure('SessionStart', 'compact', 'postcompact-restore.sh');
+  ensure('UserPromptSubmit', '', 'context-cap.sh');
 
   if (changed) fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
   return changed;
@@ -278,9 +279,10 @@ export function scaffoldProject(rootDir, config, { writeConfig = true } = {}) {
     for (const hookFile of fs.readdirSync(HOOKS_TEMPLATES_DIR)) {
       const src = path.join(HOOKS_TEMPLATES_DIR, hookFile);
       const dest = path.join(hooksDir, hookFile.replace('.ejs', ''));
-      // Most hooks are the project's once written. The compaction pair is
+      // Most hooks are the project's once written. The session hooks are
       // Bobby's behaviour, not preference, and an old copy is actively wrong
-      // (the old precompact.sh blocked compaction), so those are refreshed.
+      // (the old precompact.sh blocked compaction, the old stop.sh never
+      // fired), so those are refreshed.
       if (!fs.existsSync(dest) || SHIPPED_HOOKS.has(hookFile)) {
         if (hookFile.endsWith('.ejs')) {
           const content = renderTemplate(`hooks/${hookFile}`, templateData);

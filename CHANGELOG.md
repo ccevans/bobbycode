@@ -18,6 +18,13 @@ All notable changes to Bobby are documented here. The format is based on
   `WORKFLOW.md`, keeping the routing table and a pointer.
 
 ### Added
+- **Automatic session handoff at the context cap.** New `hooks/context-cap.sh`
+  (UserPromptSubmit) reads the session's context size from its transcript. Past
+  `BOBBY_CONTEXT_CAP` tokens (default 250000), an interactive session writes a
+  handoff (`progress.md`, or `.bobby/handoffs/<date>-<topic>.md`) and runs
+  `hooks/handoff-spawn.sh`, which starts `claude --bg --remote-control "<name> 2"`
+  with the same model and effort. Each session hands off once; headless runs only
+  stop. A compaction resets the count. `bobby init` and upgrades register it.
 - **Stay in the ticket (TKT-074).** Agents drifted off their ticket (rewording
   copy, fixing security bugs they ran into, refactoring on the way), which skipped
   product review and bloated diffs. The rule now ships with Bobby instead of living
@@ -32,6 +39,12 @@ All notable changes to Bobby are documented here. The format is based on
   rejects out-of-plan changes the ticket does not need.
 
 ### Fixed
+- **`hooks/stop.sh` never fired.** It counted transcript entries of type `human`
+  (Claude Code writes `user`), and its block message broke its own JSON on the
+  apostrophe in "doesn't". It now counts real prompts and is replaced on upgrade.
+- **Post-compaction restore off a ticket branch.** When the branch names no
+  ticket, `hooks/postcompact-restore.sh` now hands back the last `progress.md` or
+  `.bobby/handoffs/*.md` the session itself wrote, read from its transcript.
 - **README Executor prose caught up with the registry (BOB-134).** The
   Dashboard section still said the dashboard drives `claude` or `cursor-agent`
   only — three flavors stale after codex (BOB-080) and opencode (BOB-085)
