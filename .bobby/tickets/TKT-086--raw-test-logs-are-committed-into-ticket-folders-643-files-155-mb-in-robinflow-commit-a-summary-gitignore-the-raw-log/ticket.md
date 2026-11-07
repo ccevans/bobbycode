@@ -3,7 +3,7 @@ id: TKT-086
 title: >-
   Raw test logs are committed into ticket folders (643 files, 155 MB in
   robinflow): commit a summary, gitignore the raw log
-stage: building
+stage: testing
 type: improvement
 priority: medium
 area: null
@@ -43,3 +43,4 @@ Plan direction (approved):
 - [ ] Tests cover the summary extraction (rspec 'Finished in'/'examples, failures' and jest 'Tests:' lines) and gitignore idempotence
 
 ## Comments
+- [2026-11-07] bobby-review: Approved with notes: all 5 ACs met, 89+306 impacted tests pass, lint clean in changed files, shared-file limits respected, studio dry run finds 759 logs (all under ticket folders). Notes: --move onto itself deletes the raw log (filed TKT-089, pre-existing in screenshot path too); fresh init on existing repo gets no ignore lines (filed TKT-090); ~~~~ fence and jest ● Console/duplicate failures are minor. See review.md.
