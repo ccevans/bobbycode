@@ -153,6 +153,19 @@ describe('bobby ticket attach', () => {
       expect(res.stdout + res.stderr).toContain('bobby init --refresh');
     });
 
+    test('--log --move on a file already in the ticket logs/ keeps the raw log and writes the summary', () => {
+      gitInit({ ignored: true });
+      fs.mkdirSync(path.join(tdir(), 'logs'), { recursive: true });
+      const inPlace = path.join(tdir(), 'logs', 'rspec.log');
+      fs.writeFileSync(inPlace, rspecLog);
+
+      const res = spawnSync('node', [bobby, 'ticket', 'attach', 'TKT-001', inPlace, '--log', '--move'], { cwd: tmpDir, encoding: 'utf8' });
+
+      expect(res.status).toBe(0);
+      expect(fs.readFileSync(inPlace, 'utf8')).toBe(rspecLog);
+      expect(fs.readFileSync(`${inPlace}.md`, 'utf8')).toContain('120 examples, 2 failures');
+    });
+
     test('without --log nothing is written to logs/', () => {
       fs.writeFileSync(path.join(tmpDir, 'a.png'), 'x');
       execSync(`node ${bobby} ticket attach TKT-001 a.png`, { cwd: tmpDir });

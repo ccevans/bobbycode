@@ -88,13 +88,16 @@ function attachLogs(id, ticketPath, files, opts) {
     const base = path.basename(resolved);
     const rawName = base.endsWith('.log') ? base : `${base}.log`; // keeps the ignore pattern covering it
     const raw = path.join(destDir, rawName);
-    fs.copyFileSync(resolved, raw);
+    // The source may already be the destination (logs/<name>.log in the ticket). Copying onto itself
+    // is a no-op, and --move's unlink would then delete the only copy (raw logs are gitignored).
+    const sameFile = fs.existsSync(raw) && fs.realpathSync(resolved) === fs.realpathSync(raw);
+    if (!sameFile) fs.copyFileSync(resolved, raw);
     fs.writeFileSync(
       `${raw}.md`,
       summarizeLog(fs.readFileSync(resolved, 'utf8'), { name: rawName, source: resolved, command: opts.cmd }),
       'utf8'
     );
-    if (opts.move) fs.unlinkSync(resolved);
+    if (opts.move && !sameFile) fs.unlinkSync(resolved);
     attached++;
     // exit 0 = ignored, 1 = not ignored, 128 = not a git repo (nothing to warn about)
     const ignored = spawnSync('git', ['check-ignore', '-q', raw], { cwd: ticketPath });
