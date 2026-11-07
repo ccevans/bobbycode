@@ -5,6 +5,9 @@
 # it would block that ticket on every other machine until the staleness ceiling.
 .bobby/tickets/*/run.lock
 
+# Bobby — raw test/ship logs stay local; `bobby ticket attach --log` commits a .log.md summary
+.bobby/tickets/*/**/*.log
+
 # Dependencies
 node_modules/
 vendor/

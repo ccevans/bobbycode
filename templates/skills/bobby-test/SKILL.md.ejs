@@ -81,10 +81,13 @@ All test evidence is saved in the ticket folder:
 
 ```
 <%= tickets_dir %>/{ID}--{slug}/
+├── logs/                   # test-run logs via bobby ticket attach {ID} <file> --log
 └── test-evidence/
     ├── screenshots/        # UI screenshots (baseline + after actions)
     └── results.md          # Summary: pass/fail per AC with evidence references
 ```
+
+Attach every test-run log (rspec, jest, Playwright) with `bobby ticket attach {ID} <file> --log`: the raw log stays gitignored in `logs/`, and you cite the committed `logs/<name>.log.md` in results.md.
 
 Create `test-evidence/` and `test-evidence/screenshots/` at the start of testing. Save all screenshots there. Write `results.md` at the end with the final verdict.
 
