@@ -38,11 +38,11 @@ function pushTicket(B, name) {
 }
 
 describe('board-upstream', () => {
-  let root, origin, A, B, ticketsA;
+  let root, A, B, ticketsA;
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-bu-'));
-    ({ origin, A, B } = makeBoardRepos(root));
+    ({ A, B } = makeBoardRepos(root));
     ticketsA = path.join(A, '.bobby', 'tickets');
   });
   afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); });
