@@ -3,7 +3,7 @@ id: TKT-083
 title: >-
   ticket create numbers tickets from a stale board: a checkout behind origin
   hands out IDs origin already used
-stage: building
+stage: done
 type: bug
 priority: high
 area: null
@@ -21,7 +21,7 @@ feature: null
 persona: null
 size: m
 created: '2026-11-07'
-updated: '2026-11-07'
+updated: '2026-11-08'
 ---
 
 ## Description
@@ -53,3 +53,6 @@ Plan direction (CC approved 2026-11-07):
 3. [Expected vs actual result]
 
 ## Comments
+- [2026-11-08] user: Re-review blocker fixed by orchestrator in 8e75dfa: refusal now says tickets probably moved to the merged-into branch and gives 'git branch -u <remote>/<branch> && git pull --rebase' with <branch> literal; --unset-upstream and re-point-at-deleted suggestions removed; both tests now assert the new text and the absence of the old. Reviewer had already run this recovery (re-point -> 1 behind -> pull -> TKT-006). board-upstream+create 25/25; npm test 1923 passed, 51 skipped, 0 failed. Live test to follow the message literally.
+- [2026-11-08] system: REJECTED: Fix for deleted upstream works (refuses, keeps tracking ref, brief shows unknown; never-pushed still no upstream; LC_ALL=C fine). BLOCKING: the refusal message at lib/board-upstream.js:111 prints a way out that loops or recreates the incident. (1) 'git branch -u origin/feat' re-points at the deleted branch: git accepts it (tracking ref exists), retry fails identically. (2) 'git branch --unset-upstream' then retry -> 'Created TKT-001' while origin/main holds TKT-001..005, the exact duplicate. Fix (message + tests only): say the tickets likely moved to another branch (often the merge target) and to point the board there and pull: 'git branch -u <remote>/<branch> && git pull --rebase', with <branch> a literal placeholder (do not interpolate up.remoteBranch); drop the --unset-upstream suggestion. Update create.test.js and board-upstream.test.js to assert the new text and that it contains neither 'git branch -u origin/feat' nor '--unset-upstream'. Details: review.md Re-review section.
+- [2026-11-07] system: REJECTED: Blocking: lib/board-upstream.js:105-108 treats 'couldn't find remote ref' as no upstream AND runs update-ref -d on the local tracking ref (not in the plan). Never-pushed (no tracking ref) is fine. But for a DELETED remote branch (tracking ref present, e.g. feat merged into main then deleted) this silently disables the guard and erases the nextId floor. Reproduced: A on feat with refs/remotes/origin/feat holding TKT-001..005 (also on origin/main), origin/feat deleted -> 'bobby ticket create' prints Created TKT-001, exit 0, and the tracking ref is gone. That is the exact duplicate-ID incident, and per CC's no-fallbacks rule it is a silent substitute. brief also deletes the ref via boardFreshness. Fix: when the remote ref is missing and a tracking ref exists, throw an explicit error naming the label/remote and the way out (git branch -u <remote>/<branch> or --unset-upstream), without deleting the ref (brief shows it as 'unknown'). Keep never-pushed = no upstream. Add a test: tracking ref exists + remote branch deleted -> create exits 1 and the ref survives. Non-blocking: set LC_ALL=C in git()'s env so the English stderr regexes (couldn't find remote ref, LOCK_RE) work under translated git. Everything else passed: ACs 1-3 and 5-7, shared-file limits, 176/176 impacted specs, lint clean. Full review in review.md.

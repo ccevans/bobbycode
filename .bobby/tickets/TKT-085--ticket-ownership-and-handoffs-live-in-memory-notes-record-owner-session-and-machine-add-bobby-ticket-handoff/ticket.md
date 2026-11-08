@@ -3,7 +3,7 @@ id: TKT-085
 title: >-
   Ticket ownership and handoffs live in memory notes: record owner session and
   machine, add bobby ticket handoff
-stage: testing
+stage: done
 type: feature
 priority: medium
 area: null

@@ -1,0 +1,117 @@
+=== TC1 setup: Intel creates+pushes
+✓ Created TKT-001 — From Intel
+  → .bobby/tickets/TKT-001--from-intel/
+=== TC1 M4 create (not pulled)
+Error: Board is 1 commit behind origin/main; it may hand out a ticket ID origin/main already used. Pull first: git -C /private/tmp/claude-501/-Users-ccevans-Repos-bobby-code-studio/e0e1e9d3-5d62-43f8-b34c-f913186cdaf2/scratchpad/t/fx/M4 pull --rebase origin main
+exit=1
+0
+=== TC6 go
+Error: Board is 1 commit behind origin/main; it may hand out a ticket ID origin/main already used. Pull first: git -C /private/tmp/claude-501/-Users-ccevans-Repos-bobby-code-studio/e0e1e9d3-5d62-43f8-b34c-f913186cdaf2/scratchpad/t/fx/M4 pull --rebase origin main
+exit=1
+=== TC7a brief
+
+  ⚠ Board is 1 commit behind origin/main — pull before creating tickets
+
+  Bobby — where you left off
+
+  In flight
+    Nothing started.
+
+exit=0
+=== follow printed cmd
+ create mode 100644 .bobby/tickets/TKT-001--from-intel/ticket.md
+=== TC2 create
+✓ Created TKT-002 — From M4
+  → .bobby/tickets/TKT-002--from-m4/
+exit=0
+TKT-001--from-intel
+TKT-002--from-m4
+2=== TC7b brief current
+grep-exit=1 (1 = none)
+=== TC9 code-only upstream commit
+✓ Created TKT-003 — Code only ok
+  → .bobby/tickets/TKT-003--code-only-ok/
+exit=0
+brief-behind-grep=1
+=== TC3-ish: origin highest ID above M4 counter/disk (floor) - Intel creates TKT-010 manually-pushed via folder
+counter=3
+Error: Board is 1 commit behind origin/main; it may hand out a ticket ID origin/main already used. Pull first: git -C /private/tmp/claude-501/-Users-ccevans-Repos-bobby-code-studio/e0e1e9d3-5d62-43f8-b34c-f913186cdaf2/scratchpad/t/fx/M4 pull --rebase origin main
+exit=1
+✓ Created TKT-011 — Above
+  → .bobby/tickets/TKT-011--above/
+exit=0
+TKT-001--from-intel
+TKT-002--from-m4
+TKT-003--code-only-ok
+TKT-010--big
+TKT-011--above
+11
+=== TC4 fetch failure
+Error: Could not fetch origin (/does/not/exist.git) to check the board is current: fatal: '/does/not/exist.git' does not appear to be a git repository. Fix the remote or your access, then retry.
+exit=1
+dirs before=       5 after=       5
+--- brief
+
+  ⚠ Board freshness unknown: Could not fetch origin (/does/not/exist.git) to check the board is current: fatal: '/does/not/exist.git' does not appear to be a git repository. Fix the remote or your access, then retry.
+
+  Bobby — where you left off
+
+  In flight
+exit=0
+=== TC11 never-pushed branch w/ upstream config
+✓ Created TKT-012 — w
+  → .bobby/tickets/TKT-012--w/
+exit=0
+=== TC5 no remote git + non-git
+Error: ENOENT: no such file or directory, mkdir '/private/tmp/claude-501/-Users-ccevans-Repos-bobby-code-studio/e0e1e9d3-5d62-43f8-b34c-f913186cdaf2/scratchpad/t/fx/nr/.bobby/tickets/TKT-001--local'
+exit=1
+Error: ENOENT: no such file or directory, mkdir '/private/tmp/claude-501/-Users-ccevans-Repos-bobby-code-studio/e0e1e9d3-5d62-43f8-b34c-f913186cdaf2/scratchpad/t/fx/ng/.bobby/tickets/TKT-001--local'
+exit=1
+== TC8a
+✓ Created AP-001 — first
+  → .bobby/app/tickets/AP-001--first/
+Error: Board is 1 commit behind origin/main; it may hand out a ticket ID origin/main already used. Pull first: git -C /private/tmp/claude-501/-Users-ccevans-Repos-bobby-code-studio/e0e1e9d3-5d62-43f8-b34c-f913186cdaf2/scratchpad/t/st/A pull --rebase origin main
+exit=1
+== TC8b
+## main...origin/main [behind 1]
+✓ Created AP-002 — y
+  → .bobby/app/tickets/AP-002--y/
+exit=0
+tracking ref tickets:
+.bobby/tickets/TKT-001--a/ticket.md
+.bobby/tickets/TKT-002--b/ticket.md
+Deleted branch feat (was a476007).
+== create (expect refuse)
+Error: origin/feat no longer exists on origin (deleted or renamed); its tickets probably moved to another branch, often the one it was merged into. Point this board at that branch and pull before creating tickets: git branch -u origin/<branch> && git pull --rebase
+exit=1
+tracking ref still present:
+a4760073d2d347f3b3f74b60a9ee6653e8c611d8
+== RECOVERY literal
+Branch 'feat' set up to track remote branch 'main' from 'origin'.
+Updating 8ba9165..a476007
+Fast-forward
+ .bobby/tickets/.counter                 |  2 +-
+ .bobby/tickets/TKT-001--a/test-cases.md | 10 ++++++++++
+ .bobby/tickets/TKT-001--a/ticket.md     | 35 +++++++++++++++++++++++++++++++++
+ .bobby/tickets/TKT-002--b/test-cases.md | 10 ++++++++++
+ .bobby/tickets/TKT-002--b/ticket.md     | 35 +++++++++++++++++++++++++++++++++
+ 5 files changed, 91 insertions(+), 1 deletion(-)
+ create mode 100644 .bobby/tickets/TKT-001--a/test-cases.md
+ create mode 100644 .bobby/tickets/TKT-001--a/ticket.md
+ create mode 100644 .bobby/tickets/TKT-002--b/test-cases.md
+ create mode 100644 .bobby/tickets/TKT-002--b/ticket.md
+recovery exit=0
+== create
+✓ Created TKT-003 — after recovery
+  → .bobby/tickets/TKT-003--after-recovery/
+exit=0
+TKT-001--a
+TKT-002--b
+TKT-003--after-recovery
+origin/main tickets:
+.bobby/tickets/TKT-001--a/ticket.md
+.bobby/tickets/TKT-002--b/ticket.md
+origin/feat ref still:
+a4760073d2d347f3b3f74b60a9ee6653e8c611d8
+* feat a476007 [origin/main] tk
+  main 8ba9165 [origin/main: behind 1] i

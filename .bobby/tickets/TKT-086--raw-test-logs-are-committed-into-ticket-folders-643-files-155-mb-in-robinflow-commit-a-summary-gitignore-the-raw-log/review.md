@@ -48,3 +48,41 @@ test-cases.md: TC1–TC14 each have a corresponding test, except TC8(a)/TC14 run
 ### Notes
 - Operator step after ship (out of scope here): run `bobby ticket untrack-logs` in the robinflow studio, then commit. It will stage 759 removals.
 - Filed: TKT-089, TKT-090.
+
+---
+
+## Re-review — TKT-086 (after rejection on finding 1)
+
+### Verdict: Approved with Notes
+
+Reviewed fix commit `4d41c9c` on `tkt-086-ticket-logs` in `/Users/ccevans/Repos/bobby/worktrees/tkt-086`. Worktree clean.
+
+### Fix
+`commands/attach.js` `attachLogs`: `sameFile = fs.existsSync(raw) && fs.realpathSync(resolved) === fs.realpathSync(raw)`; when true, both the `copyFileSync` and the `--move` unlink are skipped and the summary is still written from the source. Two-line change plus a comment. The screenshot path is untouched (TKT-089).
+
+### Scope check
+- `git diff --stat 3cf3954 HEAD`: `commands/attach.js` (+5/-2), `test/commands/attach.test.js` (+13), `.claude/skills/bobby-review/learnings.local.md` (+2, auto-sync commit `718267f` of the first review's learning). Nothing else.
+- `origin/main` is still `d37b30b` (= merge base), so the rest of the `origin/main...HEAD` diff is the one approved in the first review.
+
+### Evidence
+- New test `--log --move on a file already in the ticket logs/ keeps the raw log and writes the summary` fails without the fix (pre-fix `attach.js` from `718267f` in a scratch copy): `ENOENT ... logs/rspec.log`, 1 failed. Passes with the fix.
+- Full suite with the fix: `Test Suites: 1 skipped, 104 passed`; `Tests: 51 skipped, 1922 passed, 1973 total`.
+- `eslint` on the two changed files: 0 errors, 1 warning (`output` unused, `test/commands/attach.test.js:86`), already present at `3cf3954`.
+- CLI probes (`--log --move`, raw log checked afterwards), fix vs no fix:
+
+| Variant | No fix | Fix |
+|---|---|---|
+| absolute path to `logs/x.log` | LOST | kept |
+| relative `logs/x.log` from the ticket dir | LOST | kept |
+| relative `./../logs/./x.log` from `logs/` | LOST | kept |
+| path through a symlinked project dir | LOST | kept |
+| symlink `x.log` at root pointing to `logs/x.log` | kept | kept |
+| `logs/x.log` is itself a symlink to an outside file | kept | kept (target untouched) |
+| hardlink `x.log` at root to `logs/x.log` | kept | kept |
+| wrong-case cwd (`cd .../caseX` for `CaseX`), relative arg, with and without git | n/a | kept |
+| explicitly miscased path (`.../LOGS/x.log`, `.../.BOBBY/...`) on case-insensitive APFS | LOST | **LOST** |
+| a different file with the same name | moved, overwrites | moved, overwrites (expected) |
+
+### Notes
+1. **Miscased explicit path still loses the raw log on macOS.** `fs.realpathSync` (the JS one) resolves symlinks but keeps the casing you pass in, so on case-insensitive APFS `.../LOGS/x.log` and `.../logs/x.log` compare unequal even though they are the same file. The copy is a no-op and the unlink then deletes it, exit 0. `fs.realpathSync.native` returns the on-disk case (verified), and so would comparing `statSync().dev`/`.ino`. Not blocking: it needs a hand-typed path whose case differs from the ticket folder on disk. Ticket paths from `bobby ticket view` and tab completion are canonical, and a wrong-case cwd stays safe because the ticket path comes from the same cwd. TKT-089 will move this guard into a shared helper for the screenshot path, so it should use `.native` or an inode compare there.
+2. Same-file `--move` now leaves the source in place and exits 0 with the normal "Attached" message. That fits (the file is already where `--move` would put it).

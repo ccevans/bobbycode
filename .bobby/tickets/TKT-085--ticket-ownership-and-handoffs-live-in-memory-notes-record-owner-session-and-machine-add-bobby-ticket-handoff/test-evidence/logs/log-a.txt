@@ -1,0 +1,117 @@
+--- TC1
+$ bobby ticket assign TKT-001 bobby-build --session studio-27
+✓ TKT-001 assigned to bobby-build
+  owner: studio-27 on CC’s MacBook Pro
+exit=0
+---
+id: TKT-001
+title: Fix login
+type: feature
+stage: building
+priority: medium
+assigned: bobby-build
+owner:
+  session: studio-27
+  machine: CC’s MacBook Pro
+  since: '2026-11-08T00:13:23.086Z'
+updated: '2026-11-08'
+---
+# Fix login
+--- TC2
+$ bobby ticket assign TKT-001 someone-else
+✓ TKT-001 assigned to someone-else
+exit=0
+---
+id: TKT-001
+title: Fix login
+type: feature
+stage: building
+priority: medium
+assigned: someone-else
+owner:
+  session: studio-27
+  machine: CC’s MacBook Pro
+  since: '2026-11-08T00:13:23.086Z'
+updated: '2026-11-08'
+---
+# Fix login
+--- TC3
+$ bobby ticket assign TKT-001 x --session 
+Error: --session needs a session name
+exit=1
+UNCHANGED
+--- TC4
+$ bobby ticket handoff TKT-001 --to intel-2
+Error: Wrote the handoff template to .bobby/tickets/TKT-001--fix-login/progress.md. Fill all six sections (write "none" where nothing applies), then rerun: bobby ticket handoff TKT-001 --to "intel-2"
+exit=1
+3:## Where it stopped
+5:TODO(handoff): what is done, and the exact step in progress
+7:## Branch and commit
+9:TODO(handoff): repo, branch, last commit SHA, pushed or not
+11:## Unpushed patches
+13:TODO(handoff): stashes, uncommitted files, local-only commits, or "none"
+15:## Resources held
+17:TODO(handoff): dev servers, docker DBs, ports, worktrees, run.lock, or "none"
+19:## Open decisions for the human
+21:TODO(handoff): questions waiting on the human, or "none"
+23:## Next step
+25:TODO(handoff): the one command or action the next session starts with
+OWNER-UNCHANGED
+?? .bobby/tickets/TKT-001--fix-login/progress.md
+--- TC5
+$ bobby ticket handoff TKT-001 --to intel-2 --machine Intel
+Error: Handoff refused — still placeholders in: Resources held, Next step. Edit .bobby/tickets/TKT-001--fix-login/progress.md and rerun.
+exit=1
+FILES-UNCHANGED
+--- empty machine
+$ bobby ticket handoff TKT-001 --to intel-2 --machine 
+Error: --machine needs a computer name
+exit=1
+?? .bobby/tickets/TKT-001--fix-login/progress.md
+--- index.lock
+$ bobby ticket handoff TKT-001 --to intel-2 --machine Intel
+Error: TKT-001: owner and progress.md were written in .bobby/tickets/TKT-001--fix-login but NOT committed: fatal: Unable to create '/private/tmp/claude-501/-Users-ccevans-Repos-bobby-code-studio/e0e1e9d3-5d62-43f8-b34c-f913186cdaf2/scratchpad/fx/A/.git/index.lock': File exists.
+
+Another git process seems to be running in this repository, e.g.
+an editor opened by 'git commit'. Please make sure all processes
+are terminated then try again. If it still fails, a git process
+may have crashed in this repository earlier:
+remove the file manually to continue.
+  Rerun the same command once git is free, or commit the ticket folder yourself.
+exit=1
+--- state after lock
+---
+id: TKT-001
+title: Fix login
+type: feature
+stage: building
+priority: medium
+assigned: bobby-build
+owner:
+  session: intel-2
+  machine: Intel
+  since: '2026-11-08T00:13:42.493Z'
+updated: '2026-11-08'
+---
+# Fix login
+# Handoff — TKT-001
+
+> Handed off 2026-11-08T00:13:42.493Z from studio-27 on CC’s MacBook Pro to intel-2 on Intel
+
+ M .bobby/tickets/TKT-001--fix-login/ticket.md
+?? .bobby/tickets/TKT-001--fix-login/progress.md
+ M .bobby/tickets/TKT-001--fix-login/ticket.md
+A  unrelated.txt
+?? .bobby/tickets/TKT-001--fix-login/progress.md
+--- TC6 rerun w/ staged unrelated
+$ bobby ticket handoff TKT-001 --to intel-2 --machine Intel
+✓ TKT-001 handed off to intel-2
+exit=0
+253af5b TKT-001: handoff to intel-2
+
+.bobby/tickets/TKT-001--fix-login/progress.md
+.bobby/tickets/TKT-001--fix-login/ticket.md
+945a223 assign
+
+.bobby/tickets/TKT-001--fix-login/ticket.md
+A  unrelated.txt

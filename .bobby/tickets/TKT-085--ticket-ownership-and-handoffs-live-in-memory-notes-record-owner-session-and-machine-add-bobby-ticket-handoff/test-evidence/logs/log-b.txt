@@ -1,0 +1,98 @@
+253af5b TKT-001: handoff to intel-2
+945a223 assign
+253af5b TKT-001: handoff to intel-2
+945a223 assign
+---
+id: TKT-001
+title: Fix login
+type: feature
+stage: building
+priority: medium
+assigned: bobby-build
+owner:
+  session: intel-2
+  machine: Intel
+  since: '2026-11-08T00:13:47.212Z'
+updated: '2026-11-08'
+---
+# Fix login
+--- brief on B (single owned ticket)
+
+  fx — where you left off
+
+  In flight
+    Intel
+      intel-2
+        [BUILDING]  TKT-001  Fix login  medium
+
+  Backlog  (0 total)
+    Empty.
+
+  Next  — TKT-001 is in building — closest to done
+    bobby run review TKT-001
+
+--- TC7 handoff w/o --machine
+✓ TKT-007 handed off to s-new
+exit=0
+owner:
+  session: s-new
+  machine: null
+  since: '2026-11-08T00:14:06.198Z'
+updated: '2026-11-08'
+--- brief TC10
+
+  fx — where you left off
+
+  In flight
+    Intel
+      intel-2
+        [REVIEWING]  TKT-002  Ticket 2  medium
+        [BUILDING]  TKT-001  Fix login  medium
+    M4
+      studio-27
+        [BUILDING]  TKT-003  Ticket 3  medium
+      studio-28
+        [BUILDING]  TKT-004  Ticket 4  medium
+    machine not recorded
+      s-new
+        [BUILDING]  TKT-007  Ticket 7  medium
+    No owner
+        [TESTING]  TKT-005  Ticket 5  medium
+
+  Backlog  (0 total)
+    Empty.
+
+  Next  — TKT-005 is in testing — closest to done
+    bobby run ship TKT-005
+
+--- TC9
+Error: Ticket TKT-999 not found
+--- TC8
+Error: Wrote the handoff template to .bobby/tickets/TKT-004--t4/progress.md. Fill all six sections (write "none" where nothing applies), then rerun: bobby ticket handoff TKT-004 --to "x"
+3:## Where it stopped
+7:## Branch and commit
+11:## Unpushed patches
+15:## Resources held
+19:## Open decisions for the human
+23:## Next step
+27:## Earlier notes
+29:checkpoint: halfway through step 3
+✓ TKT-004 handed off to x
+--- TC11
+
+  fx — where you left off
+
+  In flight
+    [TESTING]  TKT-005  Ticket 5  medium
+    [REVIEWING]  TKT-002  Ticket 2  medium
+    [BUILDING]  TKT-001  Fix login  medium
+    [BUILDING]  TKT-003  Ticket 3  medium
+    [BUILDING]  TKT-004  Ticket 4  medium
+    [BUILDING]  TKT-007  Ticket 7  medium
+
+  Backlog  (0 total)
+    Empty.
+
+  Next  — TKT-005 is in testing — closest to done
+    bobby run ship TKT-005
+

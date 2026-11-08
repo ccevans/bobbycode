@@ -1,0 +1,4 @@
+ok "Studio M4"
+throw THROWS Could not read this computer's name (scutil --get ComputerName): nope
+empty THROWS Could not read this computer's name (scutil --get ComputerName): empty result
+linux "CCs-MacBook-Pro.local"

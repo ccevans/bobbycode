@@ -1,0 +1,46 @@
+--- brief (alpha)
+
+  alpha — where you left off
+
+  In flight
+    M4
+      studio-27
+        [BUILDING]  TKT-001  alpha ticket 1  medium
+
+  Backlog  (0 total)
+    Empty.
+
+  Next  — TKT-001 is in building — closest to done
+    bobby run review TKT-001
+
+--- brief (beta)
+
+  beta — where you left off
+
+  In flight
+    Intel
+      intel-2
+        [BUILDING]  TKT-001  beta ticket 1  medium
+
+  Backlog  (0 total)
+    Empty.
+
+  Next  — TKT-001 is in building — closest to done
+    bobby run review TKT-001
+
+--- assign in studio beta
+✓ TKT-001 assigned to bobby-build
+  owner: beta-sess on CC’s MacBook Pro
+owner:
+  session: beta-sess
+  machine: CC’s MacBook Pro
+  since: '2026-11-08T00:14:29.364Z'
+assigned: bobby-build
+Error: Wrote the handoff template to .bobby/beta/tickets/TKT-001--t1/progress.md. Fill all six sections (write "none" where nothing applies), then rerun: bobby ticket handoff TKT-001 --to "z"
+--- studio handoff
+✓ TKT-001 handed off to z
+0430dea TKT-001: handoff to z
+
+.bobby/beta/tickets/TKT-001--t1/progress.md
+.bobby/beta/tickets/TKT-001--t1/ticket.md
+ M .bobby/active-project

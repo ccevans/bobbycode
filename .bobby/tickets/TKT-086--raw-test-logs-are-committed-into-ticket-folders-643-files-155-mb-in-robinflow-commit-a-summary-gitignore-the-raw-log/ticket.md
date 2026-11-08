@@ -3,7 +3,7 @@ id: TKT-086
 title: >-
   Raw test logs are committed into ticket folders (643 files, 155 MB in
   robinflow): commit a summary, gitignore the raw log
-stage: testing
+stage: done
 type: improvement
 priority: medium
 area: null
@@ -21,7 +21,7 @@ feature: null
 persona: null
 size: m
 created: '2026-11-07'
-updated: '2026-11-07'
+updated: '2026-11-08'
 ---
 
 ## Description
@@ -43,4 +43,6 @@ Plan direction (approved):
 - [ ] Tests cover the summary extraction (rspec 'Finished in'/'examples, failures' and jest 'Tests:' lines) and gitignore idempotence
 
 ## Comments
+- [2026-11-08] user: Re-review note 1 fixed before live test (e2ed603): realpathSync -> realpathSync.native, plus a case-variant test that fails on the old guard and passes now. attach.test.js 17/17; npm test 1923 passed, 51 skipped, 0 failed.
+- [2026-11-07] system: REJECTED: Review finding 1 is in this ticket's new code: attach --log --move onto a source that is already logs/<name>.log copies onto itself (commands/attach.js:91) then unlinks the only copy (:97) and reports success. The raw log is gitignored, so it's unrecoverable. Add a same-path guard to the --log path plus a test. The pre-existing screenshot-path copy stays in TKT-089.
 - [2026-11-07] bobby-review: Approved with notes: all 5 ACs met, 89+306 impacted tests pass, lint clean in changed files, shared-file limits respected, studio dry run finds 759 logs (all under ticket folders). Notes: --move onto itself deletes the raw log (filed TKT-089, pre-existing in screenshot path too); fresh init on existing repo gets no ignore lines (filed TKT-090); ~~~~ fence and jest ● Console/duplicate failures are minor. See review.md.
