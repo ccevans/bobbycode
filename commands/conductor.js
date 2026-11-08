@@ -14,6 +14,11 @@ import { checkLane, checkStack } from '../lib/conductor/governor.js';
 import { reap, renderReap } from '../lib/conductor/reaper.js';
 import { reapStacks, renderStackReap } from '../lib/conductor/stack-reaper.js';
 import { assertM4Host } from '../lib/conductor/host.js';
+import { readAgents } from '../lib/conductor/sessions.js';
+import {
+  inboxDir, assertInboxDir, resolveRecipient, buildMessage, appendMessage,
+  listInboxSessions, readMessages, cursorWithin, renderMessages,
+} from '../lib/conductor/inbox.js';
 import { success, error, dim } from '../lib/colors.js';
 
 function fail(e) {
@@ -111,6 +116,60 @@ export function registerConductor(program) {
           error(`${report.failed} session(s) could not be ended`);
           process.exit(1);
         }
+      } catch (e) {
+        fail(e);
+      }
+    });
+
+  conductor
+    .command('send <session> <message>')
+    .description('Put a message in a session\'s file inbox (works in every permission mode; delivered at that session\'s next turn). <session> is an exact name, sessionId or bg id')
+    .option('--from <name>', 'Sender name (default: this session\'s name, from CLAUDE_CODE_SESSION_ID)')
+    .action((session, message, opts) => {
+      try {
+        const studioRoot = findStudioRoot();
+        loadConductorConfig(studioRoot);
+        const dir = inboxDir(studioRoot);
+        assertInboxDir(dir);
+        const agents = readAgents();
+        const target = resolveRecipient(agents, session);
+        let from = opts.from;
+        if (!from) {
+          const me = agents.find(a => a.sessionId === process.env.CLAUDE_CODE_SESSION_ID);
+          if (!me) throw new Error('Cannot tell who is sending (no CLAUDE_CODE_SESSION_ID in `claude agents`); pass --from <name>');
+          from = me.name || me.sessionId;
+        }
+        const msg = buildMessage({ from, to: target.sessionId, text: message });
+        const file = appendMessage(dir, msg);
+        success(`Sent ${msg.id} to ${target.name ?? target.sessionId} (${target.sessionId})`);
+        console.log(dim(`  ${path.relative(studioRoot, file)}`));
+      } catch (e) {
+        fail(e);
+      }
+    });
+
+  conductor
+    .command('inbox')
+    .description('List inbox messages for every session, or one (read-only; a finished session\'s file is readable too)')
+    .option('--session <sessionId>', 'Only this session\'s inbox')
+    .option('--unread', 'Only messages past the read cursor')
+    .action((opts) => {
+      try {
+        const studioRoot = findStudioRoot();
+        loadConductorConfig(studioRoot);
+        const dir = inboxDir(studioRoot);
+        const sessions = opts.session ? [opts.session] : listInboxSessions(dir);
+        if (opts.session) assertInboxDir(dir);
+        const entries = [];
+        for (const sessionId of sessions) {
+          const messages = readMessages(dir, sessionId);
+          const cursor = cursorWithin(dir, sessionId, messages.length);
+          messages.forEach((message, index) => {
+            const unread = index >= cursor;
+            if (!opts.unread || unread) entries.push({ sessionId, message, index, unread });
+          });
+        }
+        console.log(renderMessages(entries));
       } catch (e) {
         fail(e);
       }
