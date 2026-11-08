@@ -87,7 +87,7 @@ export function registerLearn(program) {
           // clearly instead of crashing on a missing path.
           throw new Error(
             `Cannot record a learning for '${skill}': no skills directory is reachable ` +
-            `and no project is active. Select a project (BOBBY_PROJECT / bobby project use) ` +
+            `and no project is active. Select a project (a ticket ID, --project <name>, or BOBBY_PROJECT) ` +
             `or run where ${skillsRel} exists.`
           );
         }

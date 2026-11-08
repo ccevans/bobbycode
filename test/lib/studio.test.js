@@ -61,7 +61,7 @@ describe('studio', () => {
     expect(() => createProject(root, 'x', { repos: ['nope'] })).toThrow(/not in the studio's repo group/);
   });
 
-  test('active-project selection precedence: explicit > env > file > sole > null', () => {
+  test('active-project selection precedence: explicit > env > cwd > file > sole > null', () => {
     createProject(root, 'robinoffer', { prefix: 'RO', repos: ['app'] });
     // exactly one project → sole
     expect(resolveActiveProject(root)).toBe('robinoffer');
@@ -71,11 +71,39 @@ describe('studio', () => {
     // file
     setActiveProject(root, 'robinoffer');
     expect(resolveActiveProject(root)).toBe('robinoffer');
-    // env beats file
+    // cwd under worktrees/<project>/ beats the file
+    const cwd = path.join(root, 'worktrees', 'listrobin', 'LR-001-x');
+    fs.mkdirSync(cwd, { recursive: true });
+    expect(resolveActiveProject(root, undefined, { cwd })).toBe('listrobin');
+    // a worktrees/<unknown>/ folder and a cwd outside the studio name nothing
+    const unknown = path.join(root, 'worktrees', 'nope');
+    fs.mkdirSync(unknown, { recursive: true });
+    expect(resolveActiveProject(root, undefined, { cwd: unknown })).toBe('robinoffer');
+    expect(resolveActiveProject(root, undefined, { cwd: os.tmpdir() })).toBe('robinoffer');
+    // env beats cwd
+    process.env.BOBBY_PROJECT = 'robinoffer';
+    expect(resolveActiveProject(root, undefined, { cwd })).toBe('robinoffer');
     process.env.BOBBY_PROJECT = 'listrobin';
     expect(resolveActiveProject(root)).toBe('listrobin');
     // explicit beats env
     expect(resolveActiveProject(root, 'robinoffer')).toBe('robinoffer');
+  });
+
+  test('a studio git worktree reads the main checkout\'s active-project', () => {
+    createProject(root, 'robinoffer', { prefix: 'RO', repos: ['app'] });
+    createProject(root, 'listrobin', { prefix: 'LR', repos: ['app'] });
+    const git = (c) => execSync(`git ${c}`, { cwd: root, stdio: 'pipe' });
+    git('init -q');
+    git('-c user.email=t@t -c user.name=t add -A');
+    git('-c user.email=t@t -c user.name=t commit -q -m init');
+    const wt = path.join(root, 'wt-x');
+    git(`worktree add -q ${wt} -b x`);
+    setActiveProject(root, 'listrobin');
+    expect(resolveActiveProject(wt)).toBe('listrobin');
+    // `project use` from inside the worktree writes the main file, not one of its own
+    setActiveProject(wt, 'robinoffer');
+    expect(getActiveProject(root)).toBe('robinoffer');
+    expect(fs.existsSync(path.join(wt, '.bobby', 'active-project'))).toBe(false);
   });
 
   test('readConfig cascades project over studio (prefix + board dir)', () => {

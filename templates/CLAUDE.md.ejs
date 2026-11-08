@@ -111,6 +111,9 @@ All agents must follow these rules. Violations are treated as critical failures.
 - **Always use `bobby ticket create` to make tickets.** Never write ticket files or the `.counter` file manually — the CLI handles frontmatter structure, slug generation, counter atomicity, and starter `test-cases.md`.
 - **Never suppress errors** in bobby commands (no `2>/dev/null`, no `|| true`). If a command fails, investigate the cause.
 - **The ticket stage is the sole progress tracker.** Do not create separate task/todo lists to track workflow progress — read `ticket.md` frontmatter to know what stage a ticket is in.
+<% if (typeof studio !== 'undefined' && studio) { -%>
+- **Studio projects:** a ticket command picks its project from the ticket ID (`RF-12` → the project whose prefix is `RF`) or from `worktrees/<project>/`, so no project switch is needed first. Pass `--project <name>` only to a command that names no ticket (e.g. `bobby ticket create`, `bobby ticket list`).
+<% } -%>
 
 ## Stay in the ticket
 

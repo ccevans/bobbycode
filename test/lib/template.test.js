@@ -32,6 +32,17 @@ describe('template', () => {
     expect(result).toContain('http://localhost:3000');
   });
 
+  test('studio CLAUDE.md teaches ticket-ID inference, not `project use` (TKT-084)', () => {
+    const base = {
+      project: 'test-app', stack: 'nextjs', areas: [], health_checks: [], commands: {},
+      tickets_dir: '.bobby/tickets', sessions_dir: '.bobby/sessions', paths: DEFAULT_PATHS,
+    };
+    const studio = renderTemplate('CLAUDE.md.ejs', { ...base, studio: 'S' });
+    expect(studio).toContain('picks its project from the ticket ID');
+    expect(studio).not.toContain('bobby project use');
+    expect(renderTemplate('CLAUDE.md.ejs', base)).not.toContain('picks its project from the ticket ID');
+  });
+
   test('renderSkillTemplates creates skill files', () => {
     const config = {
       project: 'test-app',
