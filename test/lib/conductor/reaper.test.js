@@ -6,7 +6,7 @@ import { assertM4Host } from '../../../lib/conductor/host.js';
 import { classifySessions } from '../../../lib/conductor/sessions.js';
 
 const sid = (id) => `${id}-0000-4000-8000-000000000000`;
-const bg = (id, state, extra = {}) => ({ id, sessionId: sid(id), name: `lane ${id}`, cwd: '/studio', kind: 'background', startedAt: 1, state, ...extra });
+const bg = (id, state, extra = {}) => ({ id, sessionId: sid(id), name: `lane ${id}`, cwd: '/studio', kind: 'background', startedAt: 1, state, pid: 4242, ...extra });
 
 /**
  * Mock exec. `agents` is the list `claude agents` returns; a function value is
@@ -50,6 +50,33 @@ describe('conductor reaper', () => {
     expect(text).toMatch(/Dry run: 1 session/);
     expect(text).toContain('aaaa1111');
     expect(text).toContain('lane aaaa1111');
+  });
+
+  test('a done session with no live pid is already stopped: not a candidate, not stopped, kept with the reason', () => {
+    const noPid = bg('aaaa1111', 'done'); delete noPid.pid;
+    const nullPid = bg('bbbb2222', 'done', { pid: null });
+    const zeroPid = bg('cccc3333', 'done', { pid: 0 });
+    const live = bg('dddd4444', 'done');
+    const { m, report } = doReap([noPid, nullPid, zeroPid, live], { apply: true });
+    expect(report.candidates.map(c => c.id)).toEqual(['dddd4444']);
+    expect(m.stops().map(c => c[2])).toEqual(['dddd4444']);
+    expect(report.kept.map(k => [k.id, k.why])).toEqual([
+      ['aaaa1111', 'already stopped (no live pid)'], ['bbbb2222', 'already stopped (no live pid)'], ['cccc3333', 'already stopped (no live pid)'],
+    ]);
+  });
+
+  test('a stopped session with a handoff marker is not an orphan either: nothing to end, nothing to tell CC', () => {
+    marker('aaaa1111', 'ffff9999');
+    const noPid = bg('aaaa1111', 'done'); delete noPid.pid;
+    const { report } = doReap([noPid]);
+    expect(report.orphaned).toEqual([]);
+    expect(report.candidates).toEqual([]);
+  });
+
+  test('a session that stops between the snapshot and the stop (pid gone) is skipped', () => {
+    const { m, report } = doReap(reads => [reads === 1 ? bg('aaaa1111', 'done') : bg('aaaa1111', 'done', { pid: null })], { apply: true });
+    expect(m.stops()).toEqual([]);
+    expect(report.results).toEqual([expect.objectContaining({ id: 'aaaa1111', outcome: 'skipped' })]);
   });
 
   test('a blocked session is never a candidate, even with a handoff marker and a live successor', () => {

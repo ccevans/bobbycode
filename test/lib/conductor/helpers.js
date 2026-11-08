@@ -82,7 +82,7 @@ export function agentsFixture() {
     cwd: '/studio',
     kind: 'background',
     startedAt: NOW - hoursAgo * HOUR,
-    ...(state ? { state } : {}),
+    ...(state ? { state, pid: 4242 } : {}),
     ...extra,
   });
   return [
