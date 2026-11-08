@@ -16,6 +16,7 @@ disagree, **this file wins**.
 - **same-file-guard-case-insensitive**: A same-file guard built on fs.realpathSync (JS) misses case variants on macOS APFS: it keeps the casing you pass in, so /X/LOGS/a.log != /X/logs/a.log for one file. Use fs.realpathSync.native or compare statSync dev+ino. Probe copy/unlink guards with a miscased path. TKT-086 re-review.
 
 - **copy-then-unlink-needs-same-path-guard**: Any copy-then-delete (--move) path must guard resolved source === destination: copyFileSync onto itself succeeds and the unlink then deletes the only copy, with exit 0. Probe by attaching/moving a file that already sits at its destination. TKT-086 attach --log --move lost a gitignored raw log this way (filed TKT-089).
+- **prefix-inference-vs-legacy-board-ids**: When a change infers a project or board from an ID prefix, check it against the REAL boards, not just the configured prefixes. Boards keep tickets filed before their prefix was set (CC's studio: 359 distinct TKT- IDs across 6 projects whose config prefixes are RF/LR/RO/...), so a 'no project uses prefix X -> error' rule breaks commands that worked under the old active-project resolution. Probe: count ID prefixes in each board's ticket dirs and run the new CLI read-only on one legacy ID in the real studio.
 
 - **context-hook-stale-usage**: Hooks that read the last assistant usage from a transcript must reset on isCompactSummary, or the first prompt after /compact reads pre-compact size.
 
