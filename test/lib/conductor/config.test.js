@@ -21,6 +21,8 @@ describe('conductor config', () => {
       hook_state_dir: hookDir,
       governor: { min_free_ram_mb: 4096, max_docker_stacks: 4 },
       reaper: { stack_idle_hours: 2 },
+      wip: { max_lanes: 6 },
+      claims: { ttl_minutes: 30 },
     });
   });
 
@@ -33,6 +35,22 @@ describe('conductor config', () => {
     ['reaper.stack_idle_hours', `${govYml}reaper:\n  stack_idle_hours: soon\n`],
     ['reaper', `${govYml}reaper: 2\n`],
   ])('a missing or invalid %s names the key', (key, yml) => {
+    writeConductorYml(root, yml);
+    expect(() => loadConductorConfig(root)).toThrow(new RegExp(`key "${key.replace('.', '\\.')}"`));
+  });
+
+  const reaperYml = `${govYml}reaper:\n  stack_idle_hours: 2\n`;
+  test.each([
+    ['wip.max_lanes', reaperYml],
+    ['wip.max_lanes', `${reaperYml}wip:\n  other: 1\n`],
+    ['wip.max_lanes', `${reaperYml}wip:\n  max_lanes:\n`],
+    ['wip.max_lanes', `${reaperYml}wip:\n  max_lanes: 0\n`],
+    ['wip.max_lanes', `${reaperYml}wip:\n  max_lanes: 2.5\n`],
+    ['wip', `${reaperYml}wip: 6\n`],
+    ['claims.ttl_minutes', `${reaperYml}wip:\n  max_lanes: 6\n`],
+    ['claims.ttl_minutes', `${reaperYml}wip:\n  max_lanes: 6\nclaims:\n  ttl_minutes: soon\n`],
+    ['claims', `${reaperYml}wip:\n  max_lanes: 6\nclaims: 30\n`],
+  ])('a missing or invalid %s names the key (wip and claims)', (key, yml) => {
     writeConductorYml(root, yml);
     expect(() => loadConductorConfig(root)).toThrow(new RegExp(`key "${key.replace('.', '\\.')}"`));
   });
@@ -75,8 +93,12 @@ describe('conductor config', () => {
       hook_state_dir: path.join(os.homedir(), '.bobby', 'hook-state'),
       governor: { min_free_ram_mb: 4096, max_docker_stacks: 4 },
       reaper: { stack_idle_hours: 2 },
+      wip: { max_lanes: 6 },
+      claims: { ttl_minutes: 30 },
     });
     expect(loadConductorConfig(root)).toEqual(values);
+    expect(fs.readFileSync(file, 'utf8')).toMatch(/wip:\n {2}max_lanes: 6\n/);
+    expect(fs.readFileSync(file, 'utf8')).toMatch(/claims:\n {2}ttl_minutes: 30\n/);
     expect(fs.readFileSync(file, 'utf8')).toMatch(/governor:\n {2}min_free_ram_mb: 4096\n {2}max_docker_stacks: 4\n/);
     expect(fs.readFileSync(file, 'utf8')).toMatch(/reaper:\n {2}stack_idle_hours: 2\n/);
   });
