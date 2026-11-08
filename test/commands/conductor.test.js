@@ -1,9 +1,10 @@
 // End-to-end: `bobby conductor init|status` in a temp studio, with a fake `claude`
 // on PATH so no real session list is touched.
-import { spawnSync } from 'child_process';
+import { spawnSync, execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { STAGES } from '../../lib/stages.js';
+import { moveTicket, listTickets } from '../../lib/tickets.js';
 import { makeStudio, writeConductorYml, validYml, seedTickets, agentsFixture, vmStatText, psLine } from '../lib/conductor/helpers.js';
 
 const bobby = path.resolve('bin/bobby.js');
@@ -168,7 +169,7 @@ describe('bobby conductor', () => {
       const r = bobbyIn(['status', '--json']);
       expect(r.status).toBe(0);
       const data = JSON.parse(r.stdout);
-      expect(Object.keys(data)).toEqual(['generated_at', 'working', 'waiting_on_cc', 'done', 'stopped', 'interactive', 'unknown', 'handoffs', 'inbox', 'ship_lanes', 'board', 'machine', 'stacks']);
+      expect(Object.keys(data)).toEqual(['generated_at', 'working', 'waiting_on_cc', 'done', 'stopped', 'interactive', 'unknown', 'handoffs', 'inbox', 'ship_lanes', 'board', 'machine', 'worktrees', 'stacks']);
       expect(data.working.map(s => s.name)).toEqual(['lane one']);
       expect(data.waiting_on_cc.map(s => s.name)).toEqual(['lane two']);
       expect(data.done.map(s => s.name)).toEqual(['lane three']);
@@ -278,6 +279,28 @@ describe('bobby conductor', () => {
         expect(ok.stdout).toMatch(/free RAM 7000 MB >= min 4096 MB/);
       });
 
+      test('lane: refuses below governor.min_free_disk_gb with the disk numbers; the same volume passes with a 1 GB floor', () => {
+        setVm({ freeMb: 8000 });
+        writeConductorYml(root, validYml(hookDir, ['alpha', 'beta'], { min_free_ram_mb: 4096, max_docker_stacks: 4, min_free_disk_gb: 999999999 }));
+        const low = bobbyIn(['check', 'lane']);
+        expect(low.status).toBe(1);
+        expect(low.stderr).toMatch(/free RAM \d+ MB >= min 4096 MB; free disk [\d.]+ GB < min 999999999 GB/);
+        expect(bobbyIn(['check', 'stack']).status).toBe(1);
+        writeConductorYml(root, validYml(hookDir));
+        const ok = bobbyIn(['check', 'lane']);
+        expect(ok.status).toBe(0);
+        expect(ok.stdout).toMatch(/free disk [\d.]+ GB >= min 1 GB/);
+      });
+
+      test('a conductor.yml without governor.min_free_disk_gb is an error naming the key', () => {
+        writeConductorYml(root, validYml(hookDir).replace(/ {2}min_free_disk_gb: \d+\n/, ''));
+        for (const args of [['check', 'lane'], ['status']]) {
+          const r = bobbyIn(args);
+          expect(r.status).toBe(1);
+          expect(r.stderr).toMatch(/key "governor\.min_free_disk_gb" is missing/);
+        }
+      });
+
       test('lane check does not need docker', () => {
         setVm({ freeMb: 8000 });
         expect(bobbyIn(['check', 'lane'], { docker: 'fail' }).status).toBe(0);
@@ -322,6 +345,43 @@ describe('bobby conductor', () => {
         expect(r.status).not.toBe(0);
         expect(r.stderr).toMatch(/key "governor\.min_free_ram_mb" is missing/);
       });
+    });
+
+    test('status shows DISK in MACHINE and WORKTREES by stage, with sizes only when asked', () => {
+      const dir = path.join(root, '.bobby', 'alpha', 'tickets');
+      const [a, b] = ['AL-001', 'AL-002']; // beforeEach seeded AL-001 backlog, AL-002 and AL-003 building
+      moveTicket(dir, a, 'done', 'test');
+      execFileSync('git', ['-C', root, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '--allow-empty', '-q', '-m', 'init']);
+      for (const name of [`${a}-ui`, `${a}-api`, `${b}-ui`, 'scratch']) execFileSync('git', ['-C', root, 'worktree', 'add', '-q', '-b', `br-${name}`, path.join(root, 'worktrees', name)]);
+      fs.mkdirSync(path.join(root, 'worktrees', 'plain-dir'));
+      const text = bobbyIn(['status']).stdout;
+      const machine = text.slice(text.indexOf('MACHINE'), text.indexOf('WORKTREES'));
+      expect(machine).toMatch(/DISK {2}free [\d.]+ GB of [\d.]+ GB {2}\(lane floor 1 GB\)/);
+      const wt = text.slice(text.indexOf('WORKTREES'), text.indexOf('STACKS'));
+      expect(wt).toMatch(/\(4 across 1 repos; 1 other folder\(s\) that are not git worktrees/);
+      expect(wt).toMatch(/done {2}2\n/);
+      expect(wt).toMatch(/building {2}1\n/);
+      expect(wt).toMatch(/no ticket {2}1\n/);
+      expect(wt).toMatch(/sizes: not measured/);
+      const data = JSON.parse(bobbyIn(['status', '--json']).stdout);
+      expect(data.worktrees).toMatchObject({ total: 4, repos: 1, sizes_measured_at: null });
+      expect(data.machine).toMatchObject({ min_free_disk_gb: 1 });
+      expect(data.machine.disk_free_gb).toBeGreaterThan(0);
+      const sized = bobbyIn(['status', '--sizes']);
+      expect(sized.status).toBe(0);
+      expect(sized.stdout).toMatch(/done {2}2 {2}.*(MB|GB)/);
+      expect(sized.stdout).toMatch(/sizes: du, nominal, cached /);
+      expect(bobbyIn(['status']).stdout).toMatch(/done {2}2 {2}.*(MB|GB)/);
+    });
+
+    test('status --sizes skips a prunable worktree whose folder is gone instead of failing on du', () => {
+      execFileSync('git', ['-C', root, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '--allow-empty', '-q', '-m', 'init']);
+      for (const name of ['AL-001-ui', 'AL-002-ui']) execFileSync('git', ['-C', root, 'worktree', 'add', '-q', '-b', `br-${name}`, path.join(root, 'worktrees', name)]);
+      fs.rmSync(path.join(root, 'worktrees', 'AL-002-ui'), { recursive: true });
+      const r = bobbyIn(['status', '--sizes']);
+      expect(r.status).toBe(0);
+      expect(r.stdout).toMatch(/\(2 across 1 repos/);
+      expect(r.stdout).toMatch(/sizes: du, nominal, cached /);
     });
 
     test('status works from a checkout nested under the studio', () => {
@@ -474,6 +534,73 @@ describe('bobby conductor', () => {
       const r = bobbyIn(['reap', '--stacks']);
       expect(r.status).toBe(1);
       expect(r.stderr).toMatch(/key "reaper\.stack_idle_hours" is missing/);
+    });
+  });
+
+  describe('reap --worktrees', () => {
+    let doneWt;
+    let busyWt;
+    beforeEach(() => {
+      writeConductorYml(root, validYml(hookDir));
+      const dir = path.join(root, '.bobby', 'alpha', 'tickets');
+      seedTickets(root, 'alpha', [{ title: 'a' }, { title: 'b' }]);
+      const [a, b] = listTickets(dir).map(t => t.id);
+      moveTicket(dir, a, 'done', 'test');
+      execFileSync('git', ['-C', root, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '--allow-empty', '-q', '-m', 'init']);
+      doneWt = path.join(root, 'worktrees', `${a}-ui`);
+      busyWt = path.join(root, 'worktrees', `${b}-ui`);
+      for (const p of [doneWt, busyWt]) execFileSync('git', ['-C', root, 'worktree', 'add', '-q', '-b', `br-${path.basename(p)}`, p]);
+    });
+
+    test('dry run lists the done worktree, removes nothing, exits 0', () => {
+      const r = bobbyIn(['reap', '--worktrees']);
+      expect(r.status).toBe(0);
+      expect(r.stdout).toMatch(/Dry run: 1 worktree\(s\) would be removed/);
+      expect(r.stdout).toMatch(/would remove .*AL-001-ui/);
+      expect(r.stdout).toMatch(/Sizes not measured/);
+      expect(fs.existsSync(doneWt)).toBe(true);
+    });
+
+    test('--apply removes it and keeps the branch; the open ticket worktree stays', () => {
+      const r = bobbyIn(['reap', '--worktrees', '--apply']);
+      expect(r.status).toBe(0);
+      expect(fs.existsSync(doneWt)).toBe(false);
+      expect(fs.existsSync(busyWt)).toBe(true);
+      expect(execFileSync('git', ['-C', root, 'branch', '--list', 'br-AL-001-ui'], { encoding: 'utf8' })).toMatch(/br-AL-001-ui/);
+    });
+
+    test('--sizes measures the candidates', () => {
+      expect(bobbyIn(['reap', '--worktrees', '--sizes']).stdout).toMatch(/Size of the 1 candidate/);
+    });
+
+    test('a live session inside the worktree keeps it', () => {
+      const agents = agentsFixture();
+      agents.push({ id: 'ffff6666', sessionId: 'ffff6666-0000-4000-8000-000000000000', name: 'lane', cwd: doneWt, kind: 'background', startedAt: 1, state: 'working', pid: 5 });
+      fs.writeFileSync(agentsFile, JSON.stringify(agents));
+      const r = bobbyIn(['reap', '--worktrees', '--apply']);
+      expect(r.status).toBe(0);
+      expect(fs.existsSync(doneWt)).toBe(true);
+      expect(r.stdout).toMatch(/live session "lane" is inside it/);
+    });
+
+    test('claude failing is a non-zero exit and nothing is removed', () => {
+      const r = bobbyIn(['reap', '--worktrees', '--apply'], { claude: 'fail' });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/claude is down/);
+      expect(fs.existsSync(doneWt)).toBe(true);
+    });
+
+    test('it refuses on a host that is not the M4, even without --apply', () => {
+      const r = bobbyIn(['reap', '--worktrees'], { cpu: 'Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz' });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/M4 only/);
+    });
+
+    test('--stacks with --worktrees, and --sizes without --worktrees, are errors', () => {
+      expect(bobbyIn(['reap', '--stacks', '--worktrees']).stderr).toMatch(/Pick one of --stacks and --worktrees/);
+      const r = bobbyIn(['reap', '--sizes']);
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/--sizes only applies to --worktrees/);
     });
   });
 });

@@ -3,7 +3,7 @@
 // `bobby conductor`: the studio's control board. `init` writes conductor.yml;
 // `status` and `check` only read (they never change a session, a ticket or a
 // container). `reap` is dry-run unless `--apply`, and is the one command that
-// ends sessions (see lib/conductor/reaper.js).
+// ends sessions (see lib/conductor/reaper.js), stops stacks and removes worktrees.
 
 import path from 'path';
 import { findStudioRoot, initConductorConfig, loadConductorConfig } from '../lib/conductor/config.js';
@@ -13,6 +13,8 @@ import { readStacks } from '../lib/conductor/stacks.js';
 import { checkLane, checkStack } from '../lib/conductor/governor.js';
 import { reap, renderReap } from '../lib/conductor/reaper.js';
 import { reapStacks, renderStackReap } from '../lib/conductor/stack-reaper.js';
+import { reapWorktrees, renderWorktreeReap } from '../lib/conductor/worktree-reaper.js';
+import { readDisk } from '../lib/conductor/disk.js';
 import { assertM4Host } from '../lib/conductor/host.js';
 import { readAgents } from '../lib/conductor/sessions.js';
 import {
@@ -45,7 +47,7 @@ export function registerConductor(program) {
         success(`Wrote ${path.relative(root, file)}`);
         console.log(dim(`  projects: ${values.projects.join(', ')}`));
         console.log(dim(`  hook_state_dir: ${values.hook_state_dir}`));
-        console.log(dim(`  governor: min_free_ram_mb ${values.governor.min_free_ram_mb}, max_docker_stacks ${values.governor.max_docker_stacks}`));
+        console.log(dim(`  governor: min_free_ram_mb ${values.governor.min_free_ram_mb}, max_docker_stacks ${values.governor.max_docker_stacks}, min_free_disk_gb ${values.governor.min_free_disk_gb}`));
         console.log(dim(`  reaper: stack_idle_hours ${values.reaper.stack_idle_hours}`));
         console.log(dim(`  wip: max_lanes ${values.wip.max_lanes}; claims: ttl_minutes ${values.claims.ttl_minutes}`));
         console.log(dim(`  inbox: stale_minutes ${values.inbox.stale_minutes}`));
@@ -56,11 +58,12 @@ export function registerConductor(program) {
 
   conductor
     .command('status')
-    .description('Lanes by state, WAITING ON CC, handoff markers, ticket counts, free RAM and docker stacks')
+    .description('Lanes by state, WAITING ON CC, handoff markers, ticket counts, free RAM and disk, worktrees by stage, docker stacks')
     .option('--json', 'Print the same data as JSON')
+    .option('--sizes', 'Measure worktree sizes with du (slow: minutes) and cache them; without it only cached sizes show')
     .action((opts) => {
       try {
-        const status = buildStatus(findStudioRoot());
+        const status = buildStatus(findStudioRoot(), { sizes: Boolean(opts.sizes) });
         console.log(opts.json ? JSON.stringify(status, null, 2) : renderStatus(status));
       } catch (e) {
         fail(e);
@@ -75,11 +78,13 @@ export function registerConductor(program) {
         if (kind !== 'lane' && kind !== 'stack') {
           throw new Error(`Unknown check "${kind}". Use: bobby conductor check lane | stack`);
         }
-        const config = loadConductorConfig(findStudioRoot());
+        const studioRoot = findStudioRoot();
+        const config = loadConductorConfig(studioRoot);
         const memory = readMemory();
+        const disk = readDisk(studioRoot);
         const result = kind === 'lane'
-          ? checkLane(config, memory)
-          : checkStack(config, memory, readStacks().stacks.length);
+          ? checkLane(config, memory, disk)
+          : checkStack(config, memory, disk, readStacks().stacks.length);
         if (!result.ok) {
           error(`${kind} refused: ${result.reason}`);
           process.exit(1);
@@ -92,15 +97,28 @@ export function registerConductor(program) {
 
   conductor
     .command('reap')
-    .description('List finished background sessions to end, keeping their transcripts (--stacks: idle per-ticket docker stacks instead). Dry run unless --apply. M4 only')
+    .description('List finished background sessions to end, keeping their transcripts (--stacks: idle docker stacks; --worktrees: clean worktrees of done tickets). Dry run unless --apply. M4 only')
     .option('--apply', 'Do it (default: print the list and change nothing)')
     .option('--stacks', 'Reap idle per-ticket docker stacks (compose project, containers kept) instead of sessions')
+    .option('--worktrees', 'Remove git worktrees of done tickets (clean tracked files, no live session inside; branches kept) instead of sessions')
+    .option('--sizes', 'With --worktrees: measure the candidates with du (slow)')
     .action((opts) => {
       try {
+        if (opts.stacks && opts.worktrees) throw new Error('Pick one of --stacks and --worktrees.');
+        if (opts.sizes && !opts.worktrees) throw new Error('--sizes only applies to --worktrees.');
         assertM4Host();
         const studioRoot = findStudioRoot();
         const config = loadConductorConfig(studioRoot);
         const apply = Boolean(opts.apply);
+        if (opts.worktrees) {
+          const report = reapWorktrees({ studioRoot, config, apply, measure: Boolean(opts.sizes) });
+          console.log(renderWorktreeReap(report, { apply }));
+          if (report.failed > 0) {
+            error(`${report.failed} worktree(s) could not be checked or removed`);
+            process.exit(1);
+          }
+          return;
+        }
         if (opts.stacks) {
           const report = reapStacks({ studioRoot, config, apply });
           console.log(renderStackReap(report, { apply, idleHours: config.reaper.stack_idle_hours }));

@@ -2,6 +2,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { execFileSync } from 'child_process';
 import { initStudio, createProject } from '../../../lib/studio.js';
 import { createTicket, moveTicket, updateTicket } from '../../../lib/tickets.js';
 
@@ -9,6 +10,8 @@ import { createTicket, moveTicket, updateTicket } from '../../../lib/tickets.js'
 export function makeStudio() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-conductor-'));
   initStudio(root);
+  // The studio is itself a git repo: `status` lists its worktrees.
+  execFileSync('git', ['init', '-q', root]);
   createProject(root, 'alpha', { prefix: 'AL' });
   createProject(root, 'beta', { prefix: 'BE' });
   const hookDir = path.join(root, 'hook-state');
@@ -21,9 +24,9 @@ export function writeConductorYml(root, text) {
   fs.writeFileSync(path.join(root, '.bobby', 'conductor.yml'), text);
 }
 
-export function validYml(hookDir, projects = ['alpha', 'beta'], governor = { min_free_ram_mb: 4096, max_docker_stacks: 4 }, reaper = { stack_idle_hours: 2 }, wip = { max_lanes: 6 }, claims = { ttl_minutes: 30 }, inbox = { stale_minutes: 30 }) {
+export function validYml(hookDir, projects = ['alpha', 'beta'], governor = { min_free_ram_mb: 4096, max_docker_stacks: 4, min_free_disk_gb: 1 }, reaper = { stack_idle_hours: 2 }, wip = { max_lanes: 6 }, claims = { ttl_minutes: 30 }, inbox = { stale_minutes: 30 }) {
   return `projects:\n${projects.map(p => `  - ${p}`).join('\n')}\nhook_state_dir: ${hookDir}\n`
-    + `governor:\n  min_free_ram_mb: ${governor.min_free_ram_mb}\n  max_docker_stacks: ${governor.max_docker_stacks}\n`
+    + `governor:\n  min_free_ram_mb: ${governor.min_free_ram_mb}\n  max_docker_stacks: ${governor.max_docker_stacks}\n  min_free_disk_gb: ${governor.min_free_disk_gb}\n`
     + `reaper:\n  stack_idle_hours: ${reaper.stack_idle_hours}\n`
     + `wip:\n  max_lanes: ${wip.max_lanes}\n`
     + `claims:\n  ttl_minutes: ${claims.ttl_minutes}\n`

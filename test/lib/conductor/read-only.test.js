@@ -2,6 +2,7 @@
 // ticket allow-lists exactly its one command here. BOB-176: lib/conductor/reaper.js
 // may name `claude stop` (and only that); see the reaper block below. BOB-177:
 // lib/conductor/stack-reaper.js may name `docker compose -p <project> stop` (and only that).
+// BOB-189: lib/conductor/worktree-reaper.js may name `git -C <repo> worktree remove --force <path>` (and only that).
 import fs from 'fs';
 import path from 'path';
 
@@ -73,5 +74,31 @@ describe('the stack reaper does exactly one docker thing', () => {
     for (const re of [/\brm\b/, /\bdown\b/, /volume/i, /prune/i, /--volumes/, /['"]-v['"]/, /\bkill\b/, /unlink/, /rmSync/, /writeFile/, /appendFile/, /rename/, /['"]rm['"]/, /['"]down['"]/]) {
       expect(code).not.toMatch(re);
     }
+  });
+});
+
+describe('the worktree reaper does exactly one removal', () => {
+  const src = fs.readFileSync(path.resolve('lib/conductor/worktree-reaper.js'), 'utf8');
+  const code = src.split('\n').filter(l => !l.trim().startsWith('//')).join('\n');
+
+  test('`git -C <repo> worktree remove --force <path>` is the only exec that changes anything', () => {
+    const runs = [...code.matchAll(/\brun\(([^)]*)\)/g)].map(m => m[1].replace(/\s+/g, ' '));
+    expect(runs).toEqual([
+      "'git', ['-C', p, 'status', '--porcelain', '-uno']",
+      "'git', ['-C', p, 'for-each-ref', '--contains', 'HEAD', 'refs/heads', 'refs/remotes']",
+      "'git', ['-C', still.repo_path, 'worktree', 'remove', '--force', still.path]",
+    ]);
+  });
+
+  test('no rm, prune, branch delete, recursive delete or file write in it or in worktrees.js beyond the size cache', () => {
+    for (const re of [/\brm\b/, /rmSync/, /unlink/, /prune/i, /\bbranch\b.*['"]-[dD]['"]/, /['"]clean['"]/, /['"]reset['"]/, /recursive/, /writeFile/, /rename/]) {
+      expect(code).not.toMatch(re);
+    }
+    const lib = fs.readFileSync(path.resolve('lib/conductor/worktrees.js'), 'utf8').split('\n').filter(l => !l.trim().startsWith('//')).join('\n');
+    expect(lib).not.toMatch(/\brm\b|rmSync|unlink|prune|recursive/i);
+    expect([...lib.matchAll(/\brun\(([^)]*)\)/g)].map(m => m[1].replace(/\s+/g, ' '))).toEqual([
+      "'git', ['-C', repo.path, 'worktree', 'list', '--porcelain']",
+      "'du', ['-sk', p]",
+    ]);
   });
 });
