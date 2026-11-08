@@ -26,9 +26,47 @@ describe('inferProjectFromIds', () => {
     expect(inferProjectFromIds(root, ['RF-1', 'rf-2'])).toBe('robinflow');
   });
 
-  test('an unknown prefix throws, naming every project', () => {
-    expect(() => inferProjectFromIds(root, ['XX-9']))
-      .toThrow(/XX-9: no project in this studio uses prefix XX.*robinflow \(RF\).*bobby \(BOB\)|XX-9: no project in this studio uses prefix XX.*bobby \(BOB\).*robinflow \(RF\)/);
+  // Unowned prefix (legacy TKT-): the exact ID is looked up on every project's board (TKT-084 decision).
+  const putTicket = (project, id) => {
+    const dir = path.join(root, '.bobby', project, 'tickets', `${id}--legacy-ticket`);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'ticket.md'), `---\nid: ${id}\ntitle: legacy ticket\nstage: backlog\n---\n`);
+  };
+
+  test('an unowned prefix found on exactly one board returns that project', () => {
+    putTicket('robinflow', 'TKT-491');
+    putTicket('bobby', 'TKT-7');
+    expect(inferProjectFromIds(root, ['TKT-491'])).toBe('robinflow');
+    expect(inferProjectFromIds(root, ['TKT-7'])).toBe('bobby');
+  });
+
+  test('an unowned prefix found on no board throws, naming the boards searched and --project', () => {
+    putTicket('robinflow', 'TKT-1');
+    expect(() => inferProjectFromIds(root, ['TKT-9']))
+      .toThrow(/TKT-9: not found on any project board \(searched: (robinflow, bobby|bobby, robinflow)\).*--project/);
+  });
+
+  test('an unowned prefix found on several boards throws, naming them and --project', () => {
+    putTicket('robinflow', 'TKT-5');
+    putTicket('bobby', 'TKT-5');
+    expect(() => inferProjectFromIds(root, ['TKT-5']))
+      .toThrow(/TKT-5: found on more than one project board \((bobby, robinflow)\).*--project/);
+  });
+
+  test('an unowned prefix never falls through to the cwd or active project', () => {
+    putTicket('robinflow', 'TKT-1');
+    fs.writeFileSync(path.join(root, '.bobby', 'active-project'), 'robinflow\n');
+    expect(() => inferProjectFromIds(root, ['TKT-2'])).toThrow(/not found on any project board/);
+  });
+
+  test('legacy IDs from different boards throw as mixed projects', () => {
+    putTicket('robinflow', 'TKT-1');
+    putTicket('bobby', 'TKT-2');
+    expect(() => inferProjectFromIds(root, ['TKT-1', 'TKT-2'])).toThrow(/TKT-1 is robinflow.*TKT-2 is bobby.*--project/);
+  });
+
+  test('an owned prefix keeps today\'s behaviour and never reads the boards', () => {
+    expect(inferProjectFromIds(root, ['RF-9999'])).toBe('robinflow');
   });
 
   test('a prefix two projects share throws', () => {

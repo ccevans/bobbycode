@@ -210,12 +210,32 @@ describe('studio project inference (CLI)', () => {
     expect(c.code).toBe(1);
   });
 
-  test('TC9: an unknown prefix is an explicit error naming the projects', () => {
+  test('TC9: an unowned prefix on no board is an explicit error naming the boards searched', () => {
     const r = run(studio, ['ticket', 'view', 'XX-9']);
     expect(r.code).toBe(1);
-    expect(r.err).toContain('no project in this studio uses prefix XX');
-    expect(r.err).toContain('robinflow (RF)');
-    expect(r.err).toContain('bobby (BOB)');
+    expect(r.err).toContain('XX-9: not found on any project board');
+    expect(r.err).toContain('robinflow');
+    expect(r.err).toContain('bobby');
+    expect(r.err).toContain('--project');
+  });
+
+  test('TC9b: a legacy ID found on exactly one board resolves to that project', () => {
+    createTicket(path.join(studio, '.bobby', 'robinflow', 'tickets'), { prefix: 'TKT', title: 'legacy robin' });
+    const r = run(studio, ['ticket', 'view', 'TKT-002']);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('TKT-002--legacy-robin');
+  });
+
+  test('TC9c: a legacy ID on several boards errors naming them, and --project resolves it', () => {
+    createTicket(path.join(studio, '.bobby', 'robinflow', 'tickets'), { prefix: 'TKT', title: 'legacy robin' });
+    createTicket(path.join(studio, '.bobby', 'bobby', 'tickets'), { prefix: 'TKT', title: 'legacy bob' });
+    const r = run(studio, ['ticket', 'view', 'TKT-002']);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('TKT-002: found on more than one project board (bobby, robinflow)');
+    expect(r.err).toContain('--project');
+    const ok = run(studio, ['--project', 'bobby', 'ticket', 'view', 'TKT-002']);
+    expect(ok.code).toBe(0);
+    expect(ok.out).toContain('TKT-002--legacy-bob');
   });
 
   test('TC11: free text is never read as an ID', () => {
