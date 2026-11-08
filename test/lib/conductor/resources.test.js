@@ -2,9 +2,9 @@ import { parseVmStat, parseMemsize, readMemory } from '../../../lib/conductor/re
 import { vmStatText } from './helpers.js';
 
 describe('conductor resources', () => {
-  test('free RAM is free + speculative + file-backed + purgeable; inactive and compressor are not added', () => {
+  test('free RAM is free + file-backed + purgeable; speculative (inside file-backed), inactive and compressor are not added', () => {
     const vm = parseVmStat(vmStatText({ freeMb: 100, specMb: 50, fileMb: 1000, purgeMb: 50, inactiveMb: 9000, storedMb: 20000, compressorMb: 8000 }));
-    expect(vm.free_mb).toBe(1200);
+    expect(vm.free_mb).toBe(1150);
     expect(vm.parts).toEqual({ free_mb: 100, speculative_mb: 50, file_backed_mb: 1000, purgeable_mb: 50 });
     expect(vm.compressed_mb).toBe(20000);
     expect(vm.compressor_mb).toBe(8000);
@@ -21,7 +21,7 @@ describe('conductor resources', () => {
       'Pages stored in compressor:                  1428425.',
       'Pages occupied by compressor:                 564543.',
     ].join('\n');
-    expect(parseVmStat(text).free_mb).toBe(Math.floor((345210 + 96412 + 31979 + 492876) * 16384 / 1048576));
+    expect(parseVmStat(text).free_mb).toBe(Math.floor((345210 + 31979 + 492876) * 16384 / 1048576));
   });
 
   test.each([
@@ -49,7 +49,7 @@ describe('conductor resources', () => {
     const mem = readMemory({ run });
     expect(calls).toEqual([['vm_stat', []], ['sysctl', ['-n', 'hw.memsize']]]);
     expect(mem.total_mb).toBe(49152);
-    expect(mem.free_mb).toBe(1200);
+    expect(mem.free_mb).toBe(1150);
   });
 
   test('a failing vm_stat propagates; free RAM above total RAM is refused', () => {

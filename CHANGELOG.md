@@ -57,7 +57,7 @@ All notable changes to Bobby are documented here. The format is based on
 - **`bobby conductor check lane|stack` and MACHINE / STACKS in `status` (BOB-175):
   read-only resource governor.** `check lane` exits 1 with `free RAM <n> MB < min <m> MB`
   below `governor.min_free_ram_mb`; `check stack` also exits 1 when running docker compose
-  stacks reach `governor.max_docker_stacks`. Free RAM is free + speculative + file-cache +
+  stacks reach `governor.max_docker_stacks`. Free RAM is free + file-cache (which holds the speculative pages) +
   purgeable pages from `vm_stat` (inactive and compressed memory are not counted). Docker
   stacks are grouped by compose project and mapped to tickets by the
   `scripts/new-api-worktree.sh` naming; the rest show as `unmapped`. `conductor init` writes

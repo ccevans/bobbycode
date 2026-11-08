@@ -5,9 +5,8 @@
 // a ticket or a container).
 
 import path from 'path';
-import { findStudioRoot, initConductorConfig } from '../lib/conductor/config.js';
+import { findStudioRoot, initConductorConfig, loadConductorConfig } from '../lib/conductor/config.js';
 import { buildStatus, renderStatus } from '../lib/conductor/status.js';
-import { loadConductorConfig } from '../lib/conductor/config.js';
 import { readMemory } from '../lib/conductor/resources.js';
 import { readStacks } from '../lib/conductor/stacks.js';
 import { checkLane, checkStack } from '../lib/conductor/governor.js';
