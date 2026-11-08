@@ -34,7 +34,7 @@ describe('conductor reaper', () => {
   let hookDir;
   beforeEach(() => { hookDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-reap-')); });
   afterEach(() => { fs.rmSync(hookDir, { recursive: true, force: true }); });
-  const marker = (id, successor) => fs.writeFileSync(path.join(hookDir, `${sid(id)}.handoff`), `bg ${successor}\n`);
+  const marker = (id, successor) => fs.writeFileSync(path.join(hookDir, `${sid(id)}.handoff`), `"lane" (bg ${successor}, claude-opus-5-5) from /x/handoff.md\n`);
   const doReap = (agents, opts = {}, mockOpts) => {
     const m = mockRun(agents, mockOpts);
     const report = reap({ hookStateDir: hookDir, run: m.run, now: 10, ...opts });

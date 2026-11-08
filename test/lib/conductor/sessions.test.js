@@ -32,7 +32,9 @@ describe('conductor sessions', () => {
     expect(g.working.map(s => s.id)).toEqual(['aaaa1111']);
     expect(g.waiting_on_cc.map(s => s.id)).toEqual(['bbbb2222']);
     expect(g.done.map(s => s.id)).toEqual(['cccc3333']);
-    expect(g.unknown.map(s => [s.id, s.raw_state])).toEqual([['dddd4444', 'stopped'], [null, null]]);
+    // dddd4444 is `stopped` but still carries a pid, so it stays visible as unknown
+    expect(g.unknown.map(s => [s.id, s.raw_state])).toEqual([['dddd4444', 'stopped']]);
+    expect(g.interactive.map(s => [s.id, s.raw_state])).toEqual([[null, null]]);
   });
 
   test('an unrecognised state is never treated as done', () => {
@@ -54,6 +56,36 @@ describe('conductor sessions', () => {
     expect(g.done.map(s => s.id)).toEqual(['aaaa0001']);
     expect(g.stopped.map(s => s.id)).toEqual(['aaaa0002', 'aaaa0003']);
     expect(g.working.map(s => s.id)).toEqual(['aaaa0004']);
+  });
+
+  test('stopped and failed background sessions with no pid are grouped as stopped; interactive sessions get their own group; the rest stays unknown', () => {
+    const raw = [
+      { id: 'aaaa0001', sessionId: 'aaaa0001-x', kind: 'background', state: 'stopped' },
+      { id: 'aaaa0002', sessionId: 'aaaa0002-x', kind: 'background', state: 'failed' },
+      { id: 'aaaa0003', sessionId: 'aaaa0003-x', kind: 'background', state: 'done' },
+      { id: 'aaaa0004', sessionId: 'aaaa0004-x', kind: 'background', state: 'stopped', pid: 12 },
+      { id: 'aaaa0005', sessionId: 'aaaa0005-x', kind: 'background', state: 'finished' },
+      { id: 'aaaa0006', sessionId: 'aaaa0006-x', kind: 'background' },
+      { sessionId: 'bbbb0001-x', kind: 'interactive', status: 'idle', pid: 20 },
+      { sessionId: 'bbbb0002-x', kind: 'interactive', status: 'busy', pid: 21 },
+    ];
+    const sessions = classifySessions(raw, { hookStateDir: hookDir, now: NOW });
+    const g = groupSessions(sessions);
+    expect(g.stopped.map(s => [s.id, s.raw_state])).toEqual([['aaaa0001', 'stopped'], ['aaaa0002', 'failed'], ['aaaa0003', 'done']]);
+    expect(g.interactive.map(s => [s.session_id, s.status])).toEqual([['bbbb0001-x', 'idle'], ['bbbb0002-x', 'busy']]);
+    // a stopped state that still has a live pid is odd: it stays visible as unknown, not hidden as stopped
+    expect(g.unknown.map(s => s.id)).toEqual(['aaaa0004', 'aaaa0005', 'aaaa0006']);
+    // the classification the reapers read is unchanged: every one of these is still state "unknown"
+    expect(sessions.filter(s => s.raw_state !== 'done').every(s => s.state === 'unknown')).toBe(true);
+  });
+
+  test('the successor id is read from `(bg <id>`, not from a session name that contains "bg <hex>"', () => {
+    const raw = agentsFixture();
+    fs.writeFileSync(path.join(hookDir, `${raw[2].sessionId}.handoff`),
+      '"fix bg dddd4444 lane" (bg aaaa1111, claude-opus-5-5) from /x/handoff.md');
+    expect(classify(raw).find(s => s.id === 'cccc3333')).toMatchObject({ successor: 'aaaa1111' });
+    fs.writeFileSync(path.join(hookDir, `${raw[2].sessionId}.handoff`), '"fix bg dddd4444 lane" from /x/handoff.md');
+    expect(classify(raw).find(s => s.id === 'cccc3333')).toMatchObject({ handed_off: true, successor: null });
   });
 
   test('age comes from startedAt and the injected clock; waitingFor is carried', () => {
