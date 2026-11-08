@@ -17,7 +17,7 @@ import { assertM4Host } from '../lib/conductor/host.js';
 import { readAgents } from '../lib/conductor/sessions.js';
 import {
   inboxDir, assertInboxDir, resolveRecipient, buildMessage, appendMessage,
-  listInboxSessions, readMessages, readCursor, renderMessages,
+  listInboxSessions, readMessages, cursorWithin, renderMessages,
 } from '../lib/conductor/inbox.js';
 import { success, error, dim } from '../lib/colors.js';
 
@@ -163,7 +163,7 @@ export function registerConductor(program) {
         const entries = [];
         for (const sessionId of sessions) {
           const messages = readMessages(dir, sessionId);
-          const cursor = readCursor(dir, sessionId);
+          const cursor = cursorWithin(dir, sessionId, messages.length);
           messages.forEach((message, index) => {
             const unread = index >= cursor;
             if (!opts.unread || unread) entries.push({ sessionId, message, index, unread });

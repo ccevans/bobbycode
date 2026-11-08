@@ -169,6 +169,14 @@ describe('bobby conductor send / inbox', () => {
     expect(bobbyIn(['inbox', '--session', LANE_THREE]).stdout).toMatch(/late note/);
   });
 
+  test('inbox with a cursor past the end of the file exits 1 instead of showing nothing', () => {
+    bobbyIn(['send', 'lane one', 'first', '--from', 'o']);
+    fs.writeFileSync(path.join(inbox, `${LANE_ONE}.cursor`), '5\n');
+    const r = bobbyIn(['inbox', '--unread']);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/cursor 5 is past the 1 message/);
+  });
+
   test('inbox on a corrupt file exits 1 naming the line', () => {
     fs.writeFileSync(path.join(inbox, `${LANE_ONE}.jsonl`), '{oops}\n');
     const r = bobbyIn(['inbox']);
