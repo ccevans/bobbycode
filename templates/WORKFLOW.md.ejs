@@ -39,6 +39,7 @@ Stage is tracked in `ticket.md` frontmatter — no physical file moves.
 | View ticket | `bobby ticket view TKT-001` |
 | View plan | `bobby ticket view TKT-001 --plan` |
 | View files | `bobby ticket view TKT-001 --files` |
+| Attach a test/ship log | `bobby ticket attach TKT-001 out.log --log` |
 | Move to stage | `bobby ticket move TKT-001 build` |
 | Reject (back to building) | `bobby ticket move TKT-001 reject "reason"` |
 | Block | `bobby ticket move TKT-001 block "reason"` |
@@ -51,6 +52,8 @@ Stage is tracked in `ticket.md` frontmatter — no physical file moves.
 | PM product review | `bobby run pm` |
 | Add comment | `bobby ticket comment TKT-001 "note"` |
 | Assign | `bobby ticket assign TKT-001 name` |
+| Claim for a session | `bobby ticket assign TKT-001 name --session "<session>"` |
+| Hand off to another session | `bobby ticket handoff TKT-001 --to "<session>"` |
 
 ## Running Agents
 

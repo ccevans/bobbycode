@@ -15,6 +15,7 @@ import {
   isStudio, promoteV1ToStudio, getActiveProject,
 } from '../../lib/studio.js';
 import { createTicket, readTicket } from '../../lib/tickets.js';
+import { STUDIO_TICKET_LOG_PATTERN } from '../../lib/ticket-logs.js';
 import { appendDecision, readDecisions, seedText } from '../../lib/decisions.js';
 
 describe('studio', () => {
@@ -112,6 +113,12 @@ describe('studio', () => {
   test('active-project is gitignored (per-dev state, never shared)', () => {
     const gi = fs.readFileSync(path.join(root, '.gitignore'), 'utf8');
     expect(gi.split('\n').map(l => l.trim())).toContain('.bobby/active-project');
+  });
+
+  test('TKT-086: studio .gitignore ignores raw ticket logs exactly once, even after a second initStudio', () => {
+    initStudio(root);
+    const lines = fs.readFileSync(path.join(root, '.gitignore'), 'utf8').split('\n').map(l => l.trim());
+    expect(lines.filter(l => l === STUDIO_TICKET_LOG_PATTERN)).toHaveLength(1);
   });
 
   test('createTicket records the repos a ticket touches', () => {

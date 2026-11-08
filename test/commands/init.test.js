@@ -381,6 +381,25 @@ dashboard:
     expect(fs.readFileSync(skill, 'utf8')).not.toBe('stale');
   });
 
+  test('TKT-086: `init --refresh` adds the ticket-log ignore line once, then leaves it alone', async () => {
+    const program = mockProgram();
+    registerInit(program);
+    await program.getAction()({ yes: true, stack: 'generic' });
+
+    const gi = path.join(tmpDir, '.gitignore');
+    const line = '.bobby/tickets/*/**/*.log';
+    fs.writeFileSync(gi, fs.readFileSync(gi, 'utf8').split('\n').filter(l => l.trim() !== line).join('\n'));
+    execSync('git add -A && git commit -q -m base', { cwd: tmpDir, stdio: 'pipe' });
+
+    await program.getAction()({ refresh: true });
+    expect(logSpy.mock.calls.flat().join('\n')).toContain('Added ticket-log ignore pattern');
+    execSync('git add -A && git commit -q -m refreshed', { cwd: tmpDir, stdio: 'pipe' });
+    await program.getAction()({ refresh: true });
+
+    const lines = fs.readFileSync(gi, 'utf8').split('\n').filter(l => l.trim() === line);
+    expect(lines).toHaveLength(1);
+  });
+
   function mockProgram() {
     let actionFn;
     const cmd = {
