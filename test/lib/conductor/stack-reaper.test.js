@@ -143,6 +143,14 @@ describe('conductor stack reaper', () => {
     expect(report.results).toEqual([expect.objectContaining({ outcome: 'skipped' })]);
   });
 
+  test('a ticket claimed between the plan and the stop keeps its stack', () => {
+    const m = mockRun({ stacks: { 'al-1api': 5 }, agents: (reads) => { if (reads > 1) writeClaim(root, 'AL-001', { lane: 'lane a', now: Date.now() }); return []; } });
+    const report = go(m, { apply: true });
+    expect(report.candidates.map(c => c.project)).toEqual(['al-1api']);
+    expect(m.compose()).toEqual([]);
+    expect(report.results).toEqual([expect.objectContaining({ outcome: 'skipped' })]);
+  });
+
   test('a malformed claims file is an error, never "no claims"', () => {
     fs.mkdirSync(path.join(root, '.bobby', 'conductor'), { recursive: true });
     fs.writeFileSync(path.join(root, '.bobby', 'conductor', 'claims.yml'), 'claims: [1]\n');
