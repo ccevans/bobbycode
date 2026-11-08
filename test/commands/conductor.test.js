@@ -370,6 +370,16 @@ describe('bobby conductor', () => {
       expect(dry.stdout).toMatch(/Orphaned handoff \(1\)/);
       expect(dry.stdout).toMatch(/Dry run: 0 session/);
     });
+    test('status does not call a handed-off session with no live pid an orphan, same as reap', () => {
+      const agents = agentsFixture();
+      agents.push({ id: 'abab0001', sessionId: 'abab0001-0000-4000-8000-000000000000', name: 'old stopped lane', cwd: '/studio', kind: 'background', startedAt: 1, state: 'done' });
+      fs.writeFileSync(agentsFile, JSON.stringify(agents));
+      fs.writeFileSync(path.join(hookDir, 'abab0001-0000-4000-8000-000000000000.handoff'), 'bg ffff9999\n');
+      const r = bobbyIn(['status']);
+      expect(r.stdout).toMatch(/old stopped lane\s+successor ffff9999 not live/);
+      expect(r.stdout).not.toMatch(/orphaned handoff/);
+      expect(bobbyIn(['reap']).stdout).not.toMatch(/Orphaned handoff/);
+    });
   });
 
   describe('reap --stacks', () => {
