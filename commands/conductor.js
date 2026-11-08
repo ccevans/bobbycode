@@ -20,6 +20,7 @@ import {
   listInboxSessions, readMessages, cursorWithin, renderMessages,
 } from '../lib/conductor/inbox.js';
 import { registerQueueCommands } from './conductor-queue.js';
+import { registerShipCommands } from './conductor-ship.js';
 import { success, error, dim } from '../lib/colors.js';
 
 function fail(e) {
@@ -179,4 +180,5 @@ export function registerConductor(program) {
     });
 
   registerQueueCommands(conductor);
+  registerShipCommands(conductor);
 }

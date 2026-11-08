@@ -168,7 +168,7 @@ describe('bobby conductor', () => {
       const r = bobbyIn(['status', '--json']);
       expect(r.status).toBe(0);
       const data = JSON.parse(r.stdout);
-      expect(Object.keys(data)).toEqual(['generated_at', 'working', 'waiting_on_cc', 'done', 'stopped', 'interactive', 'unknown', 'handoffs', 'inbox', 'board', 'machine', 'stacks']);
+      expect(Object.keys(data)).toEqual(['generated_at', 'working', 'waiting_on_cc', 'done', 'stopped', 'interactive', 'unknown', 'handoffs', 'inbox', 'ship_lanes', 'board', 'machine', 'stacks']);
       expect(data.working.map(s => s.name)).toEqual(['lane one']);
       expect(data.waiting_on_cc.map(s => s.name)).toEqual(['lane two']);
       expect(data.done.map(s => s.name)).toEqual(['lane three']);
