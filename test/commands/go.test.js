@@ -147,7 +147,7 @@ describe('bobby go: stale board guard (TKT-083)', () => {
   function makeBoardRepos(root) {
     const origin = path.join(root, 'origin.git');
     const A = path.join(root, 'A');
-    g(root, `init -q --bare ${origin}`);
+    g(root, `init -q -b main --bare ${origin}`);
     fs.mkdirSync(path.join(A, '.bobby', 'tickets'), { recursive: true });
     g(A, 'init -q -b main');
     fs.writeFileSync(path.join(A, '.bobbyrc.yml'), YAML.stringify({

@@ -14,7 +14,7 @@ const g = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' })
 function makeBoardRepos(root) {
   const origin = path.join(root, 'origin.git');
   const A = path.join(root, 'A');
-  g(root, 'init', '-q', '--bare', origin);
+  g(root, 'init', '-q', '-b', 'main', '--bare', origin);
   fs.mkdirSync(path.join(A, '.bobby', 'tickets'), { recursive: true });
   g(A, 'init', '-q', '-b', 'main');
   fs.writeFileSync(path.join(A, '.bobbyrc.yml'), 'ticket_prefix: TKT\n');
@@ -132,7 +132,7 @@ describe('board-upstream', () => {
   test('a studio board only counts commits under its own project directory', () => {
     const studio = path.join(root, 'studio');
     const so = path.join(root, 'studio-origin.git');
-    g(root, 'init', '-q', '--bare', so);
+    g(root, 'init', '-q', '-b', 'main', '--bare', so);
     fs.mkdirSync(path.join(studio, '.bobby', 'app', 'tickets'), { recursive: true });
     fs.mkdirSync(path.join(studio, '.bobby', 'other', 'tickets'), { recursive: true });
     fs.writeFileSync(path.join(studio, '.bobby', 'app', 'tickets', '.counter'), '0');

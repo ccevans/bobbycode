@@ -118,7 +118,7 @@ describe('bobby ticket create: stale board guard (TKT-083)', () => {
   function makeBoardRepos(root) {
     const origin = path.join(root, 'origin.git');
     const A = path.join(root, 'A');
-    g(root, `init -q --bare ${origin}`);
+    g(root, `init -q -b main --bare ${origin}`);
     fs.mkdirSync(path.join(A, '.bobby', 'tickets'), { recursive: true });
     g(A, 'init -q -b main');
     fs.writeFileSync(path.join(A, '.bobbyrc.yml'), YAML.stringify({
@@ -233,7 +233,7 @@ describe('bobby ticket create: stale board guard (TKT-083)', () => {
   test('studio board: its own board moving blocks; another project board moving does not', () => {
     const origin = path.join(root, 'studio-origin.git');
     const S = path.join(root, 'S');
-    g(root, `init -q --bare ${origin}`);
+    g(root, `init -q -b main --bare ${origin}`);
     for (const p of ['app', 'other']) {
       fs.mkdirSync(path.join(S, '.bobby', p, 'tickets'), { recursive: true });
       fs.writeFileSync(path.join(S, '.bobby', p, 'tickets', '.counter'), '0');
