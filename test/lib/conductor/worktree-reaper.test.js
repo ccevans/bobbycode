@@ -49,7 +49,8 @@ describe('conductor worktree reaper', () => {
   beforeEach(() => {
     ({ root, hookDir } = makeStudio());
     fs.writeFileSync(path.join(root, 'tracked.txt'), 'a\n');
-    git(root, 'add', 'tracked.txt');
+    fs.writeFileSync(path.join(root, '.gitignore'), '*.log\nbuild-cache/\n');
+    git(root, 'add', 'tracked.txt', '.gitignore');
     git(root, 'commit', '-q', '-m', 'init');
     app = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-wt-app-'));
     execFileSync('git', ['init', '-q', app]);
@@ -109,13 +110,58 @@ describe('conductor worktree reaper', () => {
     expect(report.failed).toBe(0);
   });
 
-  test('untracked and ignored files do not block removal (only tracked changes do)', () => {
+  test('ignored files do not block removal (they are rebuildable)', () => {
     finish(1);
     const p = wt(root, 'AL-1-ui');
     fs.writeFileSync(path.join(p, 'scratch.log'), 'x');
+    fs.mkdirSync(path.join(p, 'build-cache'));
+    fs.writeFileSync(path.join(p, 'build-cache', 'a'), 'x');
     const report = go(mockRun(), { apply: true });
     expect(report.results[0].outcome).toBe('removed');
     expect(exists(p)).toBe(false);
+  });
+
+  test('untracked, non-ignored files and folders keep the worktree and the dry run says which (BOB-191)', () => {
+    finish(1); finish(2); finish(3);
+    const one = wt(root, 'AL-1-ui');
+    const many = wt(root, 'AL-2-ui');
+    const clean = wt(root, 'AL-3-ui');
+    fs.writeFileSync(path.join(one, 'review.md'), 'x');
+    fs.mkdirSync(path.join(one, 'test-evidence'));
+    fs.writeFileSync(path.join(one, 'test-evidence', 'shot.png'), 'x');
+    for (const f of ['a.txt', 'b.txt', 'c.txt', 'd.txt']) fs.writeFileSync(path.join(many, f), 'x');
+    const m = mockRun();
+    const report = go(m, { apply: true });
+    expect(report.candidates.map(c => c.path)).toEqual([clean]);
+    const why = Object.fromEntries(report.kept.map(k => [path.basename(k.path), k.why]));
+    expect(why['AL-1-ui']).toBe('untracked: review.md, test-evidence/');
+    expect(why['AL-2-ui']).toBe('untracked: a.txt, b.txt (+2)');
+    expect(m.removals()).toEqual([['git', '-C', root, 'worktree', 'remove', '--force', clean]]);
+    expect(exists(path.join(one, 'review.md'))).toBe(true);
+    expect(exists(path.join(many, 'd.txt'))).toBe(true);
+    const text = renderWorktreeReap(report, { apply: false });
+    expect(text).toMatch(/2 {2}untracked files that are not ignored/);
+    expect(text).toMatch(/kept .*AL-1-ui.*untracked: review\.md, test-evidence\//);
+  });
+
+  test('a user setting status.showUntrackedFiles=no cannot hide untracked files from the check', () => {
+    finish(1);
+    const p = wt(root, 'AL-1-ui');
+    fs.writeFileSync(path.join(p, 'review.md'), 'x');
+    git(root, 'config', 'status.showUntrackedFiles', 'no');
+    const report = go(mockRun(), { apply: true });
+    expect(report.candidates).toEqual([]);
+    expect(report.kept[0].why).toBe('untracked: review.md');
+    expect(exists(path.join(p, 'review.md'))).toBe(true);
+  });
+
+  test('tracked changes are reported ahead of untracked ones', () => {
+    finish(1);
+    const p = wt(root, 'AL-1-ui');
+    fs.appendFileSync(path.join(p, 'tracked.txt'), 'edit\n');
+    fs.writeFileSync(path.join(p, 'review.md'), 'x');
+    const report = go(mockRun());
+    expect(report.kept[0].why).toBe('1 tracked file(s) modified or staged');
   });
 
   test('a session that has ended (done, no pid) does not keep a worktree; interactive and blocked ones do', () => {
@@ -143,6 +189,18 @@ describe('conductor worktree reaper', () => {
     expect(report.results[0].detail).toMatch(/live session "late lane"/);
     expect(m.removals()).toEqual([]);
     expect(exists(p)).toBe(true);
+  });
+
+  test('a review.md written between the plan and the removal keeps the worktree', () => {
+    finish(1);
+    const p = wt(root, 'AL-1-ui');
+    // claude agents is read once per snapshot; write the file at the second read, before the re-check's git status
+    const m = mockRun({ agents: (reads) => { if (reads === 2) fs.writeFileSync(path.join(p, 'review.md'), 'x'); return []; } });
+    const report = go(m, { apply: true });
+    expect(report.candidates).toHaveLength(1);
+    expect(report.results[0]).toMatchObject({ outcome: 'skipped', detail: 'untracked: review.md' });
+    expect(m.removals()).toEqual([]);
+    expect(exists(path.join(p, 'review.md'))).toBe(true);
   });
 
   test('the folder this command runs from is never removed', () => {
@@ -247,7 +305,7 @@ describe('conductor worktree reaper', () => {
   test('--sizes measures the candidates with du and caches them; without it no du runs', () => {
     finish(1);
     const p = wt(root, 'AL-1-ui');
-    fs.writeFileSync(path.join(p, 'big.bin'), Buffer.alloc(2 * 1024 * 1024));
+    fs.writeFileSync(path.join(p, 'big.log'), Buffer.alloc(2 * 1024 * 1024));
     const plain = mockRun();
     expect(go(plain).sizes).toBeNull();
     expect(plain.calls.filter(c => c[0] === 'du')).toEqual([]);
