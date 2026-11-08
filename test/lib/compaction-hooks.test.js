@@ -149,12 +149,39 @@ describe('session hooks are scaffolded and registered', () => {
     expect(s.hooks.UserPromptSubmit[0].hooks[0].command).toBe('"$CLAUDE_PROJECT_DIR"/hooks/context-cap.sh');
   });
 
+  test('conductor-inbox ships executable and is registered next to context-cap', () => {
+    scaffoldProject(tmp, base);
+    expect(fs.statSync(path.join(tmp, 'hooks', 'conductor-inbox.sh')).mode & 0o111).toBeTruthy();
+    const s = JSON.parse(fs.readFileSync(path.join(tmp, '.claude', 'settings.json'), 'utf8'));
+    expect(s.hooks.UserPromptSubmit.flatMap(g => g.hooks.map(h => h.command))).toEqual([
+      '"$CLAUDE_PROJECT_DIR"/hooks/context-cap.sh',
+      '"$CLAUDE_PROJECT_DIR"/hooks/conductor-inbox.sh',
+    ]);
+  });
+
+  test('upgrade adds conductor-inbox to a settings file that only has the context cap, keeping the rest', () => {
+    const p = path.join(tmp, 'settings.json');
+    const own = { matcher: 'Bash', hooks: [{ type: 'command', command: 'echo mine' }] };
+    fs.writeFileSync(p, JSON.stringify({ permissions: { allow: ['Bash(ls)'] }, hooks: { PreToolUse: [own], UserPromptSubmit: [
+      { matcher: '', hooks: [{ type: 'command', command: '"$CLAUDE_PROJECT_DIR"/hooks/context-cap.sh' }] },
+    ] } }));
+    expect(migrateHookSettings(p)).toBe(true);
+    const s = JSON.parse(fs.readFileSync(p, 'utf8'));
+    expect(s.permissions).toEqual({ allow: ['Bash(ls)'] });
+    expect(s.hooks.PreToolUse).toEqual([own]);
+    expect(s.hooks.UserPromptSubmit.map(g => g.hooks[0].command)).toEqual([
+      '"$CLAUDE_PROJECT_DIR"/hooks/context-cap.sh',
+      '"$CLAUDE_PROJECT_DIR"/hooks/conductor-inbox.sh',
+    ]);
+    expect(migrateHookSettings(p)).toBe(false);
+  });
+
   test('migrate adds the context cap to an old settings file once', () => {
     const p = path.join(tmp, 'settings.json');
     fs.writeFileSync(p, JSON.stringify({ hooks: {} }));
     migrateHookSettings(p);
     const s = JSON.parse(fs.readFileSync(p, 'utf8'));
-    expect(s.hooks.UserPromptSubmit).toHaveLength(1);
+    expect(s.hooks.UserPromptSubmit).toHaveLength(2);
     expect(migrateHookSettings(p)).toBe(false);
   });
 
