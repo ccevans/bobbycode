@@ -123,3 +123,11 @@ Planned against origin/main `8cc1ddb`. Size: **m**.
 - Making studio boards resolve to the main worktree's board (see step 3).
 - Editing the studio's user-owned skills that still say `bobby project use`.
 - `--project=<name>` (equals form) parsing.
+
+## Decision (CC, 2026-11-07): unowned prefixes
+
+CC picked option 1. When the ID's prefix matches no project's config prefix (legacy `TKT-` IDs, ~183 open across studio boards), look the exact ID up on every project's board:
+- exactly one board has it → use that project
+- none or several → explicit error naming the boards searched / matched, telling the user to pass `--project`
+
+No fallthrough to cwd/active-project for an unowned prefix (that would be a fallback; not approved).
