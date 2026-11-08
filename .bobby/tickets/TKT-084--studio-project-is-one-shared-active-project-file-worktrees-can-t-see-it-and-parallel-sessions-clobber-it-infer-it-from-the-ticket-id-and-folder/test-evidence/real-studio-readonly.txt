@@ -1,0 +1,118 @@
+=== cwd=/Users/ccevans/Repos/bobby-code-studio  env=[X=1]  $ bobby ticket view RF-1200
+
+  Stage: done
+  Path:  .bobby/robinflow/tickets/RF-1200--rf-1123-ui-the-buy-box-questions-with-the-box-building-at-the-top-and-the-your-buy-box-portal-with-change-on-each-answer/
+  Parent: RF-1123
+
+
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio  env=[X=1]  $ bobby ticket view LR-114
+
+  Stage: done
+  Path:  .bobby/listrobin/tickets/LR-114--blog-index-store-reading-time-minutes-instead-of-regex-scrubbing-every-post-s-html-in-sql-73-of-db-time/
+
+
+## Description
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio/repos/listrobin_api  env=[X=1]  $ bobby ticket view LR-114
+
+  Stage: done
+  Path:  .bobby/listrobin/tickets/LR-114--blog-index-store-reading-time-minutes-instead-of-regex-scrubbing-every-post-s-html-in-sql-73-of-db-time/
+
+
+## Description
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio/worktrees/robinflow/RF-1285-ui  env=[X=1]  $ bobby ticket view LR-114
+
+  Stage: done
+  Path:  .bobby/listrobin/tickets/LR-114--blog-index-store-reading-time-minutes-instead-of-regex-scrubbing-every-post-s-html-in-sql-73-of-db-time/
+
+
+## Description
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio/worktrees/robinflow/RF-1285-ui  env=[X=1]  $ bobby ticket list
+
+  TICKET BOARD
+  ═══════════════════════════════════════════════════
+
+  ▎ BACKLOG (292)
+    RF-1003  JS2-9 Combined release candidate e2e on throwaway data, then prod verify of every just-sold surface after ship  [high]  → — [RF-993]
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio/repos/sam  env=[X=1]  $ bobby ticket view RF-1200
+Error: Ticket RF-1200 not found
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio  env=[X=1]  $ bobby ticket view TKT-491
+
+  Stage: done
+  Path:  .bobby/robinflow/tickets/TKT-491--only-the-guide-layout-has-a-highlights-slot-the-other-8-layouts-silently-discard-bullets-the-report-and-onboarding-send-them/
+
+
+## Description
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio  env=[X=1]  $ bobby ticket view TKT-010
+Error: TKT-010: found on more than one project board (bobbycode-site, listrobin, robinoffer, sam) — pass --project <name>
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio  env=[X=1]  $ bobby ticket view TKT-010 --project sam
+
+  Stage: building
+  Path:  .bobby/sam/tickets/TKT-010--injection-hardening-pass-on-skill-prompts-minimum-permission-spec-for-scheduled-runs/
+  Parent: TKT-001
+
+
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio  env=[X=1]  $ bobby --project sam ticket view TKT-010
+
+  Stage: building
+  Path:  .bobby/sam/tickets/TKT-010--injection-hardening-pass-on-skill-prompts-minimum-permission-spec-for-scheduled-runs/
+  Parent: TKT-001
+
+
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio  env=[X=1]  $ bobby ticket view XX-9999
+Error: XX-9999: not found on any project board (searched: bobby, bobbycode-site, chuvaldevans, grove, listrobin, robin-ops, robincowork, robinflow, robinoffer, sam) — pass --project <name>
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio  env=[X=1]  $ bobby ticket view RF-999999
+Error: Ticket RF-999999 not found
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio  env=[X=1]  $ bobby ticket view LR-114 --project robinflow
+Error: Ticket LR-114 not found
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio  env=[BOBBY_PROJECT=sam]  $ bobby ticket view LR-114
+Error: Ticket LR-114 not found
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio  env=[BOBBY_PROJECT=sam]  $ bobby ticket view TKT-010
+
+  Stage: building
+  Path:  .bobby/sam/tickets/TKT-010--injection-hardening-pass-on-skill-prompts-minimum-permission-spec-for-scheduled-runs/
+  Parent: TKT-001
+
+
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio  env=[BOBBY_PROJECT=sam]  $ bobby ticket view TKT-491
+Error: Ticket TKT-491 not found
+exit=
+
+=== cwd=/Users/ccevans/Repos/bobby-code-studio  env=[X=1]  $ bobby go fix utf-8 parsing
+✓ Created RF-1365 — fix utf-8 parsing
+  Now running it…
+
+  Bobby Workflow — 1 ticket(s)  Session: ses-20261107-220524
+  Copy this prompt into Claude Code or run with a subagent:
+  Model: opus · Effort: high
+exit=
+

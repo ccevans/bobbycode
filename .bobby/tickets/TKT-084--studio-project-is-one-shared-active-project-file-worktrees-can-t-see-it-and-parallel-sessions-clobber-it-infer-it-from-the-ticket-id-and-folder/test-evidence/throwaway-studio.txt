@@ -1,0 +1,131 @@
+--- TC1
+$ (cwd=) bobby ticket view RF-001
+
+  Stage: backlog
+  Path:  .bobby/robinflow/tickets/RF-001--rf-one/
+
+
+## Description
+
+[What is this ticket about? Provide enough context for an engineer to understand the problem or feature.]
+exit=0
+
+--- TC2
+$ (cwd=/repos/app) bobby ticket view BOB-001
+
+  Stage: backlog
+  Path:  .bobby/bobby/tickets/BOB-001--bob-one/
+
+
+## Description
+
+[What is this ticket about? Provide enough context for an engineer to understand the problem or feature.]
+exit=0
+
+--- TC3 move
+$ (cwd=) bobby ticket move RF-001 plan
+✓ RF-001 → planning
+exit=0
+
+stage: backlog
+stage: planning
+--- TC4 found-in
+$ (cwd=) bobby ticket create -t finding --found-in RF-001
+✓ Created RF-002 — finding
+  → .bobby/robinflow/tickets/RF-002--finding/
+  → Found in RF-001 — awaiting product review
+exit=0
+
+.bobby/bobby/tickets:
+BOB-001--bob-one
+
+.bobby/robinflow/tickets:
+RF-001--rf-one
+RF-002--finding
+--- block/unblock inferred
+$ (cwd=) bobby ticket move BOB-001 block why
+✓ BOB-001 → blocked: why
+exit=0
+
+stage: blocked
+blocked: true
+blocked_reason: why
+$ (cwd=) bobby ticket move BOB-001 unblock
+✓ BOB-001 → backlog (unblocked)
+exit=0
+
+--- unknown
+$ (cwd=) bobby ticket view XX-9
+Error: XX-9: not found on any project board (searched: bobby, robinflow) — pass --project <name>
+exit=1
+
+$ (cwd=) bobby ticket view TKT-5
+Error: TKT-5: not found on any project board (searched: bobby, robinflow) — pass --project <name>
+exit=1
+
+$ (cwd=) bobby ticket move XX-9 plan
+Error: XX-9: not found on any project board (searched: bobby, robinflow) — pass --project <name>
+exit=1
+
+--- TC5 worktree
+ls: .bobby/active-project: No such file or directory
+$ (cwd=/wt-x) bobby ticket list
+
+  TICKET BOARD
+  ═══════════════════════════════════════════════════
+
+  ▎ BACKLOG (1)
+    BOB-001  bob one  [medium]  → —
+
+  ▎ DEFINE-BRIEF (0)
+exit=0
+
+--- TC6
+$ (cwd=/wt-x) bobby project use robinflow
+✓ Active project → robinflow
+exit=0
+
+robinflow
+ls: .bobby/active-project: No such file or directory
+--- TC7
+$ (cwd=/worktrees/robinflow/RF-1-ui) bobby ticket list
+
+  TICKET BOARD
+  ═══════════════════════════════════════════════════
+
+  ▎ BACKLOG (1)
+    RF-002  finding  [medium]  → —
+
+  ▎ DEFINE-BRIEF (0)
+exit=0
+
+--- TC8
+$ (cwd=) bobby ticket view RF-001
+Error: Ticket RF-001 not found
+exit=1
+
+$ (cwd=) bobby --project robinflow ticket view RF-001
+
+  Stage: planning
+  Path:  .bobby/robinflow/tickets/RF-001--rf-one/
+
+
+## Description
+
+[What is this ticket about? Provide enough context for an engineer to understand the problem or feature.]
+exit=0
+
+$ (cwd=) bobby --project bobby ticket view RF-001
+Error: Ticket RF-001 not found
+exit=1
+
+--- TC9
+$ (cwd=) bobby ticket view XX-9
+Error: XX-9: not found on any project board (searched: bobby, robinflow) — pass --project <name>
+exit=1
+
+--- mixed IDs
+$ (cwd=) bobby ticket move RF-001 BOB-001 plan
+Error: Unknown alias 'BOB-001'. Use: plan, build, review, test, ship, done, reject, block, unblock
+exit=1
+

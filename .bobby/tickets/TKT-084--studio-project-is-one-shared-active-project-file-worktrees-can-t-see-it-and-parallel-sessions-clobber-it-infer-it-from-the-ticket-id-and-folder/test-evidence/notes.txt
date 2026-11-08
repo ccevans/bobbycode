@@ -1,0 +1,6 @@
+NOTES
+- repos/sam has its own .bobbyrc.yml (standalone project, not the studio), so 'RF-1200' not found there is expected, and identical with the global bobby.
+- real-studio 'exit=' lines are blank (zsh PIPESTATUS in my harness); outputs show success/Error.
+- MISTAKE: 'bobby go fix utf-8 parsing' (TC11 CLI) creates a ticket; it created RF-1365 + a session file in the REAL studio. I removed both and reset .counter to 1364. active-project sha unchanged (before/after files). go has no prefix error: PASS for the false-positive guard.
+- TC9 test-cases.md text (no project uses prefix XX) is superseded by CC decision 2026-11-07: unowned prefix searches all boards; actual error names boards searched and says pass --project. Matches the decision.
+- TC10 (lib unit), TC12, TC13 not exercised live (unit/render only; review ran specs).
