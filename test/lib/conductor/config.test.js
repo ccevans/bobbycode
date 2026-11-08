@@ -23,6 +23,7 @@ describe('conductor config', () => {
       reaper: { stack_idle_hours: 2 },
       wip: { max_lanes: 6 },
       claims: { ttl_minutes: 30 },
+      inbox: { stale_minutes: 30 },
     });
   });
 
@@ -51,6 +52,19 @@ describe('conductor config', () => {
     ['claims.ttl_minutes', `${reaperYml}wip:\n  max_lanes: 6\nclaims:\n  ttl_minutes: soon\n`],
     ['claims', `${reaperYml}wip:\n  max_lanes: 6\nclaims: 30\n`],
   ])('a missing or invalid %s names the key (wip and claims)', (key, yml) => {
+    writeConductorYml(root, yml);
+    expect(() => loadConductorConfig(root)).toThrow(new RegExp(`key "${key.replace('.', '\\.')}"`));
+  });
+
+  const wipYml = `${reaperYml}wip:\n  max_lanes: 6\nclaims:\n  ttl_minutes: 30\n`;
+  test.each([
+    ['inbox.stale_minutes', wipYml],
+    ['inbox.stale_minutes', `${wipYml}inbox:\n  other: 1\n`],
+    ['inbox.stale_minutes', `${wipYml}inbox:\n  stale_minutes:\n`],
+    ['inbox.stale_minutes', `${wipYml}inbox:\n  stale_minutes: 0\n`],
+    ['inbox.stale_minutes', `${wipYml}inbox:\n  stale_minutes: soon\n`],
+    ['inbox', `${wipYml}inbox: 30\n`],
+  ])('a missing or invalid %s names the key', (key, yml) => {
     writeConductorYml(root, yml);
     expect(() => loadConductorConfig(root)).toThrow(new RegExp(`key "${key.replace('.', '\\.')}"`));
   });
@@ -95,12 +109,14 @@ describe('conductor config', () => {
       reaper: { stack_idle_hours: 2 },
       wip: { max_lanes: 6 },
       claims: { ttl_minutes: 30 },
+      inbox: { stale_minutes: 30 },
     });
     expect(loadConductorConfig(root)).toEqual(values);
     expect(fs.readFileSync(file, 'utf8')).toMatch(/wip:\n {2}max_lanes: 6\n/);
     expect(fs.readFileSync(file, 'utf8')).toMatch(/claims:\n {2}ttl_minutes: 30\n/);
     expect(fs.readFileSync(file, 'utf8')).toMatch(/governor:\n {2}min_free_ram_mb: 4096\n {2}max_docker_stacks: 4\n/);
     expect(fs.readFileSync(file, 'utf8')).toMatch(/reaper:\n {2}stack_idle_hours: 2\n/);
+    expect(fs.readFileSync(file, 'utf8')).toMatch(/inbox:\n {2}stale_minutes: 30\n/);
   });
 
   test('init without --projects writes every studio project explicitly', () => {

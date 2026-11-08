@@ -47,6 +47,7 @@ export function registerConductor(program) {
         console.log(dim(`  governor: min_free_ram_mb ${values.governor.min_free_ram_mb}, max_docker_stacks ${values.governor.max_docker_stacks}`));
         console.log(dim(`  reaper: stack_idle_hours ${values.reaper.stack_idle_hours}`));
         console.log(dim(`  wip: max_lanes ${values.wip.max_lanes}; claims: ttl_minutes ${values.claims.ttl_minutes}`));
+        console.log(dim(`  inbox: stale_minutes ${values.inbox.stale_minutes}`));
       } catch (e) {
         fail(e);
       }

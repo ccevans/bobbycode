@@ -4,7 +4,7 @@ import os from 'os';
 import path from 'path';
 import {
   inboxDir, assertInboxDir, resolveRecipient, buildMessage, appendMessage, readMessages,
-  readCursor, writeCursor, unreadMessages, listInboxSessions,
+  readCursor, writeCursor, unreadMessages, listInboxSessions, inboxStatus,
 } from '../../../lib/conductor/inbox.js';
 
 const SID = 'aaaa1111-0000-4000-8000-000000000000';
@@ -155,5 +155,77 @@ describe('the store', () => {
     const messages = readMessages(dir, SID);
     expect(messages).toHaveLength(workers * 20);
     expect(new Set(messages.map(m => m.id)).size).toBe(workers * 20);
+  });
+});
+
+describe('inboxStatus', () => {
+  const NOW = Date.parse('2026-11-08T12:00:00.000Z');
+  const minutesAgo = (m) => NOW - m * 60000;
+  const SID2 = 'bbbb2222-0000-4000-8000-000000000000';
+  const SID3 = 'cccc3333-0000-4000-8000-000000000000';
+  const sessions = [
+    { session_id: SID, name: 'lane one', state: 'working' },
+    { session_id: SID2, name: 'lane two', state: 'blocked' },
+    { session_id: SID3, name: 'lane three', state: 'done' },
+  ];
+  let root;
+  let dir;
+  beforeEach(() => { ({ root, dir } = makeInbox()); });
+  afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); });
+  const put = (to, minutes, text = 'm') => appendMessage(dir, buildMessage({ from: 'o', to, text, now: minutesAgo(minutes) }));
+  const status = () => inboxStatus(dir, sessions, { now: NOW, staleMinutes: 30 });
+
+  test('counts undelivered messages and the age of the oldest, per session', () => {
+    put(SID, 5);
+    put(SID, 12);
+    put(SID2, 1);
+    const r = status();
+    expect(r.missing).toBe(false);
+    expect(r.sessions.map(e => [e.session_id, e.name, e.undelivered, e.oldest_age_ms])).toEqual([
+      [SID, 'lane one', 2, 12 * 60000],
+      [SID2, 'lane two', 1, 60000],
+    ]);
+    expect(r.sessions.every(e => !e.stale && e.flag === null)).toBe(true);
+  });
+
+  test('delivered messages are not counted; a fully delivered inbox is not listed', () => {
+    put(SID, 90);
+    put(SID, 10);
+    writeCursor(dir, SID, 1);
+    expect(status().sessions[0]).toMatchObject({ undelivered: 1, oldest_age_ms: 10 * 60000, stale: false });
+    writeCursor(dir, SID, 2);
+    expect(status().sessions).toEqual([]);
+  });
+
+  test('older than stale_minutes: blocked is "waiting for CC to reply", working is "not delivered"; exactly the limit is not stale', () => {
+    put(SID, 31);
+    put(SID2, 45);
+    put(SID3, 600);
+    const flags = Object.fromEntries(status().sessions.map(e => [e.name, e.flag]));
+    expect(flags).toEqual({ 'lane one': 'not delivered', 'lane two': 'waiting for CC to reply', 'lane three': 'not delivered' });
+    fs.rmSync(path.join(dir, `${SID}.jsonl`));
+    put(SID, 30);
+    expect(status().sessions.find(e => e.session_id === SID).stale).toBe(false);
+  });
+
+  test('a session that is no longer listed is still reported, without a name', () => {
+    put('gone-session', 3);
+    expect(status().sessions[0]).toMatchObject({ session_id: 'gone-session', name: null, state: null, undelivered: 1 });
+  });
+
+  test('an unreadable file is reported on its own entry and does not hide the others', () => {
+    put(SID, 5);
+    fs.writeFileSync(path.join(dir, `${SID2}.jsonl`), '{oops}\n');
+    const r = status();
+    expect(r.sessions.find(e => e.session_id === SID).undelivered).toBe(1);
+    expect(r.sessions.find(e => e.session_id === SID2)).toMatchObject({ undelivered: null, error: expect.stringMatching(/line 1 is not valid JSON/) });
+  });
+
+  test('a missing inbox directory is reported as missing, not as an empty board', () => {
+    expect(inboxStatus(path.join(root, 'nope'), sessions, { now: NOW, staleMinutes: 30 })).toMatchObject({ missing: true, sessions: [] });
+  });
+
+  test('stale_minutes is required', () => {
+    expect(() => inboxStatus(dir, sessions, { now: NOW })).toThrow(/stale_minutes/);
   });
 });

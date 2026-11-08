@@ -33,7 +33,7 @@ const COMMAND_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'commands'
  * project that lists no repos gets the whole group. A name the group does not
  * know is an error, not a blank line — a blank line is exactly what hid this.
  */
-const SHIPPED_HOOKS = new Set(['precompact.sh', 'postcompact-restore.sh', 'stop.sh', 'context-cap.sh', 'handoff-spawn.sh']);
+const SHIPPED_HOOKS = new Set(['precompact.sh', 'postcompact-restore.sh', 'stop.sh', 'context-cap.sh', 'handoff-spawn.sh', 'conductor-inbox.sh']);
 
 /**
  * Bring an existing .claude/settings.json's Bobby hooks up to date without
@@ -66,6 +66,7 @@ export function migrateHookSettings(settingsPath) {
   };
   ensure('SessionStart', 'compact', 'postcompact-restore.sh');
   ensure('UserPromptSubmit', '', 'context-cap.sh');
+  ensure('UserPromptSubmit', '', 'conductor-inbox.sh');
 
   if (changed) fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
   return changed;

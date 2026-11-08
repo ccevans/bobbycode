@@ -148,7 +148,7 @@ describe('bobby conductor', () => {
       const r = bobbyIn(['status', '--json']);
       expect(r.status).toBe(0);
       const data = JSON.parse(r.stdout);
-      expect(Object.keys(data)).toEqual(['generated_at', 'working', 'waiting_on_cc', 'done', 'stopped', 'unknown', 'handoffs', 'board', 'machine', 'stacks']);
+      expect(Object.keys(data)).toEqual(['generated_at', 'working', 'waiting_on_cc', 'done', 'stopped', 'unknown', 'handoffs', 'inbox', 'board', 'machine', 'stacks']);
       expect(data.working.map(s => s.name)).toEqual(['lane one']);
       expect(data.waiting_on_cc.map(s => s.name)).toEqual(['lane two']);
       expect(data.done.map(s => s.name)).toEqual(['lane three']);
@@ -156,6 +156,26 @@ describe('bobby conductor', () => {
       for (const group of ['working', 'waiting_on_cc', 'done', 'unknown']) {
         for (const s of data[group]) expect(text).toContain(s.name);
       }
+    });
+
+    test('INBOX lists undelivered messages per session and flags stale ones; status changes nothing', () => {
+      const inbox = path.join(root, '.bobby', 'conductor', 'inbox');
+      fs.mkdirSync(inbox, { recursive: true });
+      const msg = (to, text, minutesAgo) => JSON.stringify({ id: text, ts: new Date(Date.now() - minutesAgo * 60000).toISOString(), from: 'orchestrator', to, text });
+      fs.writeFileSync(path.join(inbox, 'aaaa1111-0000-4000-8000-000000000000.jsonl'), `${msg('aaaa1111-0000-4000-8000-000000000000', 'fresh', 2)}\n`);
+      fs.writeFileSync(path.join(inbox, 'bbbb2222-0000-4000-8000-000000000000.jsonl'), `${msg('bbbb2222-0000-4000-8000-000000000000', 'old', 120)}\n${msg('bbbb2222-0000-4000-8000-000000000000', 'older', 90)}\n`);
+      const before = fs.readdirSync(inbox).map(f => fs.readFileSync(path.join(inbox, f), 'utf8'));
+      const text = bobbyIn(['status']).stdout;
+      expect(text).toMatch(/INBOX.*2 sessions/);
+      expect(text).toMatch(/aaaa1111  lane one  1 undelivered  oldest 2m\n/);
+      expect(text).toMatch(/bbbb2222  lane two  2 undelivered  oldest 2h\s+waiting for CC to reply/);
+      const data = JSON.parse(bobbyIn(['status', '--json']).stdout);
+      expect(data.inbox.sessions.map(e => [e.name, e.undelivered, e.flag])).toEqual([['lane one', 1, null], ['lane two', 2, 'waiting for CC to reply']]);
+      expect(fs.readdirSync(inbox).map(f => fs.readFileSync(path.join(inbox, f), 'utf8'))).toEqual(before);
+    });
+
+    test('INBOX says so when the inbox directory does not exist', () => {
+      expect(bobbyIn(['status']).stdout).toMatch(/INBOX[\s\S]*no inbox directory at/);
     });
 
     test('board counts per stage match `bobby ticket list` for the same project', () => {
