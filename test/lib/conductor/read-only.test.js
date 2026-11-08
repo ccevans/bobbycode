@@ -21,6 +21,7 @@ function sourceFiles() {
   return [
     ...fs.readdirSync(libDir).map(f => path.join(libDir, f)),
     path.resolve('commands/conductor.js'),
+    path.resolve('commands/conductor-queue.js'),
   ].filter(f => f.endsWith('.js'));
 }
 

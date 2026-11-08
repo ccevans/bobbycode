@@ -229,5 +229,6 @@ describe('conductor queue and next', () => {
   test('stages without an agent of their own are run by `bobby run next`', () => {
     expect(runHint('alpha', 'AL-1', 'design-research')).toBe('BOBBY_PROJECT=alpha bobby run next AL-1');
     expect(runHint('alpha', 'AL-1', 'backlog')).toBe('BOBBY_PROJECT=alpha bobby run plan AL-1');
+    expect(() => runHint('alpha', 'AL-1', 'mystery')).toThrow(/no `bobby run` agent is known for stage "mystery"/);
   });
 });
