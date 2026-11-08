@@ -84,7 +84,7 @@ describe('the worktree reaper does exactly one removal', () => {
   test('`git -C <repo> worktree remove --force <path>` is the only exec that changes anything', () => {
     const runs = [...code.matchAll(/\brun\(([^)]*)\)/g)].map(m => m[1].replace(/\s+/g, ' '));
     expect(runs).toEqual([
-      "'git', ['-C', p, 'status', '--porcelain', '-uno']",
+      "'git', ['-C', p, 'status', '--porcelain', '--untracked-files=normal']",
       "'git', ['-C', p, 'for-each-ref', '--contains', 'HEAD', 'refs/heads', 'refs/remotes']",
       "'git', ['-C', still.repo_path, 'worktree', 'remove', '--force', still.path]",
     ]);
