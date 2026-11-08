@@ -68,13 +68,15 @@ describe('conductor sessions', () => {
       { id: 'aaaa0006', sessionId: 'aaaa0006-x', kind: 'background' },
       { sessionId: 'bbbb0001-x', kind: 'interactive', status: 'idle', pid: 20 },
       { sessionId: 'bbbb0002-x', kind: 'interactive', status: 'busy', pid: 21 },
+      { sessionId: 'bbbb0003-x', kind: 'interactive', status: 'idle', state: 'odd', pid: 22 },
     ];
     const sessions = classifySessions(raw, { hookStateDir: hookDir, now: NOW });
     const g = groupSessions(sessions);
     expect(g.stopped.map(s => [s.id, s.raw_state])).toEqual([['aaaa0001', 'stopped'], ['aaaa0002', 'failed'], ['aaaa0003', 'done']]);
     expect(g.interactive.map(s => [s.session_id, s.status])).toEqual([['bbbb0001-x', 'idle'], ['bbbb0002-x', 'busy']]);
     // a stopped state that still has a live pid is odd: it stays visible as unknown, not hidden as stopped
-    expect(g.unknown.map(s => s.id)).toEqual(['aaaa0004', 'aaaa0005', 'aaaa0006']);
+    expect(g.unknown.map(s => s.id)).toEqual(['aaaa0004', 'aaaa0005', 'aaaa0006', null]);
+    expect(g.unknown.at(-1).session_id).toBe('bbbb0003-x');
     // the classification the reapers read is unchanged: every one of these is still state "unknown"
     expect(sessions.filter(s => s.raw_state !== 'done').every(s => s.state === 'unknown')).toBe(true);
   });
