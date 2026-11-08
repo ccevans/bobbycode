@@ -14,6 +14,7 @@ import { runLocalProfileWizard, saveLocalProfile } from './local-init.js';
 import { detectProjectContext, detectGitIdentity } from '../lib/detect.js';
 import { mergeRulesContent, isBobbyGenerated } from '../lib/rules-merge.js';
 import { seedDecisionsFile } from '../lib/decisions.js';
+import { ensureGitignoreLines, ticketLogPattern } from '../lib/ticket-logs.js';
 import { execSync } from 'child_process';
 
 // Load stack configs
@@ -392,6 +393,11 @@ export function registerInit(program) {
             }
 
             scaffoldProject(rootDir, existingConfig, { writeConfig: false });
+
+            // Raw ticket logs stay local; older installs gain the ignore line (TKT-086).
+            if (ensureGitignoreLines(rootDir, [ticketLogPattern(existingConfig)]).length) {
+              console.log(`  ${dim('Added ticket-log ignore pattern to .gitignore')}`);
+            }
 
             // Prune bobby-* files that no longer ship, so upgrades can remove
             // and rename — not only add. Custom (non bobby-prefixed) files and
