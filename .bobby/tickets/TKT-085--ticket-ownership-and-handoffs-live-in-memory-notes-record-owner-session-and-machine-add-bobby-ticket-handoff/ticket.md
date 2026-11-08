@@ -3,7 +3,7 @@ id: TKT-085
 title: >-
   Ticket ownership and handoffs live in memory notes: record owner session and
   machine, add bobby ticket handoff
-stage: building
+stage: testing
 type: feature
 priority: medium
 area: null
@@ -21,7 +21,7 @@ feature: null
 persona: null
 size: m
 created: '2026-11-07'
-updated: '2026-11-07'
+updated: '2026-11-08'
 ---
 
 ## Description
@@ -43,3 +43,6 @@ Plan direction (approved):
 - [ ] Tests cover assign --session, handoff happy path and placeholder refusal, and brief grouping
 
 ## Comments
+- [2026-11-08] bobby-review: Approved with notes (round 2): all three round-1 blockers closed by d945e35, each with a test that fails against the pre-fix assign.js. Notes: rerun after a failed commit records 'from <to> to <to>'; gitignored-dir hint wording; handoff commits the whole ticket folder.
+- [2026-11-07] system: REJECTED: 1) Handoff commit sweeps in unrelated STAGED files: commands/assign.js:104 uses autoSync, and lib/auto-sync.js:46 runs 'git commit' with no pathspec, so the whole index is committed (repro: git add src.js, then a filled handoff commits src.js under bobby: auto-sync). test/commands/assign.test.js:99 uses an UNTRACKED file, so it passes without scoping. Fix: 'git commit --only -m ... -- <paths>' in auto-sync.js:46, plus a pre-staged test in test/lib/auto-sync.test.js and in TC6 (also assert the file is still staged). 2) A failed commit is swallowed: autoSync catches everything (auto-sync.js:48), and handoff prints success with exit 0 and nothing committed (repro: .git/index.lock present). Have autoSync return whether it committed and make handoff exit 1 with an explicit 'owner updated but not committed: <git error>' message, with a test. 3) commands/assign.js:92: --machine '' is silently stored as null. Error like --session/--to do, with a test. Full detail in review.md.
+- [2026-11-07] bobby-build: Built: owner on assign --session, bobby ticket handoff, brief grouping, shared skill text. Specs: test/lib/owner.test.js, test/commands/assign.test.js, test/commands/brief-owners.test.js, test/lib/brief.test.js (44 pass). Full suite 1928 pass, 51 skipped. Branch tkt-085-ownership-handoff pushed.
