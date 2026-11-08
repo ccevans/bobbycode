@@ -49,6 +49,7 @@ import { registerRemote } from '../commands/remote.js';
 import { registerStudio } from '../commands/studio.js';
 import { registerDecision } from '../commands/decision.js';
 import { registerWorktree } from '../commands/worktree.js';
+import { registerConductor } from '../commands/conductor.js';
 import { touchProject } from '../lib/registry.js';
 import { ticketIdsFromCommand, inferProjectFromIds } from '../lib/project-infer.js';
 import { findProjectRoot } from '../lib/config.js';
@@ -85,6 +86,7 @@ registerRemote(program);
 registerExport(program);
 registerUpgrade(program);
 registerWorktree(program);
+registerConductor(program);
 
 // Progressive help: the default help shows the founder-facing core; power/agent
 // plumbing stays fully functional but appears via `bobby help <cmd>` or the
@@ -93,7 +95,7 @@ registerWorktree(program);
 // else is listed compactly below and still works + has its own --help.
 const ESSENTIAL = ['do', 'new', 'go', 'init'];
 const EVERYDAY = ['vet', 'audit', 'blueprint', 'brief', 'idea', 'ticket', 'sprint', 'run', 'app', 'remote'];
-const POWER = ['pack', 'pro', 'workflow', 'retro', 'learn', 'skill', 'projects', 'session', 'sync', 'export', 'upgrade'];
+const POWER = ['pack', 'pro', 'workflow', 'retro', 'learn', 'skill', 'projects', 'session', 'sync', 'export', 'upgrade', 'conductor'];
 program.configureHelp({
   visibleCommands: (cmd) =>
     cmd.parent === null // only filter the ROOT help; subcommand help lists everything

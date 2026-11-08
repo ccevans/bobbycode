@@ -47,6 +47,13 @@ All notable changes to Bobby are documented here. The format is based on
   `dashboard.executor` and sending you to an absolute path that key never takes.
 
 ### Added
+- **`bobby conductor` (BOB-174): read-only studio status board.** `bobby conductor init`
+  writes `.bobby/conductor.yml` with every key explicit and refuses to overwrite it;
+  `bobby conductor status [--json]` lists background and interactive sessions from
+  `claude agents --json --all` grouped as working / WAITING ON CC / done / unknown,
+  handoff markers with whether the successor is live, and ticket counts per stage for
+  the projects named in the config. A missing config file or key is an error that names
+  it; there are no code defaults. Nothing is stopped, started or deleted.
 - **`library` and `library-secure` built-in workflows, and a `default_workflow`
   config key (BOB-090, also TKT-013).** CLI tools, libraries and npm packages have
   no live app, so the test stage stranded every ticket (bobby-test never runs specs).
