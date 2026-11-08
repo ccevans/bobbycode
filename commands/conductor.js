@@ -12,6 +12,7 @@ import { readMemory } from '../lib/conductor/resources.js';
 import { readStacks } from '../lib/conductor/stacks.js';
 import { checkLane, checkStack } from '../lib/conductor/governor.js';
 import { reap, renderReap } from '../lib/conductor/reaper.js';
+import { reapStacks, renderStackReap } from '../lib/conductor/stack-reaper.js';
 import { assertM4Host } from '../lib/conductor/host.js';
 import { success, error, dim } from '../lib/colors.js';
 
@@ -38,6 +39,7 @@ export function registerConductor(program) {
         console.log(dim(`  projects: ${values.projects.join(', ')}`));
         console.log(dim(`  hook_state_dir: ${values.hook_state_dir}`));
         console.log(dim(`  governor: min_free_ram_mb ${values.governor.min_free_ram_mb}, max_docker_stacks ${values.governor.max_docker_stacks}`));
+        console.log(dim(`  reaper: stack_idle_hours ${values.reaper.stack_idle_hours}`));
       } catch (e) {
         fail(e);
       }
@@ -81,13 +83,24 @@ export function registerConductor(program) {
 
   conductor
     .command('reap')
-    .description('List finished background sessions to end, keeping their transcripts. Dry run unless --apply. M4 only')
-    .option('--apply', 'End the listed sessions (default: print the list and change nothing)')
+    .description('List finished background sessions to end, keeping their transcripts (--stacks: idle per-ticket docker stacks instead). Dry run unless --apply. M4 only')
+    .option('--apply', 'Do it (default: print the list and change nothing)')
+    .option('--stacks', 'Reap idle per-ticket docker stacks (compose project, containers kept) instead of sessions')
     .action((opts) => {
       try {
         assertM4Host();
-        const config = loadConductorConfig(findStudioRoot());
+        const studioRoot = findStudioRoot();
+        const config = loadConductorConfig(studioRoot);
         const apply = Boolean(opts.apply);
+        if (opts.stacks) {
+          const report = reapStacks({ studioRoot, config, apply });
+          console.log(renderStackReap(report, { apply, idleHours: config.reaper.stack_idle_hours }));
+          if (report.failed > 0) {
+            error(`${report.failed} stack(s) could not be stopped`);
+            process.exit(1);
+          }
+          return;
+        }
         const report = reap({
           hookStateDir: config.hook_state_dir,
           apply,

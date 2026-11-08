@@ -1,6 +1,7 @@
 // BOB-174: the conductor never stops, starts or deletes anything. Each mutating
 // ticket allow-lists exactly its one command here. BOB-176: lib/conductor/reaper.js
-// may name `claude stop` (and only that); see the reaper block below.
+// may name `claude stop` (and only that); see the reaper block below. BOB-177:
+// lib/conductor/stack-reaper.js may name `docker compose -p <project> stop` (and only that).
 import fs from 'fs';
 import path from 'path';
 
@@ -13,7 +14,7 @@ const FORBIDDEN = [
 ];
 
 // File -> forbidden tokens it is exempt from. Everything else is still checked.
-const ALLOWED = { 'reaper.js': ['stop'] };
+const ALLOWED = { 'reaper.js': ['stop'], 'stack-reaper.js': ['stop'] };
 
 function sourceFiles() {
   const libDir = path.resolve('lib/conductor');
@@ -53,7 +54,23 @@ describe('the reaper is the only mutator and does exactly one thing', () => {
   });
 
   test('no other conductor module passes a stop argument to exec', () => {
-    const others = sourceFiles().filter(f => path.basename(f) !== 'reaper.js');
+    const others = sourceFiles().filter(f => !['reaper.js', 'stack-reaper.js'].includes(path.basename(f)));
     for (const f of others) expect(fs.readFileSync(f, 'utf8')).not.toMatch(/['"]stop['"]/);
+  });
+});
+
+describe('the stack reaper does exactly one docker thing', () => {
+  const src = fs.readFileSync(path.resolve('lib/conductor/stack-reaper.js'), 'utf8');
+  const code = src.split('\n').filter(l => !l.trim().startsWith('//')).join('\n');
+
+  test('`docker compose -p <project> stop` is the only exec of a mutating command', () => {
+    const runs = [...code.matchAll(/\brun\(([^)]*)\)/g)].map(m => m[1].replace(/\s+/g, ' '));
+    expect(runs).toEqual(["'docker', ['compose', '-p', still.project, 'stop']"]);
+  });
+
+  test('no rm, down, volume, prune, kill or file write anywhere in it', () => {
+    for (const re of [/\brm\b/, /\bdown\b/, /volume/i, /prune/i, /--volumes/, /['"]-v['"]/, /\bkill\b/, /unlink/, /rmSync/, /writeFile/, /appendFile/, /rename/, /['"]rm['"]/, /['"]down['"]/]) {
+      expect(code).not.toMatch(re);
+    }
   });
 });
