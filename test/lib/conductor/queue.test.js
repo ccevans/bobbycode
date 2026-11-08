@@ -126,6 +126,13 @@ describe('conductor queue and next', () => {
       expect(r.reason).toMatch(/free RAM 100 MB < min 4096 MB/);
     });
 
+    test('refuses with the disk reason when free disk is under governor.min_free_disk_gb', () => {
+      writeQueue([idOf('shipping one')]);
+      const r = next({ disk: { free_gb: 0.5 } }).result();
+      expect(r.kind).toBe('refused');
+      expect(r.reason).toMatch(/free disk 0\.5 GB < min 1 GB/);
+    });
+
     test('a failing session read is an error, not an empty answer', () => {
       writeQueue([idOf('shipping one')]);
       expect(() => next({ agentsFail: true }).result()).toThrow(/claude agents --json --all/);

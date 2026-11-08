@@ -47,6 +47,16 @@ All notable changes to Bobby are documented here. The format is based on
   `dashboard.executor` and sending you to an absolute path that key never takes.
 
 ### Added
+- **Disk floor and worktree reaper in `bobby conductor` (BOB-189).** New required key
+  `governor.min_free_disk_gb`: `check lane|stack` and `conductor next` refuse below it
+  (free space of the volume holding the studio, one `statfs` call), and `status` MACHINE shows
+  `DISK`. `status` also lists WORKTREES by ticket stage (every repo in `.bobbyrc.yml` plus the
+  studio repo, from `git worktree list --porcelain`); sizes (`du`, slow) show only from the cache
+  or after `status --sizes`. `conductor reap --worktrees` (dry run unless `--apply`, M4 only)
+  removes a worktree with `git worktree remove --force` (branch kept) only when every ticket named
+  in its folder name is done, `git status --porcelain -uno` is empty and no live session's cwd is
+  inside it; folders that are not git worktrees are listed, never touched. `--sizes` measures the
+  candidates. A failing git or claude is an error.
 - **`bobby conductor` (BOB-174): read-only studio status board.** `bobby conductor init`
   writes `.bobby/conductor.yml` with every key explicit and refuses to overwrite it;
   `bobby conductor status [--json]` lists background and interactive sessions from

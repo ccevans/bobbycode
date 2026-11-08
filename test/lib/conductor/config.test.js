@@ -19,7 +19,7 @@ describe('conductor config', () => {
     expect(loadConductorConfig(root)).toEqual({
       projects: ['alpha'],
       hook_state_dir: hookDir,
-      governor: { min_free_ram_mb: 4096, max_docker_stacks: 4 },
+      governor: { min_free_ram_mb: 4096, max_docker_stacks: 4, min_free_disk_gb: 1 },
       reaper: { stack_idle_hours: 2 },
       wip: { max_lanes: 6 },
       claims: { ttl_minutes: 30 },
@@ -27,7 +27,7 @@ describe('conductor config', () => {
     });
   });
 
-  const govYml = 'projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  min_free_ram_mb: 4096\n  max_docker_stacks: 4\n';
+  const govYml = 'projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  min_free_ram_mb: 4096\n  max_docker_stacks: 4\n  min_free_disk_gb: 50\n';
   test.each([
     ['reaper.stack_idle_hours', govYml],
     ['reaper.stack_idle_hours', `${govYml}reaper:\n  other: 1\n`],
@@ -75,6 +75,8 @@ describe('conductor config', () => {
     ['governor.min_free_ram_mb', `projects:\n  - alpha\nhook_state_dir: /x\n`],
     ['governor.min_free_ram_mb', `projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  max_docker_stacks: 4\n`],
     ['governor.max_docker_stacks', `projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  min_free_ram_mb: 4096\n`],
+    ['governor.min_free_disk_gb', `projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  min_free_ram_mb: 4096\n  max_docker_stacks: 4\n`],
+    ['governor.min_free_disk_gb', `projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  min_free_ram_mb: 4096\n  max_docker_stacks: 4\n  min_free_disk_gb:\n`],
   ])('missing key "%s" throws naming the key and the file; no default applied', (key, yml) => {
     writeConductorYml(root, yml);
     expect(() => loadConductorConfig(root)).toThrow(new RegExp(`conductor\\.yml: key "${key}" is missing`));
@@ -89,6 +91,8 @@ describe('conductor config', () => {
     ['governor.min_free_ram_mb', `projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  min_free_ram_mb: 0\n  max_docker_stacks: 4\n`],
     ['governor.min_free_ram_mb', `projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  min_free_ram_mb: lots\n  max_docker_stacks: 4\n`],
     ['governor.max_docker_stacks', `projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  min_free_ram_mb: 4096\n  max_docker_stacks: 2.5\n`],
+    ['governor.min_free_disk_gb', `projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  min_free_ram_mb: 4096\n  max_docker_stacks: 4\n  min_free_disk_gb: 0\n`],
+    ['governor.min_free_disk_gb', `projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  min_free_ram_mb: 4096\n  max_docker_stacks: 4\n  min_free_disk_gb: lots\n`],
   ])('invalid "%s" throws naming the key', (key, yml) => {
     writeConductorYml(root, yml);
     expect(() => loadConductorConfig(root)).toThrow(new RegExp(`key "${key}" must be`));
@@ -105,7 +109,7 @@ describe('conductor config', () => {
     expect(values).toEqual({
       projects: ['alpha'],
       hook_state_dir: path.join(os.homedir(), '.bobby', 'hook-state'),
-      governor: { min_free_ram_mb: 4096, max_docker_stacks: 4 },
+      governor: { min_free_ram_mb: 4096, max_docker_stacks: 4, min_free_disk_gb: 50 },
       reaper: { stack_idle_hours: 2 },
       wip: { max_lanes: 6 },
       claims: { ttl_minutes: 30 },
@@ -114,7 +118,7 @@ describe('conductor config', () => {
     expect(loadConductorConfig(root)).toEqual(values);
     expect(fs.readFileSync(file, 'utf8')).toMatch(/wip:\n {2}max_lanes: 6\n/);
     expect(fs.readFileSync(file, 'utf8')).toMatch(/claims:\n {2}ttl_minutes: 30\n/);
-    expect(fs.readFileSync(file, 'utf8')).toMatch(/governor:\n {2}min_free_ram_mb: 4096\n {2}max_docker_stacks: 4\n/);
+    expect(fs.readFileSync(file, 'utf8')).toMatch(/governor:\n {2}min_free_ram_mb: 4096\n {2}max_docker_stacks: 4\n {2}min_free_disk_gb: 50\n/);
     expect(fs.readFileSync(file, 'utf8')).toMatch(/reaper:\n {2}stack_idle_hours: 2\n/);
     expect(fs.readFileSync(file, 'utf8')).toMatch(/inbox:\n {2}stale_minutes: 30\n/);
   });
