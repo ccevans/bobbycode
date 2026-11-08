@@ -3,7 +3,7 @@ id: TKT-087
 title: >-
   CLI friction: bad options print no help, agents lack a flag cheat sheet,
   --repos error doesn't point at the sibling project
-stage: building
+stage: done
 type: improvement
 priority: low
 area: null
@@ -21,7 +21,7 @@ feature: null
 persona: null
 size: s
 created: '2026-11-07'
-updated: '2026-11-07'
+updated: '2026-11-08'
 ---
 
 ## Description
@@ -41,4 +41,5 @@ Plan direction (approved):
 - [ ] Tests for the create error message and a CLI help-after-error check
 
 ## Comments
+- [2026-11-08] user: Re-review (orchestrator): aeb643a is the one-line env fix the review asked for (test/commands/create.test.js only). create.test.js 12/12 with BOBBY_PROJECT=bobby and 12/12 without. Approved; ship after or with TKT-084.
 - [2026-11-07] system: REJECTED: Non-hermetic tests: test/commands/create.test.js:117, the studio --repos 'create' helper, spawns bin/bobby.js with the inherited env. bin/bobby.js:120 splices --project only when BOBBY_PROJECT is unset, and the studio dashboard sets BOBBY_PROJECT on every agent it launches (lib/dashboard/orchestrator.js:730; this repo is studio project 'bobby'). Repro: BOBBY_PROJECT=bobby NODE_OPTIONS=--experimental-vm-modules npx jest test/commands/create.test.js -t 'studio --repos' gives 5 failed (error: unknown option '--project'). Fix: pass env: { ...process.env, BOBBY_PROJECT: '' } (or delete the key) to that spawnSync, like test/lib/studio.test.js:23, then re-run with BOBBY_PROJECT=bobby set to prove it. Everything else is approved: all 4 ACs met, TC3 hand-verified (root help, ticket create --help and the NL front door are byte-identical to origin/main), shared-file limits respected. Details: review.md

@@ -1,0 +1,101 @@
+##### MODE=unset (BOBBY_PROJECT unset)
+== TC1/2/3 plain project
+
+$ [cwd=plain]  bobby ticket create --bogus -t x
+--stdout:
+--stderr:
+error: unknown option '--bogus'
+
+Usage: bobby ticket create [options]
+
+[exit 1]
+0
+
+$ [cwd=plain]  bobby brief --bogus
+--stdout:
+--stderr:
+error: unknown option '--bogus'
+
+Usage: bobby brief [options]
+
+[exit 1]
+
+$ [cwd=plain]  bobby ticket move TKT-001
+--stdout:
+--stderr:
+error: missing required argument 'alias'
+
+Usage: bobby ticket move [options] <id> <alias> [reason]
+
+[exit 1]
+
+$ [cwd=studio]  bobby project use
+--stdout:
+--stderr:
+error: missing required argument 'name'
+
+Usage: bobby project use [options] <name>
+
+[exit 1]
+
+$ [cwd=plain]  bobby ticket create --help
+--stdout:
+Usage: bobby ticket create [options]
+
+Create a new ticket in backlog
+--stderr:
+[exit 0]
+
+$ [cwd=plain]  bobby 
+--stdout:
+Usage: bobby [options] [command]
+
+Bobby — a full SDLC workflow for a solo developer: a whole team of agents,
+--stderr:
+[exit 0]
+
+$ [cwd=plain]  bobby add a health check
+--stdout:
+
+  Bobby, do: add a health check
+  Paste this into Claude Code — it routes to the right skill and runs it:
+
+--stderr:
+[exit 0]
+== studio TC7-11
+
+$ [cwd=studio]  bobby --project robinflow ticket create -t ops job --repos robin-ops
+--stdout:
+--stderr:
+Error: robin-ops is its own project: file it with --project robin-ops (and drop it from --repos)
+[exit 1]
+0
+
+$ [cwd=studio]  bobby --project robinflow ticket create -t x --repos nope
+--stdout:
+--stderr:
+Error: Ticket repos not in project 'robinflow' (app): nope
+[exit 1]
+
+$ [cwd=studio]  bobby --project robinflow ticket create -t x --repos robin-ops,nope
+--stdout:
+--stderr:
+Error: robin-ops is its own project: file it with --project robin-ops (and drop it from --repos)
+Error: Ticket repos not in project 'robinflow' (app): nope
+[exit 1]
+
+$ [cwd=studio]  bobby --project robinflow ticket create -t ok --repos app
+--stdout:
+✓ Created RF-001 — ok
+  → .bobby/robinflow/tickets/RF-001--ok/
+--stderr:
+[exit 0]
+repos:
+
+$ [cwd=studio]  bobby --project robin-ops ticket create -t ops job
+--stdout:
+✓ Created RO-001 — ops job
+  → .bobby/robin-ops/tickets/RO-001--ops-job/
+--stderr:
+[exit 0]
+RO-001--ops-job
