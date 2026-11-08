@@ -223,8 +223,9 @@ describe('bobby ticket create: stale board guard (TKT-083)', () => {
     const r = bobbyIn(A, 'ticket create -t "After delete"');
     expect(r.code).toBe(1);
     expect(r.out).toMatch(/origin\/feat no longer exists on origin/);
-    expect(r.out).toMatch(/git branch -u origin\/feat/);
-    expect(r.out).toMatch(/--unset-upstream/);
+    expect(r.out).toMatch(/git branch -u origin\/<branch> && git pull --rebase/);
+    expect(r.out).not.toMatch(/--unset-upstream/);
+    expect(r.out).not.toMatch(/git branch -u origin\/feat/); // re-pointing at the deleted branch loops
     expect(folders(A)).toEqual(['TKT-001--on-feat']);
     expect(g(A, 'rev-parse --verify refs/remotes/origin/feat').trim()).toBeTruthy();
   });

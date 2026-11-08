@@ -112,7 +112,7 @@ describe('board-upstream', () => {
     // delete on the remote itself: A's own `push --delete` would also drop A's tracking ref
     g(origin, 'branch', '-D', 'feat');
     expect(g(A, 'rev-parse', '--verify', 'refs/remotes/origin/feat').trim()).toBeTruthy();
-    expect(() => assertBoardCurrent(ticketsA)).toThrow(/origin\/feat no longer exists on origin.*git branch -u origin\/feat.*--unset-upstream/s);
+    expect(() => assertBoardCurrent(ticketsA)).toThrow(/origin\/feat no longer exists on origin.*merged into.*git branch -u origin\/<branch> && git pull --rebase/s);
     const f = boardFreshness(ticketsA);
     expect(f.state).toBe('unknown');
     expect(f.reason).toMatch(/no longer exists on origin/);
