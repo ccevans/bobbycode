@@ -85,6 +85,7 @@ describe('the worktree reaper does exactly one removal', () => {
     const runs = [...code.matchAll(/\brun\(([^)]*)\)/g)].map(m => m[1].replace(/\s+/g, ' '));
     expect(runs).toEqual([
       "'git', ['-C', p, 'status', '--porcelain', '-uno']",
+      "'git', ['-C', p, 'for-each-ref', '--contains', 'HEAD', 'refs/heads', 'refs/remotes']",
       "'git', ['-C', still.repo_path, 'worktree', 'remove', '--force', still.path]",
     ]);
   });

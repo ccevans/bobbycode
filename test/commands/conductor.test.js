@@ -374,6 +374,16 @@ describe('bobby conductor', () => {
       expect(bobbyIn(['status']).stdout).toMatch(/done {2}2 {2}.*(MB|GB)/);
     });
 
+    test('status --sizes skips a prunable worktree whose folder is gone instead of failing on du', () => {
+      execFileSync('git', ['-C', root, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '--allow-empty', '-q', '-m', 'init']);
+      for (const name of ['AL-001-ui', 'AL-002-ui']) execFileSync('git', ['-C', root, 'worktree', 'add', '-q', '-b', `br-${name}`, path.join(root, 'worktrees', name)]);
+      fs.rmSync(path.join(root, 'worktrees', 'AL-002-ui'), { recursive: true });
+      const r = bobbyIn(['status', '--sizes']);
+      expect(r.status).toBe(0);
+      expect(r.stdout).toMatch(/\(2 across 1 repos/);
+      expect(r.stdout).toMatch(/sizes: du, nominal, cached /);
+    });
+
     test('status works from a checkout nested under the studio', () => {
       const nested = path.join(root, 'worktrees', 'X');
       fs.mkdirSync(nested, { recursive: true });

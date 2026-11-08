@@ -165,6 +165,34 @@ describe('conductor worktree reaper', () => {
     expect(exists(locked)).toBe(true);
   });
 
+  test('a detached worktree is removed only when its HEAD is already on a branch', () => {
+    finish(1); finish(3);
+    const onBranch = wt(root, 'AL-1-ui');
+    git(onBranch, 'checkout', '-q', '--detach');
+    const orphan = wt(root, 'AL-3-ui');
+    git(orphan, 'checkout', '-q', '--detach');
+    fs.writeFileSync(path.join(orphan, 'work.txt'), 'w\n');
+    git(orphan, 'add', 'work.txt');
+    git(orphan, 'commit', '-q', '-m', 'detached work');
+    const report = go(mockRun(), { apply: true });
+    expect(report.results.map(r => [path.basename(r.path), r.outcome])).toEqual([['AL-1-ui', 'removed']]);
+    expect(report.kept.find(k => k.path === orphan).why).toMatch(/detached HEAD is on no branch/);
+    expect(exists(orphan)).toBe(true);
+    expect(exists(onBranch)).toBe(false);
+  });
+
+  test('a session whose cwd differs only in letter case still keeps the worktree (case-insensitive volumes)', () => {
+    finish(1);
+    const p = wt(root, 'AL-1-ui');
+    const swapped = path.join(path.dirname(p), 'al-1-UI');
+    if (!fs.existsSync(swapped)) return; // case-sensitive filesystem: the two paths are different folders
+    const m = mockRun({ agents: [bg('aaaa1111', 'lane', 'working', swapped)] });
+    const report = go(m, { apply: true });
+    expect(report.candidates).toEqual([]);
+    expect(m.removals()).toEqual([]);
+    expect(exists(p)).toBe(true);
+  });
+
   test('folders that are not git worktrees are listed and never touched', () => {
     finish(1);
     const plain = path.join(root, 'worktrees', 'AL-1-leftover');
