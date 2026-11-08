@@ -191,6 +191,18 @@ describe('conductor worktree reaper', () => {
     expect(exists(p)).toBe(true);
   });
 
+  test('a review.md written between the plan and the removal keeps the worktree', () => {
+    finish(1);
+    const p = wt(root, 'AL-1-ui');
+    // claude agents is read once per snapshot; write the file at the second read, before the re-check's git status
+    const m = mockRun({ agents: (reads) => { if (reads === 2) fs.writeFileSync(path.join(p, 'review.md'), 'x'); return []; } });
+    const report = go(m, { apply: true });
+    expect(report.candidates).toHaveLength(1);
+    expect(report.results[0]).toMatchObject({ outcome: 'skipped', detail: 'untracked: review.md' });
+    expect(m.removals()).toEqual([]);
+    expect(exists(path.join(p, 'review.md'))).toBe(true);
+  });
+
   test('the folder this command runs from is never removed', () => {
     finish(1);
     const p = wt(root, 'AL-1-ui');
