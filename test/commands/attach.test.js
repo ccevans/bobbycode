@@ -166,6 +166,20 @@ describe('bobby ticket attach', () => {
       expect(fs.readFileSync(`${inPlace}.md`, 'utf8')).toContain('120 examples, 2 failures');
     });
 
+    test('--log --move on the in-place log typed in different case keeps it (case-insensitive filesystems)', () => {
+      gitInit({ ignored: true });
+      fs.mkdirSync(path.join(tdir(), 'logs'), { recursive: true });
+      const inPlace = path.join(tdir(), 'logs', 'rspec.log');
+      fs.writeFileSync(inPlace, rspecLog);
+      const otherCase = path.join(tdir(), 'LOGS', 'rspec.log');
+      if (!fs.existsSync(otherCase)) return; // case-sensitive filesystem: LOGS/ is a different path, nothing to guard
+
+      const res = spawnSync('node', [bobby, 'ticket', 'attach', 'TKT-001', otherCase, '--log', '--move'], { cwd: tmpDir, encoding: 'utf8' });
+
+      expect(res.status).toBe(0);
+      expect(fs.readFileSync(inPlace, 'utf8')).toBe(rspecLog);
+    });
+
     test('without --log nothing is written to logs/', () => {
       fs.writeFileSync(path.join(tmpDir, 'a.png'), 'x');
       execSync(`node ${bobby} ticket attach TKT-001 a.png`, { cwd: tmpDir });

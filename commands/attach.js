@@ -90,7 +90,7 @@ function attachLogs(id, ticketPath, files, opts) {
     const raw = path.join(destDir, rawName);
     // The source may already be the destination (logs/<name>.log in the ticket). Copying onto itself
     // is a no-op, and --move's unlink would then delete the only copy (raw logs are gitignored).
-    const sameFile = fs.existsSync(raw) && fs.realpathSync(resolved) === fs.realpathSync(raw);
+    const sameFile = fs.existsSync(raw) && fs.realpathSync.native(resolved) === fs.realpathSync.native(raw); // .native returns on-disk case, so LOGS/x.log matches logs/x.log on case-insensitive filesystems
     if (!sameFile) fs.copyFileSync(resolved, raw);
     fs.writeFileSync(
       `${raw}.md`,
