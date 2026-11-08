@@ -54,7 +54,9 @@ All notable changes to Bobby are documented here. The format is based on
   studio repo, from `git worktree list --porcelain`); sizes (`du`, slow) show only from the cache
   or after `status --sizes`. `conductor reap --worktrees` (dry run unless `--apply`, M4 only)
   removes a worktree with `git worktree remove --force` (branch kept) only when every ticket named
-  in its folder name is done, `git status --porcelain -uno` is empty, no live session's cwd is
+  in its folder name is done, `git status --porcelain --untracked-files=normal` is empty (no modified
+  or staged file and no untracked, non-ignored file such as a review.md or test-evidence/ — the dry run
+  names them, BOB-191; ignored files like node_modules do not block it), no live session's cwd is
   inside it and a detached HEAD is already on a branch; folders that are not git worktrees are listed, never touched. `--sizes` measures the
   candidates. A failing git or claude is an error.
 - **`bobby conductor` (BOB-174): read-only studio status board.** `bobby conductor init`
