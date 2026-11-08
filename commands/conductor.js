@@ -1,8 +1,9 @@
 // commands/conductor.js
 //
-// `bobby conductor`: the studio's read-only control board. `init` writes
-// conductor.yml; `status` and `check` only read (they never change a session,
-// a ticket or a container).
+// `bobby conductor`: the studio's control board. `init` writes conductor.yml;
+// `status` and `check` only read (they never change a session, a ticket or a
+// container). `reap` is dry-run unless `--apply`, and is the one command that
+// ends sessions (see lib/conductor/reaper.js).
 
 import path from 'path';
 import { findStudioRoot, initConductorConfig, loadConductorConfig } from '../lib/conductor/config.js';
@@ -10,6 +11,8 @@ import { buildStatus, renderStatus } from '../lib/conductor/status.js';
 import { readMemory } from '../lib/conductor/resources.js';
 import { readStacks } from '../lib/conductor/stacks.js';
 import { checkLane, checkStack } from '../lib/conductor/governor.js';
+import { reap, renderReap } from '../lib/conductor/reaper.js';
+import { assertM4Host } from '../lib/conductor/host.js';
 import { success, error, dim } from '../lib/colors.js';
 
 function fail(e) {
@@ -71,6 +74,30 @@ export function registerConductor(program) {
           process.exit(1);
         }
         success(`${kind} ok: ${result.reason}`);
+      } catch (e) {
+        fail(e);
+      }
+    });
+
+  conductor
+    .command('reap')
+    .description('List finished background sessions to end, keeping their transcripts. Dry run unless --apply. M4 only')
+    .option('--apply', 'End the listed sessions (default: print the list and change nothing)')
+    .action((opts) => {
+      try {
+        assertM4Host();
+        const config = loadConductorConfig(findStudioRoot());
+        const apply = Boolean(opts.apply);
+        const report = reap({
+          hookStateDir: config.hook_state_dir,
+          apply,
+          selfSessionId: process.env.CLAUDE_CODE_SESSION_ID || null,
+        });
+        console.log(renderReap(report, { apply }));
+        if (report.failed > 0) {
+          error(`${report.failed} session(s) could not be ended`);
+          process.exit(1);
+        }
       } catch (e) {
         fail(e);
       }

@@ -16,6 +16,7 @@ describe('bobby conductor', () => {
   let vmFile;
   let psFile;
   let startsFile;
+  let stopsFile;
 
   const setVm = (opts) => fs.writeFileSync(vmFile, vmStatText(opts));
   const setStacks = (projects) => {
@@ -23,7 +24,7 @@ describe('bobby conductor', () => {
     fs.writeFileSync(startsFile, projects.map(() => '2026-11-08T08:00:00.000000000Z').join('\n'));
   };
 
-  const bobbyIn = (args, { cwd = root, claude = 'ok', docker = 'ok' } = {}) => {
+  const bobbyIn = (args, { cwd = root, claude = 'ok', docker = 'ok', cpu = 'Apple M4 Max', session = '', stopFail = '' } = {}) => {
     const env = {
       ...process.env,
       PATH: `${fakeBin}${path.delimiter}${process.env.PATH}`,
@@ -33,9 +34,14 @@ describe('bobby conductor', () => {
       FAKE_PS_FILE: psFile,
       FAKE_STARTS_FILE: startsFile,
       FAKE_DOCKER: docker,
+      FAKE_CPU: cpu,
+      FAKE_STOP_FAIL: stopFail,
+      FAKE_STOPS_FILE: stopsFile,
       HOME: root,
     };
     delete env.BOBBY_PROJECT;
+    if (session) env.CLAUDE_CODE_SESSION_ID = session;
+    else delete env.CLAUDE_CODE_SESSION_ID;
     return spawnSync('node', [bobby, 'conductor', ...args], { cwd, encoding: 'utf8', env });
   };
 
@@ -45,8 +51,14 @@ describe('bobby conductor', () => {
     fs.mkdirSync(fakeBin);
     agentsFile = path.join(root, 'agents.json');
     fs.writeFileSync(agentsFile, JSON.stringify(agentsFixture()));
+    stopsFile = path.join(root, 'stops.txt');
     fs.writeFileSync(path.join(fakeBin, 'claude'), [
       '#!/bin/sh',
+      'if [ "$1" = stop ]; then',
+      '  echo "$2" >> "$FAKE_STOPS_FILE"',
+      '  [ -n "$FAKE_STOP_FAIL" ] && [ "$2" = "$FAKE_STOP_FAIL" ] && { echo "no such session" >&2; exit 1; }',
+      '  exit 0',
+      'fi',
       '[ "$1 $2 $3" = "agents --json --all" ] || { echo "unexpected args: $*" >&2; exit 2; }',
       'case "$FAKE_CLAUDE" in',
       '  fail) echo "claude is down" >&2; exit 1 ;;',
@@ -60,7 +72,7 @@ describe('bobby conductor', () => {
     setVm();
     setStacks([]);
     fs.writeFileSync(path.join(fakeBin, 'vm_stat'), '#!/bin/sh\ncat "$FAKE_VM_FILE"\n', { mode: 0o755 });
-    fs.writeFileSync(path.join(fakeBin, 'sysctl'), '#!/bin/sh\n[ "$*" = "-n hw.memsize" ] || exit 2\necho 51539607552\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(fakeBin, 'sysctl'), '#!/bin/sh\ncase "$*" in\n  "-n hw.memsize") echo 51539607552 ;;\n  "-n machdep.cpu.brand_string") echo "$FAKE_CPU" ;;\n  *) exit 2 ;;\nesac\n', { mode: 0o755 });
     fs.writeFileSync(path.join(fakeBin, 'docker'), [
       '#!/bin/sh',
       '[ "$FAKE_DOCKER" = fail ] && { echo "Cannot connect to the Docker daemon at unix:///var/run/docker.sock" >&2; exit 1; }',
@@ -255,6 +267,69 @@ describe('bobby conductor', () => {
       fs.mkdirSync(nested, { recursive: true });
       fs.writeFileSync(path.join(nested, '.bobbyrc.yml'), 'project: x\n');
       expect(bobbyIn(['status'], { cwd: nested }).status).toBe(0);
+    });
+  });
+  describe('reap', () => {
+    const stops = () => (fs.existsSync(stopsFile) ? fs.readFileSync(stopsFile, 'utf8').split('\n').filter(Boolean) : []);
+    beforeEach(() => { writeConductorYml(root, validYml(hookDir)); });
+
+    test('without --apply it lists the done session, stops nothing and exits 0', () => {
+      const r = bobbyIn(['reap']);
+      expect(r.status).toBe(0);
+      expect(r.stdout).toMatch(/Dry run: 1 session/);
+      expect(r.stdout).toMatch(/would end {2}cccc3333 {2}lane three/);
+      expect(r.stdout).not.toMatch(/lane two/); // blocked is never listed
+      expect(stops()).toEqual([]);
+    });
+
+    test('--apply ends the done session once with claude stop <id>', () => {
+      const r = bobbyIn(['reap', '--apply']);
+      expect(r.status).toBe(0);
+      expect(stops()).toEqual(['cccc3333']);
+      expect(r.stdout).toMatch(/ended {2}cccc3333/);
+    });
+
+    test('--apply never stops the session running the command', () => {
+      const r = bobbyIn(['reap', '--apply'], { session: 'cccc3333-0000-4000-8000-000000000000' });
+      expect(r.status).toBe(0);
+      expect(stops()).toEqual([]);
+    });
+
+    test('a failing claude stop is reported and the exit code is non-zero', () => {
+      const failing = bobbyIn(['reap', '--apply'], { stopFail: 'cccc3333' });
+      expect(failing.status).toBe(1);
+      expect(failing.stdout).toMatch(/failed {2}cccc3333/);
+      expect(failing.stderr).toMatch(/1 session\(s\) could not be ended/);
+    });
+
+    test('it refuses on a host that is not the M4, even without --apply', () => {
+      const r = bobbyIn(['reap'], { cpu: 'Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz' });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/M4 only/);
+      expect(stops()).toEqual([]);
+    });
+
+    test('if claude agents --json fails it exits non-zero and stops nothing', () => {
+      const r = bobbyIn(['reap', '--apply'], { claude: 'fail' });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/claude is down/);
+      expect(stops()).toEqual([]);
+    });
+
+    test('a missing conductor.yml is an error naming the file', () => {
+      fs.rmSync(path.join(root, '.bobby', 'conductor.yml'));
+      const r = bobbyIn(['reap']);
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/conductor\.yml/);
+    });
+
+    test('status shows a handoff whose successor is not live as an orphaned handoff', () => {
+      fs.writeFileSync(path.join(hookDir, 'cccc3333-0000-4000-8000-000000000000.handoff'), 'bg ffff9999\n');
+      const r = bobbyIn(['status']);
+      expect(r.stdout).toMatch(/orphaned handoff/);
+      const dry = bobbyIn(['reap']);
+      expect(dry.stdout).toMatch(/Orphaned handoff \(1\)/);
+      expect(dry.stdout).toMatch(/Dry run: 0 session/);
     });
   });
 });
