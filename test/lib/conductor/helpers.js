@@ -21,9 +21,10 @@ export function writeConductorYml(root, text) {
   fs.writeFileSync(path.join(root, '.bobby', 'conductor.yml'), text);
 }
 
-export function validYml(hookDir, projects = ['alpha', 'beta'], governor = { min_free_ram_mb: 4096, max_docker_stacks: 4 }) {
+export function validYml(hookDir, projects = ['alpha', 'beta'], governor = { min_free_ram_mb: 4096, max_docker_stacks: 4 }, reaper = { stack_idle_hours: 2 }) {
   return `projects:\n${projects.map(p => `  - ${p}`).join('\n')}\nhook_state_dir: ${hookDir}\n`
-    + `governor:\n  min_free_ram_mb: ${governor.min_free_ram_mb}\n  max_docker_stacks: ${governor.max_docker_stacks}\n`;
+    + `governor:\n  min_free_ram_mb: ${governor.min_free_ram_mb}\n  max_docker_stacks: ${governor.max_docker_stacks}\n`
+    + `reaper:\n  stack_idle_hours: ${reaper.stack_idle_hours}\n`;
 }
 
 /** vm_stat text for a 16 KB-page machine. Pages are given in MB so tests read in MB. */

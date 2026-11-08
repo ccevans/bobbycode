@@ -20,7 +20,21 @@ describe('conductor config', () => {
       projects: ['alpha'],
       hook_state_dir: hookDir,
       governor: { min_free_ram_mb: 4096, max_docker_stacks: 4 },
+      reaper: { stack_idle_hours: 2 },
     });
+  });
+
+  const govYml = 'projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  min_free_ram_mb: 4096\n  max_docker_stacks: 4\n';
+  test.each([
+    ['reaper.stack_idle_hours', govYml],
+    ['reaper.stack_idle_hours', `${govYml}reaper:\n  other: 1\n`],
+    ['reaper.stack_idle_hours', `${govYml}reaper:\n  stack_idle_hours:\n`],
+    ['reaper.stack_idle_hours', `${govYml}reaper:\n  stack_idle_hours: 0\n`],
+    ['reaper.stack_idle_hours', `${govYml}reaper:\n  stack_idle_hours: soon\n`],
+    ['reaper', `${govYml}reaper: 2\n`],
+  ])('a missing or invalid %s names the key', (key, yml) => {
+    writeConductorYml(root, yml);
+    expect(() => loadConductorConfig(root)).toThrow(new RegExp(`key "${key.replace('.', '\\.')}"`));
   });
 
   test.each([
@@ -60,9 +74,11 @@ describe('conductor config', () => {
       projects: ['alpha'],
       hook_state_dir: path.join(os.homedir(), '.bobby', 'hook-state'),
       governor: { min_free_ram_mb: 4096, max_docker_stacks: 4 },
+      reaper: { stack_idle_hours: 2 },
     });
     expect(loadConductorConfig(root)).toEqual(values);
     expect(fs.readFileSync(file, 'utf8')).toMatch(/governor:\n {2}min_free_ram_mb: 4096\n {2}max_docker_stacks: 4\n/);
+    expect(fs.readFileSync(file, 'utf8')).toMatch(/reaper:\n {2}stack_idle_hours: 2\n/);
   });
 
   test('init without --projects writes every studio project explicitly', () => {

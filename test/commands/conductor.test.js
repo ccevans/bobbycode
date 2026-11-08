@@ -17,6 +17,8 @@ describe('bobby conductor', () => {
   let psFile;
   let startsFile;
   let stopsFile;
+  let exitedFile;
+  let composeFile;
 
   const setVm = (opts) => fs.writeFileSync(vmFile, vmStatText(opts));
   const setStacks = (projects) => {
@@ -37,6 +39,8 @@ describe('bobby conductor', () => {
       FAKE_CPU: cpu,
       FAKE_STOP_FAIL: stopFail,
       FAKE_STOPS_FILE: stopsFile,
+      FAKE_EXITED_FILE: exitedFile,
+      FAKE_COMPOSE_FILE: composeFile,
       HOME: root,
     };
     delete env.BOBBY_PROJECT;
@@ -69,6 +73,9 @@ describe('bobby conductor', () => {
     vmFile = path.join(root, 'vm.txt');
     psFile = path.join(root, 'ps.txt');
     startsFile = path.join(root, 'starts.txt');
+    exitedFile = path.join(root, 'exited.txt');
+    composeFile = path.join(root, 'compose.txt');
+    fs.writeFileSync(exitedFile, '');
     setVm();
     setStacks([]);
     fs.writeFileSync(path.join(fakeBin, 'vm_stat'), '#!/bin/sh\ncat "$FAKE_VM_FILE"\n', { mode: 0o755 });
@@ -77,7 +84,8 @@ describe('bobby conductor', () => {
       '#!/bin/sh',
       '[ "$FAKE_DOCKER" = fail ] && { echo "Cannot connect to the Docker daemon at unix:///var/run/docker.sock" >&2; exit 1; }',
       'case "$1" in',
-      '  ps) cat "$FAKE_PS_FILE" ;;',
+      '  ps) case "$*" in *--all*) cat "$FAKE_EXITED_FILE" ;; *) cat "$FAKE_PS_FILE" ;; esac ;;',
+      '  compose) echo "$*" >> "$FAKE_COMPOSE_FILE" ;;',
       '  inspect) cat "$FAKE_STARTS_FILE" ;;',
       '  *) echo "unexpected docker args: $*" >&2; exit 2 ;;',
       'esac',
@@ -195,6 +203,20 @@ describe('bobby conductor', () => {
       expect(stacks).toMatch(/promote-api-mainapi\s+unmapped/);
       const data = JSON.parse(bobbyIn(['status', '--json']).stdout);
       expect(data.stacks.list.map(s => [s.project, s.ticket, s.unmapped])).toEqual([['al-4api', 'AL-004', false], ['promote-api-mainapi', null, true]]);
+    });
+
+    test('a stack stopped by the conductor still shows in status as stopped; a running stack is not listed there', () => {
+      seedTickets(root, 'alpha', [{ title: 'e', stage: 'building' }]); // AL-4
+      setStacks(['al-5api']);
+      // al-4api: only exited containers (stopped). al-5api: an exited one-off beside a running service.
+      fs.writeFileSync(exitedFile, [psLine('x1', 'al-4api'), psLine('x2', 'al-4api'), psLine('x3', 'al-5api')].join('\n'));
+      const r = bobbyIn(['status']);
+      expect(r.status).toBe(0);
+      expect(r.stdout).toMatch(/STOPPED STACKS \(1,/);
+      expect(r.stdout).toMatch(/al-4api\s+stopped\s+AL-004\s.*2 containers/);
+      const data = JSON.parse(bobbyIn(['status', '--json']).stdout);
+      expect(data.stacks.stopped).toEqual([{ project: 'al-4api', containers: 2, ticket: 'AL-004', unmapped: false }]);
+      expect(data.stacks.list.map(s => s.project)).toEqual(['al-5api']);
     });
 
     test('docker down fails status with the docker error and prints no board', () => {
@@ -330,6 +352,61 @@ describe('bobby conductor', () => {
       const dry = bobbyIn(['reap']);
       expect(dry.stdout).toMatch(/Orphaned handoff \(1\)/);
       expect(dry.stdout).toMatch(/Dry run: 0 session/);
+    });
+  });
+
+  describe('reap --stacks', () => {
+    const composeCalls = () => (fs.existsSync(composeFile) ? fs.readFileSync(composeFile, 'utf8').split('\n').filter(Boolean) : []);
+    beforeEach(() => {
+      writeConductorYml(root, validYml(hookDir));
+      seedTickets(root, 'alpha', [{ title: 'a' }, { title: 'b' }, { title: 'c' }, { title: 'd', stage: 'building' }]); // AL-4 = 'd'
+      setStacks(['al-4api', 'promote-api-mainapi']); // both started 2026-11-08T08:00Z: long idle
+    });
+
+    test('dry run lists the idle ticket stack, keeps the promote stack, and runs no compose command', () => {
+      const r = bobbyIn(['reap', '--stacks']);
+      expect(r.status).toBe(0);
+      expect(r.stdout).toMatch(/Dry run: 1 stack\(s\) would be stopped/);
+      expect(r.stdout).toMatch(/would stop {2}al-4api {2}AL-004/);
+      expect(r.stdout).toMatch(/kept {2}promote-api-mainapi {2}promote\/ship stack/);
+      expect(composeCalls()).toEqual([]);
+    });
+
+    test('--apply runs exactly docker compose -p <project> stop for the idle stack', () => {
+      const r = bobbyIn(['reap', '--stacks', '--apply']);
+      expect(r.status).toBe(0);
+      expect(composeCalls()).toEqual(['compose -p al-4api stop']);
+      expect(r.stdout).toMatch(/stopped {2}al-4api/);
+    });
+
+    test('a working lane for the ticket keeps its stack', () => {
+      const agents = agentsFixture();
+      agents.push({ id: 'ffff6666', sessionId: 'ffff6666-0000-4000-8000-000000000000', name: 'AL-004 build', cwd: '/studio', kind: 'background', startedAt: 1, state: 'working' });
+      fs.writeFileSync(agentsFile, JSON.stringify(agents));
+      const r = bobbyIn(['reap', '--stacks', '--apply']);
+      expect(r.status).toBe(0);
+      expect(composeCalls()).toEqual([]);
+      expect(r.stdout).toMatch(/AL-004 has a working lane/);
+    });
+
+    test('docker down is a non-zero exit with the docker error', () => {
+      const r = bobbyIn(['reap', '--stacks', '--apply'], { docker: 'fail' });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/Cannot connect to the Docker daemon/);
+      expect(composeCalls()).toEqual([]);
+    });
+
+    test('it refuses on a host that is not the M4, even without --apply', () => {
+      const r = bobbyIn(['reap', '--stacks'], { cpu: 'Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz' });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/M4 only/);
+    });
+
+    test('a conductor.yml without reaper.stack_idle_hours is an error naming the key', () => {
+      writeConductorYml(root, validYml(hookDir).replace(/reaper:[\s\S]*$/, ''));
+      const r = bobbyIn(['reap', '--stacks']);
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/key "reaper\.stack_idle_hours" is missing/);
     });
   });
 });

@@ -1,4 +1,4 @@
-import { ticketKeyFromProject, readStacks, mapStacks, laneStateFor } from '../../../lib/conductor/stacks.js';
+import { ticketKeyFromProject, readStacks, readStoppedStacks, mapStoppedStacks, mapStacks, laneStateFor } from '../../../lib/conductor/stacks.js';
 import { psLine } from './helpers.js';
 
 const NOW = Date.parse('2026-11-08T12:00:00Z');
@@ -64,6 +64,25 @@ describe('conductor stacks', () => {
     expect(() => readStacks({ run: dockerMock({ ps: '{"ID":"a"}' }).run })).toThrow(/without string/);
   });
 
+  test('stopped stacks: exited-only projects, minus any project with a running container', () => {
+    const ps = [psLine('a1', 'rf-1683api'), psLine('a2', 'rf-1683api'), psLine('b1', 'rf-1745api'), psLine('c1', null)].join('\n');
+    const { run, calls } = dockerMock({ ps });
+    expect(readStoppedStacks({ run, runningProjects: ['rf-1745api'] })).toEqual([{ project: 'rf-1683api', containers: 2 }]);
+    expect(calls).toEqual([['docker', ['ps', '--all', '--filter', 'status=exited', '--format', 'json']]]);
+  });
+
+  test('a docker failure while reading stopped stacks throws', () => {
+    expect(() => readStoppedStacks({ run: dockerMock({ fail: 'Cannot connect to the Docker daemon' }).run })).toThrow(/Cannot connect/);
+  });
+
+  test('stopped stacks map to a board ticket or say unmapped', () => {
+    const tickets = new Map([['RF-1683', { id: 'RF-1683', project: 'robinflow', stage: 'building' }]]);
+    expect(mapStoppedStacks([{ project: 'rf-1683api', containers: 2 }, { project: 'zzz', containers: 1 }], { tickets })).toEqual([
+      { project: 'rf-1683api', containers: 2, ticket: 'RF-1683', unmapped: false },
+      { project: 'zzz', containers: 1, ticket: null, unmapped: true },
+    ]);
+  });
+
   describe('mapping to tickets and lanes', () => {
     const tickets = new Map([['RF-1683', { id: 'RF-1683', project: 'robinflow', stage: 'building' }], ['OPS-5', { id: 'OPS-005', project: 'ops', stage: 'testing' }]]);
     const sessions = [
@@ -92,6 +111,14 @@ describe('conductor stacks', () => {
       expect(laneStateFor('RF-1799', sessions)).toBe('done');
       expect(laneStateFor('RF-168', sessions)).toBe('none'); // RF-1683 must not count for RF-168
       expect(laneStateFor('RF-1', sessions)).toBe('none');
+    });
+
+    test('zero padding is ignored in both directions', () => {
+      const padded = [{ name: 'OPS-5 lane', cwd: '/studio', state: 'working' }, { name: 'x', cwd: '/studio/worktrees/RF-0123', state: 'blocked' }];
+      expect(laneStateFor('OPS-005', padded)).toBe('working');
+      expect(laneStateFor('OPS-0005', padded)).toBe('working');
+      expect(laneStateFor('RF-123', padded)).toBe('waiting_on_cc');
+      expect(laneStateFor('OPS-50', padded)).toBe('none');
     });
   });
 });
