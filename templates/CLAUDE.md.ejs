@@ -129,6 +129,14 @@ The ticket, or the task the user named, is the scope. This applies to every agen
 - End your report with one `Filed: <ID> — <title>` line per ticket you filed.
 - When a ticket leaves building, `bobby ticket move` prints a scope check: changed files that `plan.md` does not name. Review rejects out-of-plan changes the ticket does not need. The fix is to revert the change and file it, not to keep it.
 
+## Ticket command flags
+
+`bobby <command> --help` lists every flag. These are the ones agents reach for:
+
+- `bobby ticket create -t "<title>"`: `--type bug|feature|improvement|task`, `-p critical|high|medium|low`, `-a <your agent name>`, `--parent <epic ID>`, `--epic`, `--repos <a,b>`, `--size xs|s|m|l|xl`, `--workflow <name>`, `--found-in <ticket ID>`<% if (typeof studio !== 'undefined' && studio) { %>, `--project <name>` (a repo that is its own studio project is filed there, not listed in `--repos`)<% } %>
+- `bobby ticket move <ID> <alias> ["reason"]`: aliases `plan`, `build`, `review`, `test`, `ship`, `done`, `reject "<reason>"`, `block "<reason>"`, `unblock`; `--by <who>` records who moved it
+- `bobby ticket comment <ID> --by <who> "<note>"`
+
 ## Workflows
 
 A workflow is the ordered set of stages a ticket runs through. Built-in: **default** (plan→build→review→test), **secure** (adds a security stage), **quick** (plan→build→test), **library** (plan→build→review — for CLI/library projects with no live app; review runs the suite), **library-secure** (adds a security stage), **freewill** (one agent does all four on few instructions — runs on Opus).
