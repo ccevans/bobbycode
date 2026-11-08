@@ -43,7 +43,7 @@ describe('the reaper is the only mutator and does exactly one thing', () => {
 
   test('`claude stop <id>` is the only exec of a mutating command', () => {
     const runs = [...code.matchAll(/\brun\(([^)]*)\)/g)].map(m => m[1].replace(/\s+/g, ' '));
-    expect(runs).toEqual(["'claude', ['stop', c.id]"]);
+    expect(runs).toEqual(["'claude', ['stop', still.id]"]);
   });
 
   test('no file is written, deleted or renamed, and no session is removed or killed', () => {
