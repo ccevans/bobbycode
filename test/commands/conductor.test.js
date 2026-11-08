@@ -140,20 +140,40 @@ describe('bobby conductor', () => {
       expect(waiting).toContain('lane two');
       expect(waiting).toContain('approve edit');
       expect(waiting).not.toContain('lane one');
-      expect(out.slice(at('DONE'), at('UNKNOWN STATE'))).toContain('lane three');
-      expect(out.slice(at('UNKNOWN STATE'))).toContain('state: stopped');
+      expect(at('INTERACTIVE')).toBeLessThan(at('UNKNOWN STATE'));
+      expect(out.slice(at('DONE'), at('STOPPED'))).toContain('lane three');
+      expect(out.slice(at('UNKNOWN STATE'), at('HANDOFFS'))).toContain('state: stopped');
+      expect(out.slice(at('INTERACTIVE'), at('UNKNOWN STATE'))).toContain('interactive, status: none');
+    });
+
+    test('stopped/failed background sessions are counted by raw state and interactive ones listed with their status, not lumped into UNKNOWN STATE', () => {
+      const agents = agentsFixture();
+      agents.push({ id: 'abab0001', sessionId: 'abab0001-0000-4000-8000-000000000000', name: 'ended one', cwd: '/studio', kind: 'background', startedAt: 1, state: 'stopped' });
+      agents.push({ id: 'abab0002', sessionId: 'abab0002-0000-4000-8000-000000000000', name: 'crashed one', cwd: '/studio', kind: 'background', startedAt: 1, state: 'failed' });
+      agents.push({ sessionId: 'abab0003-0000-4000-8000-000000000000', name: 'terminal one', cwd: '/studio', kind: 'interactive', startedAt: 1, status: 'busy', pid: 7 });
+      fs.writeFileSync(agentsFile, JSON.stringify(agents));
+      const out = bobbyIn(['status']).stdout;
+      const at = (s) => out.indexOf(s);
+      expect(out).toMatch(/STOPPED \(2\)\s+already ended, no live process; not reaped: stopped 1, failed 1/);
+      expect(out.slice(at('STOPPED'), at('INTERACTIVE'))).toMatch(/crashed one.*\[state: failed, background\]/);
+      expect(out.slice(at('STOPPED'), at('INTERACTIVE'))).not.toContain('ended one');
+      expect(out.slice(at('INTERACTIVE'), at('UNKNOWN STATE'))).toMatch(/terminal one.*\[interactive, status: busy\]/);
+      expect(out.slice(at('UNKNOWN STATE'), at('HANDOFFS'))).not.toMatch(/ended one|crashed one|terminal one/);
+      const data = JSON.parse(bobbyIn(['status', '--json']).stdout);
+      expect(data.stopped.map(s => s.name)).toEqual(['ended one', 'crashed one']);
+      expect(data.interactive.map(s => [s.name, s.status])).toEqual([['interactive', null], ['terminal one', 'busy']]);
     });
 
     test('--json parses and carries the same groups', () => {
       const r = bobbyIn(['status', '--json']);
       expect(r.status).toBe(0);
       const data = JSON.parse(r.stdout);
-      expect(Object.keys(data)).toEqual(['generated_at', 'working', 'waiting_on_cc', 'done', 'stopped', 'unknown', 'handoffs', 'inbox', 'board', 'machine', 'stacks']);
+      expect(Object.keys(data)).toEqual(['generated_at', 'working', 'waiting_on_cc', 'done', 'stopped', 'interactive', 'unknown', 'handoffs', 'inbox', 'board', 'machine', 'stacks']);
       expect(data.working.map(s => s.name)).toEqual(['lane one']);
       expect(data.waiting_on_cc.map(s => s.name)).toEqual(['lane two']);
       expect(data.done.map(s => s.name)).toEqual(['lane three']);
       const text = bobbyIn(['status']).stdout;
-      for (const group of ['working', 'waiting_on_cc', 'done', 'unknown']) {
+      for (const group of ['working', 'waiting_on_cc', 'done', 'interactive', 'unknown']) {
         for (const s of data[group]) expect(text).toContain(s.name);
       }
     });
@@ -383,7 +403,7 @@ describe('bobby conductor', () => {
     });
 
     test('status shows a handoff whose successor is not live as an orphaned handoff', () => {
-      fs.writeFileSync(path.join(hookDir, 'cccc3333-0000-4000-8000-000000000000.handoff'), 'bg ffff9999\n');
+      fs.writeFileSync(path.join(hookDir, 'cccc3333-0000-4000-8000-000000000000.handoff'), '"lane" (bg ffff9999, claude-opus-5-5) from /x/h.md\n');
       const r = bobbyIn(['status']);
       expect(r.stdout).toMatch(/orphaned handoff/);
       const dry = bobbyIn(['reap']);
@@ -394,7 +414,7 @@ describe('bobby conductor', () => {
       const agents = agentsFixture();
       agents.push({ id: 'abab0001', sessionId: 'abab0001-0000-4000-8000-000000000000', name: 'old stopped lane', cwd: '/studio', kind: 'background', startedAt: 1, state: 'done' });
       fs.writeFileSync(agentsFile, JSON.stringify(agents));
-      fs.writeFileSync(path.join(hookDir, 'abab0001-0000-4000-8000-000000000000.handoff'), 'bg ffff9999\n');
+      fs.writeFileSync(path.join(hookDir, 'abab0001-0000-4000-8000-000000000000.handoff'), '"lane" (bg ffff9999, claude-opus-5-5) from /x/h.md\n');
       const r = bobbyIn(['status']);
       expect(r.stdout).toMatch(/old stopped lane\s+successor ffff9999 not live/);
       expect(r.stdout).not.toMatch(/orphaned handoff/);
