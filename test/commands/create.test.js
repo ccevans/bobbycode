@@ -108,3 +108,155 @@ describe('bobby ticket create', () => {
     });
   });
 });
+
+describe('bobby ticket create: stale board guard (TKT-083)', () => {
+  const bobby = path.resolve('bin/bobby.js');
+  let root, origin, A, B;
+
+  // TKT-083 fixture: local bare repo as origin plus two clones of a Bobby project. No network.
+  const g = (cwd, args) => execSync(`git ${args}`, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  function makeBoardRepos(root) {
+    const origin = path.join(root, 'origin.git');
+    const A = path.join(root, 'A');
+    g(root, `init -q -b main --bare ${origin}`);
+    fs.mkdirSync(path.join(A, '.bobby', 'tickets'), { recursive: true });
+    g(A, 'init -q -b main');
+    fs.writeFileSync(path.join(A, '.bobbyrc.yml'), YAML.stringify({
+      project: 'test', stack: 'generic', tickets_dir: '.bobby/tickets',
+      sprints_dir: '.bobby/sprints', sessions_dir: '.bobby/sessions', ticket_prefix: 'TKT',
+    }));
+    fs.writeFileSync(path.join(A, '.bobby', 'tickets', '.counter'), '0');
+    g(A, 'add -A'); g(A, 'commit -qm init');
+    g(A, `remote add origin ${origin}`); g(A, 'push -q -u origin main');
+    const B = path.join(root, 'B');
+    g(root, `clone -q ${origin} ${B}`);
+    return { origin, A, B };
+  }
+  // B creates a ticket with the real CLI and pushes it, so A is one board commit behind.
+  function bPushesTicket(B, title) {
+    execSync(`node ${bobby} ticket create -t "${title}"`, { cwd: B });
+    g(B, 'add -A'); g(B, `commit -qm "${title}"`); g(B, 'push -q');
+  }
+
+  const bobbyIn = (cwd, args) => {
+    try {
+      return { code: 0, out: execSync(`node ${bobby} ${args}`, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) };
+    } catch (e) {
+      return { code: e.status, out: String(e.stdout) + String(e.stderr) };
+    }
+  };
+  const folders = (dir) => fs.readdirSync(path.join(dir, '.bobby', 'tickets')).filter(e => e.startsWith('TKT-'));
+  const counter = (dir) => fs.readFileSync(path.join(dir, '.bobby', 'tickets', '.counter'), 'utf8');
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-stale-'));
+    ({ origin, A, B } = makeBoardRepos(root));
+  });
+  afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); });
+
+  test('refuses when upstream is ahead, names count + branch + pull command, creates nothing', () => {
+    bPushesTicket(B, 'From B');
+    const r = bobbyIn(A, 'ticket create -t "From A"');
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('1 commit behind origin/main');
+    expect(r.out).toContain(`git -C ${fs.realpathSync(A)} pull --rebase origin main`);
+    expect(folders(A)).toEqual([]);
+    expect(counter(A)).toBe('0');
+  });
+
+  test('after pulling, the next ID is above upstream', () => {
+    bPushesTicket(B, 'From B');
+    g(A, 'pull -q');
+    const r = bobbyIn(A, 'ticket create -t "From A"');
+    expect(r.code).toBe(0);
+    expect(folders(A)).toContain('TKT-002--from-a');
+    expect(counter(A)).toBe('2');
+  });
+
+  test('a fetch failure is an explicit error naming the remote, and creates nothing', () => {
+    g(A, 'remote set-url origin /does/not/exist.git');
+    const r = bobbyIn(A, 'ticket create -t "Offline"');
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('Could not fetch origin');
+    expect(r.out).toContain('/does/not/exist.git');
+    expect(folders(A)).toEqual([]);
+    expect(counter(A)).toBe('0');
+  });
+
+  test('a git repo with no upstream, and a non-git dir, keep working', () => {
+    const solo = path.join(root, 'solo');
+    fs.mkdirSync(path.join(solo, '.bobby', 'tickets'), { recursive: true });
+    fs.copyFileSync(path.join(A, '.bobbyrc.yml'), path.join(solo, '.bobbyrc.yml'));
+    fs.writeFileSync(path.join(solo, '.bobby', 'tickets', '.counter'), '0');
+    expect(bobbyIn(solo, 'ticket create -t "Local"').code).toBe(0);   // not a git repo
+    g(solo, 'init -q -b main');
+    fs.rmSync(path.join(solo, '.bobby', 'tickets', 'TKT-001--local'), { recursive: true });
+    fs.writeFileSync(path.join(solo, '.bobby', 'tickets', '.counter'), '0');
+    const r = bobbyIn(solo, 'ticket create -t "Local"');                // git repo, no upstream
+    expect(r.code).toBe(0);
+    expect(r.out).not.toMatch(/fetch|behind/i);
+    expect(folders(solo)).toEqual(['TKT-001--local']);
+  });
+
+  test('upstream commits that touch only code do not block', () => {
+    fs.mkdirSync(path.join(B, 'src'));
+    fs.writeFileSync(path.join(B, 'src', 'index.js'), '1');
+    g(B, 'add -A'); g(B, 'commit -qm code'); g(B, 'push -q');
+    expect(bobbyIn(A, 'ticket create -t "z"').code).toBe(0);
+    expect(folders(A)).toEqual(['TKT-001--z']);
+  });
+
+  test('an upstream branch not yet on the remote is not an error', () => {
+    g(A, 'checkout -q -b feat');
+    g(A, 'config branch.feat.remote origin');
+    g(A, 'config branch.feat.merge refs/heads/feat');
+    expect(bobbyIn(A, 'ticket create -t "w"').code).toBe(0);
+    expect(folders(A)).toEqual(['TKT-001--w']);
+  });
+
+  test('an upstream branch deleted on the remote refuses, names the way out, and keeps the tracking ref', () => {
+    g(A, 'checkout -q -b feat');
+    execSync(`node ${bobby} ticket create -t "On feat"`, { cwd: A });
+    g(A, 'add -A'); g(A, 'commit -qm feat'); g(A, 'push -q -u origin feat');
+    // delete on the remote itself: A's own `push --delete` would also drop A's tracking ref
+    g(origin, 'branch -D feat');
+    const r = bobbyIn(A, 'ticket create -t "After delete"');
+    expect(r.code).toBe(1);
+    expect(r.out).toMatch(/origin\/feat no longer exists on origin/);
+    expect(r.out).toMatch(/git branch -u origin\/<branch> && git pull --rebase/);
+    expect(r.out).not.toMatch(/--unset-upstream/);
+    expect(r.out).not.toMatch(/git branch -u origin\/feat/); // re-pointing at the deleted branch loops
+    expect(folders(A)).toEqual(['TKT-001--on-feat']);
+    expect(g(A, 'rev-parse --verify refs/remotes/origin/feat').trim()).toBeTruthy();
+  });
+
+  test('studio board: its own board moving blocks; another project board moving does not', () => {
+    const origin = path.join(root, 'studio-origin.git');
+    const S = path.join(root, 'S');
+    g(root, `init -q -b main --bare ${origin}`);
+    for (const p of ['app', 'other']) {
+      fs.mkdirSync(path.join(S, '.bobby', p, 'tickets'), { recursive: true });
+      fs.writeFileSync(path.join(S, '.bobby', p, 'tickets', '.counter'), '0');
+      fs.writeFileSync(path.join(S, '.bobby', p, '.bobbyrc.yml'), YAML.stringify({ prefix: p === 'app' ? 'AP' : 'OT', repos: [] }));
+    }
+    fs.writeFileSync(path.join(S, '.bobbyrc.yml'), YAML.stringify({ studio: 'st', repos: {} }));
+    g(S, 'init -q -b main'); g(S, 'add -A'); g(S, 'commit -qm init');
+    g(S, `remote add origin ${origin}`); g(S, 'push -q -u origin main');
+    const P = path.join(root, 'P');
+    g(root, `clone -q ${origin} ${P}`);
+
+    const r0 = bobbyIn(P, 'ticket create -t "x" --project app');
+    expect(r0.code).toBe(0);
+    g(P, 'add -A'); g(P, 'commit -qm "app ticket"'); g(P, 'push -q');
+    const a = bobbyIn(S, 'ticket create -t "x" --project app');
+    expect(a.code).toBe(1);
+    expect(a.out).toContain('1 commit behind origin/main');
+
+    g(S, 'pull -q');
+    expect(bobbyIn(P, 'ticket create -t "o" --project other').code).toBe(0);
+    g(P, 'add -A'); g(P, 'commit -qm "other ticket"'); g(P, 'push -q');
+    const b = bobbyIn(S, 'ticket create -t "y" --project app');
+    expect(b.code).toBe(0);
+    expect(b.out).toContain('AP-002');
+  });
+});

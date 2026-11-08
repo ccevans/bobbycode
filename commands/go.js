@@ -10,6 +10,7 @@ import { readConfig, findProjectRoot, resolveTicketsDir, resolveSprintsDir, reso
 import { buildBrief } from '../lib/brief.js';
 import { createTicket } from '../lib/tickets.js';
 import { success, bold, dim, error } from '../lib/colors.js';
+import { assertBoardCurrent } from '../lib/board-upstream.js';
 
 function looksLikeTicketId(token) {
   return /^[A-Za-z]+-\d+$/.test(token);
@@ -55,6 +56,7 @@ export function registerGo(program) {
         // bobby go build the login page — capture + run in one step
         if (what.length > 0) {
           const title = what.join(' ').trim();
+          assertBoardCurrent(ticketsDir);
           const result = createTicket(ticketsDir, {
             prefix: config.ticket_prefix,
             title,

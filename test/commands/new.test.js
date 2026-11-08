@@ -130,3 +130,52 @@ describe('bobby new', () => {
     expect(() => run('new "y" --dir taken')).toThrow();
   });
 });
+
+describe('bobby new: unaffected inside a stale checkout (TKT-083)', () => {
+  const bobby = path.resolve('bin/bobby.js');
+  let root, A, B;
+
+  // TKT-083 fixture: local bare repo as origin plus two clones of a Bobby project. No network.
+  const g = (cwd, args) => execSync(`git ${args}`, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  function makeBoardRepos(root) {
+    const origin = path.join(root, 'origin.git');
+    const A = path.join(root, 'A');
+    g(root, `init -q -b main --bare ${origin}`);
+    fs.mkdirSync(path.join(A, '.bobby', 'tickets'), { recursive: true });
+    g(A, 'init -q -b main');
+    fs.writeFileSync(path.join(A, '.bobbyrc.yml'), YAML.stringify({
+      project: 'test', stack: 'generic', tickets_dir: '.bobby/tickets',
+      sprints_dir: '.bobby/sprints', sessions_dir: '.bobby/sessions', ticket_prefix: 'TKT',
+    }));
+    fs.writeFileSync(path.join(A, '.bobby', 'tickets', '.counter'), '0');
+    g(A, 'add -A'); g(A, 'commit -qm init');
+    g(A, `remote add origin ${origin}`); g(A, 'push -q -u origin main');
+    const B = path.join(root, 'B');
+    g(root, `clone -q ${origin} ${B}`);
+    return { origin, A, B };
+  }
+  // B creates a ticket with the real CLI and pushes it, so A is one board commit behind.
+  function bPushesTicket(B, title) {
+    execSync(`node ${bobby} ticket create -t "${title}"`, { cwd: B });
+    g(B, 'add -A'); g(B, `commit -qm "${title}"`); g(B, 'push -q');
+  }
+
+  test('creates the new project even when the surrounding checkout is behind', () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-newstale-'));
+    try {
+      ({ A, B } = makeBoardRepos(root));
+      bPushesTicket(B, 'From B');
+      const env = {
+        ...process.env, HOME: path.join(root, '.home'),
+        GIT_AUTHOR_NAME: 'Test', GIT_COMMITTER_NAME: 'Test',
+        GIT_AUTHOR_EMAIL: 'test@test.com', GIT_COMMITTER_EMAIL: 'test@test.com',
+      };
+      fs.mkdirSync(env.HOME, { recursive: true });
+      execSync(`node ${bobby} new "tiny app" --dir tiny`, { cwd: A, encoding: 'utf8', env });
+      const entries = fs.readdirSync(path.join(A, 'tiny', '.bobby', 'tickets'));
+      expect(entries.some(e => e.startsWith('TKT-001--'))).toBe(true);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});

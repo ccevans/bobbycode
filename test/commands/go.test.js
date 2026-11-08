@@ -137,3 +137,52 @@ describe('bobby go outside a project', () => {
     expect(out).toContain('bobby new "your idea"');
   });
 });
+
+describe('bobby go: stale board guard (TKT-083)', () => {
+  const bobby = path.resolve('bin/bobby.js');
+  let root, A, B;
+
+  // TKT-083 fixture: local bare repo as origin plus two clones of a Bobby project. No network.
+  const g = (cwd, args) => execSync(`git ${args}`, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  function makeBoardRepos(root) {
+    const origin = path.join(root, 'origin.git');
+    const A = path.join(root, 'A');
+    g(root, `init -q -b main --bare ${origin}`);
+    fs.mkdirSync(path.join(A, '.bobby', 'tickets'), { recursive: true });
+    g(A, 'init -q -b main');
+    fs.writeFileSync(path.join(A, '.bobbyrc.yml'), YAML.stringify({
+      project: 'test', stack: 'generic', tickets_dir: '.bobby/tickets',
+      sprints_dir: '.bobby/sprints', sessions_dir: '.bobby/sessions', ticket_prefix: 'TKT',
+    }));
+    fs.writeFileSync(path.join(A, '.bobby', 'tickets', '.counter'), '0');
+    g(A, 'add -A'); g(A, 'commit -qm init');
+    g(A, `remote add origin ${origin}`); g(A, 'push -q -u origin main');
+    const B = path.join(root, 'B');
+    g(root, `clone -q ${origin} ${B}`);
+    return { origin, A, B };
+  }
+  // B creates a ticket with the real CLI and pushes it, so A is one board commit behind.
+  function bPushesTicket(B, title) {
+    execSync(`node ${bobby} ticket create -t "${title}"`, { cwd: B });
+    g(B, 'add -A'); g(B, `commit -qm "${title}"`); g(B, 'push -q');
+  }
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-gostale-'));
+    ({ A, B } = makeBoardRepos(root));
+  });
+  afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); });
+
+  test('go "<text>" refuses when behind: no ticket, no workflow run', () => {
+    bPushesTicket(B, 'From B');
+    let out = '';
+    let code = 0;
+    try {
+      execSync(`node ${bobby} go "add a page"`, { cwd: A, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (e) { code = e.status; out = String(e.stdout) + String(e.stderr); }
+    expect(code).toBe(1);
+    expect(out).toContain('1 commit behind origin/main');
+    expect(out).not.toContain('Now running it');
+    expect(fs.readdirSync(path.join(A, '.bobby', 'tickets')).filter(e => e.startsWith('TKT-'))).toEqual([]);
+  });
+});

@@ -5,6 +5,7 @@ import { createTicket, findTicket, listTickets } from '../lib/tickets.js';
 import { assertSize } from '../lib/workflow.js';
 import { success, warn, error } from '../lib/colors.js';
 import { tryLogEntry } from '../lib/session.js';
+import { assertBoardCurrent } from '../lib/board-upstream.js';
 
 export function registerCreate(program) {
   program
@@ -49,6 +50,7 @@ export function registerCreate(program) {
           process.exit(1);
         }
 
+        assertBoardCurrent(ticketsDir);
         const result = createTicket(ticketsDir, {
           prefix: config.ticket_prefix,
           title: opts.title.trim(),
