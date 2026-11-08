@@ -10,6 +10,8 @@ disagree, **this file wins**.
 ## Anti-Patterns
 <!-- bobby learn bobby-review "pattern" "description" to add entries -->
 
+- **Run the way out an error prints**: When a fix adds a refusal that names recovery commands, run each printed command in the repro and retry. TKT-083: a 'deleted upstream' refusal suggested re-pointing at the deleted branch (no-op loop) and --unset-upstream (silently recreated the duplicate-ID bug). Review suggestions with <placeholders> get filled in literally; say what value goes there.
+
 - **missing-upstream-is-two-cases**: When code treats 'upstream configured but the remote branch is gone' (git fetch: couldn't find remote ref) as 'no upstream', split it: NO local tracking ref = never pushed, genuinely nothing upstream; a local tracking ref PRESENT = the branch existed and was deleted/renamed (usually merged into main), so its data now lives elsewhere. Folding the second into 'no upstream' is a silent fallback, and deleting the stale tracking ref (update-ref -d) also destroys any offline floor derived from it. TKT-083 reproduced a duplicate TKT-001 this way. Review rule: for every 'treat missing X as none' branch, ask whether local evidence shows X used to exist, and probe that case in a scratch repo with the real CLI.
 
 - **context-hook-stale-usage**: Hooks that read the last assistant usage from a transcript must reset on isCompactSummary, or the first prompt after /compact reads pre-compact size.
