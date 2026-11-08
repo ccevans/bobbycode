@@ -3,7 +3,7 @@ id: TKT-084
 title: >-
   Studio project is one shared active-project file: worktrees can't see it and
   parallel sessions clobber it; infer it from the ticket ID and folder
-stage: building
+stage: reviewing
 type: bug
 priority: high
 area: null
