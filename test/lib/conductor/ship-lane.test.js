@@ -70,6 +70,15 @@ describe('conductor ship lane', () => {
       make('alpha', 'AL', 'x');
       fs.rmSync(path.join(root, '.bobby', 'conductor-queue.yml'));
       expect(() => claim('api', 'lane a')).toThrow(/conductor-queue\.yml does not exist/);
+      // the failed claim must not have taken the lane
+      expect(fs.existsSync(path.join(root, '.bobby', 'conductor', 'ship-api.yml'))).toBe(false);
+    });
+
+    test('unqueued tickets ship in board order by ticket number, not directory order', () => {
+      const t = (id, project) => ({ id, project, title: id, stage: 'shipping', blocked: false, repos: ['api'] });
+      // directory order puts RF-1005 before RF-999; boards stay in their listed order
+      const tickets = [t('RF-1005', 'alpha'), t('RF-999', 'alpha'), t('BE-002', 'beta'), t('BE-1000', 'beta')];
+      expect(readyBatch('api', tickets, []).map(x => x.id)).toEqual(['RF-999', 'RF-1005', 'BE-002', 'BE-1000']);
     });
   });
 
