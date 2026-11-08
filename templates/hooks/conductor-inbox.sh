@@ -8,7 +8,7 @@
 #   <studio>/.bobby/conductor/inbox/<session_id>.jsonl   one JSON message per line
 #   <studio>/.bobby/conductor/inbox/<session_id>.cursor  lines already delivered
 #
-# - No studio, no inbox file, or nothing past the cursor: exit 0, print nothing.
+# - No studio, no inbox file, an empty file, or nothing past the cursor: exit 0, print nothing.
 # - A problem (bad hook input, a corrupt line, a cursor past the end, output that
 #   cannot be written) prints to stderr and exits 1. It never exits 2, so a failing
 #   hook reports itself without blocking the prompt.
@@ -66,6 +66,8 @@ if os.path.exists(cfile):
     cursor = int(text)
 
 raw = open(mfile, encoding="utf-8").read()
+if raw == "":
+    sys.exit(0)  # a sender has created the file but not yet written its line
 lines = raw.split("\n")
 complete = raw == "" or raw.endswith("\n")
 if raw.endswith("\n"):

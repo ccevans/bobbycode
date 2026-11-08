@@ -95,6 +95,15 @@ describe('conductor-inbox hook', () => {
     expect(fs.readdirSync(inbox)).toEqual([]);
   });
 
+  test('an empty inbox file (a send between open and write) exits 0 with no output and no cursor', () => {
+    fs.writeFileSync(path.join(inbox, `${SID}.jsonl`), '');
+    const r = runHook();
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+    expect(cursorOf()).toBeNull();
+  });
+
   test('no inbox directory or no studio at all: exit 0, no output', () => {
     fs.rmSync(path.join(studio, '.bobby'), { recursive: true });
     expect(runHook().status).toBe(0);

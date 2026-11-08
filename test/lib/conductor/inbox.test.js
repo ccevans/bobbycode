@@ -221,6 +221,11 @@ describe('inboxStatus', () => {
     expect(r.sessions.find(e => e.session_id === SID2)).toMatchObject({ undelivered: null, error: expect.stringMatching(/line 1 is not valid JSON/) });
   });
 
+  test('a message whose ts is not a date is an error entry, not a silent "not stale"', () => {
+    fs.writeFileSync(path.join(dir, `${SID}.jsonl`), `${JSON.stringify({ id: 'x1', ts: 'yesterday', from: 'o', to: SID, text: 'm' })}\n`);
+    expect(status().sessions[0]).toMatchObject({ undelivered: null, stale: false, error: expect.stringMatching(/x1 has an unreadable ts "yesterday"/) });
+  });
+
   test('a missing inbox directory is reported as missing, not as an empty board', () => {
     expect(inboxStatus(path.join(root, 'nope'), sessions, { now: NOW, staleMinutes: 30 })).toMatchObject({ missing: true, sessions: [] });
   });
