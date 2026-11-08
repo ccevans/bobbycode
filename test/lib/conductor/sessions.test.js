@@ -41,6 +41,21 @@ describe('conductor sessions', () => {
     expect(g.unknown).toHaveLength(1);
   });
 
+  test('live means a positive integer pid; a done session without one is grouped as stopped, not done', () => {
+    const raw = [
+      { id: 'aaaa0001', sessionId: 'aaaa0001-x', kind: 'background', state: 'done', pid: 10 },
+      { id: 'aaaa0002', sessionId: 'aaaa0002-x', kind: 'background', state: 'done' },
+      { id: 'aaaa0003', sessionId: 'aaaa0003-x', kind: 'background', state: 'done', pid: null },
+      { id: 'aaaa0004', sessionId: 'aaaa0004-x', kind: 'background', state: 'working', pid: 11 },
+    ];
+    const sessions = classifySessions(raw, { hookStateDir: hookDir, now: NOW });
+    expect(sessions.map(s => s.live)).toEqual([true, false, false, true]);
+    const g = groupSessions(sessions);
+    expect(g.done.map(s => s.id)).toEqual(['aaaa0001']);
+    expect(g.stopped.map(s => s.id)).toEqual(['aaaa0002', 'aaaa0003']);
+    expect(g.working.map(s => s.id)).toEqual(['aaaa0004']);
+  });
+
   test('age comes from startedAt and the injected clock; waitingFor is carried', () => {
     const s = classify().find(x => x.id === 'bbbb2222');
     expect(s.age_ms).toBe(5 * 3_600_000);

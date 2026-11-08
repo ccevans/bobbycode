@@ -148,7 +148,7 @@ describe('bobby conductor', () => {
       const r = bobbyIn(['status', '--json']);
       expect(r.status).toBe(0);
       const data = JSON.parse(r.stdout);
-      expect(Object.keys(data)).toEqual(['generated_at', 'working', 'waiting_on_cc', 'done', 'unknown', 'handoffs', 'board', 'machine', 'stacks']);
+      expect(Object.keys(data)).toEqual(['generated_at', 'working', 'waiting_on_cc', 'done', 'stopped', 'unknown', 'handoffs', 'board', 'machine', 'stacks']);
       expect(data.working.map(s => s.name)).toEqual(['lane one']);
       expect(data.waiting_on_cc.map(s => s.name)).toEqual(['lane two']);
       expect(data.done.map(s => s.name)).toEqual(['lane three']);
@@ -317,6 +317,23 @@ describe('bobby conductor', () => {
       expect(stops()).toEqual([]);
     });
 
+    test('a done session with no pid (already stopped, still listed by claude) is not listed, not stopped, and status does not count it as done', () => {
+      const agents = agentsFixture();
+      agents.push({ id: 'abab0001', sessionId: 'abab0001-0000-4000-8000-000000000000', name: 'old stopped lane', cwd: '/studio', kind: 'background', startedAt: 1, state: 'done' });
+      agents.push({ id: 'abab0002', sessionId: 'abab0002-0000-4000-8000-000000000000', name: 'null pid lane', cwd: '/studio', kind: 'background', startedAt: 1, state: 'done', pid: null });
+      fs.writeFileSync(agentsFile, JSON.stringify(agents));
+      const dry = bobbyIn(['reap']);
+      expect(dry.status).toBe(0);
+      expect(dry.stdout).toMatch(/Dry run: 1 session/);
+      expect(dry.stdout).not.toMatch(/old stopped lane|null pid lane/);
+      expect(bobbyIn(['reap', '--apply']).status).toBe(0);
+      expect(stops()).toEqual(['cccc3333']);
+      const data = JSON.parse(bobbyIn(['status', '--json']).stdout);
+      expect(data.done.map(s => s.name)).toEqual(['lane three']);
+      expect(data.stopped.map(s => s.name)).toEqual(['old stopped lane', 'null pid lane']);
+      expect(bobbyIn(['status']).stdout).toMatch(/STOPPED \(2\)\s+already ended, no live process; not reaped/);
+    });
+
     test('a failing claude stop is reported and the exit code is non-zero', () => {
       const failing = bobbyIn(['reap', '--apply'], { stopFail: 'cccc3333' });
       expect(failing.status).toBe(1);
@@ -352,6 +369,16 @@ describe('bobby conductor', () => {
       const dry = bobbyIn(['reap']);
       expect(dry.stdout).toMatch(/Orphaned handoff \(1\)/);
       expect(dry.stdout).toMatch(/Dry run: 0 session/);
+    });
+    test('status does not call a handed-off session with no live pid an orphan, same as reap', () => {
+      const agents = agentsFixture();
+      agents.push({ id: 'abab0001', sessionId: 'abab0001-0000-4000-8000-000000000000', name: 'old stopped lane', cwd: '/studio', kind: 'background', startedAt: 1, state: 'done' });
+      fs.writeFileSync(agentsFile, JSON.stringify(agents));
+      fs.writeFileSync(path.join(hookDir, 'abab0001-0000-4000-8000-000000000000.handoff'), 'bg ffff9999\n');
+      const r = bobbyIn(['status']);
+      expect(r.stdout).toMatch(/old stopped lane\s+successor ffff9999 not live/);
+      expect(r.stdout).not.toMatch(/orphaned handoff/);
+      expect(bobbyIn(['reap']).stdout).not.toMatch(/Orphaned handoff/);
     });
   });
 
