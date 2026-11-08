@@ -1,5 +1,8 @@
 import fs from 'fs';
+import path from 'path';
 import { reapStacks, evaluateStacks, renderStackReap } from '../../../lib/conductor/stack-reaper.js';
+import { moveTicket } from '../../../lib/tickets.js';
+import { writeClaim } from '../../../lib/conductor/queue.js';
 import { makeStudio, seedTickets, psLine } from './helpers.js';
 
 const HOUR = 3_600_000;
@@ -44,9 +47,11 @@ describe('conductor stack reaper', () => {
   beforeEach(() => {
     ({ root, hookDir } = makeStudio());
     seedTickets(root, 'alpha', [{ title: 'one' }, { title: 'two' }, { title: 'three' }, { title: 'four' }]);
-    config = { projects: ['alpha'], hook_state_dir: hookDir, governor: { min_free_ram_mb: 1, max_docker_stacks: 9 }, reaper: { stack_idle_hours: 2 } };
+    config = { projects: ['alpha'], hook_state_dir: hookDir, governor: { min_free_ram_mb: 1, max_docker_stacks: 9 }, reaper: { stack_idle_hours: 2 }, claims: { ttl_minutes: 30 } };
   });
   afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); });
+
+  const stage = (id, to) => moveTicket(path.join(root, '.bobby', 'alpha', 'tickets'), id, to, 'test');
 
   const go = (mock, opts = {}) => reapStacks({ studioRoot: root, config, run: mock.run, now: NOW, ...opts });
 
@@ -106,6 +111,46 @@ describe('conductor stack reaper', () => {
     expect(go(m).candidates).toEqual([]);
   });
 
+  test.each(['reviewing', 'testing', 'shipping'])('a stack whose ticket is %s is kept however old its containers are', (to) => {
+    stage('AL-001', to);
+    const m = mockRun({ stacks: { 'al-1api': 40, 'al-2api': 40 }, agents: [bg('aaaa1111', 'AL-001 lane', 'done')] });
+    const report = go(m, { apply: true });
+    expect(m.compose().map(c => c[3])).toEqual(['al-2api']);
+    expect(report.kept).toEqual([expect.objectContaining({ project: 'al-1api', why: `AL-001 is ${to}, mid-pipeline` })]);
+  });
+
+  test('stages before the test lane (building, planning) do not protect an old stack', () => {
+    stage('AL-001', 'building');
+    stage('AL-002', 'planning');
+    const m = mockRun({ stacks: { 'al-1api': 5, 'al-2api': 5 }, agents: [] });
+    expect(go(m).candidates.map(c => c.project)).toEqual(['al-1api', 'al-2api']);
+  });
+
+  test('an unexpired `conductor next` claim keeps the stack; an expired one does not', () => {
+    writeClaim(root, 'AL-001', { lane: 'lane a', now: NOW - 29 * 60_000 });
+    writeClaim(root, 'AL-002', { lane: 'lane b', now: NOW - 31 * 60_000 });
+    const m = mockRun({ stacks: { 'al-1api': 9, 'al-2api': 9 }, agents: [] });
+    const report = go(m, { apply: true });
+    expect(m.compose().map(c => c[3])).toEqual(['al-2api']);
+    expect(report.kept).toEqual([expect.objectContaining({ project: 'al-1api', why: 'AL-001 has a live lane claim' })]);
+  });
+
+  test('a ticket that moves into the pipeline between the plan and the stop keeps its stack', () => {
+    const m = mockRun({ stacks: { 'al-1api': 5 }, agents: (reads) => { if (reads > 1) stage('AL-001', 'testing'); return []; } });
+    const report = go(m, { apply: true });
+    expect(report.candidates.map(c => c.project)).toEqual(['al-1api']);
+    expect(m.compose()).toEqual([]);
+    expect(report.results).toEqual([expect.objectContaining({ outcome: 'skipped' })]);
+  });
+
+  test('a malformed claims file is an error, never "no claims"', () => {
+    fs.mkdirSync(path.join(root, '.bobby', 'conductor'), { recursive: true });
+    fs.writeFileSync(path.join(root, '.bobby', 'conductor', 'claims.yml'), 'claims: [1]\n');
+    const m = mockRun({ stacks: { 'al-1api': 9 }, agents: [] });
+    expect(() => go(m, { apply: true })).toThrow(/claims/);
+    expect(m.compose()).toEqual([]);
+  });
+
   test('unmapped stacks, the shared main stack and promote/ship stacks are never stopped', () => {
     const m = mockRun({
       stacks: { 'listrobin_api': 99, 'promote-api-mainapi': 99, 'al-99api': 99, 'ship-1api': 99, 'promote-1api': 99 },
@@ -157,7 +202,7 @@ describe('conductor stack reaper', () => {
 
   test('evaluateStacks is pure: no lane and idle past the limit is a candidate', () => {
     const base = { containers: 2, idle_ms: 3 * HOUR, ticket: 'AL-001', unmapped: false };
-    const out = evaluateStacks([{ project: 'al-1api', lane: 'none', ...base }, { project: 'x', lane: 'none', ...base, unmapped: true }], { idleHours: 2 });
+    const out = evaluateStacks([{ project: 'al-1api', lane: 'none', ...base }, { project: 'x', lane: 'none', ...base, unmapped: true }], { idleHours: 2, claims: {}, claimTtlMinutes: 30, now: NOW });
     expect(out.candidates.map(c => c.project)).toEqual(['al-1api']);
     expect(out.kept.map(k => k.why)).toEqual(['unmapped']);
   });
