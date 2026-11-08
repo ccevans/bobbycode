@@ -4,7 +4,8 @@
 # Run by a session that hit the context cap (hooks/context-cap.sh tells it to),
 # after it wrote its handoff. Starts the successor session in the background
 # with Remote Control on, named "<this session's name> 2" (3, 4, ...), same
-# model and effort, told to read the handoff. [session-name] is needed only when
+# model and effort, told to read the handoff. If that name is already used by any
+# session (any state), the next free number is taken instead. [session-name] is needed only when
 # this session has no title in its transcript. Once per session: a second call
 # refuses, so the same work never runs in two sessions.
 
@@ -39,9 +40,17 @@ if [ -z "$TRANSCRIPT" ]; then
   exit 1
 fi
 
+# Every session name in use, any state, so the successor never takes a live
+# session's name (messages sent by name would reach the wrong session).
+if ! AGENTS_JSON="$(claude agents --json --all)"; then
+  echo "handoff-spawn: 'claude agents --json --all' failed; not spawning with an unchecked name" >&2
+  exit 1
+fi
+export AGENTS_JSON
+
 # name, successor name, model, start dir, from the transcript
 read -r -d '' INFO < <(python3 - "$TRANSCRIPT" "$GIVEN_NAME" <<'PY'
-import json, re, sys
+import json, os, re, sys
 custom = ai = model = cwd = ""
 for line in open(sys.argv[1], errors="ignore"):
     try:
@@ -61,7 +70,20 @@ name = (sys.argv[2] or custom or ai).strip()
 if not name:
     sys.exit("handoff-spawn: this session has no title; run it again with a short name: hooks/handoff-spawn.sh <handoff-file> \"<name>\"")
 m = re.match(r"^(.*\S)\s+(\d+)$", name)
-nxt = f"{m.group(1)} {int(m.group(2)) + 1}" if m else f"{name} 2"
+base, num = (m.group(1), int(m.group(2)) + 1) if m else (name, 2)
+try:
+    agents = json.loads(os.environ["AGENTS_JSON"])
+    if not isinstance(agents, list):
+        raise ValueError("expected a JSON list")
+    taken = set()
+    for a in agents:
+        if isinstance(a, dict):
+            taken.add(str(a.get("name") or "").strip())
+except Exception as e:
+    sys.exit(f"handoff-spawn: could not read the session list from 'claude agents --json --all' ({e}); not spawning with an unchecked name")
+while f"{base} {num}" in taken:
+    num += 1
+nxt = f"{base} {num}"
 if not model or model.startswith("<"):
     sys.exit("handoff-spawn: no model found in the transcript")
 if not cwd:

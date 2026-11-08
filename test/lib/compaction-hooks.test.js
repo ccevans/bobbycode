@@ -262,7 +262,7 @@ describe('handoff-spawn refuses before starting anything', () => {
     ].map(e => JSON.stringify(e)).join('\n') + '\n');
     const bin = path.join(tmp, 'bin');
     fs.mkdirSync(bin, { recursive: true });
-    fs.writeFileSync(path.join(bin, 'claude'), `#!/bin/bash\necho "$@" > "${tmp}/claude-args"\necho "backgrounded · ab12 · Work 2"\n`, { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'claude'), `#!/bin/bash\nif [ "$1" = agents ]; then echo "[]"; exit 0; fi\necho "$@" > "${tmp}/claude-args"\necho "backgrounded · ab12 · Work 2"\n`, { mode: 0o755 });
     const r = spawnSync('bash', [path.join(tmp, 'hooks', 'handoff-spawn.sh'), handoff()], {
       cwd: tmp, encoding: 'utf8', env: { ...process.env, HOME: home, PATH: `${bin}:${process.env.PATH}`, CLAUDE_CODE_SESSION_ID: 's1' },
     });
