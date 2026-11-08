@@ -54,6 +54,15 @@ All notable changes to Bobby are documented here. The format is based on
   handoff markers with whether the successor is live, and ticket counts per stage for
   the projects named in the config. A missing config file or key is an error that names
   it; there are no code defaults. Nothing is stopped, started or deleted.
+- **`bobby conductor check lane|stack` and MACHINE / STACKS in `status` (BOB-175):
+  read-only resource governor.** `check lane` exits 1 with `free RAM <n> MB < min <m> MB`
+  below `governor.min_free_ram_mb`; `check stack` also exits 1 when running docker compose
+  stacks reach `governor.max_docker_stacks`. Free RAM is free + speculative + file-cache +
+  purgeable pages from `vm_stat` (inactive and compressed memory are not counted). Docker
+  stacks are grouped by compose project and mapped to tickets by the
+  `scripts/new-api-worktree.sh` naming; the rest show as `unmapped`. `conductor init` writes
+  both governor keys (4096 MB, 4 stacks); a missing key is an error. A docker that is not
+  running is an error, never zero stacks. Nothing is stopped, started or deleted.
 - **`library` and `library-secure` built-in workflows, and a `default_workflow`
   config key (BOB-090, also TKT-013).** CLI tools, libraries and npm packages have
   no live app, so the test stage stranded every ticket (bobby-test never runs specs).

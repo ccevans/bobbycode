@@ -16,12 +16,19 @@ describe('conductor config', () => {
 
   test('a valid file loads exactly what it says', () => {
     writeConductorYml(root, validYml(hookDir, ['alpha']));
-    expect(loadConductorConfig(root)).toEqual({ projects: ['alpha'], hook_state_dir: hookDir });
+    expect(loadConductorConfig(root)).toEqual({
+      projects: ['alpha'],
+      hook_state_dir: hookDir,
+      governor: { min_free_ram_mb: 4096, max_docker_stacks: 4 },
+    });
   });
 
   test.each([
     ['projects', `hook_state_dir: /x\n`],
     ['hook_state_dir', `projects:\n  - alpha\n`],
+    ['governor.min_free_ram_mb', `projects:\n  - alpha\nhook_state_dir: /x\n`],
+    ['governor.min_free_ram_mb', `projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  max_docker_stacks: 4\n`],
+    ['governor.max_docker_stacks', `projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  min_free_ram_mb: 4096\n`],
   ])('missing key "%s" throws naming the key and the file; no default applied', (key, yml) => {
     writeConductorYml(root, yml);
     expect(() => loadConductorConfig(root)).toThrow(new RegExp(`conductor\\.yml: key "${key}" is missing`));
@@ -32,6 +39,10 @@ describe('conductor config', () => {
     ['projects', `projects: alpha\nhook_state_dir: /x\n`],
     ['hook_state_dir', `projects:\n  - alpha\nhook_state_dir: relative/dir\n`],
     ['hook_state_dir', `projects:\n  - alpha\nhook_state_dir: 7\n`],
+    ['governor', `projects:\n  - alpha\nhook_state_dir: /x\ngovernor: 4\n`],
+    ['governor.min_free_ram_mb', `projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  min_free_ram_mb: 0\n  max_docker_stacks: 4\n`],
+    ['governor.min_free_ram_mb', `projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  min_free_ram_mb: lots\n  max_docker_stacks: 4\n`],
+    ['governor.max_docker_stacks', `projects:\n  - alpha\nhook_state_dir: /x\ngovernor:\n  min_free_ram_mb: 4096\n  max_docker_stacks: 2.5\n`],
   ])('invalid "%s" throws naming the key', (key, yml) => {
     writeConductorYml(root, yml);
     expect(() => loadConductorConfig(root)).toThrow(new RegExp(`key "${key}" must be`));
@@ -45,8 +56,13 @@ describe('conductor config', () => {
   test('init writes every key explicitly and the result loads', () => {
     const { file, values } = initConductorConfig(root, { projects: ['alpha'] });
     expect(file).toBe(conductorFilePath(root));
-    expect(values).toEqual({ projects: ['alpha'], hook_state_dir: path.join(os.homedir(), '.bobby', 'hook-state') });
+    expect(values).toEqual({
+      projects: ['alpha'],
+      hook_state_dir: path.join(os.homedir(), '.bobby', 'hook-state'),
+      governor: { min_free_ram_mb: 4096, max_docker_stacks: 4 },
+    });
     expect(loadConductorConfig(root)).toEqual(values);
+    expect(fs.readFileSync(file, 'utf8')).toMatch(/governor:\n {2}min_free_ram_mb: 4096\n {2}max_docker_stacks: 4\n/);
   });
 
   test('init without --projects writes every studio project explicitly', () => {

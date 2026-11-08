@@ -21,8 +21,41 @@ export function writeConductorYml(root, text) {
   fs.writeFileSync(path.join(root, '.bobby', 'conductor.yml'), text);
 }
 
-export function validYml(hookDir, projects = ['alpha', 'beta']) {
-  return `projects:\n${projects.map(p => `  - ${p}`).join('\n')}\nhook_state_dir: ${hookDir}\n`;
+export function validYml(hookDir, projects = ['alpha', 'beta'], governor = { min_free_ram_mb: 4096, max_docker_stacks: 4 }) {
+  return `projects:\n${projects.map(p => `  - ${p}`).join('\n')}\nhook_state_dir: ${hookDir}\n`
+    + `governor:\n  min_free_ram_mb: ${governor.min_free_ram_mb}\n  max_docker_stacks: ${governor.max_docker_stacks}\n`;
+}
+
+/** vm_stat text for a 16 KB-page machine. Pages are given in MB so tests read in MB. */
+export function vmStatText({ freeMb = 100, specMb = 50, fileMb = 1000, purgeMb = 50, inactiveMb = 9000, storedMb = 20000, compressorMb = 8000 } = {}) {
+  const pages = (mb) => Math.round((mb * 1024 * 1024) / 16384);
+  return [
+    'Mach Virtual Memory Statistics: (page size of 16384 bytes)',
+    `Pages free:                                   ${pages(freeMb)}.`,
+    'Pages active:                                 986626.',
+    `Pages inactive:                               ${pages(inactiveMb)}.`,
+    `Pages speculative:                            ${pages(specMb)}.`,
+    'Pages throttled:                                   0.',
+    'Pages wired down:                             195509.',
+    `Pages purgeable:                              ${pages(purgeMb)}.`,
+    '"Translation faults":                    20720053954.',
+    `File-backed pages:                            ${pages(fileMb)}.`,
+    'Anonymous pages:                             1487211.',
+    `Pages stored in compressor:                  ${pages(storedMb)}.`,
+    `Pages occupied by compressor:                 ${pages(compressorMb)}.`,
+    '',
+  ].join('\n');
+}
+
+/** One `docker ps --format json` line for a container of compose project `project`. */
+export function psLine(id, project) {
+  const labels = [
+    'com.docker.compose.config-hash=abc',
+    'com.docker.compose.project.config_files=/w/docker-compose.yml,/w/docker-compose.override.yml',
+    ...(project ? [`com.docker.compose.project=${project}`] : []),
+    'com.docker.compose.service=web',
+  ].join(',');
+  return JSON.stringify({ ID: id, Names: `${id}-1`, State: 'running', Labels: labels });
 }
 
 /** Create tickets in `project` through the library: [{title, stage?, blocked?}]. */
