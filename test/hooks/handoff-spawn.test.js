@@ -1,4 +1,5 @@
-// test/hooks/handoff-spawn.test.js — successor names never clash with a live or finished session (BOB-178).
+// test/hooks/handoff-spawn.test.js — successor names never clash with a live or finished session (BOB-178);
+// the successor runs in the parent's permission mode (BOB-192).
 // Runs the real templates/hooks/handoff-spawn.sh against a stub `claude` on PATH and a temp HOME.
 import fs from 'fs';
 import os from 'os';
@@ -9,7 +10,7 @@ import { fileURLToPath } from 'url';
 const SCRIPT = fileURLToPath(new URL('../../templates/hooks/handoff-spawn.sh', import.meta.url));
 const SID = '11111111-2222-3333-4444-555555555555';
 
-function run({ name, agents, agentsExit = 0 }) {
+function run({ name, agents, agentsExit = 0, modes = ['bypassPermissions'] }) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'handoff-spawn-'));
   const bin = path.join(home, 'bin');
   fs.mkdirSync(bin);
@@ -20,6 +21,7 @@ function run({ name, agents, agentsExit = 0 }) {
     [
       { type: 'custom-title', customTitle: name },
       { type: 'assistant', cwd: home, message: { model: 'claude-test-1' } },
+      ...modes.map((m) => ({ type: 'user', permissionMode: m })),
     ].map((d) => JSON.stringify(d)).join('\n') + '\n',
   );
   const handoff = path.join(home, 'handoff.md');
@@ -53,7 +55,7 @@ const list = (...names) => JSON.stringify(names.map((n, i) => ({ id: `a${i}`, na
 test('no clash: successor is "<name> 2" and the marker line is unchanged', () => {
   const r = run({ name: 'Lane', agents: list('Other') });
   expect(r.status).toBe(0);
-  expect(r.spawned).toContain('--remote-control Lane 2 -n Lane 2 --model claude-test-1');
+  expect(r.spawned).toContain('--remote-control Lane 2 -n Lane 2 --model claude-test-1 --permission-mode bypassPermissions');
   expect(r.marker).toBe('"Lane 2" (bg abc123, claude-test-1) from ' + r.marker.split(' from ')[1]);
   expect(r.stdout).toContain('Handed off to "Lane 2" (bg abc123, claude-test-1).');
 });
@@ -95,6 +97,26 @@ test.each([['not json {'], ['{"name":"Lane 2"}']])('bad session list %j exits 1 
   const r = run({ name: 'Lane', agents: bad });
   expect(r.status).toBe(1);
   expect(r.stderr).toContain('unchecked name');
+  expect(r.spawned).toBe('');
+  expect(r.markerExists).toBe(false);
+});
+
+test('the successor takes the last permission mode in the transcript', () => {
+  const r = run({ name: 'Lane', agents: list('Other'), modes: ['auto', 'bypassPermissions'] });
+  expect(r.status).toBe(0);
+  expect(r.spawned).toContain('--permission-mode bypassPermissions');
+});
+
+test('an auto-mode parent hands off to an auto-mode successor', () => {
+  const r = run({ name: 'Lane', agents: list('Other'), modes: ['auto'] });
+  expect(r.status).toBe(0);
+  expect(r.spawned).toContain('--permission-mode auto');
+});
+
+test('a transcript with no permission mode exits 1 and spawns nothing', () => {
+  const r = run({ name: 'Lane', agents: list('Other'), modes: [] });
+  expect(r.status).toBe(1);
+  expect(r.stderr).toContain('no permission mode found in the transcript');
   expect(r.spawned).toBe('');
   expect(r.markerExists).toBe(false);
 });

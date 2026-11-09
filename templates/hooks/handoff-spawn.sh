@@ -4,7 +4,9 @@
 # Run by a session that hit the context cap (hooks/context-cap.sh tells it to),
 # after it wrote its handoff. Starts the successor session in the background
 # with Remote Control on, named "<this session's name> 2" (3, 4, ...), same
-# model and effort, told to read the handoff. If that name is already used by any
+# model, effort and permission mode, told to read the handoff. The permission
+# mode must match: a session in another mode holds the orchestrator's messages
+# (BOB-192). If that name is already used by any
 # session (any state), the next free number is taken instead. [session-name] is needed only when
 # this session has no title in its transcript. Once per session: a second call
 # refuses, so the same work never runs in two sessions.
@@ -48,10 +50,10 @@ if ! AGENTS_JSON="$(claude agents --json --all)"; then
 fi
 export AGENTS_JSON
 
-# name, successor name, model, start dir, from the transcript
+# name, successor name, model, start dir, permission mode, from the transcript
 read -r -d '' INFO < <(python3 - "$TRANSCRIPT" "$GIVEN_NAME" <<'PY'
 import json, os, re, sys
-custom = ai = model = cwd = ""
+custom = ai = model = cwd = mode = ""
 for line in open(sys.argv[1], errors="ignore"):
     try:
         d = json.loads(line)
@@ -66,6 +68,8 @@ for line in open(sys.argv[1], errors="ignore"):
         model = d["message"]["model"]
     if not cwd and d.get("cwd"):
         cwd = d["cwd"]
+    if d.get("permissionMode"):
+        mode = d["permissionMode"]
 name = (sys.argv[2] or custom or ai).strip()
 if not name:
     sys.exit("handoff-spawn: this session has no title; run it again with a short name: hooks/handoff-spawn.sh <handoff-file> \"<name>\"")
@@ -88,13 +92,15 @@ if not model or model.startswith("<"):
     sys.exit("handoff-spawn: no model found in the transcript")
 if not cwd:
     sys.exit("handoff-spawn: no working directory found in the transcript")
-print(name); print(nxt); print(model); print(cwd)
+if not mode:
+    sys.exit("handoff-spawn: no permission mode found in the transcript")
+print(name); print(nxt); print(model); print(cwd); print(mode)
 PY
 ) || true
 NAME="$(sed -n 1p <<<"$INFO")"; NEXT="$(sed -n 2p <<<"$INFO")"
-MODEL="$(sed -n 3p <<<"$INFO")"; CWD="$(sed -n 4p <<<"$INFO")"
-if [ -z "$CWD" ]; then
-  echo "handoff-spawn: could not read name, model and start dir from $TRANSCRIPT" >&2
+MODEL="$(sed -n 3p <<<"$INFO")"; CWD="$(sed -n 4p <<<"$INFO")"; PMODE="$(sed -n 5p <<<"$INFO")"
+if [ -z "$PMODE" ]; then
+  echo "handoff-spawn: could not read name, model, start dir and permission mode from $TRANSCRIPT" >&2
   exit 1
 fi
 
@@ -104,7 +110,7 @@ if [ -n "${CLAUDE_EFFORT:-}" ]; then EFFORT_ARGS=(--effort "$CLAUDE_EFFORT"); fi
 PROMPT="You are taking over from the session \"$NAME\", which hit the context cap. Read $HANDOFF and continue from its next action. Do not redo finished work. Re-read other files only when the handoff points you at them."
 
 cd "$CWD"
-OUT="$(claude --bg --remote-control "$NEXT" -n "$NEXT" --model "$MODEL" ${EFFORT_ARGS[@]+"${EFFORT_ARGS[@]}"} "$PROMPT" 2>&1)"
+OUT="$(claude --bg --remote-control "$NEXT" -n "$NEXT" --model "$MODEL" --permission-mode "$PMODE" ${EFFORT_ARGS[@]+"${EFFORT_ARGS[@]}"} "$PROMPT" 2>&1)"
 BG_ID="$(sed -n 's/^backgrounded · \([0-9a-f]*\) · .*/\1/p' <<<"$OUT" | head -1)"
 if [ -z "$BG_ID" ]; then
   echo "handoff-spawn: claude --bg did not start a session:" >&2
