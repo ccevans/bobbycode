@@ -281,11 +281,11 @@ describe('handoff-spawn refuses before starting anything', () => {
     expect(fs.existsSync(path.join(tmp, 'claude-called'))).toBe(false);
   });
 
-  test('starts "<name> 2" with the session model and records the marker', () => {
+  test('starts "<name> 2" with the session model and permission mode and records the marker', () => {
     const proj = path.join(home, '.claude', 'projects', 'p');
     fs.mkdirSync(proj, { recursive: true });
     fs.writeFileSync(path.join(proj, 's1.jsonl'), [
-      { type: 'custom-title', customTitle: 'Work' }, { cwd: tmp, ...prompt('hi') }, assistant(1),
+      { type: 'custom-title', customTitle: 'Work' }, { cwd: tmp, permissionMode: 'bypassPermissions', ...prompt('hi') }, assistant(1),
     ].map(e => JSON.stringify(e)).join('\n') + '\n');
     const bin = path.join(tmp, 'bin');
     fs.mkdirSync(bin, { recursive: true });
@@ -294,7 +294,7 @@ describe('handoff-spawn refuses before starting anything', () => {
       cwd: tmp, encoding: 'utf8', env: { ...process.env, HOME: home, PATH: `${bin}:${process.env.PATH}`, CLAUDE_CODE_SESSION_ID: 's1' },
     });
     expect(r.stdout).toContain('Handed off to "Work 2" (bg ab12, claude-x)');
-    expect(fs.readFileSync(path.join(tmp, 'claude-args'), 'utf8')).toContain('--remote-control Work 2 -n Work 2 --model claude-x');
+    expect(fs.readFileSync(path.join(tmp, 'claude-args'), 'utf8')).toContain('--remote-control Work 2 -n Work 2 --model claude-x --permission-mode bypassPermissions');
     expect(fs.existsSync(path.join(home, '.bobby', 'hook-state', 's1.handoff'))).toBe(true);
   });
 });
