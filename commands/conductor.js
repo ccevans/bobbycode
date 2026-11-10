@@ -14,6 +14,7 @@ import { checkLane, checkStack } from '../lib/conductor/governor.js';
 import { reap, renderReap } from '../lib/conductor/reaper.js';
 import { reapStacks, renderStackReap } from '../lib/conductor/stack-reaper.js';
 import { reapWorktrees, renderWorktreeReap } from '../lib/conductor/worktree-reaper.js';
+import { buildWorktreeTimerPlist } from '../lib/conductor/worktree-timer.js';
 import { readDisk } from '../lib/conductor/disk.js';
 import { assertM4Host } from '../lib/conductor/host.js';
 import { readAgents } from '../lib/conductor/sessions.js';
@@ -48,9 +49,10 @@ export function registerConductor(program) {
         console.log(dim(`  projects: ${values.projects.join(', ')}`));
         console.log(dim(`  hook_state_dir: ${values.hook_state_dir}`));
         console.log(dim(`  governor: min_free_ram_mb ${values.governor.min_free_ram_mb}, max_docker_stacks ${values.governor.max_docker_stacks}, min_free_disk_gb ${values.governor.min_free_disk_gb}`));
-        console.log(dim(`  reaper: stack_idle_hours ${values.reaper.stack_idle_hours}`));
+        console.log(dim(`  reaper: stack_idle_hours ${values.reaper.stack_idle_hours}, worktree_scratch_paths ${values.reaper.worktree_scratch_paths.join(', ')}`));
         console.log(dim(`  wip: max_lanes ${values.wip.max_lanes}; claims: ttl_minutes ${values.claims.ttl_minutes}`));
         console.log(dim(`  inbox: stale_minutes ${values.inbox.stale_minutes}`));
+        console.log(dim(`  worktree_timer: interval_minutes ${values.worktree_timer.interval_minutes}, log_file ${values.worktree_timer.log_file}`));
       } catch (e) {
         fail(e);
       }
@@ -102,17 +104,24 @@ export function registerConductor(program) {
     .option('--stacks', 'Reap idle per-ticket docker stacks (compose project, containers kept) instead of sessions')
     .option('--worktrees', 'Remove git worktrees of done tickets (clean tracked files, no live session inside; branches kept) instead of sessions')
     .option('--sizes', 'With --worktrees: measure the candidates with du (slow)')
+    .option('--print-plist', 'With --worktrees: print a launchd job that runs `reap --worktrees --apply` every worktree_timer.interval_minutes (changes nothing)')
     .action((opts) => {
       try {
         if (opts.stacks && opts.worktrees) throw new Error('Pick one of --stacks and --worktrees.');
         if (opts.sizes && !opts.worktrees) throw new Error('--sizes only applies to --worktrees.');
+        if (opts.printPlist && !opts.worktrees) throw new Error('--print-plist only applies to --worktrees.');
+        if (opts.printPlist && (opts.apply || opts.sizes)) throw new Error('--print-plist only prints; drop --apply and --sizes.');
         assertM4Host();
         const studioRoot = findStudioRoot();
         const config = loadConductorConfig(studioRoot);
         const apply = Boolean(opts.apply);
+        if (opts.printPlist) {
+          process.stdout.write(buildWorktreeTimerPlist({ studioRoot, config }));
+          return;
+        }
         if (opts.worktrees) {
           const report = reapWorktrees({ studioRoot, config, apply, measure: Boolean(opts.sizes) });
-          console.log(renderWorktreeReap(report, { apply }));
+          console.log(renderWorktreeReap(report, { apply, studioRoot }));
           if (report.failed > 0) {
             error(`${report.failed} worktree(s) could not be checked or removed`);
             process.exit(1);

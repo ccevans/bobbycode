@@ -24,13 +24,14 @@ export function writeConductorYml(root, text) {
   fs.writeFileSync(path.join(root, '.bobby', 'conductor.yml'), text);
 }
 
-export function validYml(hookDir, projects = ['alpha', 'beta'], governor = { min_free_ram_mb: 4096, max_docker_stacks: 4, min_free_disk_gb: 1 }, reaper = { stack_idle_hours: 2 }, wip = { max_lanes: 6 }, claims = { ttl_minutes: 30 }, inbox = { stale_minutes: 30 }) {
+export function validYml(hookDir, projects = ['alpha', 'beta'], governor = { min_free_ram_mb: 4096, max_docker_stacks: 4, min_free_disk_gb: 1 }, reaper = { stack_idle_hours: 2, worktree_scratch_paths: ['coverage/', 'tmp/', 'log/'] }, wip = { max_lanes: 6 }, claims = { ttl_minutes: 30 }, inbox = { stale_minutes: 30 }, worktreeTimer = { interval_minutes: 60, log_file: '/tmp/bobby-reap-worktrees.log' }) {
   return `projects:\n${projects.map(p => `  - ${p}`).join('\n')}\nhook_state_dir: ${hookDir}\n`
     + `governor:\n  min_free_ram_mb: ${governor.min_free_ram_mb}\n  max_docker_stacks: ${governor.max_docker_stacks}\n  min_free_disk_gb: ${governor.min_free_disk_gb}\n`
-    + `reaper:\n  stack_idle_hours: ${reaper.stack_idle_hours}\n`
+    + `reaper:\n  stack_idle_hours: ${reaper.stack_idle_hours}\n  worktree_scratch_paths: ${JSON.stringify(reaper.worktree_scratch_paths)}\n`
     + `wip:\n  max_lanes: ${wip.max_lanes}\n`
     + `claims:\n  ttl_minutes: ${claims.ttl_minutes}\n`
-    + `inbox:\n  stale_minutes: ${inbox.stale_minutes}\n`;
+    + `inbox:\n  stale_minutes: ${inbox.stale_minutes}\n`
+    + `worktree_timer:\n  interval_minutes: ${worktreeTimer.interval_minutes}\n  log_file: ${worktreeTimer.log_file}\n`;
 }
 
 /** vm_stat text for a 16 KB-page machine. Pages are given in MB so tests read in MB. */

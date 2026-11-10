@@ -6,6 +6,20 @@ All notable changes to Bobby are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **`conductor reap --worktrees` treats scratch folders as clean, and can run on a timer
+  (BOB-193).** Changes confined to the folders in the new required key
+  `reaper.worktree_scratch_paths` (init writes `coverage/`, `tmp/`, `log/`) no longer keep a
+  done ticket's worktree: rspec SimpleCov output and `tmp/**/.keep` deletions go with the
+  folder. A change with any path outside them (a move counts both paths) still keeps it, and
+  its row names the first changed files. The output ends with a short
+  `Done tickets kept for real changes` section the Conductor can relay, and starts with a
+  timestamp line. `bobby conductor reap --worktrees --print-plist` prints a launchd job that
+  runs `reap --worktrees --apply` every `worktree_timer.interval_minutes` (init: 60), logging to
+  `worktree_timer.log_file`; printing changes nothing, and a PATH without git, claude or
+  sysctl is an error. **Both keys are required**: add them to an existing `conductor.yml`
+  (`reaper.worktree_scratch_paths: []` keeps the old rule). Branches are always kept.
+
 ### Changed
 - **Smaller skills at agent start (token budget).** Every agent step re-sends its
   whole context, so what an agent loads up front is paid on every step.
