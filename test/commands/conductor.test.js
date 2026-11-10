@@ -604,6 +604,7 @@ describe('bobby conductor', () => {
       expect(xml).toContain('<string>com.bobby.conductor.reap-worktrees</string>');
       const args = [...xml.match(/<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/)[1].matchAll(/<string>([^<]*)<\/string>/g)].map(m => m[1]);
       expect(path.isAbsolute(args[0])).toBe(true);
+      expect(path.basename(args[0])).toBe('node');
       expect(args[1]).toBe(fs.realpathSync(bobby));
       expect(args.slice(2)).toEqual(['conductor', 'reap', '--worktrees', '--apply']);
       expect(xml).toMatch(/<key>StartInterval<\/key>\s*<integer>3600<\/integer>/);
