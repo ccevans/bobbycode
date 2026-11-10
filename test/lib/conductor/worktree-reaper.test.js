@@ -7,7 +7,7 @@ import YAML from 'yaml';
 import { jest } from '@jest/globals';
 import { run as realRun } from '../../../lib/conductor/exec.js';
 import { moveTicket, listTickets } from '../../../lib/tickets.js';
-import { reapWorktrees, renderWorktreeReap, evaluateWorktrees } from '../../../lib/conductor/worktree-reaper.js';
+import { reapWorktrees, renderWorktreeReap, evaluateWorktrees, porcelainPaths, isScratch } from '../../../lib/conductor/worktree-reaper.js';
 import { readSizeCache } from '../../../lib/conductor/worktrees.js';
 import { makeStudio, seedTickets } from './helpers.js';
 
@@ -60,7 +60,7 @@ describe('conductor worktree reaper', () => {
     fs.writeFileSync(rc, YAML.stringify({ ...parsed, repos: { ...(parsed.repos || {}), app: { path: app } } }));
     home = fs.mkdtempSync(path.join(os.tmpdir(), 'bobby-wt-home-'));
     seedTickets(root, 'alpha', [{ title: 'one' }, { title: 'two' }, { title: 'three' }, { title: 'four' }, { title: 'five' }]);
-    config = { projects: ['alpha'], hook_state_dir: hookDir, governor: {}, reaper: {}, claims: {} };
+    config = { projects: ['alpha'], hook_state_dir: hookDir, governor: {}, reaper: { worktree_scratch_paths: ['coverage/', 'tmp/', 'log/'] }, claims: {} };
   });
   afterEach(() => {
     for (const d of [root, app, home]) fs.rmSync(d, { recursive: true, force: true });
@@ -141,7 +141,8 @@ describe('conductor worktree reaper', () => {
     expect(exists(path.join(many, 'd.txt'))).toBe(true);
     const text = renderWorktreeReap(report, { apply: false });
     expect(text).toMatch(/2 {2}untracked files that are not ignored/);
-    expect(text).toMatch(/kept .*AL-1-ui.*untracked: review\.md, test-evidence\//);
+    expect(text).toMatch(/Done tickets kept for real changes: 2 /);
+    expect(text).toMatch(/AL-001 {2}\S*AL-1-ui {2}untracked: review\.md, test-evidence\//);
   });
 
   test('a user setting status.showUntrackedFiles=no cannot hide untracked files from the check', () => {
@@ -161,7 +162,7 @@ describe('conductor worktree reaper', () => {
     fs.appendFileSync(path.join(p, 'tracked.txt'), 'edit\n');
     fs.writeFileSync(path.join(p, 'review.md'), 'x');
     const report = go(mockRun());
-    expect(report.kept[0].why).toBe('1 tracked file(s) modified or staged');
+    expect(report.kept[0].why).toBe('1 tracked file(s) modified or staged: tracked.txt');
   });
 
   test('a session that has ended (done, no pid) does not keep a worktree; interactive and blocked ones do', () => {
@@ -317,12 +318,113 @@ describe('conductor worktree reaper', () => {
     expect(renderWorktreeReap(report, { apply: false })).toMatch(/Size of the 1 candidate/);
   });
 
+  describe('scratch folders (reaper.worktree_scratch_paths, BOB-193)', () => {
+    // coverage/ and tmp/**/.keep committed on main, the way a Rails repo carries them.
+    beforeEach(() => {
+      fs.mkdirSync(path.join(root, 'coverage'));
+      fs.writeFileSync(path.join(root, 'coverage', '.last_run.json'), '{}');
+      fs.writeFileSync(path.join(root, 'coverage', '.resultset.json'), '{}');
+      fs.mkdirSync(path.join(root, 'tmp', 'pids'), { recursive: true });
+      fs.writeFileSync(path.join(root, 'tmp', 'pids', '.keep'), '');
+      git(root, 'add', 'coverage', 'tmp');
+      git(root, 'commit', '-q', '-m', 'coverage and tmp');
+    });
+
+    test('a done worktree whose only changes are coverage/ deletions, tmp/**/.keep deletions and untracked tmp files is removed; branch kept', () => {
+      finish(1);
+      const p = wt(root, 'AL-1-ui');
+      fs.rmSync(path.join(p, 'coverage'), { recursive: true });
+      fs.rmSync(path.join(p, 'tmp', 'pids', '.keep'));
+      fs.mkdirSync(path.join(p, 'tmp', 'cache'), { recursive: true });
+      fs.writeFileSync(path.join(p, 'tmp', 'cache', 'x.bin'), 'x');
+      fs.mkdirSync(path.join(p, 'log'));
+      fs.writeFileSync(path.join(p, 'log', 'test.txt'), 'x');
+      const m = mockRun();
+      const report = go(m, { apply: true });
+      expect(report.candidates.map(c => c.path)).toEqual([p]);
+      expect(report.candidates[0].reason).toMatch(/only scratch changes \(\d+ under coverage\/, tmp\/, log\/\)/);
+      expect(report.results.map(r => r.outcome)).toEqual(['removed']);
+      expect(m.removals()).toEqual([['git', '-C', root, 'worktree', 'remove', '--force', p]]);
+      expect(exists(p)).toBe(false);
+      expect(git(root, 'branch', '--list', 'br-AL-1-ui')).toMatch(/br-AL-1-ui/);
+    });
+
+    test('a scratch change plus a real one keeps the worktree, and the row names only the real files', () => {
+      finish(1);
+      const p = wt(root, 'AL-1-ui');
+      fs.rmSync(path.join(p, 'coverage'), { recursive: true });
+      fs.appendFileSync(path.join(p, 'tracked.txt'), 'edit\n');
+      const report = go(mockRun(), { apply: true });
+      expect(report.candidates).toEqual([]);
+      expect(report.kept[0]).toMatchObject({ why: '1 tracked file(s) modified or staged: tracked.txt', real_diff: true });
+      expect(exists(p)).toBe(true);
+      const text = renderWorktreeReap(report, { apply: true, studioRoot: root });
+      expect(text).toMatch(/Done tickets kept for real changes: 1 /);
+      expect(text).toContain('  AL-001  worktrees/AL-1-ui  1 tracked file(s) modified or staged: tracked.txt');
+    });
+
+    test('a move out of a scratch folder counts both paths, so it keeps the worktree', () => {
+      finish(1);
+      const p = wt(root, 'AL-1-ui');
+      git(p, 'mv', 'coverage/.last_run.json', 'last_run.json');
+      const report = go(mockRun());
+      expect(report.candidates).toEqual([]);
+      expect(report.kept[0].why).toMatch(/^1 tracked file\(s\) modified or staged: coverage\/\.last_run\.json -> last_run\.json$/);
+    });
+
+    test('a folder that only starts with a scratch name is not scratch', () => {
+      finish(1);
+      const p = wt(root, 'AL-1-ui');
+      fs.mkdirSync(path.join(p, 'coverage-report'));
+      fs.writeFileSync(path.join(p, 'coverage-report', 'a.html'), 'x');
+      expect(go(mockRun()).kept[0].why).toBe('untracked: coverage-report/');
+    });
+
+    test('an empty list treats nothing as scratch (the old rule)', () => {
+      finish(1);
+      const p = wt(root, 'AL-1-ui');
+      fs.rmSync(path.join(p, 'coverage', '.last_run.json'));
+      config.reaper.worktree_scratch_paths = [];
+      expect(go(mockRun()).kept[0].why).toBe('1 tracked file(s) modified or staged: coverage/.last_run.json');
+    });
+
+    test('the apply-time re-check uses the scratch list too: a real edit made in between keeps the worktree', () => {
+      finish(1);
+      const p = wt(root, 'AL-1-ui');
+      fs.rmSync(path.join(p, 'coverage'), { recursive: true });
+      const m = mockRun({ agents: (reads) => { if (reads === 2) fs.appendFileSync(path.join(p, 'tracked.txt'), 'edit\n'); return []; } });
+      const report = go(m, { apply: true });
+      expect(report.candidates).toHaveLength(1);
+      expect(report.results[0]).toMatchObject({ outcome: 'skipped', detail: '1 tracked file(s) modified or staged: tracked.txt' });
+      expect(m.removals()).toEqual([]);
+    });
+
+    test('porcelainPaths and isScratch read quoted and moved paths', () => {
+      expect(porcelainPaths(' D coverage/index.html')).toEqual(['coverage/index.html']);
+      expect(porcelainPaths('R  "tmp/a b" -> "src/c\\"d"')).toEqual(['tmp/a b', 'src/c"d']);
+      expect(isScratch('tmp/', ['tmp/'])).toBe(true);
+      expect(isScratch('tmp', ['tmp'])).toBe(true);
+      expect(isScratch('tmpfile', ['tmp/'])).toBe(false);
+      expect(isScratch('spec/tmp/x', ['tmp/'])).toBe(false);
+      expect(isScratch('api/coverage/x', ['api/coverage'])).toBe(true);
+    });
+  });
+
+  test('evaluateWorktrees without a scratch list is an explicit error', () => {
+    expect(() => evaluateWorktrees([], { live: [], cwd: '/x', dirty: () => '' })).toThrow(/reaper\.worktree_scratch_paths/);
+  });
+
+  test('every run starts with a timestamp line, so the timer log reads per run', () => {
+    const text = renderWorktreeReap({ candidates: [], kept: [], non_worktree_folders: [], results: [], sizes: null }, { apply: true, now: new Date('2026-11-10T12:00:00Z') });
+    expect(text.split('\n')[0]).toBe('2026-11-10T12:00:00.000Z  conductor reap --worktrees --apply');
+  });
+
   test('evaluateWorktrees never asks git for a worktree an earlier rule already kept', () => {
     const dirty = jest.fn(() => '');
     const w = (over) => ({ repo: 'r', path: '/w/x', branch: 'b', ticket_ids: ['AL-1'], stage: 'done', ...over });
     const { candidates, kept } = evaluateWorktrees(
       [w({ stage: 'building' }), w({ ticket_ids: [], stage: 'no ticket' }), w({ locked: 'x' })],
-      { live: [], cwd: '/elsewhere', dirty },
+      { live: [], cwd: '/elsewhere', dirty, scratch: [] },
     );
     expect(candidates).toEqual([]);
     expect(kept).toHaveLength(3);

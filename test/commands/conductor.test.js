@@ -596,6 +596,50 @@ describe('bobby conductor', () => {
       expect(r.stderr).toMatch(/M4 only/);
     });
 
+    test('--print-plist prints a launchd job for `reap --worktrees --apply` every interval and changes nothing', () => {
+      const r = bobbyIn(['reap', '--worktrees', '--print-plist']);
+      expect(r.status).toBe(0);
+      const xml = r.stdout;
+      expect(xml).toMatch(/^<\?xml version="1.0" encoding="UTF-8"\?>\n<!DOCTYPE plist/);
+      expect(xml).toContain('<string>com.bobby.conductor.reap-worktrees</string>');
+      const args = [...xml.match(/<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/)[1].matchAll(/<string>([^<]*)<\/string>/g)].map(m => m[1]);
+      expect(path.isAbsolute(args[0])).toBe(true);
+      expect(args[1]).toBe(fs.realpathSync(bobby));
+      expect(args.slice(2)).toEqual(['conductor', 'reap', '--worktrees', '--apply']);
+      expect(xml).toMatch(/<key>StartInterval<\/key>\s*<integer>3600<\/integer>/);
+      expect(xml).toMatch(new RegExp(`<key>WorkingDirectory</key>\\s*<string>${fs.realpathSync(root)}</string>`));
+      expect(xml).toMatch(/<key>StandardOutPath<\/key>\s*<string>\/tmp\/bobby-reap-worktrees\.log<\/string>/);
+      expect(xml).toMatch(/<key>StandardErrorPath<\/key>\s*<string>\/tmp\/bobby-reap-worktrees\.log<\/string>/);
+      expect(xml).toMatch(new RegExp(`<key>PATH</key>\\s*<string>${fakeBin}`));
+      expect(fs.existsSync(doneWt)).toBe(true);
+      if (process.platform === 'darwin') {
+        const file = path.join(root, 'job.plist');
+        fs.writeFileSync(file, xml);
+        expect(execFileSync('plutil', ['-lint', file], { encoding: 'utf8' })).toMatch(/OK/);
+      }
+    });
+
+    test('--print-plist with --apply or --sizes, or without --worktrees, is an error', () => {
+      expect(bobbyIn(['reap', '--worktrees', '--print-plist', '--apply']).stderr).toMatch(/--print-plist only prints; drop --apply and --sizes/);
+      expect(bobbyIn(['reap', '--worktrees', '--print-plist', '--sizes']).stderr).toMatch(/--print-plist only prints/);
+      const r = bobbyIn(['reap', '--print-plist']);
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/--print-plist only applies to --worktrees/);
+    });
+
+    test('--print-plist refuses on a host that is not the M4', () => {
+      const r = bobbyIn(['reap', '--worktrees', '--print-plist'], { cpu: 'Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz' });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/M4 only/);
+    });
+
+    test('a conductor.yml without worktree_timer is an error naming the key', () => {
+      writeConductorYml(root, validYml(hookDir).replace(/worktree_timer:[\s\S]*$/, ''));
+      const r = bobbyIn(['reap', '--worktrees', '--print-plist']);
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/key "worktree_timer\.interval_minutes" is missing/);
+    });
+
     test('--stacks with --worktrees, and --sizes without --worktrees, are errors', () => {
       expect(bobbyIn(['reap', '--stacks', '--worktrees']).stderr).toMatch(/Pick one of --stacks and --worktrees/);
       const r = bobbyIn(['reap', '--sizes']);

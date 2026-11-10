@@ -20,10 +20,11 @@ describe('conductor config', () => {
       projects: ['alpha'],
       hook_state_dir: hookDir,
       governor: { min_free_ram_mb: 4096, max_docker_stacks: 4, min_free_disk_gb: 1 },
-      reaper: { stack_idle_hours: 2 },
+      reaper: { stack_idle_hours: 2, worktree_scratch_paths: ['coverage/', 'tmp/', 'log/'] },
       wip: { max_lanes: 6 },
       claims: { ttl_minutes: 30 },
       inbox: { stale_minutes: 30 },
+      worktree_timer: { interval_minutes: 60, log_file: '/tmp/bobby-reap-worktrees.log' },
     });
   });
 
@@ -35,12 +36,21 @@ describe('conductor config', () => {
     ['reaper.stack_idle_hours', `${govYml}reaper:\n  stack_idle_hours: 0\n`],
     ['reaper.stack_idle_hours', `${govYml}reaper:\n  stack_idle_hours: soon\n`],
     ['reaper', `${govYml}reaper: 2\n`],
+    ['reaper.worktree_scratch_paths', `${govYml}reaper:\n  stack_idle_hours: 2\n`],
+    ['reaper.worktree_scratch_paths', `${govYml}reaper:\n  stack_idle_hours: 2\n  worktree_scratch_paths:\n`],
+    ['reaper.worktree_scratch_paths', `${govYml}reaper:\n  stack_idle_hours: 2\n  worktree_scratch_paths: coverage/\n`],
+    ['reaper.worktree_scratch_paths', `${govYml}reaper:\n  stack_idle_hours: 2\n  worktree_scratch_paths: [7]\n`],
+    ['reaper.worktree_scratch_paths', `${govYml}reaper:\n  stack_idle_hours: 2\n  worktree_scratch_paths: ['']\n`],
+    ['reaper.worktree_scratch_paths', `${govYml}reaper:\n  stack_idle_hours: 2\n  worktree_scratch_paths: [/tmp]\n`],
+    ['reaper.worktree_scratch_paths', `${govYml}reaper:\n  stack_idle_hours: 2\n  worktree_scratch_paths: [../coverage]\n`],
+    ['reaper.worktree_scratch_paths', `${govYml}reaper:\n  stack_idle_hours: 2\n  worktree_scratch_paths: [.]\n`],
+    ['reaper.worktree_scratch_paths', `${govYml}reaper:\n  stack_idle_hours: 2\n  worktree_scratch_paths: [a//b]\n`],
   ])('a missing or invalid %s names the key', (key, yml) => {
     writeConductorYml(root, yml);
     expect(() => loadConductorConfig(root)).toThrow(new RegExp(`key "${key.replace('.', '\\.')}"`));
   });
 
-  const reaperYml = `${govYml}reaper:\n  stack_idle_hours: 2\n`;
+  const reaperYml = `${govYml}reaper:\n  stack_idle_hours: 2\n  worktree_scratch_paths: [coverage/]\n`;
   test.each([
     ['wip.max_lanes', reaperYml],
     ['wip.max_lanes', `${reaperYml}wip:\n  other: 1\n`],
@@ -67,6 +77,25 @@ describe('conductor config', () => {
   ])('a missing or invalid %s names the key', (key, yml) => {
     writeConductorYml(root, yml);
     expect(() => loadConductorConfig(root)).toThrow(new RegExp(`key "${key.replace('.', '\\.')}"`));
+  });
+
+  const inboxYml = `${wipYml}inbox:\n  stale_minutes: 30\n`;
+  test.each([
+    ['worktree_timer.interval_minutes', inboxYml],
+    ['worktree_timer', `${inboxYml}worktree_timer: 60\n`],
+    ['worktree_timer.interval_minutes', `${inboxYml}worktree_timer:\n  log_file: /x.log\n`],
+    ['worktree_timer.interval_minutes', `${inboxYml}worktree_timer:\n  interval_minutes: 0\n  log_file: /x.log\n`],
+    ['worktree_timer.interval_minutes', `${inboxYml}worktree_timer:\n  interval_minutes: 1.5\n  log_file: /x.log\n`],
+    ['worktree_timer.log_file', `${inboxYml}worktree_timer:\n  interval_minutes: 60\n`],
+    ['worktree_timer.log_file', `${inboxYml}worktree_timer:\n  interval_minutes: 60\n  log_file: reap.log\n`],
+  ])('a missing or invalid %s names the key (worktree timer)', (key, yml) => {
+    writeConductorYml(root, yml);
+    expect(() => loadConductorConfig(root)).toThrow(new RegExp(`key "${key.replace('.', '\\.')}"`));
+  });
+
+  test('an empty reaper.worktree_scratch_paths is a valid, explicit "nothing is scratch"', () => {
+    writeConductorYml(root, `${wipYml}inbox:\n  stale_minutes: 30\nworktree_timer:\n  interval_minutes: 60\n  log_file: /x.log\n`.replace('[coverage/]', '[]'));
+    expect(loadConductorConfig(root).reaper.worktree_scratch_paths).toEqual([]);
   });
 
   test.each([
@@ -110,16 +139,18 @@ describe('conductor config', () => {
       projects: ['alpha'],
       hook_state_dir: path.join(os.homedir(), '.bobby', 'hook-state'),
       governor: { min_free_ram_mb: 4096, max_docker_stacks: 4, min_free_disk_gb: 50 },
-      reaper: { stack_idle_hours: 2 },
+      reaper: { stack_idle_hours: 2, worktree_scratch_paths: ['coverage/', 'tmp/', 'log/'] },
       wip: { max_lanes: 6 },
       claims: { ttl_minutes: 30 },
       inbox: { stale_minutes: 30 },
+      worktree_timer: { interval_minutes: 60, log_file: path.join(os.homedir(), '.bobby', 'conductor-reap-worktrees.log') },
     });
     expect(loadConductorConfig(root)).toEqual(values);
     expect(fs.readFileSync(file, 'utf8')).toMatch(/wip:\n {2}max_lanes: 6\n/);
     expect(fs.readFileSync(file, 'utf8')).toMatch(/claims:\n {2}ttl_minutes: 30\n/);
     expect(fs.readFileSync(file, 'utf8')).toMatch(/governor:\n {2}min_free_ram_mb: 4096\n {2}max_docker_stacks: 4\n {2}min_free_disk_gb: 50\n/);
-    expect(fs.readFileSync(file, 'utf8')).toMatch(/reaper:\n {2}stack_idle_hours: 2\n/);
+    expect(fs.readFileSync(file, 'utf8')).toMatch(/reaper:\n {2}stack_idle_hours: 2\n {2}worktree_scratch_paths:\n {4}- coverage\/\n {4}- tmp\/\n {4}- log\/\n/);
+    expect(fs.readFileSync(file, 'utf8')).toMatch(/worktree_timer:\n {2}interval_minutes: 60\n {2}log_file: \//);
     expect(fs.readFileSync(file, 'utf8')).toMatch(/inbox:\n {2}stale_minutes: 30\n/);
   });
 
